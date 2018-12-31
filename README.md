@@ -3,6 +3,12 @@
 Automated Raspberry Pi Serial Console Server, with PushBullet Notification of IP changes, Automatic VPN termination...
 
 ------
+# Contents
+ - [What Does it Do](#what-does-it-do)
+ - [Components](#components)
+ - [Installation](#installation)
+ - [Credits](#credits)
+------
 
 ## What Does it Do
 
@@ -26,9 +32,13 @@ When ConsolePi receives an IP via DHCP on any interface it will first verify it'
 
 When ConsolePi receives a dynamic IP address.  A message is sent to your phone via PushBullet API with the IP so you can connect remotely.
 
+![Push Bullet Notification image](readme_content/ConsolePiPB1.png)
+
 When the Automatic VPN function successfully terminates the configured tunnel, the Tunnel IP is sent via PushBullet API
 
-Each Time a Notification is triggered all interface IPs are sent in the message along with the ConsolePi's default gatewway
+![Push Bullet Notification image](readme_content/ConsolePiPB2.png)
+
+Each Time a Notification is triggered all interface IPs are sent in the message along with the ConsolePi's default gateway
 
  
 
@@ -49,7 +59,9 @@ Each Time a Notification is triggered all interface IPs are sent in the message 
   - installation script also creates a udev rule creator.  It prompts the user to plug in serial adapters 1 at a time, creates udev rules for each.  This allows you to label the adapter.  i.e. adapter 1 is always going to be reachable on telnet port 7001 etc.
 
 
+## Installation
 
+Section Coming Soon
 
 
 ## CREDITS

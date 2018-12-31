@@ -1,0 +1,146 @@
+#! /bin/bash
+#
+# ser2net       init script for ser2net
+#
+#               Written by Miquel van Smoorenburg <miquels@cistron.nl>.
+#               Modified for Debian GNU/Linux
+#               by Ian Murdock <imurdock@gnu.ai.mit.edu>.
+#               Modified for ser2net by Marc Haber <mh+debian-packages@zugschlus.de>
+
+### BEGIN INIT INFO
+# Provides:          ser2net
+# Required-Start:    $network $remote_fs
+# Required-Stop:     $network $remote_fs
+# Should-Start:
+# Should-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Allows network connections to serial ports
+# Description:       This daemon allows telnet and tcp sessions to be established with a unit's serial ports.
+### END INIT INFO
+
+set -e
+
+if [ -r "/lib/lsb/init-functions" ]; then
+  . /lib/lsb/init-functions
+else
+  echo "E: /lib/lsb/init-functions not found, lsb-base (>= 3.0-6) needed"
+  exit 1
+fi
+
+if [ -n "$SER2NETDEBUG" ]; then
+  echo "now debugging $0 $@"
+  set -x
+fi
+
+LANG=C
+export LANG
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:usr/local/sbin
+DAEMON=/usr/local/sbin/ser2net
+NAME=ser2net
+DESC="Serial port to network proxy"
+PIDFILE=/run/$NAME.pid
+
+test -f $DAEMON || exit 0
+
+
+# Defaults
+CONFFILE="/etc/ser2net.conf"
+OPTIONS=""
+CONTROLPORT=""
+
+# Read config file (will override defaults above)
+[ -r /etc/default/ser2net ] && . /etc/default/ser2net
+
+# this is from madduck on IRC, 2006-07-06
+# There should be a better possibility to give daemon error messages
+# and/or to log things
+log()
+{
+  case "$1" in
+    [[:digit:]]*) success=$1; shift;;
+    *) :;;
+  esac
+  log_action_begin_msg "$1"; shift
+  log_action_end_msg ${success:-0} "$*"
+}
+
+start () {
+  if ! pidofproc -p "$PIDFILE" "$DAEMON" >/dev/null; then
+      start_daemon -p $PIDFILE $DAEMON ${CONTROLPORT:+-p} $CONTROLPORT -c $CONFFILE -P $PIDFILE $OPTIONS
+      ret=$?
+  else
+    log_failure_msg "already running!"
+    log_end_msg 1
+    exit 1
+  fi
+  return $ret
+}
+
+stop () {
+  # this is a workaround for #451529 as ser2net 2.5 does not delete its pidfile
+  SIG="${1:--TERM}"
+  killproc -p "$PIDFILE" "$DAEMON" "$SIG"
+  # this is a workaround for killproc -TERM not zapping the pidfile
+  if ! pidofproc -p "$PIDFILE" "$DAEMON" >/dev/null; then
+    rm -f $PIDFILE
+  fi
+}
+
+status()
+{
+  log_action_begin_msg "checking $DESC"
+  if pidofproc -p "$PIDFILE" "$DAEMON" >/dev/null; then
+    log_action_end_msg 0 "$NAME running"
+  else
+    if [ -e "$PIDFILE" ]; then
+      log_action_end_msg 1 "$NAME failed"
+      exit 1
+    else
+      log_action_end_msg 0 "$NAME not running"
+      exit 3
+    fi
+  fi
+}
+
+if ! [ -e "$CONFFILE" ]; then
+  log_failure_msg "Not starting ser2net: Conffile $CONFFILE missing"
+  log_end_msg 1
+  exit 1
+fi
+
+case "$1" in
+  start)
+        log_daemon_msg "Starting $DESC" "$NAME"
+        start
+        log_end_msg 0
+        ;;
+  stop)
+        log_daemon_msg "Stopping $DESC" "$NAME"
+        stop
+        log_end_msg 0
+        ;;
+  reload|force-reload)
+        log_daemon_msg "Reloading $DESC" "$NAME"
+        stop "-HUP"
+        log_end_msg 0
+        ;;
+  restart)
+        log_daemon_msg "Restarting $DESC" "$NAME"
+        stop
+        sleep 1
+        start
+        log_end_msg 0
+        ;;
+  status)
+        status
+        ;;
+  *)
+        N=/etc/init.d/$NAME
+        echo "Usage: $N {start|stop|restart|reload|force-reload|status}" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

@@ -7,6 +7,7 @@ Automated Raspberry Pi Serial Console Server, with PushBullet Notification of IP
  - [What Does it Do](#what-does-it-do)
  - [Components](#components)
  - [Installation](#installation)
+ - [Tested Hardware](#tested-hardware)
  - [Credits](#credits)
 ------
 
@@ -63,6 +64,14 @@ Each Time a Notification is triggered all interface IPs are sent in the message 
 
 Section Coming Soon
 
+## Tested Hardware
+
+ConsolePi has been tested on the following:
+- RaspberryPi 3 Model B+
+  - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery), all worked fine *other than the known over-current errors on the original PoE Hat - still wored on my PoE switch*
+- RaspberryPi zero w
+  - With both single port micro-usb otg USB adapter and multi-port otg usb-hub
+  *I did notice with some serial adapters the RaspberryPi zero w Would reboot when it was plugged in, this is with a RaspberryPi power-supply.  They work fine, it just caused it to reboot when initially plugged-in*
 
 ## CREDITS
 

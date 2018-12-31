@@ -1,0 +1,12 @@
+push=true							# PushBullet Notifications: true - enable, false - disable
+push_all=true							# PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden
+push_api_key="PutYourPBAPIKeyHereChangeMe:"			# PushBullet API key
+push_iden="putyourPBidenHere"					# iden of device to send PushBullet notification to if not push_all
+ovpn_enable=true						# if enabled will establish VPN connection
+push_all=true							# true - push to all devices, false - push only to push_iden
+vpn_check_ip="10.0.150.1"					# used to check VPN (internal) connectivity should be ip only reachable via VPN
+net_check_ip="8.8.8.8"						# used to check internet connectivity
+local_domain="arubalab.net"					# used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn
+wlan_ip="10.3.0.1"						# IP of consolePi when in hotspot mode
+wlan_ssid="ConsolePi"						# SSID used in hotspot mode
+wlan_psk="ChangeMe!!"						# psk used for hotspot SSID

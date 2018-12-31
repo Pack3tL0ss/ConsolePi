@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Locally Defined Variables
-push_response_log="/var/log/consolePi/push_response.log"            # full path to send PushBullet API responses
-ovpn_log="/var/log/consolePi/ovpn.log"                              # full path to send openvpn logs
+push_response_log="/var/log/ConsolePi/push_response.log"            # full path to send PushBullet API responses
+ovpn_log="/var/log/ConsolePi/ovpn.log"                              # full path to send openvpn logs
 ovpn_config="/etc/openvpn/client/ConsolePi.ovpn"	                # full path to openvpn configuration
 ovpn_creds="/etc/openvpn/client/credentials"                        # full path to openvpn creds file with username password
 ovpn_options="--persist-remote-ip --ping 15"                        # openvpn command line options 

@@ -7,30 +7,34 @@
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.  For manual setup instructions and more detail seee <github link>              -- #
 # --                                                                                                                                             -- #
-# --  This was a mistake... should have done this in Python, Never doing anything beyond simple in bash, but I was a couple 100 lines in when    -- #
-# --  I had that epiphany so bash it is.																									     -- #
+# --  This was a mistake... should have done this in Python, Never do anything beyond simple in bash, but I was a couple 100 lines in when       -- #
+# --  I had that epiphany so bash it is... for now  																						     -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 # -- Installation Defaults --
 consolepi_dir="/etc/ConsolePi"
+default_config="/etc/default/ConsolePi.conf"
+ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download"
+consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
+mydir=`pwd`
 
 # -- Build Config File and Directory Structure - Read defaults from config
 get_defaults() {
-	if [ ! -f "${consolepi_dir}/"config ]; then
+	if [ ! -f "${default_config}" ]; then
 		# This indicates it's the first time the script has ran
-		[ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
-		echo "push=true							# PushBullet Notifications: true - enable, false - disable" > ${consolepi_dir}/config
-		echo "push_all=true							# PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> ${consolepi_dir}/config
-		echo "push_api_key=\"PutYourPBAPIKeyHereChangeMe:\"			# PushBullet API key" >> ${consolepi_dir}/config
-		echo "push_iden=\"putyourPBidenHere\"					# iden of device to send PushBullet notification to if not push_all" >> ${consolepi_dir}/config
-		echo "ovpn_enable=true						# if enabled will establish VPN connection" >> ${consolepi_dir}/config
-		echo "push_all=true							# true - push to all devices, false - push only to push_iden" >> ${consolepi_dir}/config
-		echo "vpn_check_ip=\"10.0.150.1\"					# used to check VPN (internal) connectivity should be ip only reachable via VPN" >> ${consolepi_dir}/config
-		echo "net_check_ip=\"8.8.8.8\"						# used to check internet connectivity" >> ${consolepi_dir}/config
-		echo "local_domain=\"arubalab.net\"					# used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> ${consolepi_dir}/config
-		echo "wlan_ip=\"10.3.0.1\"						# IP of consolePi when in hotspot mode" >> ${consolepi_dir}/config
-		echo "wlan_ssid=\"ConsolePi\"						# SSID used in hotspot mode" >> ${consolepi_dir}/config
-		echo "wlan_psk=\"ChangeMe!!\"						# psk used for hotspot SSID" >> ${consolepi_dir}/config
+		# [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
+		echo "push=true							# PushBullet Notifications: true - enable, false - disable" > "${default_config}"
+		echo "push_all=true							# PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
+		echo "push_api_key=\"PutYourPBAPIKeyHereChangeMe:\"			# PushBullet API key" >> "${default_config}"
+		echo "push_iden=\"putyourPBidenHere\"					# iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
+		echo "ovpn_enable=true						# if enabled will establish VPN connection" >> "${default_config}"
+		echo "push_all=true							# true - push to all devices, false - push only to push_iden" >> "${default_config}"
+		echo "vpn_check_ip=\"10.0.150.1\"					# used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
+		echo "net_check_ip=\"8.8.8.8\"						# used to check internet connectivity" >> "${default_config}"
+		echo "local_domain=\"arubalab.net\"					# used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
+		echo "wlan_ip=\"10.3.0.1\"						# IP of consolePi when in hotspot mode" >> "${default_config}"
+		echo "wlan_ssid=\"ConsolePi\"						# SSID used in hotspot mode" >> "${default_config}"
+		echo "wlan_psk=\"ChangeMe!!\"						# psk used for hotspot SSID" >> "${default_config}"
 		header
 		echo "Configuration File Created with default values. Enter Y to continue in Interactive Mode"
 		echo "which will prompt you for each value. Enter N to exit the script, so you can modify the"
@@ -40,14 +44,14 @@ get_defaults() {
 		user_input true "${prompt}"
 		continue=$result
 		if ! $continue; then 
-			echo "Please edit config in ${consolepi_dir}/config using editor (i.e. nano) and re-run script"
-			echo "i.e. \"sudo nano ${consolepi_dir}/config\""
+			header
+			echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run script"
+			echo "i.e. \"sudo nano ${default_config}\""
+			echo
 			exit 0
-		else
-			first_run=true
 		fi
 	fi
-	. "$consolepi_dir"/config
+	. "$default_config"
 	hotspot_dhcp_range
 }
 
@@ -220,8 +224,8 @@ collect() {
 
 verify() {
 	header
-	$first_run && header_txt=">>DEFAULT VALUES CHANGE THESE<<" || header_txt="--->>PLEASE VERIFY VALUES<<----"
-	echo "-----------------------------------------${header_txt}----------------------------------------"
+	# $first_run && header_txt=">>DEFAULT VALUES CHANGE THESE<<" || header_txt="--->>PLEASE VERIFY VALUES<<----"
+	echo "-------------------------------------------->>PLEASE VERIFY VALUES<<--------------------------------------------"
 	echo                                                                  
 	echo " Send Notifications via PushBullet?:				$push"
 	if $push; then
@@ -241,20 +245,174 @@ verify() {
 	echo "  *hotspot DHCP Range:						${wlan_dhcp_start} to ${wlan_dhcp_end}"
 	echo " ConsolePi Hot Spot SSID:			            	$wlan_ssid"
 	echo " ConsolePi Hot Spot psk:			            	$wlan_psk"
+	echo
 	echo "----------------------------------------------------------------------------------------------------------------"
 	echo
-	if ! $first_run; then
+	# if ! $first_run; then
 		echo "Enter Y to Continue N to make changes"
 		echo
 		printf "Are Values Correct? (Y/N): "
 		read input
 		([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ]) && input=true || input=false
+	# else
+		# first_run=false
+		# echo "Press Any Key to Edit Defaults"
+		# read
+		# input=fase
+	# fi
+}
+
+updatepi () {
+	header
+	echo "Starting Install"
+	echo "1)---- updating RaspberryPi (aptitude) -----"
+	apt-get update && apt-get -y upgrade
+	echo
+	sudo apt-get -y dist-upgrade
+	sudo apt-get -y autoremove
+	echo
+	echo "2)---------- installing git ----------------"
+	sudo apt-get -y install git
+	echo "Raspberry Pi Update Complete"
+}
+
+gitConsolePi () {
+	echo
+	echo "3)------ fetching ConsolePi Package --------"
+	cd "/etc"
+	git clone "${consolepi_source}"
+	echo "--Complete"
+}
+
+install_ser2net () {
+	echo
+	echo "4)------- installing ser2net from source -------"
+	cd /usr/local/bin
+	echo
+	echo "4A)----------retrieving source package----------"
+	wget "${ser2net_source}" -O ./ser2net.tar.gz
+	echo "wget finished return value ${?}"
+	echo
+	echo "4B)----------extracting source package----------"
+	tar -zxf ser2net.tar.gz
+	echo "--extraction Complete"
+	echo
+	echo "4C)---------------- ./configure ----------------"
+	cd ser2net*/
+	./configure
+	echo "configure finished return value ${?}"
+	echo
+	echo "4D)------------------- make --------------------"	
+	echo "make finished return value ${?}"
+	echo
+	echo "4E)--------------- make install ----------------"
+	make install
+	echo "make install finished return value ${?}"
+	echo
+	echo "4F)--------------- make clean ------------------"
+	make clean
+	echo "ser2net installation now complete. "
+	echo
+	echo "4G)---Generating Configuration and init file----"
+	cp /etc/ConsolePi/src/ser2net.conf /etc/
+	cp /etc/ConsolePi/src/ser2net.init /etc/init.d/ser2net
+	chmod +x /etc/init.d/ser2net
+	echo
+	echo "4H)--------- enable ser2net init --------------"
+	/lib/systemd/systemd-sysv-install enable ser2net
+	systemctl daemon-reload
+	echo "ser2net install complete with default ConsolePi Configuration"
+}
+
+gen_dnsmasq_conf () {
+	printf "\n5)--Generating Files for dnsmasq."
+	echo "# No Default Gateway provided with DHCP (consolePi Does this when no link on eth0)" > /etc/ConsolePi/dnsmasq.conf.noGW && printf "."
+	echo "# Default Gateway *is* provided with DHCP (consolePi Does this when eth0 is up)" > /etc/ConsolePi/dnsmasq.conf.withGW && printf "."
+	common_text="interface=wlan0\nbogus-priv\ndomain-needed\ndhcp-range=${wlan_dhcp_start},${wlan_dhcp_end},255.255.255.0,12h"
+	echo -e "$common_text" >> /etc/ConsolePi/dnsmasq.conf.noGW && printf "."
+	echo -e "$common_text" >> /etc/ConsolePi/dnsmasq.conf.withGW && printf "."
+	echo "dhcp-option=wlan0,3" >> /etc/ConsolePi/dnsmasq.conf.noGW && printf "Done\n"
+}
+
+dhcp_run_hook() {
+	printf "\n6)---- update/create dhcp.exit-hook ----------\n"
+	[[ -f /etc/dhcpcd.exit-hook ]] && exists=true || exists=false
+	if $exists; then
+		is_there=`cat /etc/dhcpcd.exit-hook |grep -c /etc/ConsolePi/ConsolePi.sh`
+		lines=$(wc -l < "/etc/dhcpcd.exit-hook")
+		if [[ $is_there > 0 ]] && [[ $lines > 1 ]]; then
+			[[ ! -d "/etc/ConsolePi/originals" ]] && mkdir /etc/ConsolePi/originals
+			mv /etc/dhcpcd.exit-hook /etc/ConsolePi/originals/dhcpcd.exit-hook
+			echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook"
+		elif [[ $is_there == 0 ]]; then
+			echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" >> "/etc/dhcpcd.exit-hook"
+		else
+			echo "No Change Necessary ${is_there} ${lines} exit-hook already configured."
+		fi
 	else
-		first_run=false
-		echo "Press Any Key to Edit Defaults"
-		read
-		input=fase
+		echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook"
 	fi
+}
+
+ConsolePi_cleanup() {
+	printf "\n6)---- enable Cleanup init script ----------\n"
+	cp "/etc/ConsolePi/src/ConsolePi_cleanup" "/etc/init.d"
+	chmod +x /etc/init.d/ConsolePi_cleanup
+	/lib/systemd/systemd-sysv-install enable ConsolePi_cleanup
+	echo "--Done"
+}
+
+install_ovpn() {
+	printf "\n7)----------- install openvpn --------------\n"
+	sudo apt-get -y install openvpn
+	if ! $ovpn_enable; then
+		"    OpenVPN is installed, in case it's wanted later"
+		"    The init script is being disabled as you are currently"
+		"    choosing not to use it"
+		/lib/systemd/systemd-sysv-install disable openvpn
+	else
+		/lib/systemd/systemd-sysv-install enable openvpn
+	cp /etc/ConsolePi/src/ConsolePi.ovpn.example /etc/openvpn/client
+	cp /etc/ConsolePi/src/ovpn_credentials /etc/openvpn/client
+}
+		
+	
+
+ovpn_graceful_shutdown() {
+	printf "\n8)---- ovpn graceful shutdown on reboot -----\n"
+	this_file="/etc/systemd/system/reboot.target.wants/ovpn-graceful-shutdown"
+	echo "[Unit]" > "${this_file}"
+	echo "Description=Gracefully terminates any ovpn sessions on shutdown/reboot" >> "${this_file}"
+	echo "DefaultDependencies=no" >> "${this_file}"
+	echo "Before=networking.service" >> "${this_file}"
+	echo "" >> "${this_file}"
+	echo "[Service]" >> "${this_file}"
+	echo "Type=oneshot" >> "${this_file}"
+	echo "ExecStart=/bin/sh -c 'pkill -SIGTERM -e -F /var/run/ovpn.pid '" >> "${this_file}"
+	echo "" >> "${this_file}"
+	echo "[Install]" >> "${this_file}"
+	echo "WantedBy=reboot.target halt.target poweroff.target" >> "${this_file}"
+	chmod +x "${this_file}"
+	echo "--Done"
+}
+
+ovpn_logging() {
+	printf "\n9)----------- openvpn logging --------------\n"
+	
+	[[ ! -d "/var/log/ConsolePi" ]] && mkdir /var/log/ConsolePi
+	touch /var/log/ConsolePi/ovpn.log
+	touch /var/log/ConsolePi/push_response.log
+	echo "/var/log/ConsolePi/ovpn.log" > "/etc/logrotate.d/ConsolePi"
+	echo "/var/log/ConsolePi/push_response.log" >> "/etc/logrotate.d/ConsolePi"
+	echo "{" >> "/etc/logrotate.d/ConsolePi"
+	echo "		rotate 4" >> "/etc/logrotate.d/ConsolePi"
+	echo "		weekly" >> "/etc/logrotate.d/ConsolePi"
+	echo "		missingok" >> "/etc/logrotate.d/ConsolePi"
+	echo "		notifempty" >> "/etc/logrotate.d/ConsolePi"
+	echo "		compress" >> "/etc/logrotate.d/ConsolePi"
+	echo "		delaycompress" >> "/etc/logrotate.d/ConsolePi"
+	echo "}" >> "/etc/logrotate.d/ConsolePi"
+	echo "--Done"
 }
 
 main() {
@@ -266,6 +424,16 @@ if [ "${iam}" = "root" ]; then
 		collect "fix"
 		verify
 	done
+	updatepi
+	gitConsolePi
+	install_ser2net
+	gen_dnsmasq_conf
+	dhcp_run_hook
+	ConsolePi_cleanup
+	install_ovpn
+	ovpn_graceful_shutdown
+	ovpn_logging
+	cd "${mydir}"
 else
   echo 'Script should be ran as root. exiting.'
 fi

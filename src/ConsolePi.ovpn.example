@@ -1,0 +1,48 @@
+dev tun0
+persist-tun
+persist-key
+persist-local-ip
+persist-remote-ip
+cipher AES-256-CBC
+ncp-disable
+auth SHA1
+tls-client
+client
+resolv-retry infinite
+remote vpn.example.com 1194 udp
+lport 0
+verify-x509-name "vpn.example.com" name
+auth-user-pass
+remote-cert-tls server
+auth-nocache
+<ca>
+-----BEGIN CERTIFICATE-----
+<redacted>
+-----END CERTIFICATE-----
+</ca>
+<cert>
+-----BEGIN CERTIFICATE-----
+<redacted>
+-----END CERTIFICATE-----
+</cert>
+<key>
+-----BEGIN PRIVATE KEY-----
+<redacted>
+-----END PRIVATE KEY-----
+</key>
+<tls-auth>
+#
+# 2048 bit OpenVPN static key
+#
+-----BEGIN OpenVPN Static key V1-----
+<redacted>
+-----END OpenVPN Static key V1-----
+</tls-auth>
+key-direction 1
+# ------------------- THE LINES BELOW SHOULD BE INCLUDED for ConsolePi functionality -------------------
+# Everything above can be configured however you want, based on how your openVPN server is configured
+# The Lines Below are necessary to get Push Notifications once VPN is established
+# ------------------------------------------------------------------------------------------------------
+script-security 2
+# run push script to send notification of successful VPN connection
+up "/etc/dhcpcd.exit-hook OVPN"

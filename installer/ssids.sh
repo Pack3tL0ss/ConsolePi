@@ -4,18 +4,18 @@
 known_ssid_init() {
 	continue=true
 	psk_valid=false
-	temp_file="/tmp/wpa_temp"
+	wpa_temp_file="/tmp/wpa_temp"
 	wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 	header_txt="----------------->>Enter Known SSIDs - ConsolePi will attempt connect to these if available prior to switching to HotSpot mode<<-----------------\n"
 }
 
-init_temp_file() {
-	[[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${temp_file}" || touch "${temp_file}"
-	echo "# ssids added by ConsolePi install script (it's OK to edit manually)" >> "$temp_file"
+init_wpa_temp_file() {
+	[[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" || touch "${wpa_temp_file}"
+	echo "# ssids added by ConsolePi install script (it's OK to edit manually)" >> "$wpa_temp_file"
 }
 
 known_ssid_main() {
-	init_temp_file
+	init_wpa_temp_file
 	while $continue; do
 		# -- Known ssid --
 		prompt="Input SSID" && header && echo -e $header_txt
@@ -26,10 +26,10 @@ known_ssid_main() {
 		if [[ $match > 0 ]]; then
 			temp=" ${ssid} is already defined, please edit ${wpa_supplicant_file}\n manually or remove the ssid and re-run add_ssid.sh"
 		fi
-		if [ -f "${temp_file}" ]; then
-			temp_match=`cat "${temp_file}" |grep -c "${ssid}"`
+		if [ -f "${wpa_temp_file}" ]; then
+			temp_match=`cat "${wpa_temp_file}" |grep -c "${ssid}"`
 			if [[ $temp_match > 0 ]]; then
-				init_temp_file
+				init_wpa_temp_file
 				echo " ${ssid} already added during this session, over-writing all previous entries."
 			fi
 		fi
@@ -80,7 +80,7 @@ known_ssid_main() {
 		prompt="Enter Y to accept as entered or N to reject and re-enter"
 		user_input true "${prompt}"
 		if $result; then
-			[[ $match == 0 ]] && echo -e "$temp" >> $temp_file
+			[[ $match == 0 ]] && echo -e "$temp" >> $wpa_temp_file
 			prompt="Do You have additional SSIDs to define? (Y/N)"
 			user_input false "${prompt}"
 			continue=$result
@@ -94,5 +94,6 @@ known_ssid_main() {
 get_known_ssids() {
     known_ssid_init
 	known_ssid_main
-    cat "$temp_file"
+	mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
+    mv "$wpa_temp_file" "$wpa_supplicant_file"
 }

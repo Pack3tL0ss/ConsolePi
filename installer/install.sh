@@ -15,7 +15,7 @@
 # -- Installation Defaults --
 consolepi_dir="/etc/ConsolePi"
 src_dir="${consolepi_dir}/src"
-orig_dir="${consolepi_)dir}/originals"
+orig_dir="${consolepi_dir}/originals"
 default_config="/etc/default/ConsolePi.conf"
 mydir=`pwd`
 

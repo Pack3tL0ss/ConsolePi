@@ -5,7 +5,6 @@ Automated Raspberry Pi Serial Console Server, with PushBullet Notification of IP
 ------
 # Contents
  - [What Does it Do](#what-does-it-do)
- - [Components](#components)
  - [Installation](#installation)
  - [Tested Hardware](#tested-hardware)
  - [Credits](#credits)
@@ -41,28 +40,16 @@ When the Automatic VPN function successfully terminates the configured tunnel, t
 
 Each Time a Notification is triggered all interface IPs are sent in the message along with the ConsolePi's default gateway
 
- 
-
-##  Components
-
-*Some of the components utilize other projects see Credits section for source details.*
-
-- ser2net
-- AutoHotSpotN
-- udev rules (predictable port numbers based on the usb to serial adapter used)
-- dnsmasq configuration which is dynamically changed based on wired port reachability (pass gateway to clients or not based on wired port status)
-- dhcpcd: configure dhcp client with fallback to static if transitioning to hotspot mode
-- ConsolePi script (triggered via dhcp-run-hooks). Runs anytime an IP is assigned to an interface.  Controls dhcp server configuration, PushBullet Notification, OpenVPN Connection, etc.
-- init script to reset on boot: Resets some temporary files used to compare IPs to determine if a notification should be sent.  The temp files prevent PushBullet from re-sending a notification if DHCP re-spins, but it's the same IP.  The reset script resets these values on boot.
-- OpenVPN Configuration:  Most of the ovpn config would be dependent on how you've configured the OpenVPN server... There are some additional lines appended to trigger Notification on successful VPN connection.
-- Configure OpenVPN to log to /var/log/ConsolePi directory and configure log rotation
-- Installation Script:  Grabs everything from this repository, and from external source.  Accepts Configuration File with defaults (which can be edited prior to run if desired).  Prompts user for values interactively, installs necessary components and places files etc. in necessary locations.  
-  - installation script also creates a udev rule creator.  It prompts the user to plug in serial adapters 1 at a time, creates udev rules for each.  This allows you to label the adapter.  i.e. adapter 1 is always going to be reachable on telnet port 7001 etc.
-
-
 ## Installation
+*This script is a work in progress likely to result in errors at the moment*
 
-Section Coming Soon
+**Automatic Installation**
+```
+wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi
+```
+**Manual Installation**
+
+coming soon
 
 ## Tested Hardware
 

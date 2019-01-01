@@ -377,8 +377,8 @@ install_ovpn() {
 		/lib/systemd/systemd-sysv-install disable openvpn
 	else
 		/lib/systemd/systemd-sysv-install enable openvpn
-	cp /etc/ConsolePi/src/ConsolePi.ovpn.example /etc/openvpn/client
-	cp /etc/ConsolePi/src/ovpn_credentials /etc/openvpn/client
+	cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client"
+	cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client"
 }
 
 ovpn_graceful_shutdown() {

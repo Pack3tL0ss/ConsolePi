@@ -7,10 +7,15 @@ known_ssid_init() {
 	temp_file="/tmp/wpa_temp"
 	wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 	header_txt="----------------->>Enter Known SSIDs - ConsolePi will attempt connect to these if available prior to switching to HotSpot mode<<-----------------\n"
-	echo "# ssids added by ConsolePi install script (it's OK to edit manually)" > "$temp_file"
+}
+
+init_temp_file() {
+	[[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${temp_file}" || touch "${temp_file}"
+	echo "# ssids added by ConsolePi install script (it's OK to edit manually)" >> "$temp_file"
 }
 
 known_ssid_main() {
+	init_temp_file
 	while $continue; do
 		# -- Known ssid --
 		prompt="Input SSID" && header && echo -e $header_txt
@@ -24,7 +29,7 @@ known_ssid_main() {
 		if [ -f "${temp_file}" ]; then
 			temp_match=`cat "${temp_file}" |grep -c "${ssid}"`
 			if [[ $temp_match > 0 ]]; then
-				echo "# ssids added by ConsolePi install script (it's OK to edit manually)" > "$temp_file"
+				init_temp_file
 				echo " ${ssid} already added during this session, over-writing all previous entries."
 			fi
 		fi
@@ -85,4 +90,9 @@ known_ssid_main() {
 		fi
 	done
 }
-cat "$temp_file"
+
+get_known_ssids() {
+    known_ssid_init
+	known_ssid_main
+    cat "$temp_file"
+}

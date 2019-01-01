@@ -398,7 +398,6 @@ ovpn_graceful_shutdown() {
 
 ovpn_logging() {
 	printf "\n9)----------- openvpn logging --------------\n"
-	
 	[[ ! -d "/var/log/ConsolePi" ]] && mkdir /var/log/ConsolePi
 	touch /var/log/ConsolePi/ovpn.log
 	touch /var/log/ConsolePi/push_response.log
@@ -413,6 +412,38 @@ ovpn_logging() {
 	echo "		delaycompress" >> "/etc/logrotate.d/ConsolePi"
 	echo "}" >> "/etc/logrotate.d/ConsolePi"
 	echo "--Done"
+}
+
+dhcpcd_conf () {
+        printf "\n9)----------- configure dhcp client and static fallback --------------\n"
+        [[ -f /etc/dhcpcd.conf ]] && mv /etc/dhcpcd.conf /etc/ConsolePi/originals
+        mv /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf
+        res=$?
+        if [[ $res == 0 ]]; then
+			echo "" >> "/etc/dhcpcd.conf"
+			echo "# wlan static fallback profile" >> "/etc/dhcpcd.conf"
+			echo "profile static_wlan0" >> "/etc/dhcpcd.conf"
+			echo "static ip_address=${wlan_ip}/24" >> "/etc/dhcpcd.conf"
+			echo "" >> "/etc/dhcpcd.conf"
+			echo "# wired static fallback profile" >> "/etc/dhcpcd.conf"
+			echo "# defined - currently commented out/disabled" >> "/etc/dhcpcd.conf"
+			echo "profile static_eth0" >> "/etc/dhcpcd.conf"
+			echo "static ip_address=192.168.25.10/24" >> "/etc/dhcpcd.conf"
+			echo "static routers=192.168.25.1" >> "/etc/dhcpcd.conf"
+			echo "static domain_name_servers=1.0.0.1 8.8.8.8" >> "/etc/dhcpcd.conf"
+			echo "" >> "/etc/dhcpcd.conf"
+			echo "# Assign fallback to static profile on wlan0" >> "/etc/dhcpcd.conf"
+			echo "interface wlan0" >> "/etc/dhcpcd.conf"
+			echo "fallback static_wlan0" >> "/etc/dhcpcd.conf"
+			echo "interface eth0" >> "/etc/dhcpcd.conf"
+			echo "# fallback static_eth0" >> "/etc/dhcpcd.conf"
+			echo "" >> "/etc/dhcpcd.conf"
+			echo "#For AutoHotkeyN" >> "/etc/dhcpcd.conf"
+			echo "nohook wpa_supplicant" >> "/etc/dhcpcd.conf"
+			else
+			echo "$(date) [9.]dhcp client and static fallback - dhcpcd.conf [ERROR] Error Code (${res}}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
+			echo "$(date) [9.]dhcp client and static fallback - dhcpcd.conf [ERROR] To Remediate Please verify dhcpcd.conf and configure manually after install completes"
+        fi
 }
 
 main() {

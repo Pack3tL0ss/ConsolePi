@@ -369,16 +369,17 @@ ConsolePi_cleanup() {
 
 install_ovpn() {
 	printf "\n7)----------- install openvpn --------------\n"
-	# sudo apt-get -y install openvpn
-	# if ! $ovpn_enable; then
-		# "    OpenVPN is installed, in case it's wanted later"
-		# "    The init script is being disabled as you are currently"
-		# "    choosing not to use it"
-		# /lib/systemd/systemd-sysv-install disable openvpn
-	# else
-		# /lib/systemd/systemd-sysv-install enable openvpn
-	# cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client"
-	# cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client"
+	sudo apt-get -y install openvpn
+	if ! $ovpn_enable; then
+		"    OpenVPN is installed, in case it's wanted later"
+		"    The init script is being disabled as you are currently"
+		"    choosing not to use it"
+		/lib/systemd/systemd-sysv-install disable openvpn
+	else
+		/lib/systemd/systemd-sysv-install enable openvpn
+	fi
+	cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client"
+	cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client"
 }
 
 ovpn_graceful_shutdown() {

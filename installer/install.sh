@@ -5,18 +5,24 @@
 # --  Wade Wells - Dec, 2018  v1.0                                                                                                               -- #
 # --    eMail Wade with any bugs or suggestions, if you don't know Wade's eMail, then don't eMail Wade :)                                        -- #
 # --                                                                                                                                             -- #
-# --  This script aims to automate the installation of ConsolePi.  For manual setup instructions and more detail seee <github link>              -- #
+# --  This script aims to automate the installation of ConsolePi.																				 -- #
+# --  For manual setup instructions and more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                -- #
 # --                                                                                                                                             -- #
-# --  This was a mistake... should have done this in Python, Never do anything beyond simple in bash, but I was a couple 100 lines in when       -- #
+# --  ** This was a mistake... should have done this in Python, Never do anything beyond simple in bash, but I was a couple 100 lines in when    -- #
 # --  I had that epiphany so bash it is... for now  																						     -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 # -- Installation Defaults --
 consolepi_dir="/etc/ConsolePi"
+src_dir="${consolepi_dir}/src"
+orig_dir="${consolepi_)dir}/originals"
 default_config="/etc/default/ConsolePi.conf"
+mydir=`pwd`
+
+# -- External Sources --
 ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download"
 consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
-mydir=`pwd`
+
 
 # -- Build Config File and Directory Structure - Read defaults from config
 get_defaults() {
@@ -219,6 +225,12 @@ collect() {
 	prompt="Enter the psk used for the HotSpot SSID"
 	user_input $wlan_psk "${prompt}"
 	wlan_psk=$result
+	
+	# -- HotSpot country --
+	header
+	prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
+	user_input "US" "${prompt}"
+	wlan_country=$result
 	# fi
 }
 
@@ -245,6 +257,7 @@ verify() {
 	echo "  *hotspot DHCP Range:						${wlan_dhcp_start} to ${wlan_dhcp_end}"
 	echo " ConsolePi Hot Spot SSID:			            	$wlan_ssid"
 	echo " ConsolePi Hot Spot psk:			            	$wlan_psk"
+	echo " ConsolePi Hot Spot regulatory domain:	        $wlan_country"
 	echo
 	echo "----------------------------------------------------------------------------------------------------------------"
 	echo
@@ -264,7 +277,7 @@ verify() {
 
 updatepi () {
 	header
-	echo "Starting Install"
+	echo "$(date) ConsolePi Installer[INFO] Installation Starting"
 	echo "1)---- updating RaspberryPi (aptitude) -----"
 	apt-get update && apt-get -y upgrade
 	echo
@@ -324,18 +337,8 @@ install_ser2net () {
 	echo "ser2net install complete with default ConsolePi Configuration"
 }
 
-gen_dnsmasq_conf () {
-	printf "\n5)--Generating Files for dnsmasq."
-	echo "# No Default Gateway provided with DHCP (consolePi Does this when no link on eth0)" > /etc/ConsolePi/dnsmasq.conf.noGW && printf "."
-	echo "# Default Gateway *is* provided with DHCP (consolePi Does this when eth0 is up)" > /etc/ConsolePi/dnsmasq.conf.withGW && printf "."
-	common_text="interface=wlan0\nbogus-priv\ndomain-needed\ndhcp-range=${wlan_dhcp_start},${wlan_dhcp_end},255.255.255.0,12h"
-	echo -e "$common_text" >> /etc/ConsolePi/dnsmasq.conf.noGW && printf "."
-	echo -e "$common_text" >> /etc/ConsolePi/dnsmasq.conf.withGW && printf "."
-	echo "dhcp-option=wlan0,3" >> /etc/ConsolePi/dnsmasq.conf.noGW && printf "Done\n"
-}
-
 dhcp_run_hook() {
-	printf "\n6)---- update/create dhcp.exit-hook ----------\n"
+	printf "\n5)---- update/create dhcp.exit-hook ----------\n"
 	[[ -f /etc/dhcpcd.exit-hook ]] && exists=true || exists=false
 	if $exists; then
 		is_there=`cat /etc/dhcpcd.exit-hook |grep -c /etc/ConsolePi/ConsolePi.sh`
@@ -377,8 +380,6 @@ install_ovpn() {
 	cp /etc/ConsolePi/src/ConsolePi.ovpn.example /etc/openvpn/client
 	cp /etc/ConsolePi/src/ovpn_credentials /etc/openvpn/client
 }
-		
-	
 
 ovpn_graceful_shutdown() {
 	printf "\n8)---- ovpn graceful shutdown on reboot -----\n"
@@ -416,8 +417,110 @@ ovpn_logging() {
 	echo "--Done"
 }
 
+install_autohotspotn () {
+	printf "\n10)----------- Install AutoHotSpotN --------------\n"
+	[[ -f "${src_dir}/autohotspotN" ]] && mv "${src_dir}/autohotspotN" /usr/bin
+	echo "$(date) [10.]autohotspotN [INFO] Installing hostapd via apt."
+	apt-get -y install hostapd && res=$?
+	[[ $res == 0 ]] && echo "$(date) [10.]autohotspotN - hostapd [INFO] Install Complete with no error." || "$(date) [10.]autohotspotN - hostapd [ERROR] Installation Error."
+	echo "$(date) [10.]autohotspotN [INFO] Installing dnsmasq via apt."
+	apt-get -y install dnsmasq && res=$?
+	[[ $res == 0 ]] && echo "$(date) [10.]autohotspotN - dnsmasq [INFO] Install Complete with no error." || "$(date) [10.]autohotspotN - dnsmasq [ERROR] Installation Error."
+	systemctl disable hostapd
+	systemctl disable dnsmasq
+
+	echo "$(date) [10.]autohotspotN [INFO] Configuring hostapd.conf"
+	[[ -f "/etc/hostapd/hostapd.conf" ]] && mv "/etc/hostapd/hostapd.conf" "${orig_dir}"
+	echo "driver=nl80211" > "/tmp/hostapd.conf"
+	echo "ctrl_interface=/var/run/hostapd" >> "/tmp/hostapd.conf"
+	echo "ctrl_interface_group=0" >> "/tmp/hostapd.conf"
+	echo "beacon_int=100" >> "/tmp/hostapd.conf"
+	echo "auth_algs=1" >> "/tmp/hostapd.conf"
+	echo "wpa_key_mgmt=WPA-PSK" >> "/tmp/hostapd.conf"
+	echo "ssid=${wlan_ssid}" >> "/tmp/hostapd.conf"
+	echo "channel=1" >> "/tmp/hostapd.conf"
+	echo "hw_mode=g" >> "/tmp/hostapd.conf"
+	echo "wpa_passphrase=${wlan_psk}" >> "/tmp/hostapd.conf"
+	echo "interface=wlan0" >> "/tmp/hostapd.conf"
+	echo "wpa=2" >> "/tmp/hostapd.conf"
+	echo "wpa_pairwise=CCMP" >> "/tmp/hostapd.conf"
+	echo "country_code=${wlan_country}" >> "/tmp/hostapd.conf"
+	echo "ieee80211n=1" >> "/tmp/hostapd.conf"
+	mv /tmp/hostapd.conf /etc/hostapd/hostapd.conf
+	
+	[[ -f "/etc/default/hostapd" ]] && mv "/etc/default/hostapd" "${orig_dir}"
+	echo "# Defaults for hostapd initscript" > "/tmp/hostapd"
+	echo "#" >> "/tmp/hostapd"
+	echo "# See /usr/share/doc/hostapd/README.Debian for information about alternative" >> "/tmp/hostapd"
+	echo "# methods of managing hostapd." >> "/tmp/hostapd"
+	echo "#" >> "/tmp/hostapd"
+	echo "# Uncomment and set DAEMON_CONF to the absolute path of a hostapd configuration" >> "/tmp/hostapd"
+	echo "# file and hostapd will be started during system boot. An example configuration" >> "/tmp/hostapd"
+	echo "# file can be found at /usr/share/doc/hostapd/examples/hostapd.conf.gz" >> "/tmp/hostapd"
+	echo "#" >> "/tmp/hostapd"
+	echo "DAEMON_CONF=\"/etc/hostapd/hostapd.conf\"" >> "/tmp/hostapd"
+	echo "" >> "/tmp/hostapd"
+	echo "# Additional daemon options to be appended to hostapd command:-" >> "/tmp/hostapd"
+	echo "#       -d   show more debug messages (-dd for even more)" >> "/tmp/hostapd"
+	echo "#       -K   include key data in debug messages" >> "/tmp/hostapd"
+	echo "#       -t   include timestamps in some debug messages" >> "/tmp/hostapd"
+	echo "#" >> "/tmp/hostapd"
+	echo "# Note that -B (daemon mode) and -P (pidfile) options are automatically" >> "/tmp/hostapd"
+	echo "# configured by the init.d script and must not be added to DAEMON_OPTS." >> "/tmp/hostapd"
+	echo "#" >> "/tmp/hostapd"
+	echo "#DAEMON_OPTS=\"\"" >> "/tmp/hostapd"
+	mv /tmp/hostapd /etc/default
+	
+	echo "$(date) [10.]autohotspotN [INFO] Verifying interface file."
+	int_line=`cat /etc/network/interfaces |grep -v '^$\|^\s*\#'`
+	if [[ ! "${int_line}" == "source-directory /etc/network/interfaces.d" ]]; then
+		echo "# interfaces(5) file used by ifup(8) and ifdown(8)" >> "/tmp/interfaces"
+		echo "# Please note that this file is written to be used with dhcpcd" >> "/tmp/interfaces"
+		echo "# For static IP, consult /etc/dhcpcd.conf and 'man dhcpcd.conf'" >> "/tmp/interfaces"
+		echo "# Include files from /etc/network/interfaces.d:" >> "/tmp/interfaces"
+		echo "source-directory /etc/network/interfaces.d" >> "/tmp/interfaces"
+		mv /etc/network/interfaces "${orig_dir}"
+		cp "/tmp/interfaces" "/etc/network"
+	fi
+
+	echo "$(date) [10.]autohotspotN [INFO] Creating Startup script."
+	echo "[Unit]" > "/tmp/autohotspot.service"
+	echo "Description=Automatically generates an internet Hotspot when a valid ssid is not in range" >> "/tmp/autohotspot.service"
+	echo "After=multi-user.target" >> "/tmp/autohotspot.service"
+	echo "[Service]" >> "/tmp/autohotspot.service"
+	echo "Type=oneshot" >> "/tmp/autohotspot.service"
+	echo "RemainAfterExit=yes" >> "/tmp/autohotspot.service"
+	echo "ExecStart=/usr/bin/autohotspotN" >> "/tmp/autohotspot.service"
+	echo "[Install]" >> "/tmp/autohotspot.service"
+	echo "WantedBy=multi-user.target" >> "/tmp/autohotspot.service"
+	mv "/tmp/autohotspot.service" "/etc/systemd/system/"
+	echo "$(date) [10.]autohotspotN [INFO] Enabling Startup script."
+	systemctl enable autohotspot.service
+	
+	echo "$(date) [10.]autohotspotN [INFO] Verify iw is installed on system."
+	if [[ ! $(dpkg -s iw | grep Status | cut -d' ' -f4) == "installed" ]]; then
+		echo "$(date) [10.]autohotspotN [INFO] iw not found, Installing iw via apt."
+		apt-get install iw
+	else
+		echo "$(date) [10.]autohotspotN [INFO] iw already on system."
+	fi
+	
+}
+
+gen_dnsmasq_conf () {
+	printf "\n12)--Generating Files for dnsmasq."
+	echo "# No Default Gateway provided with DHCP (consolePi Does this when no link on eth0)" > /etc/ConsolePi/dnsmasq.conf.noGW && printf "."
+	echo "# Default Gateway *is* provided with DHCP (consolePi Does this when eth0 is up)" > /etc/ConsolePi/dnsmasq.conf.withGW && printf "."
+	common_text="interface=wlan0\nbogus-priv\ndomain-needed\ndhcp-range=${wlan_dhcp_start},${wlan_dhcp_end},255.255.255.0,12h"
+	echo -e "$common_text" >> /etc/ConsolePi/dnsmasq.conf.noGW && printf "."
+	echo -e "$common_text" >> /etc/ConsolePi/dnsmasq.conf.withGW && printf "."
+	echo "dhcp-option=wlan0,3" >> /etc/ConsolePi/dnsmasq.conf.noGW && printf "Done\n"
+	[[ -f "/etc/dnsmasq.conf" ]] && mv "/etc/dnsmasq.conf" "${orig_dir}"
+	mv "${consolepi_dir}/dnsmasq.conf.withGW" "/etc/dnsmasq.conf"
+}
+
 dhcpcd_conf () {
-        printf "\n10)----------- configure dhcp client and static fallback --------------\n"
+        printf "\n13)----------- configure dhcp client and static fallback --------------\n"
         [[ -f /etc/dhcpcd.conf ]] && mv /etc/dhcpcd.conf /etc/ConsolePi/originals
         mv /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf
         res=$?
@@ -442,10 +545,10 @@ dhcpcd_conf () {
 			echo "" >> "/etc/dhcpcd.conf"
 			echo "#For AutoHotkeyN" >> "/etc/dhcpcd.conf"
 			echo "nohook wpa_supplicant" >> "/etc/dhcpcd.conf"
-			echo "$(date) [9.]dhcp client and static fallback - dhcpcd.conf [INFO] Process Completed Successfully"
+			echo "$(date) [13.]dhcp client and static fallback - dhcpcd.conf [INFO] Process Completed Successfully"
 		else
-			echo "$(date) [9.]dhcp client and static fallback - dhcpcd.conf [ERROR] Error Code (${res}}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
-			echo "$(date) [9.]dhcp client and static fallback - dhcpcd.conf [ERROR] To Remediate Please verify dhcpcd.conf and configure manually after install completes"
+			echo "$(date) [13.]dhcp client and static fallback - dhcpcd.conf [ERROR] Error Code (${res}}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
+			echo "$(date) [13.]dhcp client and static fallback - dhcpcd.conf [ERROR] To Remediate Please verify dhcpcd.conf and configure manually after install completes"
         fi
 }
 
@@ -461,12 +564,13 @@ if [ "${iam}" = "root" ]; then
 	updatepi
 	gitConsolePi
 	install_ser2net
-	gen_dnsmasq_conf
 	dhcp_run_hook
 	ConsolePi_cleanup
 	install_ovpn
 	ovpn_graceful_shutdown
 	ovpn_logging
+	install_autohotspotn
+	gen_dnsmasq_conf
 	dhcpcd_conf
 	cd "${mydir}"
 else

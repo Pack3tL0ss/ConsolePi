@@ -352,6 +352,8 @@ dhcp_run_hook() {
 	else
 		echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook"
 	fi
+	chmod +x /etc/dhcpcd.exit-hook
+	chmod +x /etc/ConsolePi/ConsolePi.sh
 }
 
 ConsolePi_cleanup() {
@@ -415,7 +417,7 @@ ovpn_logging() {
 }
 
 dhcpcd_conf () {
-        printf "\n9)----------- configure dhcp client and static fallback --------------\n"
+        printf "\n10)----------- configure dhcp client and static fallback --------------\n"
         [[ -f /etc/dhcpcd.conf ]] && mv /etc/dhcpcd.conf /etc/ConsolePi/originals
         mv /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf
         res=$?
@@ -440,7 +442,8 @@ dhcpcd_conf () {
 			echo "" >> "/etc/dhcpcd.conf"
 			echo "#For AutoHotkeyN" >> "/etc/dhcpcd.conf"
 			echo "nohook wpa_supplicant" >> "/etc/dhcpcd.conf"
-			else
+			echo "$(date) [9.]dhcp client and static fallback - dhcpcd.conf [INFO] Process Completed Successfully"
+		else
 			echo "$(date) [9.]dhcp client and static fallback - dhcpcd.conf [ERROR] Error Code (${res}}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
 			echo "$(date) [9.]dhcp client and static fallback - dhcpcd.conf [ERROR] To Remediate Please verify dhcpcd.conf and configure manually after install completes"
         fi
@@ -464,6 +467,7 @@ if [ "${iam}" = "root" ]; then
 	install_ovpn
 	ovpn_graceful_shutdown
 	ovpn_logging
+	dhcpcd_conf
 	cd "${mydir}"
 else
   echo 'Script should be ran as root. exiting.'

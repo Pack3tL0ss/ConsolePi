@@ -9,7 +9,7 @@
 # --  For manual setup instructions and more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                -- #
 # --                                                                                                                                             -- #
 # --  ** This was a mistake... should have done this in Python, Never do anything beyond simple in bash, but I was a couple 100 lines in when    -- #
-# --  I had that epiphany so bash it is... for now  																						     -- #
+# --  I had that epiphany so bash it is... for now                                                                                               -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 # -- Installation Defaults --

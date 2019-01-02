@@ -577,7 +577,7 @@ dhcpcd_conf () {
 
 get_known_ssids() {
 	echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [INFO] Process Started"
-	if [ -f $wpa_supplicant_file ] && [[ $(wc -l < "$wpa_supplicant_file") > 2 ]] ; then
+	if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
 		echo "wpa_supplicant.conf already exists with the following configuration"
 		cat $wpa_supplicant_file
 		echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"

@@ -615,7 +615,7 @@ get_serial_udev() {
 main() {
 iam=`whoami`
 if [ "${iam}" = "root" ]; then 
-	updatepi
+	#updatepi
 	gitConsolePi
 	get_config
 	verify

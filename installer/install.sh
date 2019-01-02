@@ -528,6 +528,8 @@ install_autohotspotn () {
 		echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] iw already on system."
 	fi
 	
+	echo "$(date +"%b %d %T") [10.]Enable IP-forwarding"
+	sed -i '/^#net\.ipv4\.ip_forward=1/s/^#//g' /etc/sysctl.conf
 }
 
 gen_dnsmasq_conf () {

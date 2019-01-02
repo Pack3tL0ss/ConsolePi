@@ -624,7 +624,7 @@ if [ "${iam}" = "root" ]; then
 		verify
 	done
 	update_config
-	#install_ser2net
+	install_ser2net
 	dhcp_run_hook
 	ConsolePi_cleanup
 	install_ovpn
@@ -633,7 +633,7 @@ if [ "${iam}" = "root" ]; then
 	install_autohotspotn
 	gen_dnsmasq_conf
 	dhcpcd_conf
-	get_known_ssids
+	#get_known_ssids
 	get_serial_udev
 	cd "${mydir}"
 else

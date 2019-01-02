@@ -547,7 +547,7 @@ gen_dnsmasq_conf () {
     echo -e "$common_text" >> /etc/ConsolePi/dnsmasq.conf.withGW && printf "."
     echo "dhcp-option=wlan0,3" >> /etc/ConsolePi/dnsmasq.conf.noGW && printf "Done\n"
     [[ -f "/etc/dnsmasq.conf" ]] && mv "/etc/dnsmasq.conf" "${orig_dir}"
-    mv "${consolepi_dir}/dnsmasq.conf.withGW" "/etc/dnsmasq.conf"
+    cp "${consolepi_dir}/dnsmasq.conf.withGW" "/etc/dnsmasq.conf"
 }
 
 dhcpcd_conf () {

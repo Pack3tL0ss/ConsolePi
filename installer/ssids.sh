@@ -95,4 +95,5 @@ known_ssid_main() {
 	done
 }
 
+echo $0
 # cat "${wpa_temp_file}"

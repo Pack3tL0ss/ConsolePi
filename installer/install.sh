@@ -259,19 +259,19 @@ verify() {
     # $first_run && header_txt=">>DEFAULT VALUES CHANGE THESE<<" || header_txt="--->>PLEASE VERIFY VALUES<<----"
     echo "-------------------------------------------->>PLEASE VERIFY VALUES<<--------------------------------------------"
     echo                                                                  
-    echo     " Send Notifications via PushBullet?:                  $push"
+    echo     " Send Notifications via PushBullet?:                      $push"
     if $push; then
-        echo " PushBullet API Key:                                  ${push_api_key}"
-        echo " Send Push Notification to all devices?:              $push_all"
+        echo " PushBullet API Key:                                      ${push_api_key}"
+        echo " Send Push Notification to all devices?:                  $push_all"
         ! $push_all && \
-	    echo " iden of device to receive PushBullet Notifications:  ${push_iden}"
+	    echo " iden of device to receive PushBullet Notifications:      ${push_iden}"
     fi
 
     echo " Enable Automatic VPN?:                                   $ovpn_enable"
     if $ovpn_enable; then
-        echo " IP used to verify VPN is connected:                  $vpn_check_ip"
-        echo " IP used to verify Internet connectivity:             $net_check_ip"
-        echo " Local Lab Domain:                                    $local_domain"
+        echo " IP used to verify VPN is connected:                      $vpn_check_ip"
+        echo " IP used to verify Internet connectivity:                 $net_check_ip"
+        echo " Local Lab Domain:                                        $local_domain"
     fi
 
     echo " ConsolePi Hot Spot IP:                                   $wlan_ip"

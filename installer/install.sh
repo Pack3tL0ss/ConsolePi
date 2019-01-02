@@ -257,7 +257,7 @@ verify() {
 	echo "  *hotspot DHCP Range:						${wlan_dhcp_start} to ${wlan_dhcp_end}"
 	echo " ConsolePi Hot Spot SSID:			            	$wlan_ssid"
 	echo " ConsolePi Hot Spot psk:			            	$wlan_psk"
-	echo " ConsolePi Hot Spot regulatory domain:	        		ct$wlan_country"
+	echo " ConsolePi Hot Spot regulatory domain:	        		$wlan_country"
 	echo
 	echo "----------------------------------------------------------------------------------------------------------------"
 	echo

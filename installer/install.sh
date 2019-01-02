@@ -555,7 +555,7 @@ dhcpcd_conf () {
 
 get_known_ssids() {
 	echo "$(date) [14.]Collect Known SSIDs [INFO] Process Started"
-	if [[ -f "${consolepi_dir}/installer/ssids.sh" ]]; then
+	if [ -f "${consolepi_dir}/installer/ssids.sh" ]; then
 		. "${consolepi_dir}/installer/ssids.sh"
 		known_ssid_init
 		known_ssid_main

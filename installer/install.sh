@@ -314,7 +314,6 @@ gitConsolePi () {
 		cd $consolepi_dir
 		git pull "${consolepi_source}"
 	fi
-	chmod +x $consolepi_dir/installer/*
 	echo "$(date +"%b %d %T") [INFO] Clone/Update ConsolePi Package - Complete"
 }
 
@@ -346,7 +345,7 @@ install_ser2net () {
 	echo "4F)--------------- make clean ------------------"
 	make clean
 	echo "ser2net installation now complete. "
-	rm ser2net.tar.gz
+	rm -f /usr/local/bin/ser2net.tar.gz
 	echo
 	echo "4G)---Generating Configuration and init file----"
 	cp /etc/ConsolePi/src/ser2net.conf /etc/
@@ -615,7 +614,7 @@ get_serial_udev() {
 main() {
 iam=`whoami`
 if [ "${iam}" = "root" ]; then 
-	#updatepi
+	updatepi
 	gitConsolePi
 	get_config
 	verify
@@ -633,7 +632,7 @@ if [ "${iam}" = "root" ]; then
 	install_autohotspotn
 	gen_dnsmasq_conf
 	dhcpcd_conf
-	#get_known_ssids
+	get_known_ssids
 	get_serial_udev
 	cd "${mydir}"
 else

@@ -64,9 +64,11 @@ udev_main() {
 }
 
 # __main__
-# iam=`whoami`
-# if [ "${iam}" = "root" ]; then 
-  # udev_main
-# else
-  # echo 'Script should be ran as root. exiting.'
-# fi
+if [[ $0 == "/etc/ConsolePi/installer/udev.sh" ]]
+	iam=`whoami`
+	if [ "${iam}" = "root" ]; then 
+	  udev_main
+	else
+	  echo 'Script should be ran as root. exiting.'
+	fi
+fi

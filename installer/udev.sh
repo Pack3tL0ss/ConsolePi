@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 
-shopt -s nocasematch
-input="go"
-rules_file='/etc/udev/rules.d/10-consolePi.rules'
+udev_init(){
+	shopt -s nocasematch
+	input="go"
+	rules_file='/etc/udev/rules.d/10-consolePi.rules'
+	ser2net_conf='/etc/ser2net.conf'
+}
+
 header() {
 clear
 echo "--------------Predictable Serial Port Devices--------------"
@@ -25,19 +29,20 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep ttyUSB); do
     # Debug Line # udevadm info -q property --export -p $syspath
     eval "$(udevadm info -q property --export -p $syspath)"
     [[ -z "ID_MODEL_FROM_DATABASE" ]] && [[ -z "$ID_VENDOR_ID" ]] && [[ -z "$ID_MODEL_ID" ]] && [[ -z "$ID_SERIAL_SHORT" ]] && continue
-    this_dev="SUBSYSTEM==\"tty\", ATTRS{idVendor}==\"${ID_VENDOR_ID}\", ATTRS{idProduct}==\"${ID_MODEL_ID}\", ATTRS{serial}==\"${ID_SERIAL_SHORT}\", SYMLINK+=\"consolePi${port}\""
+    this_dev="SUBSYSTEM==\"tty\", ATTRS{idVendor}==\"${ID_VENDOR_ID}\", ATTRS{idProduct}==\"${ID_MODEL_ID}\", ATTRS{serial}==\"${ID_SERIAL_SHORT}\", SYMLINK+=\"ConsolePi${port}\""
     if [ -f $rules_file ]; then
         echo $this_dev >> $rules_file
     else
         echo $this_dev > $rules_file
     fi
+	[ -f $ser2net_conf ] && echo "${port}:telnet:0:/dev/ConsolePi${port}:9600 8DATABITS NONE 1STOPBIT banner"
     echo "${ID_MODEL_FROM_DATABASE} Found with idVendor: ${ID_VENDOR_ID} idProduct ID: ${ID_MODEL_ID} and Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port}"
     ((port++))
 done
 }
 
-main() {
-    # touch /tmp/10-consolePi.rules
+udev_main() {
+	udev_init
     header
     if [ -f $rules_file ]; then
         port=`tail -1 $rules_file |grep SYMLINK |cut -d+ -f2|cut -d\" -f2 |cut -di -f2`
@@ -59,9 +64,9 @@ main() {
 }
 
 # __main__
-iam=`whoami`
-if [ "${iam}" = "root" ]; then 
-  main
-else
-  echo 'Script should be ran as root. exiting.'
-fi
+# iam=`whoami`
+# if [ "${iam}" = "root" ]; then 
+  # udev_main
+# else
+  # echo 'Script should be ran as root. exiting.'
+# fi

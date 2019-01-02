@@ -17,7 +17,7 @@ echo "* I've Found that some serial adapters may cause the      *"
 echo "* Pi zero w to reboot when plugged in if this occurs just *"
 echo "* re run the script after the reboot completes with only  *"
 echo "* the remainins adapters.                                 *"
-echo "*---------------------------------------------------------*"
+echo "-----------------------------------------------------------"
 echo
 echo "**Insert adapters 1 at a time**"
 }

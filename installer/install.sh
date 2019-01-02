@@ -25,8 +25,8 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 
 # -- Build Config File and Directory Structure - Read defaults from config
-get_defaults() {
-	if [ ! -f "${default_config}" ] || [[ $1 == "update" ]]; then
+get_config() {
+	if [ ! -f "${default_config}" ]
 		# This indicates it's the first time the script has ran
 		# [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
 		echo "push=true							# PushBullet Notifications: true - enable, false - disable" > "${default_config}"
@@ -42,26 +42,39 @@ get_defaults() {
 		echo "wlan_ssid=\"ConsolePi\"						# SSID used in hotspot mode" >> "${default_config}"
 		echo "wlan_psk=\"ChangeMe!!\"						# psk used for hotspot SSID" >> "${default_config}"
 		echo "wlan_country=\"US\"						# regulatory domain for hotspot SSID" >> "${default_config}"
-		if [[ ! $1 == "update" ]] ; then
+		header
+		echo "Configuration File Created with default values. Enter Y to continue in Interactive Mode"
+		echo "which will prompt you for each value. Enter N to exit the script, so you can modify the"
+		echo "defaults directly then re-run the script."
+		echo
+		prompt="Continue in Interactive mode? (Y/N)"
+		user_input true "${prompt}"
+		continue=$result
+		if ! $continue; then 
 			header
-			echo "Configuration File Created with default values. Enter Y to continue in Interactive Mode"
-			echo "which will prompt you for each value. Enter N to exit the script, so you can modify the"
-			echo "defaults directly then re-run the script."
+			echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
+			echo "i.e. \"sudo nano ${default_config}\""
 			echo
-			prompt="Continue in Interactive mode? (Y/N)"
-			user_input true "${prompt}"
-			continue=$result
-			if ! $continue; then 
-				header
-				echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
-				echo "i.e. \"sudo nano ${default_config}\""
-				echo
-				exit 0
-			fi
+			exit 0
 		fi
 	fi
 	. "$default_config"
 	hotspot_dhcp_range
+}
+
+update_config() {
+	echo "push=${push}							# PushBullet Notifications: true - enable, false - disable" > "${default_config}"
+	echo "push_all=${push_all}							# PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
+	echo "push_api_key=\"${push_api_key}\"			# PushBullet API key" >> "${default_config}"
+	echo "push_iden=\"${push_iden}\"					# iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
+	echo "ovpn_enable=${ovpn_enable}						# if enabled will establish VPN connection" >> "${default_config}"
+	echo "vpn_check_ip=\"${vpn_check_ip}\"					# used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
+	echo "net_check_ip=\"${net_check_ip}\"						# used to check internet connectivity" >> "${default_config}"
+	echo "local_domain=\"${local_domain}\"					# used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
+	echo "wlan_ip=\"${wlan_ip}\"						# IP of consolePi when in hotspot mode" >> "${default_config}"
+	echo "wlan_ssid=\"${wlan_ssid}\"						# SSID used in hotspot mode" >> "${default_config}"
+	echo "wlan_psk=\"${wlan_psk}\"						# psk used for hotspot SSID" >> "${default_config}"
+	echo "wlan_country=\"${wlan_country}\"						# regulatory domain for hotspot SSID" >> "${default_config}"
 }
 
 header() {
@@ -301,6 +314,7 @@ gitConsolePi () {
 		cd $consolepi_dir
 		git pull "${consolepi_source}"
 	fi
+	chmod +x $consolepi_dir/installer/*
 	echo "$(date +"%b %d %T") [INFO] Clone/Update ConsolePi Package - Complete"
 }
 
@@ -603,13 +617,13 @@ iam=`whoami`
 if [ "${iam}" = "root" ]; then 
 	updatepi
 	gitConsolePi
-	get_defaults
+	get_config
 	verify
 	while ! $input; do
 		collect "fix"
 		verify
 	done
-	get_defaults update
+	update_config
 	install_ser2net
 	dhcp_run_hook
 	ConsolePi_cleanup

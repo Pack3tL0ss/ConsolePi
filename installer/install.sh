@@ -555,7 +555,7 @@ dhcpcd_conf () {
 
 get_known_ssids() {
 	echo "$(date) [14.]Collect Known SSIDs [INFO] Process Started"
-	if [ -f "${consolepi_dir}/installer/ssids.sh" ]; then
+	if [[ -f "${consolepi_dir}/installer/ssids.sh" ]]; then
 		. "${consolepi_dir}/installer/ssids.sh"
 		known_ssid_init
 		known_ssid_main
@@ -566,7 +566,7 @@ get_known_ssids() {
 	fi
 }
 
-get_serial_udev(){
+get_serial_udev() {
 	echo "----------------- Installation Complete --------------------"
 	echo
 	echo "-------------- Predictable Console Ports -------------------"

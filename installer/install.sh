@@ -555,8 +555,8 @@ dhcpcd_conf () {
 
 get_known_ssids() {
 	echo "$(date) [14.]Collect Known SSIDs [INFO] Process Started"
-	if [[ -f "${consolepi_dir/installer/ssids.sh}" ]]; then
-		. "${consolepi_dir/installer/ssids.sh}"
+	if [ -f $consolepi_dir/installer/ssids.sh ]; then
+		. $consolepi_dir/installer/ssids.sh
 		known_ssid_init
 		known_ssid_main
 		mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
@@ -581,8 +581,8 @@ get_serial_udev() {
 	prompt="Would you like to configure predictable serial ports now (Y/N)"
 	user_input true "${prompt}"
 	if $result ; then
-		if [ -f "${consolepi_dir/installer/udev.sh}" ]; then
-			. "${consolepi_dir/installer/udev.sh}"
+		if [ -f $consolepi_dir/installer/udev.sh ]; then
+			. $consolepi_dir/installer/udev.sh
 			udev_main
 		else
 			echo "ERROR udev.sh not available in installer directory"

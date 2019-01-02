@@ -279,7 +279,7 @@ verify() {
 
 updatepi () {
 	header
-	echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Installation Starting"
+	echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Starting Updating Raspberry Pi and getting source files"
 	echo "1)---- updating RaspberryPi (aptitude) -----"
 	apt-get update && apt-get -y upgrade
 	echo
@@ -298,6 +298,7 @@ gitConsolePi () {
 	if [ ! -d $consolepi_dir ]; then 
 		git clone "${consolepi_source}"
 	else
+		cd $consolepi_dir
 		git pull "${consolepi_source}"
 	fi
 	echo "$(date +"%b %d %T") [INFO] Clone/Update ConsolePi Package - Complete"

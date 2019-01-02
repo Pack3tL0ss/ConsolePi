@@ -45,4 +45,5 @@ key-direction 1
 # ------------------------------------------------------------------------------------------------------
 script-security 2
 # run push script to send notification of successful VPN connection
-up "/etc/dhcpcd.exit-hook OVPN"
+#up "/etc/dhcpcd.exit-hook OVPN"
+up "/etc/ConsolePi/ConsolePi.sh OVPN"

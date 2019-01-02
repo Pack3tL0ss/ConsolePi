@@ -79,7 +79,7 @@ known_ssid_main() {
 		echo -e "$temp"
 		echo "-------------------------------------------------------------------------------------------------------------------------------------------------"
 		echo
-		if ! $error ; then
+		if $error ; then
 			prompt="Enter Y to accept as entered or N to reject and re-enter"
 			user_input true "${prompt}"
 		fi

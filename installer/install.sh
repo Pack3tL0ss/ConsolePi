@@ -52,7 +52,7 @@ get_defaults() {
 		continue=$result
 		if ! $continue; then 
 			header
-			echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run script"
+			echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
 			echo "i.e. \"sudo nano ${default_config}\""
 			echo
 			exit 0
@@ -137,7 +137,6 @@ user_input() {
 		fi
 	fi
 }
-
 
 collect() {
 	# if [ -f /etc/consolePi/config ] && [ ${#1} -eq 0 ]; then
@@ -278,7 +277,7 @@ verify() {
 
 updatepi () {
 	header
-	echo "$(date) ConsolePi Installer[INFO] Installation Starting"
+	echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Installation Starting"
 	echo "1)---- updating RaspberryPi (aptitude) -----"
 	apt-get update && apt-get -y upgrade
 	echo
@@ -424,16 +423,16 @@ install_autohotspotn () {
 	printf "\n10)----------- Install AutoHotSpotN --------------\n"
 	[[ -f "${src_dir}/autohotspotN" ]] && mv "${src_dir}/autohotspotN" /usr/bin
 	chmod +x /usr/bin/autohotspotN
-	echo "$(date) [10.]autohotspotN [INFO] Installing hostapd via apt."
+	echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] Installing hostapd via apt."
 	apt-get -y install hostapd && res=$?
-	[[ $res == 0 ]] && echo "$(date) [10.]autohotspotN - hostapd [INFO] Install Complete with no error." || "$(date) [10.]autohotspotN - hostapd [ERROR] Installation Error."
-	echo "$(date) [10.]autohotspotN [INFO] Installing dnsmasq via apt."
+	[[ $res == 0 ]] && echo "$(date +"%b %d %T") [10.]autohotspotN - hostapd [INFO] Install Complete with no error." || "$(date +"%b %d %T") [10.]autohotspotN - hostapd [ERROR] Installation Error."
+	echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] Installing dnsmasq via apt."
 	apt-get -y install dnsmasq && res=$?
-	[[ $res == 0 ]] && echo "$(date) [10.]autohotspotN - dnsmasq [INFO] Install Complete with no error." || "$(date) [10.]autohotspotN - dnsmasq [ERROR] Installation Error."
+	[[ $res == 0 ]] && echo "$(date +"%b %d %T") [10.]autohotspotN - dnsmasq [INFO] Install Complete with no error." || "$(date +"%b %d %T") [10.]autohotspotN - dnsmasq [ERROR] Installation Error."
 	systemctl disable hostapd
 	systemctl disable dnsmasq
 
-	echo "$(date) [10.]autohotspotN [INFO] Configuring hostapd.conf"
+	echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] Configuring hostapd.conf"
 	[[ -f "/etc/hostapd/hostapd.conf" ]] && mv "/etc/hostapd/hostapd.conf" "${orig_dir}"
 	echo "driver=nl80211" > "/tmp/hostapd.conf"
 	echo "ctrl_interface=/var/run/hostapd" >> "/tmp/hostapd.conf"
@@ -475,7 +474,7 @@ install_autohotspotn () {
 	echo "#DAEMON_OPTS=\"\"" >> "/tmp/hostapd"
 	mv /tmp/hostapd /etc/default
 	
-	echo "$(date) [10.]autohotspotN [INFO] Verifying interface file."
+	echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] Verifying interface file."
 	int_line=`cat /etc/network/interfaces |grep -v '^$\|^\s*\#'`
 	if [[ ! "${int_line}" == "source-directory /etc/network/interfaces.d" ]]; then
 		echo "# interfaces(5) file used by ifup(8) and ifdown(8)" >> "/tmp/interfaces"
@@ -487,7 +486,7 @@ install_autohotspotn () {
 		cp "/tmp/interfaces" "/etc/network"
 	fi
 
-	echo "$(date) [10.]autohotspotN [INFO] Creating Startup script."
+	echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] Creating Startup script."
 	echo "[Unit]" > "/tmp/autohotspot.service"
 	echo "Description=Automatically generates an internet Hotspot when a valid ssid is not in range" >> "/tmp/autohotspot.service"
 	echo "After=multi-user.target" >> "/tmp/autohotspot.service"
@@ -498,15 +497,15 @@ install_autohotspotn () {
 	echo "[Install]" >> "/tmp/autohotspot.service"
 	echo "WantedBy=multi-user.target" >> "/tmp/autohotspot.service"
 	mv "/tmp/autohotspot.service" "/etc/systemd/system/"
-	echo "$(date) [10.]autohotspotN [INFO] Enabling Startup script."
+	echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] Enabling Startup script."
 	systemctl enable autohotspot.service
 	
-	echo "$(date) [10.]autohotspotN [INFO] Verify iw is installed on system."
+	echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] Verify iw is installed on system."
 	if [[ ! $(dpkg -s iw | grep Status | cut -d' ' -f4) == "installed" ]]; then
-		echo "$(date) [10.]autohotspotN [INFO] iw not found, Installing iw via apt."
+		echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] iw not found, Installing iw via apt."
 		apt-get install iw
 	else
-		echo "$(date) [10.]autohotspotN [INFO] iw already on system."
+		echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] iw already on system."
 	fi
 	
 }
@@ -549,15 +548,15 @@ dhcpcd_conf () {
 			echo "" >> "/etc/dhcpcd.conf"
 			echo "#For AutoHotkeyN" >> "/etc/dhcpcd.conf"
 			echo "nohook wpa_supplicant" >> "/etc/dhcpcd.conf"
-			echo "$(date) [13.]dhcp client and static fallback - dhcpcd.conf [INFO] Process Completed Successfully"
+			echo "$(date +"%b %d %T") [13.]dhcp client and static fallback - dhcpcd.conf [INFO] Process Completed Successfully"
 		else
-			echo "$(date) [13.]dhcp client and static fallback - dhcpcd.conf [ERROR] Error Code (${res}}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
-			echo "$(date) [13.]dhcp client and static fallback - dhcpcd.conf [ERROR] To Remediate Please verify dhcpcd.conf and configure manually after install completes"
+			echo "$(date +"%b %d %T") [13.]dhcp client and static fallback - dhcpcd.conf [ERROR] Error Code (${res}}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
+			echo "$(date +"%b %d %T") [13.]dhcp client and static fallback - dhcpcd.conf [ERROR] To Remediate Please verify dhcpcd.conf and configure manually after install completes"
         fi
 }
 
 get_known_ssids() {
-	echo "$(date) [14.]Collect Known SSIDs [INFO] Process Started"
+	echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [INFO] Process Started"
 	if [ -f $consolepi_dir/installer/ssids.sh ]; then
 		. $consolepi_dir/installer/ssids.sh
 		known_ssid_init
@@ -565,7 +564,7 @@ get_known_ssids() {
 		mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
 		mv "$wpa_temp_file" "$wpa_supplicant_file"
 	else
-		echo "$(date) [14.]Collect Known SSIDs [ERROR] ssid collection script not found in ConsolePi install dir"
+		echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [ERROR] ssid collection script not found in ConsolePi install dir"
 	fi
 }
 

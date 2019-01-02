@@ -563,6 +563,7 @@ get_known_ssids() {
 		mv "$wpa_temp_file" "$wpa_supplicant_file"
 	else
 		echo "$(date) [14.]Collect Known SSIDs [ERROR] ssid collection script not found in ConsolePi install dir"
+	fi
 }
 
 get_serial_udev(){

@@ -652,5 +652,5 @@ else
 fi
 
 }
-echo $0
+
 main

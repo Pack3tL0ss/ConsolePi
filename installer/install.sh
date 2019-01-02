@@ -26,6 +26,7 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 # -- Build Config File and Directory Structure - Read defaults from config
 get_config() {
+	bypass_verify=false
 	if [ ! -f "${default_config}" ]; then
 		# This indicates it's the first time the script has ran
 		# [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
@@ -50,7 +51,9 @@ get_config() {
 		prompt="Continue in Interactive mode? (Y/N)"
 		user_input true "${prompt}"
 		continue=$result
-		if ! $continue; then 
+		if $continue ; then
+			bypass_verify=true
+		else
 			header
 			echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
 			echo "i.e. \"sudo nano ${default_config}\""
@@ -292,7 +295,7 @@ verify() {
 
 updatepi () {
 	header
-	echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Starting Updating Raspberry Pi and getting source files"
+	echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Updating Raspberry Pi and getting source files"
 	echo "1)---- updating RaspberryPi (aptitude) -----"
 	apt-get update && apt-get -y upgrade
 	echo
@@ -631,7 +634,7 @@ if [ "${iam}" = "root" ]; then
 	updatepi
 	gitConsolePi
 	get_config
-	verify
+	! $bypass_verify && verify
 	while ! $input; do
 		collect "fix"
 		verify

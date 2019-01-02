@@ -4,11 +4,11 @@
 push_response_log="/var/log/ConsolePi/push_response.log"            # full path to send PushBullet API responses
 ovpn_log="/var/log/ConsolePi/ovpn.log"                              # full path to send openvpn logs
 ovpn_config="/etc/openvpn/client/ConsolePi.ovpn"	                # full path to openvpn configuration
-ovpn_creds="/etc/openvpn/client/ovpn_credentials"                        # full path to openvpn creds file with username password
+ovpn_creds="/etc/openvpn/client/credentials"                        # full path to openvpn creds file with username password
 ovpn_options="--persist-remote-ip --ping 15"                        # openvpn command line options 
 
 # Get Configuration from config file default if config file doesn't exist
-if [[ -f "${/etc/ConsolePi/ConsolePi.conf}" ]]; then
+if [[ -f "/etc/ConsolePi/ConsolePi.conf" ]]; then
 	. "/etc/ConsolePi/ConsolePi.conf"
 else
 	debug=false                                                         # For debugging only - additional logs sent to syslog

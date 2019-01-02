@@ -2,6 +2,10 @@
 
 Automated Raspberry Pi Serial Console Server, with PushBullet Notification of IP changes, Automatic VPN termination...
 
+*TL;DR:*
+Single Command Install Script
+`wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && rm -f /tmp/ConsolePi`
+
 ------
 # Contents
  - [What Does it Do](#what-does-it-do)
@@ -41,7 +45,6 @@ When the Automatic VPN function successfully terminates the configured tunnel, t
 Each Time a Notification is triggered all interface IPs are sent in the message along with the ConsolePi's default gateway
 
 ## Installation
-*This script is a work in progress likely to result in errors at the moment*
 
 **Automatic Installation**
 

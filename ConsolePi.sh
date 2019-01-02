@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Locally Defined Variables
+debug=false                                                         # For debugging only - additional logs sent to syslog
 push_response_log="/var/log/ConsolePi/push_response.log"            # full path to send PushBullet API responses
 ovpn_log="/var/log/ConsolePi/ovpn.log"                              # full path to send openvpn logs
 ovpn_config="/etc/openvpn/client/ConsolePi.ovpn"	                # full path to openvpn configuration
@@ -11,7 +12,6 @@ ovpn_options="--persist-remote-ip --ping 15"                        # openvpn co
 if [[ -f "/etc/ConsolePi/ConsolePi.conf" ]]; then
 	. "/etc/ConsolePi/ConsolePi.conf"
 else
-	debug=false                                                         # For debugging only - additional logs sent to syslog
 	push=false                                                          # PushBullet Notifications: true - enable, false - disable
 	ovpn_enable=false                                                   # if enabled will establish VPN connection
 	push_api_key="BestToPutYourPBAPIKeyInTheConfigFileNotHere"		    # PushBullet API key

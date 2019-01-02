@@ -53,7 +53,8 @@ get_config() {
         user_input true "${prompt}"
         continue=$result
         if $continue ; then
-            bypass_verify=true
+            bypass_verify=true		# bypass verify function
+			input=false				# so collect function will run (while loop in main)
         else
             header
             echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
@@ -629,33 +630,32 @@ get_serial_udev() {
 }
 
 main() {
-iam=`whoami`
-if [ "${iam}" = "root" ]; then 
-    updatepi
-    gitConsolePi
-    get_config
-    ! $bypass_verify && verify
-    while ! $input; do
-        collect "fix"
-        verify
-    done
-    update_config
-    install_ser2net
-    dhcp_run_hook
-    ConsolePi_cleanup
-    install_ovpn
-    ovpn_graceful_shutdown
-    ovpn_logging
-    install_autohotspotn
-    gen_dnsmasq_conf
-    dhcpcd_conf
-    get_known_ssids
-    get_serial_udev
-    cd "${mydir}"
-else
-  echo 'Script should be ran as root. exiting.'
-fi
-
+	iam=`whoami`
+	if [ "${iam}" = "root" ]; then 
+		updatepi
+		gitConsolePi
+		get_config
+		! $bypass_verify && verify
+		while ! $input; do
+			collect "fix"
+			verify
+		done
+		update_config
+		install_ser2net
+		dhcp_run_hook
+		ConsolePi_cleanup
+		install_ovpn
+		ovpn_graceful_shutdown
+		ovpn_logging
+		install_autohotspotn
+		gen_dnsmasq_conf
+		dhcpcd_conf
+		get_known_ssids
+		get_serial_udev
+		cd "${mydir}"
+	else
+	  echo 'Script should be ran as root. exiting.'
+	fi
 }
 
 main

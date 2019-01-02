@@ -26,7 +26,7 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 # -- Build Config File and Directory Structure - Read defaults from config
 get_config() {
-	if [ ! -f "${default_config}" ]
+	if [ ! -f "${default_config}" ]; then
 		# This indicates it's the first time the script has ran
 		# [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
 		echo "push=true							# PushBullet Notifications: true - enable, false - disable" > "${default_config}"

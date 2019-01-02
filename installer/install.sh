@@ -624,7 +624,7 @@ if [ "${iam}" = "root" ]; then
 		verify
 	done
 	update_config
-	install_ser2net
+	#install_ser2net
 	dhcp_run_hook
 	ConsolePi_cleanup
 	install_ovpn

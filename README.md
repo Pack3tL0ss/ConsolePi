@@ -45,7 +45,7 @@ Each Time a Notification is triggered all interface IPs are sent in the message 
 
 **Automatic Installation**
 ```
-wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi
+wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && rm -f /tmp/ConsolePi
 ```
 **Manual Installation**
 

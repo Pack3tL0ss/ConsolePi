@@ -59,8 +59,11 @@ udev_main() {
         [[ $input != "end" ]] && getdev 
     done
     # mv /tmp/10-consolePi.rules /etc/udev/rules.d/10-consolePi.rules 
-    cat $rules_file
+    echo "--------------------------------------->> The Following Rules have been created <<---------------------------------------"
+	cat $rules_file
+	echo "-------------------------------------------------------------------------------------------------------------------------"
     # rm -f /tmp/10-consolePi.rules
+	
 }
 
 # __main__

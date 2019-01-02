@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+ver="1.0"
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script                                                               -- #
 # --  Wade Wells - Dec, 2018  v1.0                                                                                                               -- #
@@ -68,18 +69,18 @@ get_config() {
 }
 
 update_config() {
-    echo "push=${push}                            # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
-    echo "push_all=${push_all}                            # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
+    echo "push=${push}                                # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
+    echo "push_all=${push_all}                        # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
     echo "push_api_key=\"${push_api_key}\"            # PushBullet API key" >> "${default_config}"
-    echo "push_iden=\"${push_iden}\"                    # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
-    echo "ovpn_enable=${ovpn_enable}                        # if enabled will establish VPN connection" >> "${default_config}"
-    echo "vpn_check_ip=\"${vpn_check_ip}\"                    # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
-    echo "net_check_ip=\"${net_check_ip}\"                        # used to check internet connectivity" >> "${default_config}"
-    echo "local_domain=\"${local_domain}\"                    # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
-    echo "wlan_ip=\"${wlan_ip}\"                        # IP of consolePi when in hotspot mode" >> "${default_config}"
-    echo "wlan_ssid=\"${wlan_ssid}\"                        # SSID used in hotspot mode" >> "${default_config}"
-    echo "wlan_psk=\"${wlan_psk}\"                        # psk used for hotspot SSID" >> "${default_config}"
-    echo "wlan_country=\"${wlan_country}\"                        # regulatory domain for hotspot SSID" >> "${default_config}"
+    echo "push_iden=\"${push_iden}\"                  # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
+    echo "ovpn_enable=${ovpn_enable}                  # if enabled will establish VPN connection" >> "${default_config}"
+    echo "vpn_check_ip=\"${vpn_check_ip}\"            # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
+    echo "net_check_ip=\"${net_check_ip}\"            # used to check internet connectivity" >> "${default_config}"
+    echo "local_domain=\"${local_domain}\"            # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
+    echo "wlan_ip=\"${wlan_ip}\"                      # IP of consolePi when in hotspot mode" >> "${default_config}"
+    echo "wlan_ssid=\"${wlan_ssid}\"                  # SSID used in hotspot mode" >> "${default_config}"
+    echo "wlan_psk=\"${wlan_psk}\"                    # psk used for hotspot SSID" >> "${default_config}"
+    echo "wlan_country=\"${wlan_country}\"            # regulatory domain for hotspot SSID" >> "${default_config}"
 }
 
 header() {
@@ -258,24 +259,25 @@ verify() {
     # $first_run && header_txt=">>DEFAULT VALUES CHANGE THESE<<" || header_txt="--->>PLEASE VERIFY VALUES<<----"
     echo "-------------------------------------------->>PLEASE VERIFY VALUES<<--------------------------------------------"
     echo                                                                  
-    echo " Send Notifications via PushBullet?:                $push"
+    echo     " Send Notifications via PushBullet?:                  $push"
     if $push; then
-        echo " PushBullet API Key:                                 ${push_api_key}"
-        echo " Send Push Notification to all devices?:                     $push_all"
-        ! $push_all && echo " iden of device to receive PushBullet Notifications:         $push_iden"
+        echo " PushBullet API Key:                                  ${push_api_key}"
+        echo " Send Push Notification to all devices?:              $push_all"
+        ! $push_all && \
+	    echo " iden of device to receive PushBullet Notifications:  ${push_iden}"
     fi
 
-    echo " Enable Automatic VPN?:                                      $ovpn_enable"
+    echo " Enable Automatic VPN?:                                   $ovpn_enable"
     if $ovpn_enable; then
-        echo " IP used to verify VPN is connected:                         $vpn_check_ip"
-        echo " IP used to verify Internet connectivity:                    $net_check_ip"
-        echo " Local Lab Domain:                                           $local_domain"
+        echo " IP used to verify VPN is connected:                  $vpn_check_ip"
+        echo " IP used to verify Internet connectivity:             $net_check_ip"
+        echo " Local Lab Domain:                                    $local_domain"
     fi
 
-    echo " ConsolePi Hot Spot IP:                        $wlan_ip"
-    echo "  *hotspot DHCP Range:                        ${wlan_dhcp_start} to ${wlan_dhcp_end}"
-    echo " ConsolePi Hot Spot SSID:                            $wlan_ssid"
-    echo " ConsolePi Hot Spot psk:                            $wlan_psk"
+    echo " ConsolePi Hot Spot IP:                                   $wlan_ip"
+    echo "  *hotspot DHCP Range:                                    ${wlan_dhcp_start} to ${wlan_dhcp_end}"
+    echo " ConsolePi Hot Spot SSID:                                 $wlan_ssid"
+    echo " ConsolePi Hot Spot psk:                                  $wlan_psk"
     echo " ConsolePi Hot Spot regulatory domain:                    $wlan_country"
     echo
     echo "----------------------------------------------------------------------------------------------------------------"
@@ -584,8 +586,12 @@ dhcpcd_conf () {
 get_known_ssids() {
     echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [INFO] Process Started"
     if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
+		echo
+		echo "----------------------------------------------------------------------------------------------"
         echo "wpa_supplicant.conf already exists with the following configuration"
+		echo "----------------------------------------------------------------------------------------------"
         cat $wpa_supplicant_file
+		echo "----------------------------------------------------------------------------------------------"
         echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
         prompt="Do You want to configure additional SSIDs (Y/N)"
         user_input false "${prompt}"
@@ -629,6 +635,23 @@ get_serial_udev() {
     fi
 }
 
+post_install_msg() {
+    echo
+    echo "*********************************************** Installation Complete ***********************************************"
+    echo "*                                                                                                                   *"
+    echo "* Next Steps:                                                                                                       *"
+    echo "*   OpenVPN: if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and credentials     *"
+    echo "*     files in /etc/openvpn/client.  Refer to the example ovpn file as there are a couple of lines specific to      *"
+    echo "*     ConsolePi functionality (bottom of the example file)                                                          *"
+    echo "*                                                                                                                   *"
+    echo "* Serial Ports are available starting with telnet port 8001 to 8005 incrementing with each adapter plugged in       *"
+    echo "* if you configured predictable ports for specific serial adapters those start with 7001 to 7005 - label the        *"
+    echo "* adapters appropriately.                                                                                           *"
+    echo "* The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available               *"
+    echo "*                                                                                                                   *"
+    echo "*Installation Script v${ver}********************************************************************************************"
+}
+
 main() {
 	iam=`whoami`
 	if [ "${iam}" = "root" ]; then 
@@ -652,6 +675,7 @@ main() {
 		dhcpcd_conf
 		get_known_ssids
 		get_serial_udev
+		post_install_msg
 		cd "${mydir}"
 	else
 	  echo 'Script should be ran as root. exiting.'

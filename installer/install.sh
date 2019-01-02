@@ -16,7 +16,7 @@
 consolepi_dir="/etc/ConsolePi"
 src_dir="${consolepi_dir}/src"
 orig_dir="${consolepi_dir}/originals"
-default_config="/etc/default/ConsolePi.conf"
+default_config="/etc/ConsolePi/ConsolePi.conf"
 mydir=`pwd`
 
 # -- External Sources --
@@ -26,7 +26,7 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 # -- Build Config File and Directory Structure - Read defaults from config
 get_defaults() {
-	if [ ! -f "${default_config}" ]; then
+	if [ ! -f "${default_config}" ] || [[ $1 == "update" ]]; then
 		# This indicates it's the first time the script has ran
 		# [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
 		echo "push=true							# PushBullet Notifications: true - enable, false - disable" > "${default_config}"
@@ -42,20 +42,22 @@ get_defaults() {
 		echo "wlan_ssid=\"ConsolePi\"						# SSID used in hotspot mode" >> "${default_config}"
 		echo "wlan_psk=\"ChangeMe!!\"						# psk used for hotspot SSID" >> "${default_config}"
 		echo "wlan_country=\"US\"						# regulatory domain for hotspot SSID" >> "${default_config}"
-		header
-		echo "Configuration File Created with default values. Enter Y to continue in Interactive Mode"
-		echo "which will prompt you for each value. Enter N to exit the script, so you can modify the"
-		echo "defaults directly then re-run the script."
-		echo
-		prompt="Continue in Interactive mode? (Y/N)"
-		user_input true "${prompt}"
-		continue=$result
-		if ! $continue; then 
+		if [[ ! $1 == "update" ]] ; then
 			header
-			echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
-			echo "i.e. \"sudo nano ${default_config}\""
+			echo "Configuration File Created with default values. Enter Y to continue in Interactive Mode"
+			echo "which will prompt you for each value. Enter N to exit the script, so you can modify the"
+			echo "defaults directly then re-run the script."
 			echo
-			exit 0
+			prompt="Continue in Interactive mode? (Y/N)"
+			user_input true "${prompt}"
+			continue=$result
+			if ! $continue; then 
+				header
+				echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
+				echo "i.e. \"sudo nano ${default_config}\""
+				echo
+				exit 0
+			fi
 		fi
 	fi
 	. "$default_config"
@@ -291,10 +293,14 @@ updatepi () {
 
 gitConsolePi () {
 	echo
-	echo "3)------ fetching ConsolePi Package --------"
+	echo "$(date +"%b %d %T") [INFO] Clone/Update ConsolePi Package"
 	cd "/etc"
-	git clone "${consolepi_source}"
-	echo "--Complete"
+	if [ ! -d $consolepi_dir ]; then 
+		git clone "${consolepi_source}"
+	else
+		git pull "${consolepi_source}"
+	fi
+	echo "$(date +"%b %d %T") [INFO] Clone/Update ConsolePi Package - Complete"
 }
 
 install_ser2net () {
@@ -594,14 +600,15 @@ get_serial_udev() {
 main() {
 iam=`whoami`
 if [ "${iam}" = "root" ]; then 
+	updatepi
+	gitConsolePi
 	get_defaults
 	verify
 	while ! $input; do
 		collect "fix"
 		verify
 	done
-	updatepi
-	gitConsolePi
+	get_defaults update
 	install_ser2net
 	dhcp_run_hook
 	ConsolePi_cleanup

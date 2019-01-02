@@ -565,6 +565,30 @@ get_known_ssids() {
 		echo "$(date) [14.]Collect Known SSIDs [ERROR] ssid collection script not found in ConsolePi install dir"
 }
 
+get_serial_udev(){
+	echo "----------------- Installation Complete --------------------"
+	echo
+	echo "-------------- Predictable Console Ports -------------------"
+	echo " Predictable Console ports allow you to configure ConsolePi "
+	echo " So that each time you plug-in a specific adapter it will   "
+	echo " always be reachable on a predictable port.                 "
+	echo " This is handy if you ever plan to have multiple adapters   "
+	echo " in use.                                                    "
+	echo "------------------------------------------------------------"
+	echo
+	echo "You need to have the serial adapters you want to map to specific telnet ports available"
+	prompt="Would you like to configure predictable serial ports now (Y/N)"
+	user_input true "${prompt}"
+	if $result ; then
+		if [ -f "${consolepi_dir/installer/udev.sh}" ]; then
+			. "${consolepi_dir/installer/udev.sh}"
+			udev_main
+		else
+			echo "ERROR udev.sh not available in installer directory"
+		fi
+	fi
+}
+
 main() {
 iam=`whoami`
 if [ "${iam}" = "root" ]; then 
@@ -586,6 +610,7 @@ if [ "${iam}" = "root" ]; then
 	gen_dnsmasq_conf
 	dhcpcd_conf
 	get_known_ssids
+	get_serial_udev
 	cd "${mydir}"
 else
   echo 'Script should be ran as root. exiting.'

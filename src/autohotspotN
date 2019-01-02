@@ -102,11 +102,13 @@ ChkWiredState()
 
 	# sudo cp /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
 	if [ $eth0_up = false ]; then
-		cp /etc/ConsolePi/dnsmasq.conf.noGW /etc/dnsmasq.conf
+		#cp /etc/ConsolePi/dnsmasq.conf.noGW /etc/dnsmasq.conf
+		sed -i '/^dhcp-option=wlan0,3/s/^#//g' /etc/dnsmasq.conf	#uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
 		logger -t autohotspot Bringing up hotspot with no gateway due to no eth0 connection
 		echo Bringing up hotspot with no gateway due to no eth0 connection
 	else
-		cp /etc/ConsolePi/dnsmasq.conf.withGW /etc/dnsmasq.conf
+		# cp /etc/ConsolePi/dnsmasq.conf.withGW /etc/dnsmasq.conf
+		sed -i '/^dhcp-option=wlan0,3/s/^/#/g' /etc/dnsmasq.conf #comment out option 3 - default behavior assigns i/f address as def-gw
 		logger -t autohotspot Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
 		echo Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
 	fi

@@ -41,6 +41,7 @@ get_defaults() {
 		echo "wlan_ip=\"10.3.0.1\"						# IP of consolePi when in hotspot mode" >> "${default_config}"
 		echo "wlan_ssid=\"ConsolePi\"						# SSID used in hotspot mode" >> "${default_config}"
 		echo "wlan_psk=\"ChangeMe!!\"						# psk used for hotspot SSID" >> "${default_config}"
+		echo "wlan_country=\"US\"						# regulatory domain for hotspot SSID" >> "${default_config}"
 		header
 		echo "Configuration File Created with default values. Enter Y to continue in Interactive Mode"
 		echo "which will prompt you for each value. Enter N to exit the script, so you can modify the"
@@ -303,7 +304,7 @@ install_ser2net () {
 	cd /usr/local/bin
 	echo
 	echo "4A)----------retrieving source package----------"
-	wget "${ser2net_source}" -O ./ser2net.tar.gz
+	wget -q "${ser2net_source}" -O ./ser2net.tar.gz
 	echo "wget finished return value ${?}"
 	echo
 	echo "4B)----------extracting source package----------"
@@ -325,6 +326,7 @@ install_ser2net () {
 	echo "4F)--------------- make clean ------------------"
 	make clean
 	echo "ser2net installation now complete. "
+	rm ser2net.tar.gz
 	echo
 	echo "4G)---Generating Configuration and init file----"
 	cp /etc/ConsolePi/src/ser2net.conf /etc/
@@ -421,6 +423,7 @@ ovpn_logging() {
 install_autohotspotn () {
 	printf "\n10)----------- Install AutoHotSpotN --------------\n"
 	[[ -f "${src_dir}/autohotspotN" ]] && mv "${src_dir}/autohotspotN" /usr/bin
+	chmod +x /usr/bin/autohotspotN
 	echo "$(date) [10.]autohotspotN [INFO] Installing hostapd via apt."
 	apt-get -y install hostapd && res=$?
 	[[ $res == 0 ]] && echo "$(date) [10.]autohotspotN - hostapd [INFO] Install Complete with no error." || "$(date) [10.]autohotspotN - hostapd [ERROR] Installation Error."
@@ -567,7 +570,6 @@ get_known_ssids() {
 }
 
 get_serial_udev() {
-	echo "----------------- Installation Complete --------------------"
 	echo
 	echo "-------------- Predictable Console Ports -------------------"
 	echo " Predictable Console ports allow you to configure ConsolePi "

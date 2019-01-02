@@ -11,7 +11,8 @@ known_ssid_init() {
 }
 
 init_wpa_temp_file() {
-	[[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" || touch "${wpa_temp_file}"
+	( [[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" && cp "${wpa_supplicant_file}" "/etc/ConsolePi/originals" ) \
+	  || echo -e "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n" > "${wpa_temp_file}"
 	echo "# ssids added by ConsolePi install script (it's OK to edit manually)" >> "$wpa_temp_file"
 }
 
@@ -97,5 +98,10 @@ known_ssid_main() {
 	done
 }
 
-echo $0
+if [[ $0 /etc/ConsolePi/installer/ssid.sh ]] ; then
+	known_ssid_init
+	known_ssid_main
+	mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
+	mv "$wpa_temp_file" "$wpa_supplicant_file"
+fi
 # cat "${wpa_temp_file}"

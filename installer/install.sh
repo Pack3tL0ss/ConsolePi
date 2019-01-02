@@ -577,14 +577,26 @@ dhcpcd_conf () {
 
 get_known_ssids() {
 	echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [INFO] Process Started"
-	if [ -f $consolepi_dir/installer/ssids.sh ]; then
-		. $consolepi_dir/installer/ssids.sh
-		known_ssid_init
-		known_ssid_main
-		mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
-		mv "$wpa_temp_file" "$wpa_supplicant_file"
+	if [ -f $wpa_supplicant_file ] && [[ $(wc -l < "$wpa_supplicant_file") > 2 ]] ; then
+		echo "wpa_supplicant.conf already exists with the following configuration"
+		cat $wpa_supplicant_file
+		echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
+		prompt="Do You want to configure additional SSIDs (Y/N)"
+		user_input false "${prompt}"
+		continue=$result
 	else
-		echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [ERROR] ssid collection script not found in ConsolePi install dir"
+		continue=true
+	fi
+	if $continue; then
+		if [ -f $consolepi_dir/installer/ssids.sh ]; then
+			. $consolepi_dir/installer/ssids.sh
+			known_ssid_init
+			known_ssid_main
+			mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
+			mv "$wpa_temp_file" "$wpa_supplicant_file"
+		else
+			echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [ERROR] ssid collection script not found in ConsolePi install dir"
+		fi
 	fi
 }
 

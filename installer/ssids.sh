@@ -80,8 +80,8 @@ known_ssid_main() {
 		echo "-------------------------------------------------------------------------------------------------------------------------------------------------"
 		echo
 		# if $error ; then
-			# prompt="Enter Y to accept as entered or N to reject and re-enter"
-			# user_input true "${prompt}"
+		prompt="Enter Y to accept as entered or N to reject and re-enter"
+		user_input true "${prompt}"
 		# else
 			# result=true
 		# fi

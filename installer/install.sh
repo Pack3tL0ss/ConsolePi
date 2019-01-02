@@ -614,13 +614,14 @@ get_known_ssids() {
 
 get_serial_udev() {
     echo
-    echo "-------------- Predictable Console Ports -------------------"
-    echo " Predictable Console ports allow you to configure ConsolePi "
-    echo " So that each time you plug-in a specific adapter it will   "
-    echo " always be reachable on a predictable port.                 "
-    echo " This is handy if you ever plan to have multiple adapters   "
-    echo " in use.                                                    "
-    echo "------------------------------------------------------------"
+    echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
+    echo "-                                                                                                                   -"
+    echo "- Predictable Console ports allow you to configure ConsolePi so that each time you plug-in a specific adapter it    -"
+    echo "- will always be reachable on a predictable telnet port.                                                            -"
+    echo "-                                                                                                                   -"
+    echo "- This is handy if you ever plan to have multiple adapters, or if you are using a multi-port pig-tail adapter.      -"
+    echo "-                                                                                                                   -"
+    echo "---------------------------------------------------------------------------------------------------------------------"
     echo
     echo "You need to have the serial adapters you want to map to specific telnet ports available"
     prompt="Would you like to configure predictable serial ports now (Y/N)"
@@ -636,20 +637,23 @@ get_serial_udev() {
 }
 
 post_install_msg() {
-    echo
-    echo "*********************************************** Installation Complete ***********************************************"
-    echo "*                                                                                                                   *"
-    echo "* Next Steps:                                                                                                       *"
-    echo "*   OpenVPN: if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and credentials     *"
-    echo "*     files in /etc/openvpn/client.  Refer to the example ovpn file as there are a couple of lines specific to      *"
-    echo "*     ConsolePi functionality (bottom of the example file)                                                          *"
-    echo "*                                                                                                                   *"
-    echo "* Serial Ports are available starting with telnet port 8001 to 8005 incrementing with each adapter plugged in       *"
-    echo "* if you configured predictable ports for specific serial adapters those start with 7001 to 7005 - label the        *"
-    echo "* adapters appropriately.                                                                                           *"
-    echo "* The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available               *"
-    echo "*                                                                                                                   *"
-    echo "*Installation Script v${ver}********************************************************************************************"
+echo
+echo "*********************************************** Installation Complete ***************************************************"
+echo "*                                                                                                                       *"
+echo -e "* \033[1;32mNext Steps:$*\033[m                                                                                                           *"
+echo -e "*   \033[1;32mOpenVPN:$*\033[m if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and ovpn_credentials    *"
+echo "*     files in /etc/openvpn/client.  Refer to the example ovpn file as there are a couple of lines specific to          *"
+echo "*     ConsolePi functionality (bottom of the example file)                                                              *"
+echo "*     You chould \"sudo chmod 600 <filename>\"both of the files for added security                                        *"
+echo "*                                                                                                                       *"
+echo -e "* \033[1;32mser2net Usage:$*\033[m                                                                                                        *"
+echo "*   Serial Ports are available starting with telnet port 8001 to 8005 incrementing with each adapter plugged in.        *"
+echo "*   if you configured predictable ports for specific serial adapters those start with 7001 to 7005 - label the          *"
+echo "*   adapters appropriately.                                                                                             *"
+echo "*                                                                                                                       *"
+echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
+echo "*                                                                                                                       *"
+echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
 }
 
 main() {

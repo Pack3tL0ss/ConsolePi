@@ -171,7 +171,7 @@ known_ssid_main() {
         else
             continue=true
             psk_valid=false
-			match=0
+            match=0
         fi
     done
 }

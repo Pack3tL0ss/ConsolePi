@@ -3,7 +3,7 @@
 # -- init some vars --
 known_ssid_init() {
 	continue=true
-	# error=false
+	bypass_prompt=false
 	psk_valid=false
 	wpa_temp_file="/tmp/wpa_temp"
 	wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
@@ -99,7 +99,7 @@ known_ssid_main() {
 		match=`cat "${wpa_supplicant_file}" |grep -c "${ssid}"`
 		if [[ $match > 0 ]]; then
 			temp=" ${ssid} is already defined, please edit ${wpa_supplicant_file}\n manually or remove the ssid and run ssid.sh"
-			# error=true
+			bypass_prompt=true
 		fi
 		if [ -f "${wpa_temp_file}" ]; then
 			temp_match=`cat "${wpa_temp_file}" |grep -c "${ssid}"`
@@ -152,12 +152,13 @@ known_ssid_main() {
 		echo -e "$temp"
 		echo "-------------------------------------------------------------------------------------------------------------------------------------------------"
 		echo
-		# if $error ; then
-		prompt="Enter Y to accept as entered or N to reject and re-enter"
-		user_input true "${prompt}"
-		# else
-			# result=true
-		# fi
+		if ! $bypass_prompt ; then
+            prompt="Enter Y to accept as entered or N to reject and re-enter"
+            user_input true "${prompt}"
+		else
+			echo "Press any key to continue" && read
+			result=true
+		fi
 		if $result; then
 			[[ $match == 0 ]] && echo -e "$temp" >> $wpa_temp_file
 			prompt="Do You have additional SSIDs to define? (Y/N)"
@@ -167,6 +168,8 @@ known_ssid_main() {
 			continue=true
 			psk_valid=false
 		fi
+		#reset bypass_prompt used to bypass verification when an ssid is entered that is already defined.
+		bypass_prompt=false
 	done
 }
 

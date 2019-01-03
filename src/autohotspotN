@@ -103,7 +103,7 @@ ChkWiredState()
 	# sudo cp /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
 	if [ $eth0_up = false ]; then
 		#cp /etc/ConsolePi/dnsmasq.conf.noGW /etc/dnsmasq.conf
-		sed -i '/^dhcp-option=wlan0,3/s/^#//g' /etc/dnsmasq.conf	#uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
+		sed -i '/^#dhcp-option=wlan0,3/s/^#//g' /etc/dnsmasq.conf	#uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
 		logger -t autohotspot Bringing up hotspot with no gateway due to no eth0 connection
 		echo Bringing up hotspot with no gateway due to no eth0 connection
 	else

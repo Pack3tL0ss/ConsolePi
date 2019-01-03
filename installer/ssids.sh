@@ -105,7 +105,9 @@ known_ssid_main() {
 			temp_match=`cat "${wpa_temp_file}" |grep -c "${ssid}"`
 			if [[ $temp_match > 0 ]]; then
 				init_wpa_temp_file
-				echo " ${ssid} already added during this session, over-writing all previous entries."
+				temp=" ${ssid} already added during this session, over-writing all previous entries. Start over\n Don't screw up this time!"
+				bypass_prompt=true
+				
 			fi
 		fi
 		echo $match $temp_match

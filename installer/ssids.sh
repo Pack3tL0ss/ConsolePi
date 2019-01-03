@@ -110,6 +110,7 @@ known_ssid_main() {
 		fi
 		echo $match $temp_match
 		((match=$match+$temp_match))
+		echo $match
 		if [[ $match == 0 ]]; then
 			# -- psk or open network --
 			prompt="Input psk for ${ssid} or press enter to configure ${ssid} as an open network" && header && echo -e $header_txt

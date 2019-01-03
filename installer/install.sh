@@ -741,6 +741,8 @@ post_install_msg() {
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
     echo "*                                                                                                                       *"
+	echo "*   An install log can be found in ${consolepi_dir}/installer/install.log                                               *"
+	echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
     echo -e "\n\n"
 }

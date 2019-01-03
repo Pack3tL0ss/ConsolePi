@@ -66,8 +66,8 @@ get_config() {
         fi
     fi
 	[[ ! -f "${default_config}" ]] && [[ -f "/home/pi/ConsolePi.conf" ]] && sudo cp "/home/pi/ConsolePi.conf" "$default_config"
-	. "$default_config" && 
-	    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Configuration loaded from pi home dir" | tee -a /tmp/install.log
+	. "$default_config" || 
+	    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Error Loading Configuration defaults" | tee -a /tmp/install.log
     hotspot_dhcp_range
 }
 

@@ -8,11 +8,12 @@ known_ssid_init() {
 	wpa_temp_file="/tmp/wpa_temp"
 	wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 	header_txt="----------------->>Enter Known SSIDs - ConsolePi will attempt connect to these if available prior to switching to HotSpot mode<<-----------------\n"
+	( [[ -f "/etc/ConsolePi/ConsolePi.conf" ]] && . "/etc/ConsolePi/ConsolePi.conf" && country_txt="country=${wlan_country}" ) || country_txt="#"
 }
 
 init_wpa_temp_file() {
 	( [[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" && cp "${wpa_supplicant_file}" "/etc/ConsolePi/originals" ) \
-	  || echo -e "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n" > "${wpa_temp_file}"
+	  || echo -e "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n${country_txt}\n" > "${wpa_temp_file}"
 	echo "# ssids added by ConsolePi install script (it's OK to edit manually)" >> "$wpa_temp_file"
 }
 

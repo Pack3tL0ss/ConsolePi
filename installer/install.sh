@@ -817,7 +817,7 @@ main() {
 		get_known_ssids
 		get_serial_udev
 		post_install_msg
-		cd "${mydir}"
+		# cd "${mydir}"
 		[[ -f /etc/ConsolePi/installer/install.log ]] && sudo mv /etc/ConsolePi/installer/install.log /etc/ConsolePi/installer/install.log.bak
 		mv /tmp/install.log /etc/ConsolePi/installer/install.log
 	else

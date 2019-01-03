@@ -333,16 +333,14 @@ install_ser2net () {
     echo "wget finished return value ${?}"
     echo
     echo "4B)----------extracting source package----------"
-    tar -zxf ser2net.tar.gz
-    echo "--extraction Complete"
+    tar -zxf ser2net.tar.gz && echo "--extraction Complete" || echo "Extraction Error"
     echo
     echo "4C)---------------- ./configure ----------------"
     cd ser2net*/
-    ./configure
-    echo "configure finished return value ${?}"
+    ./configure && echo "./configure Successful" || echo "configure error"
     echo
     echo "4D)------------------- make --------------------"    
-    echo "make finished return value ${?}"
+    make && echo "make finished return value ${?}" || echo "make error"
     echo
     echo "4E)--------------- make install ----------------"
     make install

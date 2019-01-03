@@ -31,7 +31,7 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 # -- Build Config File and Directory Structure - Read defaults from config
 get_config() {
     bypass_verify=false
-    if [ ! -f "${default_config}" ]; then
+    if [ ! -f "${default_config}" ] && [ ! -f "${mydir}/ConsolePi.conf" ]; then
         # This indicates it's the first time the script has ran
         # [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
         echo "push=true                            # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
@@ -39,7 +39,6 @@ get_config() {
         echo "push_api_key=\"PutYourPBAPIKeyHereChangeMe:\"            # PushBullet API key" >> "${default_config}"
         echo "push_iden=\"putyourPBidenHere\"                    # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
         echo "ovpn_enable=true                        # if enabled will establish VPN connection" >> "${default_config}"
-        echo "push_all=true                            # true - push to all devices, false - push only to push_iden" >> "${default_config}"
         echo "vpn_check_ip=\"10.0.150.1\"                    # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
         echo "net_check_ip=\"8.8.8.8\"                        # used to check internet connectivity" >> "${default_config}"
         echo "local_domain=\"arubalab.net\"                    # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
@@ -66,7 +65,9 @@ get_config() {
             exit 0
         fi
     fi
-    . "$default_config"
+    [ ! -f "${default_config}" ] && . "$default_config"
+	[ ! -f "${mydir}/ConsolePi.conf" ] && . "${mydir}/ConsolePi.conf" && 
+	    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Configuration loaded from ${mydir}" | tee -a /tmp/install.log
     hotspot_dhcp_range
 }
 

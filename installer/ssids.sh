@@ -109,9 +109,7 @@ known_ssid_main() {
                 bypass_prompt=true
             fi
         fi
-        echo $match $temp_match
         ((match=$match+$temp_match))
-        echo $match
         if [[ $match == 0 ]]; then
             # -- psk or open network --
             prompt="Input psk for ${ssid} or press enter to configure ${ssid} as an open network" && header && echo -e $header_txt
@@ -155,15 +153,16 @@ known_ssid_main() {
         echo -e "$temp"
         echo "-------------------------------------------------------------------------------------------------------------------------------------------------"
         echo
-        if ! $bypass_prompt ; then
+        if $bypass_prompt ; then
+            echo "Press any key to continue" && read
+            accept=true
+            bypass_prompt=false
+        else
             prompt="Enter Y to accept as entered or N to reject and re-enter"
             user_input true "${prompt}"
-        else
-            echo "Press any key to continue" && read
-            result=true
-            bypass_prompt=false
+			accept=$result
         fi
-        if $result; then
+        if $accept; then
             [[ $match == 0 ]] && echo -e "$temp" >> $wpa_temp_file
             prompt="Do You have additional SSIDs to define? (Y/N)"
             user_input false "${prompt}"

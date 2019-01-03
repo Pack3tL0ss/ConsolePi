@@ -328,8 +328,7 @@ set_timezone() {
 	cur_tz=$(date +"%Z")
 
 	while ! $valid_response; do
-		#Display existing hostname
-		read -p "Current hostname $cur_tz. Do you want to configure the timezone (y/n)?: " response
+		read -p "Current TimeZone $cur_tz. Do you want to configure the timezone (y/n)?: " response
 		response=${response,,}    # tolower
 		( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
 	done
@@ -348,7 +347,7 @@ updatepi () {
         (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to Update" |& tee -a /tmp/install.log && exit 1) 
     [[ $? > 0 ]] && exit $?
 	
-    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Upgrading Raspberry Pi via apt" | tee -a /tmp/install.log
+    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Upgrading Raspberry Pi via apt. This may take a while" | tee -a /tmp/install.log
     sudo apt-get -y upgrade 1>/dev/null 2>> /tmp/install.log &&  
         (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Upgrade Completed Successfully" | tee -a /tmp/install.log ) ||
         (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to Upgrade" |& tee -a /tmp/install.log && exit 1)
@@ -440,7 +439,7 @@ install_ser2net () {
 	    (echo "$(date +"%b %d %T") ConsolePi Installer[WARNING] ser2net Failed to make init executable" |& tee -a /tmp/install.log && exit 1 )
     # [[ $? > 0 ]] && exit $?
     echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net Enable init" | tee -a /tmp/install.log
-    /lib/systemd/systemd-sysv-install enable ser2net || 
+    /lib/systemd/systemd-sysv-install enable ser2net 1>/dev/null 2>> /tmp/install.log && 
 		(echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net init file enabled" | tee -a /tmp/install.log )
 	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ser2net failed to enable init file (start on boot)" |& tee -a /tmp/install.log && exit 1 )
 		
@@ -569,7 +568,7 @@ install_autohotspotn () {
         (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] dnsmasq install Success" | tee -a /tmp/install.log ) ||
         (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] dnsmasq install Failed" |& tee -a /tmp/install.log && exit 1 )
     
-	echo "$(date +"%b %d %T") ConsolePi Installer[INFO] disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN." | tee -a /tmp/install.log
+	echo "$(date +"%b %d %T") ConsolePi Installer[INFO] disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)." | tee -a /tmp/install.log
     systemctl disable hostapd 1>/dev/null 2>> /tmp/install.log && res=$?
     systemctl disable dnsmasq 1>/dev/null 2>> /tmp/install.log && ((res=$?+$res))
 	[[ $res == 0 ]] && (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] hostapd and dnsmasq autostart disabled Successfully" | tee -a /tmp/install.log ) ||
@@ -708,8 +707,8 @@ dhcpcd_conf () {
 }
 
 get_known_ssids() {
+    echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [INFO] Process Started" | tee -a /tmp/install.log
 	header
-    echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [INFO] Process Started"
     if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
 		echo
 		echo "----------------------------------------------------------------------------------------------"
@@ -729,10 +728,12 @@ get_known_ssids() {
             . $consolepi_dir/installer/ssids.sh
             known_ssid_init
             known_ssid_main
-            mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
-            mv "$wpa_temp_file" "$wpa_supplicant_file"
+            mv "$wpa_supplicant_file" "/etc/ConsolePi/originals" 1>/dev/null 2>> /tmp/install.log ||
+	            (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to backup existing file to originals dir" |& tee -a /tmp/install.log && exit 1 )
+            mv "$wpa_temp_file" "$wpa_supplicant_file" 1>/dev/null 2>> /tmp/install.log ||
+	            (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to move collected ssids to wpa_supplicant.conf Verify Manually" |& tee -a /tmp/install.log && exit 1 )
         else
-            echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [ERROR] ssid collection script not found in ConsolePi install dir"
+            echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [ERROR] ssid collection script not found in ConsolePi install dir" |& tee -a /tmp/install.log
         fi
     fi
 }
@@ -783,6 +784,9 @@ post_install_msg() {
 	echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
     echo -e "\n\n"
+	#Press a key to reboot
+    read -s -n 1 -p "Press any key to reboot"
+    sudo reboot
 }
 
 main() {

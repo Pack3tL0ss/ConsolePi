@@ -11,7 +11,7 @@ known_ssid_init() {
 	( [[ -f "/etc/ConsolePi/ConsolePi.conf" ]] && . "/etc/ConsolePi/ConsolePi.conf" && country_txt="country=${wlan_country}" ) || country_txt="#"
 }
 
-# defining again here so the script can be ran directly
+# defining header and user-input again here so the script can be ran directly until I re-factor so this is less lame
 header() {
     clear
     echo "                                                                                                                                                ";
@@ -34,6 +34,52 @@ header() {
     echo "        CCCCCCCCCCCCC   ooooooooooo     nnnnnn    nnnnnn  sssssssssss       ooooooooooo   llllllll    eeeeeeeeeeeeeePPPPPPPPPP          iiiiiiii";
     echo "                                                                                                                                                ";
     echo "                                                                                                                                                ";
+}
+
+user_input() {
+    case $1 in
+        true|false)
+            bool=true
+        ;;
+        *)
+            bool=false
+        ;;
+    esac
+
+    [ ! -z "$1" ] && default="$1" 
+    [ ! -z "$2" ] && prompt="$2"
+
+    if [ ! -z $default ]; then
+        if $bool; then
+            $default && prompt+=" [Y]: " || prompt+=" [N]: "
+        else
+            prompt+=" [${default}]: "
+        fi
+    else
+        prompt+=" $prompt: "
+    fi
+    
+    printf "%s" "${prompt}"
+    read input
+    if $bool; then
+        if [ ${#input} -gt 0 ] && ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ] || [ ${input,,} == 'true' ]); then 
+            result=true
+        elif [ ${#input} -gt 0 ] && ([ ${input,,} == 'n' ] || [ ${input,,} == 'no' ] || [ ${input,,} == 'false' ]); then 
+            result=false
+        elif ! [ -z $default ]; then
+            result=$default
+        else 
+            result=false
+        fi
+    else
+        if [ ${#input} -gt 0 ]; then
+            result=$input
+        elif [ ${#default} -gt 0 ]; then
+            result=$default
+        else
+            result="Invalid"
+        fi
+    fi
 }
 
 init_wpa_temp_file() {

@@ -670,6 +670,7 @@ dhcpcd_conf () {
 }
 
 get_known_ssids() {
+	header
     echo "$(date +"%b %d %T") [14.]Collect Known SSIDs [INFO] Process Started"
     if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
 		echo
@@ -699,6 +700,7 @@ get_known_ssids() {
 }
 
 get_serial_udev() {
+	header
     echo
     echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
     echo "-                                                                                                                   -"

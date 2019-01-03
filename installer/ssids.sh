@@ -85,7 +85,7 @@ user_input() {
 init_wpa_temp_file() {
 	( [[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" && cp "${wpa_supplicant_file}" "/etc/ConsolePi/originals" ) \
 	  || echo -e "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n${country_txt}\n" > "${wpa_temp_file}"
-	echo "# ssids added by ConsolePi install script (it's OK to edit manually)" >> "$wpa_temp_file"
+	
 }
 
 known_ssid_main() {
@@ -109,6 +109,7 @@ known_ssid_main() {
 			fi
 		fi
 		echo $match $temp_match
+		((match=$match+$temp_match))
 		if [[ $match == 0 ]]; then
 			# -- psk or open network --
 			prompt="Input psk for ${ssid} or press enter to configure ${ssid} as an open network" && header && echo -e $header_txt

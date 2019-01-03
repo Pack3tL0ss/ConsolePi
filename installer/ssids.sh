@@ -170,6 +170,7 @@ known_ssid_main() {
 	done
 }
 
+echo $0
 if [[ ! $0 == *"ConsolePi"* ]] && [[ ! $0 == *"install"* ]] ; then
 	known_ssid_init
 	known_ssid_main

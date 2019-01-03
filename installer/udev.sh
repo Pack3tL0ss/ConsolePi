@@ -65,6 +65,7 @@ udev_main() {
     echo "--------------------------------------->> The Following Rules have been created <<---------------------------------------"
     cat $rules_file
     echo "-------------------------------------------------------------------------------------------------------------------------"
+	sudo udevadm control --reload-rules && udevadm trigger
     # rm -f /tmp/10-consolePi.rules
     
 }

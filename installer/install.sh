@@ -20,6 +20,7 @@ orig_dir="${consolepi_dir}/originals"
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 mydir=`pwd`
+touch /tmp/install.log
 logline="----------------------------------------------------------------------------------------------------------------"
 
 # -- External Sources --
@@ -297,8 +298,50 @@ verify() {
     # fi
 }
 
+set_hostname() {
+	header
+	valid_response=false
+	hostn=$(cat /etc/hostname)
+
+	while ! $valid_response; do
+		#Display existing hostname
+		read -p "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
+		response=${response,,}    # tolower
+		( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
+	done
+	if [[ "$response" =~ ^(yes|y)$ ]]; then
+		#Ask for new hostname $newhost
+		read -p "Enter new hostname: " newhost
+
+		#change hostname in /etc/hosts & /etc/hostname
+		sudo sed -i "s/$hostn/$newhost/g" /etc/hosts
+		sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
+		sudo sed -i "s/$hostn/$newhost/g" /etc/hostname
+		
+		echo "$(date +"%b %d %T") ConsolePi Installer[INFO] New hostname set $newhost" | tee -a /tmp/install.log
+	fi
+}
+
+set_timezone() {
+	header
+	valid_response=false
+	cur_tz=$(date +"%Z")
+
+	while ! $valid_response; do
+		#Display existing hostname
+		read -p "Current hostname $cur_tz. Do you want to configure the timezone (y/n)?: " response
+		response=${response,,}    # tolower
+		( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
+	done
+	if [[ "$response" =~ ^(yes|y)$ ]]; then
+		sudo dpkg-reconfigure tzdata 2>> /tmp/install.log &&
+        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] TimeZone Successfully Changed ($(date +"%Z"))" | tee -a /tmp/install.log ) ||
+        (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to Change TimeZone" |& tee -a /tmp/install.log && exit 1) 
+	fi
+}
+
 updatepi () {
-    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Updating Raspberry Pi via apt" | tee /tmp/install.log
+    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Updating Raspberry Pi via apt" | tee -a /tmp/install.log
     sudo apt-get update 1>/dev/null 2>> /tmp/install.log &&
         (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Update Completed Successfully" | tee -a /tmp/install.log ) ||
         (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to Update" |& tee -a /tmp/install.log && exit 1) 
@@ -470,18 +513,12 @@ install_ovpn() {
 ovpn_graceful_shutdown() {
     echo "$(date +"%b %d %T") ConsolePi Installer[INFO] deploy ovpn_graceful_shutdown to reboot.target.wants" | tee -a /tmp/install.log
     this_file="/etc/systemd/system/reboot.target.wants/ovpn-graceful-shutdown"
-    echo "[Unit]" > "${this_file}" 1>/dev/null 2>> /tmp/install.log || 
-	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed write to file." |& tee -a /tmp/install.log && exit 1 )
-    echo "Description=Gracefully terminates any ovpn sessions on shutdown/reboot" >> "${this_file}"
-    echo "DefaultDependencies=no" >> "${this_file}"
-    echo "Before=networking.service" >> "${this_file}"
-    echo "" >> "${this_file}"
-    echo "[Service]" >> "${this_file}"
-    echo "Type=oneshot" >> "${this_file}"
-    echo "ExecStart=/bin/sh -c 'pkill -SIGTERM -e -F /var/run/ovpn.pid '" >> "${this_file}"
-    echo "" >> "${this_file}"
-    echo "[Install]" >> "${this_file}"
-    echo "WantedBy=reboot.target halt.target poweroff.target" >> "${this_file}"
+    echo -e "[Unit]\nDescription=Gracefully terminates any ovpn sessions on shutdown/reboot\nDefaultDependencies=no\nBefore=networking.service\n\n" > "${this_file}"
+    echo -e "[Service]\nType=oneshot\nExecStart=/bin/sh -c 'pkill -SIGTERM -e -F /var/run/ovpn.pid '\n\n" >> "${this_file}"
+    echo -e "[Install]\nWantedBy=reboot.target halt.target poweroff.target" >> "${this_file}"
+	lines=$(wc -l < "${this_file}") || lines=0
+	[[ $lines == 0 ]] && 
+	    echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Error deploying ovpn_graceful_shutdown to reboot.target.wants" | tee -a /tmp/install.log
     chmod +x "${this_file}" 1>/dev/null 2>> /tmp/install.log || 
 	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to chmod File" |& tee -a /tmp/install.log && exit 1 )
     echo "$(date +"%b %d %T") ConsolePi Installer[INFO] deploy ovpn_graceful_shutdown to reboot.target.wants Complete" | tee -a /tmp/install.log
@@ -758,6 +795,8 @@ main() {
 			collect "fix"
 			verify
 		done
+		set_hostname
+		set_timezone
 		update_config
 		install_ser2net
 		dhcp_run_hook
@@ -772,6 +811,8 @@ main() {
 		get_serial_udev
 		post_install_msg
 		cd "${mydir}"
+		[[ -f /etc/ConsolePi/installer/install.log ]] && sudo mv /etc/ConsolePi/installer/install.log /etc/ConsolePi/installer/install.log.bak
+		mv /tmp/install.log /etc/ConsolePi/installer/install.log
 	else
 	  echo 'Script should be ran as root. exiting.'
 	fi

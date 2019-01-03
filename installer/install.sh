@@ -341,6 +341,7 @@ set_timezone() {
 }
 
 updatepi () {
+	header
     echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Updating Raspberry Pi via apt" | tee -a /tmp/install.log
     sudo apt-get update 1>/dev/null 2>> /tmp/install.log &&
         (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Update Completed Successfully" | tee -a /tmp/install.log ) ||

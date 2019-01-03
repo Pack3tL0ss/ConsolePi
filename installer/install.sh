@@ -470,6 +470,7 @@ dhcp_run_hook() {
         echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook"
     fi
     chmod +x /etc/dhcpcd.exit-hook
+	chmod +x /etc/ConsolePi/ConsolePi.sh	# Once I get git to retain +x should not need this
 	echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Install ConsolePi script Success" | tee -a /tmp/install.log 
 }
 
@@ -479,7 +480,7 @@ ConsolePi_cleanup() {
 	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Error Copying ConsolePi_cleanup init script." |& tee -a /tmp/install.log && exit 1 )
     chmod +x /etc/init.d/ConsolePi_cleanup 1>/dev/null 2>> /tmp/install.log || 
 	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to make ConsolePi_cleanup init script executable." |& tee -a /tmp/install.log && exit 1 )
-    /lib/systemd/systemd-sysv-install enable ConsolePi_cleanup 1>/dev/null 2>> /tmp/install.log || 
+    sudo systemctl start ConsolePi_cleanup 1>/dev/null 2>> /tmp/install.log || 
 	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to enable ConsolePi_cleanup init script." |& tee -a /tmp/install.log && exit 1 )
 		
     echo "$(date +"%b %d %T") ConsolePi Installer[INFO] copy and enable ConsolePi_cleanup init script - Complete" | tee -a /tmp/install.log 
@@ -569,8 +570,8 @@ install_autohotspotn () {
         (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] dnsmasq install Failed" |& tee -a /tmp/install.log && exit 1 )
     
 	echo "$(date +"%b %d %T") ConsolePi Installer[INFO] disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)." | tee -a /tmp/install.log
-    systemctl disable hostapd 1>/dev/null 2>> /tmp/install.log && res=$?
-    systemctl disable dnsmasq 1>/dev/null 2>> /tmp/install.log && ((res=$?+$res))
+    sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> /tmp/install.log && res=$?
+    sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> /tmp/install.log && ((res=$?+$res))
 	[[ $res == 0 ]] && (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] hostapd and dnsmasq autostart disabled Successfully" | tee -a /tmp/install.log ) ||
         (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] An error occured disabling hostapd and/or dnsmasq autostart" |& tee -a /tmp/install.log && exit 1 )
 

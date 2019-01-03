@@ -409,7 +409,7 @@ install_ser2net () {
 
 	echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ./configure ser2net" | tee -a /tmp/install.log
     ./configure 1>/dev/null 2>> /tmp/install.log &&
-        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net ./configure Success" | tee -a /tmp/install.log ) ||
+        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ./configure ser2net Success" | tee -a /tmp/install.log ) ||
         (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ser2net ./configure Failed" |& tee -a /tmp/install.log && exit 1 )
     [[ $? > 0 ]] && exit $?
 
@@ -441,7 +441,7 @@ install_ser2net () {
     # [[ $? > 0 ]] && exit $?
     echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net Enable init" | tee -a /tmp/install.log
     /lib/systemd/systemd-sysv-install enable ser2net 1>/dev/null 2>> /tmp/install.log && 
-		(echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net init file enabled" | tee -a /tmp/install.log )
+		(echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net init file enabled" | tee -a /tmp/install.log ) ||
 	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ser2net failed to enable init file (start on boot)" |& tee -a /tmp/install.log && exit 1 )
 		
     systemctl daemon-reload || 
@@ -481,7 +481,7 @@ ConsolePi_cleanup() {
 	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Error Copying ConsolePi_cleanup init script." |& tee -a /tmp/install.log && exit 1 )
     chmod +x /etc/init.d/ConsolePi_cleanup 1>/dev/null 2>> /tmp/install.log || 
 	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to make ConsolePi_cleanup init script executable." |& tee -a /tmp/install.log && exit 1 )
-    sudo systemctl start ConsolePi_cleanup 1>/dev/null 2>> /tmp/install.log || 
+    sudo /lib/systemd/systemd-sysv-install enable ConsolePi_cleanup 1>/dev/null 2>> /tmp/install.log || 
 	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to enable ConsolePi_cleanup init script." |& tee -a /tmp/install.log && exit 1 )
 		
     echo "$(date +"%b %d %T") ConsolePi Installer[INFO] copy and enable ConsolePi_cleanup init script - Complete" | tee -a /tmp/install.log 

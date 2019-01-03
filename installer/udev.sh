@@ -70,12 +70,10 @@ udev_main() {
 }
 
 # __main__
-p=`ps -o stat= -p $PPID`
-if [[ $p == "S+" ]]; then
+if [[ ! $0 == *"ConsolePi"* ]]; then
     iam=`whoami`
     if [ "${iam}" = "root" ]; then
-	    udev_init
-        header
+        echo "...script ran from CLI..."
         udev_main
     else
         echo 'Script should be ran as root. exiting.'

@@ -20,6 +20,7 @@ orig_dir="${consolepi_dir}/originals"
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 mydir=`pwd`
+logline="----------------------------------------------------------------------------------------------------------------"
 
 # -- External Sources --
 ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download"
@@ -297,35 +298,55 @@ verify() {
 }
 
 updatepi () {
-    header
-    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Updating Raspberry Pi and getting source files"
-    echo "1)---- updating RaspberryPi (aptitude) -----"
-    apt-get update && apt-get -y upgrade
-    echo
-    sudo apt-get -y dist-upgrade
-    sudo apt-get -y autoremove
-    echo
-    echo "2)---------- installing git ----------------"
-    sudo apt-get -y install git
-    echo "Raspberry Pi Update Complete"
+    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Updating Raspberry Pi via apt" | tee /tmp/install.log
+    sudo apt-get update 1>/dev/null 2>> /tmp/install.log &&
+        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Update Completed Successfully" | tee -a /tmp/install.log ) ||
+        (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to Update" |& tee -a /tmp/install.log && exit 1) 
+    [[ $? > 0 ]] && exit $?
+	
+    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Upgrading Raspberry Pi via apt" | tee -a /tmp/install.log
+    sudo apt-get -y upgrade 1>/dev/null 2>> /tmp/install.log &&  
+        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Upgrade Completed Successfully" | tee -a /tmp/install.log ) ||
+        (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to Upgrade" |& tee -a /tmp/install.log && exit 1)
+    [[ $? > 0 ]] && exit $?
+	
+    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Performing dist-upgrade" | tee -a /tmp/install.log
+    sudo apt-get -y dist-upgrade 1>/dev/null 2>> /tmp/install.log &&
+        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] dist-upgrade Completed Successfully" | tee -a /tmp/install.log ) ||
+        (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] dist-upgrade Failed" |& tee -a /tmp/install.log && exit 1 )
+    [[ $? > 0 ]] && exit $?
+
+    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Tidying up (autoremove)" | tee -a /tmp/install.log
+    apt-get -y autoremove 1>/dev/null 2>> /tmp/install.log &&
+        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Tidying up (autoremove) Complete" | tee -a /tmp/install.log ) ||
+        (echo "$(date +"%b %d %T") ConsolePi Installer[WARNING] apt-get autoremove failed" |& tee -a /tmp/install.log && exit 1)
+        # [[ $? > 0 ]] && echo $logline >> /tmp/install.log 
+		
+    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Installing git via apt" | tee -a /tmp/install.log
+    apt-get -y install git 1>/dev/null 2>> /tmp/install.log &&
+        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] git Install Complete" | tee -a /tmp/install.log ) ||
+        (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] git Install failed" |& tee -a /tmp/install.log && exit 1)
+    [[ $? > 0 ]] && exit $?
 }
 
 gitConsolePi () {
-    echo
-    echo "$(date +"%b %d %T") [INFO] Clone/Update ConsolePi Package"
     cd "/etc"
     if [ ! -d $consolepi_dir ]; then 
-        git clone "${consolepi_source}"
+	    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Clean Install git clone ConsolePi" | tee -a /tmp/install.log
+        git clone "${consolepi_source}" 1>/dev/null 2>> /tmp/install.log &&
+            (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ConsolePi clone Successful" | tee -a /tmp/install.log ) ||
+            (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ConsolePi clone failed" |& tee -a /tmp/install.log && exit 1 )
+        [[ $? > 0 ]] && exit $?
     else
         cd $consolepi_dir
-        git pull "${consolepi_source}"
+		echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Directory exists Updating ConsolePi via git" | tee -a /tmp/install.log
+        git pull "${consolepi_source}" | tee -a /tmp/install.log
     fi
-    echo "$(date +"%b %d %T") [INFO] Clone/Update ConsolePi Package - Complete"
+    echo "$(date +"%b %d %T") [INFO] Clone/Update ConsolePi Package - Complete" | tee -a /tmp/install.log
 }
 
 install_ser2net () {
-    echo
-    echo "4)------- installing ser2net from source -------"
+    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Installing ser2net from source" | tee -a /tmp/install.log
     cd /usr/local/bin
     echo
     echo "4A)----------retrieving source package----------"

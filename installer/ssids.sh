@@ -155,8 +155,9 @@ known_ssid_main() {
         echo
         if $bypass_prompt ; then
             echo "Press any key to continue" && read
-            accept=true
-            bypass_prompt=false
+            accept=true		# prompt to see if they want to continue adding - yields $continue
+            bypass_prompt=false  # reset bypass_prompt
+			psk_valid=false      # reset psk_valid
         else
             prompt="Enter Y to accept as entered or N to reject and re-enter"
             user_input true "${prompt}"

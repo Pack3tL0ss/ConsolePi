@@ -407,6 +407,7 @@ install_ovpn() {
     fi
     cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client"
     cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client"
+	chmod 600 /etc/openvpn/client/*
 }
 
 ovpn_graceful_shutdown() {

@@ -476,6 +476,7 @@ install_autohotspotn () {
     echo "ieee80211n=1" >> "/tmp/hostapd.conf"
     mv /tmp/hostapd.conf /etc/hostapd/hostapd.conf
     
+    echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] Making changes to /etc/hostapd/hostapd.conf"
     [[ -f "/etc/default/hostapd" ]] && mv "/etc/default/hostapd" "${orig_dir}"
     echo "# Defaults for hostapd initscript" > "/tmp/hostapd"
     echo "#" >> "/tmp/hostapd"
@@ -497,7 +498,9 @@ install_autohotspotn () {
     echo "# configured by the init.d script and must not be added to DAEMON_OPTS." >> "/tmp/hostapd"
     echo "#" >> "/tmp/hostapd"
     echo "#DAEMON_OPTS=\"\"" >> "/tmp/hostapd"
-    mv /tmp/hostapd /etc/default
+    mv /tmp/hostapd /etc/default && \
+        echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] Changes to /etc/hostapd/hostapd.conf made successfully" || \
+        echo "$(date +"%b %d %T") [10.]autohotspotN [ERROR] Error making Changes to /etc/hostapd/hostapd.conf"
     
     echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] Verifying interface file."
     int_line=`cat /etc/network/interfaces |grep -v '^$\|^\s*\#'`

@@ -124,7 +124,7 @@ known_ssid_main() {
 	done
 }
 
-if [[ $0 == *"ConsolePi"* ]] && [[ $0 == *"install"* ]] ; then
+if [[ ! $0 == *"ConsolePi"* ]] && [[ ! $0 == *"install"* ]] ; then
 	known_ssid_init
 	known_ssid_main
 	mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"

@@ -31,7 +31,7 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 # -- Build Config File and Directory Structure - Read defaults from config
 get_config() {
     bypass_verify=false
-    if [ ! -f "${default_config}" ] && [ ! -f "/home/pi/ConsolePi.conf" ]; then
+    if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/pi/ConsolePi.conf" ]]; then
         # This indicates it's the first time the script has ran
         # [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
         echo "push=true                            # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
@@ -65,8 +65,8 @@ get_config() {
             exit 0
         fi
     fi
-    [ ! -f "${default_config}" ] && . "$default_config"
-	[ ! -f "/home/pi/ConsolePi.conf" ] && . "/home/pi/ConsolePi.conf" && 
+    [[ ! -f "${default_config}" ]] && . "$default_config"
+	[[ ! -f "/home/pi/ConsolePi.conf" ]] && . "/home/pi/ConsolePi.conf" && 
 	    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Configuration loaded from ${mydir}" | tee -a /tmp/install.log
     hotspot_dhcp_range
 }

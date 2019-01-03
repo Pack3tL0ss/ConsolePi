@@ -53,7 +53,8 @@ createAdHocNetwork()
     ip a add ${wlan_ip}/24 brd + dev "$wifidev"
     ip link set dev "$wifidev" up
     debug=`ip addr show dev wlan0 | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
-    logger -t autohotspot $wifidev is up with ip: $debug
+	echo "${wifidev} is up with ip: ${debug}"
+    # logger -t autohotspot $wifidev is up with ip: $debug
     dhcpcd -k "$wifidev" >/dev/null 2>&1
     iptables -t nat -A POSTROUTING -o "$ethdev" -j MASQUERADE
     iptables -A FORWARD -i "$ethdev" -o "$wifidev" -m state --state RELATED,ESTABLISHED -j ACCEPT
@@ -104,12 +105,12 @@ ChkWiredState()
 	if [ $eth0_up = false ]; then
 		#cp /etc/ConsolePi/dnsmasq.conf.noGW /etc/dnsmasq.conf
 		sed -i '/^#dhcp-option=wlan0,3/s/^#//g' /etc/dnsmasq.conf	#uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
-		logger -t autohotspot Bringing up hotspot with no gateway due to no eth0 connection
+		# logger -t autohotspot Bringing up hotspot with no gateway due to no eth0 connection
 		echo Bringing up hotspot with no gateway due to no eth0 connection
 	else
 		# cp /etc/ConsolePi/dnsmasq.conf.withGW /etc/dnsmasq.conf
 		sed -i '/^dhcp-option=wlan0,3/s/^/#/g' /etc/dnsmasq.conf #comment out option 3 - default behavior assigns i/f address as def-gw
-		logger -t autohotspot Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
+		# logger -t autohotspot Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
 		echo Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
 	fi
 }

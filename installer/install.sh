@@ -466,7 +466,6 @@ install_ser2net () {
 	process="Install ser2net"
 	ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
 	if [[ -z $ser2net_ver ]] ; then
-		ser2net -v 1>/dev/null 2>> /tmp/install.log && installed=true || installed=false
 		logit "${process}" "Installing ser2net from source"
 		cd /usr/local/bin
 

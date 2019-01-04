@@ -299,6 +299,44 @@ verify() {
     # fi
 }
 
+user_input_bool() {
+    valid_response=false
+    while ! $valid_response; do
+        read -p "${prompt} (y/n)?: " response
+        response=${response,,}    # tolower
+        if [[ "$response" =~ ^(yes|y)$ ]]; then
+            response=true && valid_response=true
+        elif [[ "$response" =~ ^(no|n)$ ]]; then
+            response=false && valid_response=true
+        else
+            valid_response=false
+        fi
+    done
+    echo $response
+}
+
+chg_password() {
+    count=$(who | grep -c '^pi\s') 
+    if [[ $count > 0 ]]; then 
+	    header
+        echo "You are logged in as pi the default user."
+        prompt="Do You want to change the password for user pi"
+        response=$(user_input_bool)
+        if $response; then
+            match=false
+            while ! $match; do
+                read -s -p "Enter new password for user pi: " pass && echo
+                read -s -p "Re-Enter new password for user pi: " pass2 && echo
+                [[ "${pass}" == "${pass2}" ]] && match=true || match=false
+                ! $match && echo -e "ERROR: Passwords Do Not Match\n"
+            done
+            echo "pi:${pass}" | sudo chpasswd 2>> /tmp/install.log &&
+             (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Password for user pi Changed Successfully" | tee -a /tmp/install.log ) ||
+             (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Error Changing the password for user pi" |& tee -a /tmp/install.log && exit 1 )
+        fi
+    fi
+}
+
 set_hostname() {
 	header
 	valid_response=false
@@ -802,6 +840,7 @@ main() {
 			collect "fix"
 			verify
 		done
+		chg_password
 		set_hostname
 		set_timezone
 		update_config

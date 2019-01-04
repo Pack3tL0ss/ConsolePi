@@ -430,6 +430,7 @@ set_timezone() {
 updatepi () {
 	header
 	process="Update/Upgrade ConsolePi (apt)"
+	logit "${process}" "Process Started"
     sudo apt-get update 1>/dev/null 2>> /tmp/install.log && logit "${process}" "Update Successful" || logit "${process}" "FAILED to Update" "ERROR"
 	
     logit "${process}" "Upgrading Raspberry ConsolePi via apt. This may take a while"
@@ -443,6 +444,7 @@ updatepi () {
 		
     logit "${process}" "Installing git dependency via apt"
     apt-get -y install git 1>/dev/null 2>> /tmp/install.log && logit "${process}" "git install Successful" || logit "${process}" "git install FAILED to install" "ERROR"
+	logit "${process}" "Process Complete"
 }
 
 gitConsolePi () {
@@ -462,61 +464,64 @@ gitConsolePi () {
 install_ser2net () {
 	# To Do add check to see if already installed / update
 	process="Install ser2net"
-    logit "${process}" "Installing ser2net from source"
-    cd /usr/local/bin
+	ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
+	if [[ -z $ser2net_ver ]] ; then
+		ser2net -v 1>/dev/null 2>> /tmp/install.log && installed=true || installed=false
+		logit "${process}" "Installing ser2net from source"
+		cd /usr/local/bin
 
-    logit "${process}" "Retrieve and extract package"
-    wget -q "${ser2net_source}" -O ./ser2net.tar.gz 1>/dev/null 2>> /tmp/install.log && 
-	    logit "${process}" "Successfully pulled ser2net from source" || logit "${process}" "Failed to pull ser2net from source" "ERROR"
+		logit "${process}" "Retrieve and extract package"
+		wget -q "${ser2net_source}" -O ./ser2net.tar.gz 1>/dev/null 2>> /tmp/install.log && 
+			logit "${process}" "Successfully pulled ser2net from source" || logit "${process}" "Failed to pull ser2net from source" "ERROR"
 
-    tar -zxvf ser2net.tar.gz 1>/dev/null 2>> /tmp/install.log &&
-        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net extracted" | tee -a /tmp/install.log ) ||
-        (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] Failed to extract ser2net from source" |& tee -a /tmp/install.log && exit 1 )
-    [[ $? > 0 ]] && exit $?
-	rm -f /usr/local/bin/ser2net.tar.gz || (echo "$(date +"%b %d %T") ConsolePi Installer[WARNING] Failed to remove tar.gz" | tee -a /tmp/install.log)
-    cd ser2net*/
+		tar -zxvf ser2net.tar.gz 1>/dev/null 2>> /tmp/install.log &&
+			logit "${process}" "ser2net extracted" ||
+			logit "${process}" "Failed to extract ser2net from source" "ERROR"
 
-	logit "${process}" "./configure ser2net"
-    ./configure 1>/dev/null 2>> /tmp/install.log &&
-        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ./configure ser2net Success" | tee -a /tmp/install.log ) ||
-        (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ser2net ./configure Failed" |& tee -a /tmp/install.log && exit 1 )
-    [[ $? > 0 ]] && exit $?
+		rm -f /usr/local/bin/ser2net.tar.gz || logit "${process}" "Failed to remove tar.gz" "WARNING"
+		cd ser2net*/
 
-    logit "${process}" "ser2net make, make install, make clean"
-    make 1>/dev/null 2>> /tmp/install.log &&
-        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net make Success" | tee -a /tmp/install.log ) ||
-        (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ser2net make Failed" |& tee -a /tmp/install.log && exit 1 )
-    [[ $? > 0 ]] && exit $?
+		logit "${process}" "./configure ser2net"
+		./configure 1>/dev/null 2>> /tmp/install.log &&
+			logit "${process}" "./configure ser2net Success" ||
+			logit "${process}" "ser2net ./configure Failed" "ERROR"
 
-    make install 1>/dev/null 2>> /tmp/install.log &&
-        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net make install Success" | tee -a /tmp/install.log ) ||
-        (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ser2net make install Failed" |& tee -a /tmp/install.log && exit 1 )
-    [[ $? > 0 ]] && exit $?
+		logit "${process}" "ser2net make, make install, make clean"
+		make 1>/dev/null 2>> /tmp/install.log &&
+			logit "${process}" "ser2net make Success" ||
+			logit "${process}" "ser2net make Failed" "ERROR"
 
-    make clean 1>/dev/null 2>> /tmp/install.log &&
-        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net make clean Success" | tee -a /tmp/install.log ) ||
-        (echo "$(date +"%b %d %T") ConsolePi Installer[WARNING] ser2net make clean Failed" |& tee -a /tmp/install.log && exit 1 )
-    # [[ $? > 0 ]] && exit $?
-	
-    logit "${process}" "Building init & ConsolePi Config for ser2net"
-    cp /etc/ConsolePi/src/ser2net.conf /etc/ || 
-	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ser2net Failed to copy config file from ConsolePi src" |& tee -a /tmp/install.log && exit 1 )
-    [[ $? > 0 ]] && exit $?
-    cp /etc/ConsolePi/src/ser2net.init /etc/init.d/ser2net || 
-	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ser2net Failed to copy init file from ConsolePi src" |& tee -a /tmp/install.log && exit 1 )
-    [[ $? > 0 ]] && exit $?
-    chmod +x /etc/init.d/ser2net || 
-	    (echo "$(date +"%b %d %T") ConsolePi Installer[WARNING] ser2net Failed to make init executable" |& tee -a /tmp/install.log && exit 1 )
-    # [[ $? > 0 ]] && exit $?
-    logit "${process}" "ser2net Enable init"
-    /lib/systemd/systemd-sysv-install enable ser2net 1>/dev/null 2>> /tmp/install.log && 
-		(echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ser2net init file enabled" | tee -a /tmp/install.log ) ||
-	    (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ser2net failed to enable init file (start on boot)" |& tee -a /tmp/install.log && exit 1 )
+		make install 1>/dev/null 2>> /tmp/install.log &&
+			logit "${process}" "ser2net make install Success" ||
+			logit "${process}" "ser2net make install Failed" "ERROR"
+
+		make clean 1>/dev/null 2>> /tmp/install.log &&
+			logit "${process}" "ser2net make clean Success" ||
+			logit "${process}" "ser2net make clean Failed" "WARNING"
 		
-    systemctl daemon-reload || 
-	    logit "${process}" "systemctl failed to reload daemons" "WARNING"
+		logit "${process}" "Building init & ConsolePi Config for ser2net"
+		cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> /tmp/install.log || 
+			logit "${process}" "ser2net Failed to copy config file from ConsolePi src" "ERROR"
 		
-    logit "${process}" "ser2net installation complete"
+		cp /etc/ConsolePi/src/ser2net.init /etc/init.d/ser2net 2>> /tmp/install.log || 
+			logit "${process}" "ser2net Failed to copy init file from ConsolePi src" "ERROR"
+			
+		chmod +x /etc/init.d/ser2net 2>> /tmp/install.log || 
+			logit "${process}" "ser2net Failed to make init executable" "WARNING"
+		
+		logit "${process}" "ser2net Enable init"
+		/lib/systemd/systemd-sysv-install enable ser2net 1>/dev/null 2>> /tmp/install.log && 
+			logit "${process}" "ser2net init file enabled" ||
+			logit "${process}" "ser2net failed to enable init file (start on boot)" "WARNING"
+			
+		systemctl daemon-reload || 
+			logit "${process}" "systemctl failed to reload daemons" "WARNING"
+	else
+	    logit "${process}" "Ser2Net ${ser2net_ver} already installed. No Action Taken re ser2net"
+		logit "${process}" "Ser2Net Upgrade is a Potential future function of this script"
+	fi
+		
+    logit "${process}" "${process} Complete"
 }
 
 dhcp_run_hook() {
@@ -542,7 +547,7 @@ dhcp_run_hook() {
         echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "${process}" "Failed to create exit-hook script" "ERROR"
     fi
 	
-    chmod +x /etc/dhcpcd.exit-hook || logit "${process}" "Failed to make dhcpcd.exit-hook executable" "WARNING"
+    chmod +x /etc/dhcpcd.exit-hook 2>> /tmp/install.log || logit "${process}" "Failed to make dhcpcd.exit-hook executable" "WARNING"
 	logit "${process}" "Install ConsolePi script Success"
 }
 

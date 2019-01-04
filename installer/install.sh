@@ -826,6 +826,7 @@ get_known_ssids() {
 
 get_serial_udev() {
     process="Predictable Console Ports"
+	logit "${process}" "${process} Starting."
 	header
     echo
     echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
@@ -848,6 +849,7 @@ get_serial_udev() {
             logit "${process}" "ERROR udev.sh not available in installer directory" "WARNING"
         fi
     fi
+	logit "${process}" "${process} Complete"
 }
 
 post_install_msg() {

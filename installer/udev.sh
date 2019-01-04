@@ -5,6 +5,8 @@ udev_init(){
     input="go"
     rules_file='/etc/udev/rules.d/10-consolePi.rules'
     ser2net_conf='/etc/ser2net.conf'
+	process="Predictable Console Ports"
+	[[ ! -f "/tmp/install.log" ]] && touch /tmp/install.log
 }
 
 header() {
@@ -24,6 +26,27 @@ echo "** If you have a multi-port (pig-tail) adapter you can use this script to 
 echo "** to the ports after setup to determine which pigtail is assigned to each port - then label the pig-tails." 
 }
 
+logit() {
+	# Logging Function: logit <process|string> <message|string> [<status|string>]
+    process=$1                                      # 1st argument is process
+    message=$2                                      # 2nd argument is message
+	fatal=false                                        # fatal is determined by status default to false.  true if status = ERROR
+    if [[ -z "${3}" ]]; then                        # 3rd argument is status default to INFO
+	    status="INFO"
+    else
+	    status=$3
+		[[ "${status}" == "ERROR" ]] && fatal=true
+	fi
+    
+	# Log to stdout and log-file
+    echo "$(date +"%b %d %T") ${process} [${status}] ${message}" | tee -a /tmp/install.log
+	# if status was ERROR which means FATAL then log and exit script
+    if $fatal ; then
+        move_log
+	    echo "$(date +"%b %d %T") ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" | tee -a /tmp/install.log && exit 1
+	fi
+}
+
 getdev() {
 for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep ttyUSB); do
     syspath="${sysdevpath%/dev}"
@@ -38,7 +61,7 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep ttyUSB); do
         echo $this_dev > $rules_file
     fi
     [ -f $ser2net_conf ] && echo "${port}:telnet:0:/dev/ConsolePi${port}:9600 8DATABITS NONE 1STOPBIT banner" >> $ser2net_conf
-    echo "${ID_MODEL_FROM_DATABASE} Found with idVendor: ${ID_VENDOR_ID} idProduct ID: ${ID_MODEL_ID} and Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port}"
+    logit "${process}" "${ID_MODEL_FROM_DATABASE} Found with idVendor: ${ID_VENDOR_ID} idProduct ID: ${ID_MODEL_ID} and Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port}"
     ((port++))
 done
 }

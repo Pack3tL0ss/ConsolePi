@@ -48,13 +48,15 @@ Each Time a Notification is triggered all interface IPs are sent in the message 
 
 **Automatic Installation**
 
-This assumes you have raspian installed.
+This assumes you have raspbian installed.
 
 Once Configured and connected to the network run this command for completely automated install
 
 ```
 wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && rm -f /tmp/ConsolePi
 ```
+The install script is designed to be essentially turn-key.  It will prompt to change hostname, set timezone, and update the pi users password if you're logged in as pi.
+
 **Semi-Automatic Install**
 
 Alternatively you can clone this repository, then run the install script.  The only real benefit here would be pre-configuring some of the parameters in the config file:

@@ -368,7 +368,7 @@ chg_password() {
     count=$(who | grep -c '^pi\s') 
     if [[ $count > 0 ]]; then 
 	    header
-        echo "You are logged in as pi the default user."
+        echo "You are logged in as pi, the default user."
         prompt="Do You want to change the password for user pi"
         response=$(user_input_bool)
         if $response; then
@@ -430,7 +430,7 @@ set_timezone() {
 updatepi () {
 	header
 	process="Update/Upgrade ConsolePi (apt)"
-	logit "${process}" "Process Started"
+	logit "${process}" "Update Sources"
     sudo apt-get update 1>/dev/null 2>> /tmp/install.log && logit "${process}" "Update Successful" || logit "${process}" "FAILED to Update" "ERROR"
 	
     logit "${process}" "Upgrading Raspberry ConsolePi via apt. This may take a while"
@@ -629,9 +629,8 @@ ovpn_logging() {
 install_autohotspotn () {
     process="AutoHotSpotN"
     logit "${process}" "Install AutoHotSpotN"
-    [[ -f "${src_dir}/autohotspotN" ]] && mv "${src_dir}/autohotspotN" /usr/bin 1>/dev/null 2>> /tmp/install.log &&
-        logit "${process}" "Create autohotspotN script Success" ||
-        logit "${process}" "Failed to create autohotspotN script" "WARNING"
+    [[ -f "${src_dir}/autohotspotN" ]] && cp "${src_dir}/autohotspotN" /usr/bin 1>/dev/null 2>> /tmp/install.log
+	[[ $? == 0 ]] && logit "${process}" "Create autohotspotN script Success" || logit "${process}" "Failed to create autohotspotN script" "WARNING"
 		
     chmod +x /usr/bin/autohotspotN 1>/dev/null 2>> /tmp/install.log ||
         logit "${process}" "Failed to chmod autohotspotN script" "WARNING"
@@ -759,36 +758,36 @@ gen_dnsmasq_conf () {
 
 dhcpcd_conf () {
     process="dhcpcd.conf"
-        logit "${process}" "configure dhcp client and static fallback"
-        [[ -f /etc/dhcpcd.conf ]] && mv /etc/dhcpcd.conf /etc/ConsolePi/originals
-        mv /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf 1>/dev/null 2>> /tmp/install.log
-        res=$?
-        if [[ $res == 0 ]]; then
-            echo "" >> "/etc/dhcpcd.conf"
-            echo "# wlan static fallback profile" >> "/etc/dhcpcd.conf"
-            echo "profile static_wlan0" >> "/etc/dhcpcd.conf"
-            echo "static ip_address=${wlan_ip}/24" >> "/etc/dhcpcd.conf"
-            echo "" >> "/etc/dhcpcd.conf"
-            echo "# wired static fallback profile" >> "/etc/dhcpcd.conf"
-            echo "# defined - currently commented out/disabled" >> "/etc/dhcpcd.conf"
-            echo "profile static_eth0" >> "/etc/dhcpcd.conf"
-            echo "static ip_address=192.168.25.10/24" >> "/etc/dhcpcd.conf"
-            echo "static routers=192.168.25.1" >> "/etc/dhcpcd.conf"
-            echo "static domain_name_servers=1.0.0.1 8.8.8.8" >> "/etc/dhcpcd.conf"
-            echo "" >> "/etc/dhcpcd.conf"
-            echo "# Assign fallback to static profile on wlan0" >> "/etc/dhcpcd.conf"
-            echo "interface wlan0" >> "/etc/dhcpcd.conf"
-            echo "fallback static_wlan0" >> "/etc/dhcpcd.conf"
-            echo "interface eth0" >> "/etc/dhcpcd.conf"
-            echo "# fallback static_eth0" >> "/etc/dhcpcd.conf"
-            echo "" >> "/etc/dhcpcd.conf"
-            echo "#For AutoHotkeyN" >> "/etc/dhcpcd.conf"
-            echo "nohook wpa_supplicant" >> "/etc/dhcpcd.conf"
-            logit "${process}" "Process Completed Successfully"
-        else
-            logit "${process}" "Error Code (${res}}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
-            logit "${process}" "Verify dhcpcd.conf and configure manually after install completes"
-        fi
+	logit "${process}" "configure dhcp client and static fallback"
+	[[ -f /etc/dhcpcd.conf ]] && mv /etc/dhcpcd.conf /etc/ConsolePi/originals
+	cp /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf 1>/dev/null 2>> /tmp/install.log
+	res=$?
+	if [[ $res == 0 ]]; then
+		echo "" >> "/etc/dhcpcd.conf"
+		echo "# wlan static fallback profile" >> "/etc/dhcpcd.conf"
+		echo "profile static_wlan0" >> "/etc/dhcpcd.conf"
+		echo "static ip_address=${wlan_ip}/24" >> "/etc/dhcpcd.conf"
+		echo "" >> "/etc/dhcpcd.conf"
+		echo "# wired static fallback profile" >> "/etc/dhcpcd.conf"
+		echo "# defined - currently commented out/disabled" >> "/etc/dhcpcd.conf"
+		echo "profile static_eth0" >> "/etc/dhcpcd.conf"
+		echo "static ip_address=192.168.25.10/24" >> "/etc/dhcpcd.conf"
+		echo "static routers=192.168.25.1" >> "/etc/dhcpcd.conf"
+		echo "static domain_name_servers=1.0.0.1 8.8.8.8" >> "/etc/dhcpcd.conf"
+		echo "" >> "/etc/dhcpcd.conf"
+		echo "# Assign fallback to static profile on wlan0" >> "/etc/dhcpcd.conf"
+		echo "interface wlan0" >> "/etc/dhcpcd.conf"
+		echo "fallback static_wlan0" >> "/etc/dhcpcd.conf"
+		echo "interface eth0" >> "/etc/dhcpcd.conf"
+		echo "# fallback static_eth0" >> "/etc/dhcpcd.conf"
+		echo "" >> "/etc/dhcpcd.conf"
+		echo "#For AutoHotkeyN" >> "/etc/dhcpcd.conf"
+		echo "nohook wpa_supplicant" >> "/etc/dhcpcd.conf"
+		logit "${process}" "Process Completed Successfully"
+	else
+		logit "${process}" "Error Code (${res}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
+		logit "${process}" "Verify dhcpcd.conf and configure manually after install completes"
+	fi
 }
 
 get_known_ssids() {

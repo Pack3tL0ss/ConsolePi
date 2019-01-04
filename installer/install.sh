@@ -425,6 +425,9 @@ gitConsolePi () {
         git pull "${consolepi_source}" | tee -a /tmp/install.log
     fi
     echo "$(date +"%b %d %T") [INFO] Clone/Update ConsolePi Package - Complete" | tee -a /tmp/install.log
+	[[ -f "${consolepi_dir}/banner" ]] && sed -i "s/#Banner none/Banner \/etc\/ConsolePi\/banner/g" "/etc/ssh/sshd_config" 1>/dev/null 2>> /tmp/install.log &&
+        (echo "$(date +"%b %d %T") ConsolePi Installer[INFO] ConsolePi SSH banner configured" | tee -a /tmp/install.log ) ||
+        (echo "$(date +"%b %d %T") ConsolePi Installer[ERROR] ConsolePi failed to set SSH banner" |& tee -a /tmp/install.log && exit 1 )
 }
 
 install_ser2net () {

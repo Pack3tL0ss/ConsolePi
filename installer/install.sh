@@ -433,7 +433,7 @@ updatepi () {
 	logit "${process}" "Update Sources"
     sudo apt-get update 1>/dev/null 2>> /tmp/install.log && logit "${process}" "Update Successful" || logit "${process}" "FAILED to Update" "ERROR"
 	
-    logit "${process}" "Upgrading Raspberry ConsolePi via apt. This may take a while"
+    logit "${process}" "Upgrading ConsolePi via apt. This may take a while"
     sudo apt-get -y upgrade 1>/dev/null 2>> /tmp/install.log && logit "${process}" "Upgrade Successful" || logit "${process}" "FAILED to Upgrade" "ERROR"
 	
     logit "${process}" "Performing dist-upgrade"

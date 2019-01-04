@@ -2,4 +2,4 @@
 /readme_content/*.jpg
 /originals
 ConsolePi.conf
-/installer/install.log
+/installer/install.log*

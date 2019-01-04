@@ -345,6 +345,7 @@ logit() {
     if $fatal ; then
         move_log
 	    echo "$(date +"%b %d %T") ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" | tee -a /tmp/install.log && exit 1
+	fi
 }
 
 user_input_bool() {

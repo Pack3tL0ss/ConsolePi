@@ -371,8 +371,8 @@ user_input_bool() {
 }
 
 chg_password() {
-    count=$(who | grep -c '^pi\s') 
-    if [[ $count > 0 ]]; then 
+    # count=$(who | grep -c '^pi\s') 
+    if [[ $iam == "pi" ]]; then 
 	    header
         echo "You are logged in as pi, the default user."
         prompt="Do You want to change the password for user pi"
@@ -394,27 +394,31 @@ chg_password() {
 }
 
 set_hostname() {
-	header
-	valid_response=false
-	hostn=$(cat /etc/hostname)
+	process="Change Hostname"
+    if [[ $HOSTNAME == "raspberrypi" ]]; then
+		header
+		valid_response=false
+		hostn=$(cat /etc/hostname)
 
-	while ! $valid_response; do
-		#Display existing hostname
-		read -p "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
-		response=${response,,}    # tolower
-		( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
-	done
-	if [[ "$response" =~ ^(yes|y)$ ]]; then
-		#Ask for new hostname $newhost
-		read -p "Enter new hostname: " newhost
+		while ! $valid_response; do
+			#Display existing hostname
+			read -p "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
+			response=${response,,}    # tolower
+			( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
+		done
+		if [[ "$response" =~ ^(yes|y)$ ]]; then
+			#Ask for new hostname $newhost
+			read -p "Enter new hostname: " newhost
 
-		#change hostname in /etc/hosts & /etc/hostname
-		sudo sed -i "s/$hostn/$newhost/g" /etc/hosts
-		sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
-		sudo sed -i "s/$hostn/$newhost/g" /etc/hostname
-		
-		echo "$(date +"%b %d %T") Change Hostname [INFO] New hostname set $newhost" | tee -a $tmp_log
-	fi
+			#change hostname in /etc/hosts & /etc/hostname
+			sudo sed -i "s/$hostn/$newhost/g" /etc/hosts
+			sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
+			sudo sed -i "s/$hostn/$newhost/g" /etc/hostname
+			
+			logit $process "New hostname set $newhost" | tee -a $tmp_log
+		fi
+	else
+		logit $process "Hostname is not default, assuming it is desired hostname"
 }
 
 set_timezone() {

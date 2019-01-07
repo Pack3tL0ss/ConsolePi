@@ -21,7 +21,6 @@ default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
 iam=$(who am i | awk '{print $1}')
-echo "${iam}"
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
 touch $tmp_log
 logline="----------------------------------------------------------------------------------------------------------------"
@@ -35,6 +34,7 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 get_config() {
 	process="get config"
     bypass_verify=false
+	logit $process "Starting get/build Configuration"
     if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
         # This indicates it's the first time the script has ran
         # [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi

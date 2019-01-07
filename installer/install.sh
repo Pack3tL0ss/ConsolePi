@@ -35,9 +35,8 @@ get_config() {
 	process="get config"
     bypass_verify=false
 	logit "${process}" "Starting get/build Configuration"
-	iam=$(who am i | awk '{print $1}')
     if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
-		logit "${process}" "No Existing Config found - building default config"
+		logit "${process}" "No Existing Config found - building default config /home/${iam}/ConsolePi.conf"
         # This indicates it's the first time the script has ran
         # [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
         echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" > "${default_config}"

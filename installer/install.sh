@@ -64,10 +64,11 @@ get_config() {
             echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
             echo "i.e. \"sudo nano ${default_config}\""
             echo
+			move_log
             exit 0
         fi
     fi
-	[[ ! -f "${default_config}" ]] && [[ -f "/home/pi/ConsolePi.conf" ]] && sudo cp "/home/pi/ConsolePi.conf" "$default_config"
+	[[ ! -f "${default_config}" ]] && [[ -f "/home/${iam}/ConsolePi.conf" ]] && sudo cp "/home/${iam}/ConsolePi.conf" "$default_config"
 	. "$default_config" || 
 	    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Error Loading Configuration defaults" | tee -a $tmp_log
     hotspot_dhcp_range
@@ -348,7 +349,7 @@ logit() {
 	# if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
         move_log
-	    echo "$(date +"%b %d %T") ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" | tee -a $tmp_log && exit 1
+	    echo "$(date +"%b %d %T") ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" | && exit 1
 	fi
 }
 

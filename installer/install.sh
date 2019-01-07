@@ -911,7 +911,7 @@ main() {
 			verify
 		done
 		update_config
-		if [[ ! -f "{consolepi_dir}/installer/install.log}" ]] && [[ ! -f /tmp/consolepi_install.log ]]; then 
+		if [[ ! -f "{consolepi_dir}/installer/install.log}" ]]; then 
 			chg_password
 			set_hostname
 			set_timezone

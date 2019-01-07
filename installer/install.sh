@@ -32,6 +32,7 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 # -- Build Config File and Directory Structure - Read defaults from config
 get_config() {
+	process="get config"
     bypass_verify=false
     if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
         # This indicates it's the first time the script has ran
@@ -70,7 +71,7 @@ get_config() {
     fi
 	[[ ! -f "${default_config}" ]] && [[ -f "/home/${iam}/ConsolePi.conf" ]] && sudo cp "/home/${iam}/ConsolePi.conf" "$default_config"
 	. "$default_config" || 
-	    echo "$(date +"%b %d %T") ConsolePi Installer[INFO] Error Loading Configuration defaults" | tee -a $tmp_log
+	    logit $process "Error Loading Configuration defaults"
     hotspot_dhcp_range
 }
 
@@ -349,7 +350,7 @@ logit() {
 	# if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
         move_log
-	    echo "$(date +"%b %d %T") ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" | && exit 1
+	    echo "$(date +'%b %d %T') ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" | && exit 1
 	fi
 }
 

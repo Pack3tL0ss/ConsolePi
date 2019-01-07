@@ -70,8 +70,11 @@ get_config() {
 			move_log
             exit 0
         fi
+	elif [[ -f "/home/${iam}/ConsolePi.conf" ]]; then
+	    logit "${process}" "using config found in user home directory"
+		sudo cp "/home/${iam}/ConsolePi.conf" "$default_config" ||
+		    logit "${process}" "Error Copying Config found in user home directory" "WARNING"
     fi
-	[[ -f "/home/${iam}/ConsolePi.conf" ]] && sudo cp "/home/${iam}/ConsolePi.conf" "$default_config"
 	. "$default_config" || 
 	    logit "${process}" "Error Loading Configuration defaults"
     hotspot_dhcp_range

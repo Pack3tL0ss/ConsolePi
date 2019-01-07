@@ -34,7 +34,7 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 get_config() {
 	process="get config"
     bypass_verify=false
-	logit $process "Starting get/build Configuration"
+	logit "${process}" "Starting get/build Configuration"
     if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
         # This indicates it's the first time the script has ran
         # [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
@@ -72,7 +72,7 @@ get_config() {
     fi
 	[[ ! -f "${default_config}" ]] && [[ -f "/home/${iam}/ConsolePi.conf" ]] && sudo cp "/home/${iam}/ConsolePi.conf" "$default_config"
 	. "$default_config" || 
-	    logit $process "Error Loading Configuration defaults"
+	    logit "${process}" "Error Loading Configuration defaults"
     hotspot_dhcp_range
 }
 
@@ -409,10 +409,10 @@ set_hostname() {
 			sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
 			sudo sed -i "s/$hostn/$newhost/g" /etc/hostname
 			
-			logit $process "New hostname set $newhost" | tee -a $tmp_log
+			logit "${process}" "New hostname set $newhost" | tee -a $tmp_log
 		fi
 	else
-		logit $process "Hostname is not default, assuming it is desired hostname"
+		logit "${process}" "Hostname is not default, assuming it is desired hostname"
 	fi
 }
 

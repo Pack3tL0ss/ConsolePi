@@ -21,6 +21,7 @@ default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
 iam=$(who am i | awk '{print $1}')
+[[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
 touch $tmp_log
 logline="----------------------------------------------------------------------------------------------------------------"
 

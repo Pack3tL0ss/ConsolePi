@@ -36,7 +36,7 @@ get_config() {
     bypass_verify=false
 	logit "${process}" "Starting get/build Configuration"
     if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
-		logit "${process}" "No Existing Config found - building default config /home/${iam}/ConsolePi.conf"
+		logit "${process}" "No Existing Config found - building default config"
         # This indicates it's the first time the script has ran
         # [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
         echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
@@ -74,6 +74,8 @@ get_config() {
 	    logit "${process}" "using config found in user home directory"
 		sudo cp "/home/${iam}/ConsolePi.conf" "$default_config" ||
 		    logit "${process}" "Error Copying Config found in user home directory" "WARNING"
+	elif [[ -f "${default_config}" ]]; then
+		logit "${process}" "Using existing Config found in ${consolepi_dir}"
     fi
 	. "$default_config" || 
 	    logit "${process}" "Error Loading Configuration defaults"

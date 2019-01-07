@@ -419,6 +419,7 @@ set_hostname() {
 		fi
 	else
 		logit $process "Hostname is not default, assuming it is desired hostname"
+	fi
 }
 
 set_timezone() {

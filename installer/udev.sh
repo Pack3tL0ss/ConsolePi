@@ -6,7 +6,7 @@ udev_init(){
     rules_file='/etc/udev/rules.d/10-consolePi.rules'
     ser2net_conf='/etc/ser2net.conf'
 	process="Predictable Console Ports"
-	[[ ! -f "/tmp/install.log" ]] && touch /tmp/install.log
+	[[ ! -f "/tmp/consolepi_install.log" ]] && touch /tmp/consolepi_install.log
 }
 
 header() {
@@ -43,7 +43,7 @@ logit() {
 	# if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
         move_log
-	    echo "$(date +"%b %d %T") ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" | tee -a /tmp/install.log && exit 1
+	    echo "$(date +"%b %d %T") ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" | tee -a /tmp/consolepi_install.log && exit 1
 	fi
 }
 
@@ -61,7 +61,8 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep ttyUSB); do
         echo $this_dev > $rules_file
     fi
     [ -f $ser2net_conf ] && echo "${port}:telnet:0:/dev/ConsolePi${port}:9600 8DATABITS NONE 1STOPBIT banner" >> $ser2net_conf
-    logit "${process}" "${ID_MODEL_FROM_DATABASE} Found with idVendor: ${ID_VENDOR_ID} idProduct ID: ${ID_MODEL_ID} and Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port}"
+	echo "${process}" "${ID_MODEL_FROM_DATABASE} Found with idVendor: ${ID_VENDOR_ID} idProduct ID: ${ID_MODEL_ID} and Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port}"
+    echo "${process}" "${ID_MODEL_FROM_DATABASE} idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port}" >> /tmp_consolepi.log
     ((port++))
 done
 }

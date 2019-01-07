@@ -311,18 +311,11 @@ verify() {
     echo
     echo "----------------------------------------------------------------------------------------------------------------"
     echo
-    # if ! $first_run; then
-        echo "Enter Y to Continue N to make changes"
-        echo
-        printf "Are Values Correct? (Y/N): "
-        read input
-        ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ]) && input=true || input=false
-    # else
-        # first_run=false
-        # echo "Press Any Key to Edit Defaults"
-        # read
-        # input=fase
-    # fi
+    echo "Enter Y to Continue N to make changes"
+    echo
+    prompt="Are Values Correct?"
+    input=$(user_input_bool)
+    # ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ]) && input=true || input=false
 }
 
 move_log() {
@@ -357,7 +350,7 @@ logit() {
 user_input_bool() {
     valid_response=false
     while ! $valid_response; do
-        read -p "${prompt} (y/n)?: " response
+        read -p "${prompt}? (y/n): " response
         response=${response,,}    # tolower
         if [[ "$response" =~ ^(yes|y)$ ]]; then
             response=true && valid_response=true

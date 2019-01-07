@@ -20,6 +20,7 @@ orig_dir="${consolepi_dir}/originals"
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
+iam=$(who am i | awk '{print $1}')
 touch $tmp_log
 logline="----------------------------------------------------------------------------------------------------------------"
 
@@ -31,7 +32,7 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 # -- Build Config File and Directory Structure - Read defaults from config
 get_config() {
     bypass_verify=false
-    if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/pi/ConsolePi.conf" ]]; then
+    if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
         # This indicates it's the first time the script has ran
         # [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
         echo "push=true                            # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
@@ -583,10 +584,28 @@ install_ovpn() {
 	else
 	    logit "${process}" "OpenVPN Already present"
 	fi
-    [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client" ||
-	    logit "${process}" "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
-    [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client" ||
-	    logit "${process}" "Retaining existing ovpn_credentials file. See src dir for original example file."
+	
+	if [[ ! -f "/home/${iam}/ConsolePi.ovpn" ]]; then 
+		[[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client" ||
+			logit "${process}" "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
+	else
+		cp "/home/${iam}/ConsolePi.ovpn" "/etc/openvpn" &&
+			logit "${process}" "Found ConsolePi.ovpn in /home/${iam}.  Copying the config you've provided." &&
+			logit "${process}" "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in \etc\ConsolePi\src" "WARNING" &&
+			logit "${process}" "For security, once verified you should delete or chmod the ovpn config in your home dir, it's been copied to /openvpn/clients dir" "WARNING" ||
+			logit "${process}" "Error occurred moving your ovpn config" "WARNING"
+	fi
+	
+	if [[ ! -f "/home/${iam}/ovpn_credentials" ]]; then 
+		[[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client" ||
+			logit "${process}" "Retaining existing ovpn_credentials file. See src dir for original example file."
+	else
+		cp "/home/${iam}/ovpn_credentials" "/etc/ovpn_credentials" &&
+			logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving your provided file to openvpn/client dir."  &&
+			logit "${process}" "For security, once verified you should delete or chmod the ovpn_credentials in your home dir, it's been copied to /openvpn/clients dir" "WARNING" ||
+			logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
+	fi
+			
 	sudo chmod 600 /etc/openvpn/client/* 1>/dev/null 2>> $tmp_log || 
 	    logit "${process}" "Failed chmod 600 openvpn client files" "WARNING"
 }

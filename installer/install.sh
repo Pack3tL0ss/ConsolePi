@@ -416,18 +416,20 @@ set_hostname() {
 }
 
 set_timezone() {
-	header
-	valid_response=false
 	cur_tz=$(date +"%Z")
+	process="Configure ConsolePi TimeZone"
+	if [[ $cur_tz == "GMT" ]]; then
+		header
 
-	while ! $valid_response; do
-		read -p "Current TimeZone $cur_tz. Do you want to configure the timezone (y/n)?: " response
-		response=${response,,}    # tolower
-		( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
-	done
-	if [[ "$response" =~ ^(yes|y)$ ]]; then
-	    process="Configure ConsolePi TimeZone"
-		sudo dpkg-reconfigure tzdata 2>> $tmp_log && logit "${process}" "Success" || logit "${process}" "FAILED to set net TimeZone" "WARNING"
+		prompt="Current TimeZone $cur_tz. Do you want to configure the timezone" response
+		response=$(user_input_bool)
+
+		if $response; then
+			sudo dpkg-reconfigure tzdata 2>> $tmp_log && logit "${process}" "Set new TimeZone to $(date +"%Z") Success" ||
+			    logit "${process}" "FAILED to set new TimeZone" "WARNING"
+		fi
+	else
+		logit "${process}" "TimeZone cur_tz not default (GMT) assuming set as desired."
 	fi
 }
 

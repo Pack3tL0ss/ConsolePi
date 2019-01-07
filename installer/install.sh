@@ -437,7 +437,11 @@ updatepi () {
 	header
 	process="Update/Upgrade ConsolePi (apt)"
 	logit "${process}" "Update Sources"
-    sudo apt-get update 1>/dev/null 2>> $tmp_log && logit "${process}" "Update Successful" || logit "${process}" "FAILED to Update" "ERROR"
+	if [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
+        sudo apt-get update 1>/dev/null 2>> $tmp_log && logit "${process}" "Update Successful" || logit "${process}" "FAILED to Update" "ERROR"
+	else
+	    logit "${process}" "Skipping Source Update - Already Updated today"
+	fi
 	
     logit "${process}" "Upgrading ConsolePi via apt. This may take a while"
     sudo apt-get -y upgrade 1>/dev/null 2>> $tmp_log && logit "${process}" "Upgrade Successful" || logit "${process}" "FAILED to Upgrade" "ERROR"

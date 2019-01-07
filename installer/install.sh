@@ -35,6 +35,7 @@ get_config() {
 	process="get config"
     bypass_verify=false
 	logit "${process}" "Starting get/build Configuration"
+	iam=$(who am i | awk '{print $1}')
     if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
 		logit "${process}" "No Existing Config found - building default config"
         # This indicates it's the first time the script has ran

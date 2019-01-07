@@ -36,6 +36,7 @@ get_config() {
     bypass_verify=false
 	logit "${process}" "Starting get/build Configuration"
     if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
+		logit "${process}" "No Existing Config found - building default config"
         # This indicates it's the first time the script has ran
         # [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
         echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
@@ -70,7 +71,7 @@ get_config() {
             exit 0
         fi
     fi
-	[[ ! -f "${default_config}" ]] && [[ -f "/home/${iam}/ConsolePi.conf" ]] && sudo cp "/home/${iam}/ConsolePi.conf" "$default_config"
+	[[ -f "/home/${iam}/ConsolePi.conf" ]] && sudo cp "/home/${iam}/ConsolePi.conf" "$default_config"
 	. "$default_config" || 
 	    logit "${process}" "Error Loading Configuration defaults"
     hotspot_dhcp_range

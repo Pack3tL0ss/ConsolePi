@@ -99,6 +99,7 @@ if [[ ! $0 == *"ConsolePi"* ]]; then
     iam=`whoami`
     if [ "${iam}" = "root" ]; then
         echo "...script ran from CLI..."
+		[[ -f /tmp/consolepi_install.log ]] && sudo mv /tmp/consolepi_install.log /etc/ConsolePi/installer/install.log
         udev_main
     else
         echo 'Script should be ran as root. exiting.'

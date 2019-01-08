@@ -440,6 +440,13 @@ set_timezone() {
     fi
 }
 
+remove_first_boot() {
+    #IF first boot was enabled by image creator script - remove it
+    sudo sed -i "s#/usr/local/bin/consolepi-install || exit 1##g" /etc/rc.local
+    count=$(grep -c consolepi-install /etc/rc.local)
+    [[ $count > 0 ]] && logit "Remove exec on first-boot" "Failed to remove first-boot verify /etc/rc.local" "WARNING"
+}
+
 updatepi () {
     header
     process="Update/Upgrade ConsolePi (apt)"
@@ -874,7 +881,7 @@ update_consolepi_command() {
     [[ ! -f "/usr/local/bin/consolepi-upgrade" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-upgrade &&
         echo -e 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' \
-    	    >> /usr/local/bin/consolepi-upgrade
+            >> /usr/local/bin/consolepi-upgrade
     [[ ! -f "/usr/local/bin/consolepi-addssids" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addssids &&
         echo -e 'sudo /etc/ConsolePi/installer/ssids.sh' >> /usr/local/bin/consolepi-addssids || 
@@ -892,7 +899,7 @@ misc_stuff() {
     process="Set Keyboard Layout"
     logit "${process}" "${process} - Starting"
     sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard && logit "${process}" "KeyBoard Layout changed to ${wlan_country,,}"
-	logit "${process}" "${process} - Complete"
+    logit "${process}" "${process} - Complete"
 }
 
 get_serial_udev() {
@@ -964,6 +971,7 @@ post_install_msg() {
 main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then 
+		remove_first_boot
         updatepi
         gitConsolePi
         get_config
@@ -990,7 +998,7 @@ main() {
         update_banner
         get_known_ssids
         update_consolepi_command
-		misc_stuff
+        misc_stuff
         get_serial_udev
         move_log
         post_install_msg

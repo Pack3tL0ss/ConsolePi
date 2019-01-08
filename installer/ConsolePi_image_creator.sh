@@ -118,7 +118,7 @@ main() {
     first-boot script
     if $auto_install; then
         sudo sed -i "s/exit 0//usr/local/bin/consolepi-install || exit 1/g" /etc/rc.local
-        echo -e "exit 0" >> /etc/rc.local
+        sudo echo -e "exit 0" >> /etc/rc.local
     fi
 
     [[ ! -d /mnt/usb2/usr/local/bin ]] && sudo mkdir /mnt/usb2/usr/local/bin

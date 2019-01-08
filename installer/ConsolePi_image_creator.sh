@@ -132,6 +132,7 @@ main() {
     sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install
     echo
 
+	# Look for pre-configuration files in users home dir
     cur_dir=$(pwd)
     pi_home="/mnt/usb2/home/pi"
     [[ -f "${cur_dir}/ConsolePi.conf" ]] && cp "${cur_dir}/ConsolePi.conf" $pi_home  && echo "ConsolePi.conf found pre-staging on image"

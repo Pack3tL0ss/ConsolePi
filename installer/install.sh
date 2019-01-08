@@ -563,7 +563,7 @@ dhcp_run_hook() {
     fi
     
     chmod +x /etc/dhcpcd.exit-hook 2>> $tmp_log || logit "${process}" "Failed to make dhcpcd.exit-hook executable" "WARNING"
-    logit "${process}" "Point dhcp.exit-hook to ConsolePi script - Complete"
+    logit "${process}" "${process} - Complete"
 }
 
 ConsolePi_cleanup() {
@@ -580,7 +580,7 @@ ConsolePi_cleanup() {
     sudo /lib/systemd/systemd-sysv-install enable ConsolePi_cleanup 1>/dev/null 2>> $tmp_log || 
         logit "${process}" "Failed to enable ConsolePi_cleanup init script." "WARNING"
         
-    logit "${process}" "copy and enable ConsolePi_cleanup init script - Complete"
+    logit "${process}" "${process} - Complete"
 }
 
 install_ovpn() {

@@ -11,7 +11,7 @@ udev_init(){
 
 header() {
 clear
-echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
+echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m -------------------------------------------------"
 echo "* This script will automatically create udev rules and assign aliases for each USB to serial device (or pig-tail).      *"
 echo "* You should label the adapters.                                                                                        *"
 echo "*                                                                                                                       *"

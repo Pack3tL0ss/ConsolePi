@@ -91,7 +91,8 @@ main() {
     echo "Press any key to burn ${img_file} to ${my_usb}" 
     read
     echo -e "Now Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"
-    sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo "Image written to flash - no Errors" || echo "\033[1;32mError occurred burning image $*\033[m"
+    sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo -e "/n/n\033[1;32mImage written to flash - no Errors$*\033[m/n/n" || 
+        echo "\033[1;32mError occurred burning image $*\033[m"
 
     echo "Mounting boot to enable ssh"
     # Create some mount-points

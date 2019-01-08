@@ -97,9 +97,9 @@ The short of it is, this can:
 - PreConfigure ConsolePi with parameters normally entered during the initial install.  So you bypass data entry and just get a verification screen.
 - PreConfigure a WLAN for the ConsolePi to connect to & enable SSH.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP.
 - Use real ovpn installation.  The installer puts an example in, but as the config is specific to your ovpn server, the installer doesn't put a working config in.
-- Configure to Auto-Install on first boot.  Only useful if you have a monitor, change the parameter to false if doing headless, as you'd want to do that after you ssh into ConsolePi.  If you don't do Auto-Install this script does create a quick command 'consolepi-install' to simplify the long command string to pull the installer from this repo and launch.
+- create a quick command 'consolepi-install' to simplify the long command string to pull the installer from this repo and launch.
 
-Once Complete you place the newley blessed micro-sd in your raspberryPi and boot.  The installer will automatically do it's thing.
+Once Complete you place the newley blessed micro-sd in your raspberryPi and boot.  Login then `consolepi-install`
 
 **Manual Installation**
 

@@ -865,7 +865,7 @@ get_serial_udev() {
     echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
     echo "-                                                                                                                   -"
     echo "- Predictable Console ports allow you to configure ConsolePi so that each time you plug-in a specific adapter it    -"
-    echo "- will always be reachable on a predictable telnet port.                                                            -"
+    echo "- will always be reachable on a predictable telnet port (it's a good idea to label the adapters).                   -"
     echo "-                                                                                                                   -"
     echo "- This is handy if you ever plan to have multiple adapters, or if you are using a multi-port pig-tail adapter.      -"
     echo "-                                                                                                                   -"

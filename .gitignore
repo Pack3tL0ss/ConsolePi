@@ -3,3 +3,4 @@
 /originals
 ConsolePi.conf
 /installer/install.log*
+/installer/ConsolePi_image_creator.sh

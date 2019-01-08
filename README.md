@@ -4,7 +4,7 @@ Automated Raspberry Pi Serial Console Server, with PushBullet Notification of IP
 
 *TL;DR:*
 Single Command Install Script
-`wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && rm -f /tmp/ConsolePi`
+`sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi`
 
 ------
 # Contents
@@ -49,11 +49,10 @@ Each Time a Notification is triggered all interface IPs are sent in the message 
 **Automatic Installation**
 
 This assumes you have raspbian installed.
-
-Once Configured and connected to the network run this command for completely automated install
+Once Configured and connected to the network run this command for automated install
 
 ```
-wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && rm -f /tmp/ConsolePi
+sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
 ```
 The install script is designed to be essentially turn-key.  It will prompt to change hostname, set timezone, and update the pi users password if you're logged in as pi.
 
@@ -73,18 +72,34 @@ sudo nano /etc/ConsolePi.conf
 ```
 
 Configure parameters to your liking then
-
 ctrl + o  --> to save
-
 ctrl + x  --> to exit
-
 Then run the installer
 
 ```cd /etc/ConsolePi
 cd /etc/ConsolePi/installer
-sudo chmod +x *   #only required for now until I figure out how to set it on git
 sudo ./install.sh
 ```
+
+#**Automated Flash Card Imaging with AutoInstall on boot**
+
+*This is a script I used during testing to expedite the process Use at your own risk it does flash a drive so it could do harm*
+Using a Linux System (Ubuntu/Debian variant... tested on Raspbian and Mint) enter the following command:
+`curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/ConsolePi_image_creator.sh  && sudo chmod +x ConsolePi_image_creator.sh`
+
+That will download the image creator.
+Then I would suggest `head -40 ConsolePi_image_creator.sh`, Which will print the top of the file where everything is explained in more detail.
+
+The short of it is, this can:
+- automatically pull the most recent raspbian image if one doesn't exist in the script-dir (whatever dir you run it from)
+- Make an attempt to determine the correct drive to be flashed, allow user to verify/confirm (given option to display fdisk -l output)
+- Flash image to micro-sd card
+- PreConfigure ConsolePi with parameters normally entered during the initial install.  So you bypass data entry and just get a verification screen.
+- PreConfigure a WLAN for the ConsolePi to connect to & enable SSH.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP.
+- Use real ovpn installation.  The installer puts an example in, but as the config is specific to your ovpn server, the installer doesn't put a working config in.
+- Configure to Auto-Install on first boot.  Only useful if you have a monitor, change the parameter to false if doing headless, as you'd want to do that after you ssh into ConsolePi.  If you don't do Auto-Install this script does create a quick command 'consolepi-install' to simplify the long command string to pull the installer from this repo and launch.
+
+Once Complete you place the newley blessed micro-sd in your raspberryPi and boot.  The installer will automatically do it's thing.
 
 **Manual Installation**
 

@@ -320,7 +320,7 @@ verify() {
     echo
     echo "Enter Y to Continue N to make changes"
     echo
-    prompt="Are Values Correct?"
+    prompt="Are Values Correct"
     input=$(user_input_bool)
     # ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ]) && input=true || input=false
 }

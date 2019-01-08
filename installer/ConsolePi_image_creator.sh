@@ -39,9 +39,8 @@ psk='ChangeMe!!'
 wlan_country="US"
 priority=0
 
-# Disabled below - didn't work
 # This option Configures ConsolePi image to install on first boot automatically
-#auto-install=true
+auto-install=true
 
 main() {
     clear
@@ -118,8 +117,8 @@ main() {
     
     first-boot script
     if $auto_install; then
-        sudo sed -i "s/exit 0//usr/local/bin/consolepi-install || exit 1/g" /etc/rc.local
-        sudo echo -e "exit 0" >> /etc/rc.local
+        sudo sed -i "s#exit 0#/usr/local/bin/consolepi-install || exit 1#g" /mnt/usb2/etc/rc.local
+        sudo echo "exit 0" >> /mnt/usb2/etc/rc.local
     fi
 
     [[ ! -d /mnt/usb2/usr/local/bin ]] && sudo mkdir /mnt/usb2/usr/local/bin

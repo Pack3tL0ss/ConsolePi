@@ -74,6 +74,7 @@ udev_main() {
 }
 
 # __main__
+echo $0
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/ssids.sh"* ]] ; then
     iam=`whoami`
     if [ "${iam}" = "root" ]; then

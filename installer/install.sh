@@ -394,10 +394,10 @@ chg_password() {
 
 set_hostname() {
     process="Change Hostname"
-    if [[ $HOSTNAME == "raspberrypi" ]]; then
+	hostn=$(cat /etc/hostname)
+    if [[ "${hostn}" == "raspberrypi" ]]; then
         header
         valid_response=false
-        hostn=$(cat /etc/hostname)
 
         while ! $valid_response; do
             #Display existing hostname

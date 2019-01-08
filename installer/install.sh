@@ -482,6 +482,7 @@ gitConsolePi () {
 install_ser2net () {
     # To Do add check to see if already installed / update
     process="Install ser2net"
+    logit "${process}" "${process} - Starting"
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
     if [[ -z $ser2net_ver ]] ; then
         logit "${process}" "Installing ser2net from source"
@@ -545,7 +546,7 @@ dhcp_run_hook() {
     process="Configure dhcp.exit-hook"
     error=0
     # ToDo add error checking, Verify logic the first if seems wrong
-    logit "${process}" "Point dhcp.exit-hook to ConsolePi script"
+    logit "${process}" "${process} - Starting"
     [[ -f /etc/dhcpcd.exit-hook ]] && exists=true || exists=false                      # find out if exit-hook file already exists
     if $exists; then
         is_there=`cat /etc/dhcpcd.exit-hook |grep -c /etc/ConsolePi/ConsolePi.sh`      # find out if it's already pointing to ConsolePi script
@@ -574,7 +575,7 @@ ConsolePi_cleanup() {
     # It also does a graceful shutdown of any openvpn sessions on shutdown.  This prevents an errant PB notification as the interfaces may bounce during shutdown
     # causing a reset of the openvpn session and an extraneous PB notification
     process="Deploy ConsolePi cleanup init Script"
-    logit "${process}" "copy and enable ConsolePi_cleanup init script"
+    logit "${process}" "${process} Starting"
     cp "/etc/ConsolePi/src/ConsolePi_cleanup" "/etc/init.d" 1>/dev/null 2>> $tmp_log || 
         logit "${process}" "Error Copying ConsolePi_cleanup init script." "WARNING"
     chmod +x /etc/init.d/ConsolePi_cleanup 1>/dev/null 2>> $tmp_log || 
@@ -766,11 +767,12 @@ install_autohotspotn () {
         logit "${process}" "iw not found, Installing iw via apt."
         apt-get -y install iw 1>/dev/null 2>> $tmp_log && logit "${process}" "iw installed Successfully" || logit "${process}" "FAILED to install iw" "WARNING"
     else
-        echo "$(date +"%b %d %T") [10.]autohotspotN [INFO] iw already on system."
+        logit "${process}" "iw is already installed/current."
     fi
     
     logit "${process}" "Enable IP-forwarding (/etc/sysctl.conf)"
-    sed -i '/^#net\.ipv4\.ip_forward=1/s/^#//g' /etc/sysctl.conf
+    sed -i '/^#net\.ipv4\.ip_forward=1/s/^#//g' /etc/sysctl.conf 1>/dev/null 2>> $tmp_log && logit "${process}" "Enable IP-forwarding - Success" 
+        || logit "${process}" "FAILED to enable IP-forwarding verify /etc/sysctl.conf 'net.ipv4.ip_forward=1'" "WARNING"
     
     logit "${process}" "${process} Complete"
 }

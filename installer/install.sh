@@ -874,11 +874,11 @@ update_consolepi_command() {
     [[ ! -f "/usr/local/bin/consolepi-addssids" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addssids &&
         echo -e 'sudo /etc/ConsolePi/installer/ssids.sh' >> /usr/local/bin/consolepi-addssids || 
-        logit "${process}" "Failed to create consolepi-addssids command script" "WARNING"
+        logit "${process}" "consolepi-addssids already exists"
     [[ ! -f "/usr/local/bin/consolepi-addconsole" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
         echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole || 
-        logit "${process}" "Failed to create consolepi-addconsole command script" "WARNING"
+        logit "${process}" "consolepi-addconsole already exists"
     logit "${process}" "${process} - Complete"
 }
 

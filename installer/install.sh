@@ -417,7 +417,7 @@ set_hostname() {
             logit "${process}" "New hostname set $newhost" | tee -a $tmp_log
         fi
     else
-        logit "${process}" "Hostname is not default, assuming it is desired hostname"
+        logit "${process}" "Hostname ${hostn} is not default, assuming it is desired hostname"
     fi
 }
 

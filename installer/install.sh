@@ -640,11 +640,17 @@ ovpn_graceful_shutdown() {
 ovpn_logging() {
     process="OpenVPN and PushBullet Logging"
     logit "${process}" "Configure Logging in /var/log/ConsolePi - Other ConsolePi functions log to syslog"
+    
+    # Create /var/log/ConsolePi dir if it doesn't exist
     if [[ ! -d "/var/log/ConsolePi" ]]; then
         sudo mkdir /var/log/ConsolePi 1>/dev/null 2>> $tmp_log || logit "${process}" "Failed to create Log Directory"
     fi
+    
+    # Create Log Files
     touch /var/log/ConsolePi/ovpn.log || logit "${process}" "Failed to create OpenVPN log file" "WARNING"
     touch /var/log/ConsolePi/push_response.log || logit "${process}" "Failed to create PushBullet log file" "WARNING"
+    
+    # Create logrotate file for logs
     echo "/var/log/ConsolePi/ovpn.log" > "/etc/logrotate.d/ConsolePi"
     echo "/var/log/ConsolePi/push_response.log" >> "/etc/logrotate.d/ConsolePi"
     echo "{" >> "/etc/logrotate.d/ConsolePi"
@@ -655,6 +661,8 @@ ovpn_logging() {
     echo "        compress" >> "/etc/logrotate.d/ConsolePi"
     echo "        delaycompress" >> "/etc/logrotate.d/ConsolePi"
     echo "}" >> "/etc/logrotate.d/ConsolePi"
+    
+    # Verify logrotate file was created correctly
     lines=$(wc -l < "/etc/logrotate.d/ConsolePi")
     [[ $lines == 10 ]] && logit "${process}" "${process} Completed Successfully" || logit "${process}" "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
 }

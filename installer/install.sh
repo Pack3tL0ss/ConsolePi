@@ -442,8 +442,8 @@ set_timezone() {
 
 remove_first_boot() {
     #IF first boot was enabled by image creator script - remove it
-    sudo sed -i "s#/usr/local/bin/consolepi-install || exit 1##g" /etc/rc.local
-    count=$(grep -c consolepi-install /etc/rc.local)
+    sudo sed -i "s#consolepi-install##g" /home/pi/.bashrc
+    count=$(grep -c consolepi-install /home/pi/.bashrc)
     [[ $count > 0 ]] && logit "Remove exec on first-boot" "Failed to remove first-boot verify /etc/rc.local" "WARNING"
 }
 

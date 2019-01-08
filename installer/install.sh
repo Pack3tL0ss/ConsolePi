@@ -35,8 +35,9 @@ get_config() {
     process="get config"
     bypass_verify=false
     logit "${process}" "Starting get/build Configuration"
+	[[ -z $iam ]] && echo "${iam} not defined" || iam=$(who am i | awk '{print $1}') && echo "${iam} defined"
 	[[ ! -f "${default_config}" ]] && echo "default not found" || echo "default found"
-	[[ ! -f "/home/${iam}/ConsolePi.conf" ]] && echo "home dir config not found" || echo "home dir config found"
+	[[ ! -f "/home/${iam}/ConsolePi.conf" ]] && echo "/home/${iam}/ConsolePi.conf not found" || echo "/home/${iam}/ConsolePi.conf found"
     if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
         logit "${process}" "No Existing Config found - building default config /home/${iam}/ConsolePi.conf"
         # This indicates it's the first time the script has ran

@@ -428,9 +428,9 @@ set_timezone() {
         header
 
         prompt="Current TimeZone $cur_tz. Do you want to configure the timezone"
-        response=$(user_input_bool)
+		set_tz=$(user_input_bool)
 
-        if $response; then
+        if $set_tz; then
             sudo dpkg-reconfigure tzdata 2>> $tmp_log && logit "${process}" "Set new TimeZone to $(date +"%Z") Success" ||
                 logit "${process}" "FAILED to set new TimeZone" "WARNING"
         fi

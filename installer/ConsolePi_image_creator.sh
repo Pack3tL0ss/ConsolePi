@@ -23,7 +23,7 @@
 # --  the SSID, so all you need to do is determine the IP address assigned and initiate an SSH session.
 # --    To enable the pre-configuration of an SSID, configure the parameters below with values appropriate for your system
 # --  
-# --  Lastly this script also configures one of the consolepi quick commands: 'consolepi-install' and configures the image to run it on first-boot.  This command
+# --  Lastly this script also configures one of the consolepi quick commands: 'consolepi-install'. This command
 # --  is the same as the single command install command on the github.  btw that command is changed to 'consolepi-upgrade' during the install.
 # --  
 # --  This script should be ran on a Linux system, tested on raspbian (a different Raspberry pi), and Linux mint, should work for most debian/ubuntu variants

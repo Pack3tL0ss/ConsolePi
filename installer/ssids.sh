@@ -176,11 +176,10 @@ known_ssid_main() {
     done
 }
 
-echo $0
+#echo $0
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/ssids.sh"* ]] ; then
     known_ssid_init
     known_ssid_main
     mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
     mv "$wpa_temp_file" "$wpa_supplicant_file"
 fi
-# cat "${wpa_temp_file}"

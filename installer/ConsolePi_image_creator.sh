@@ -47,9 +47,12 @@ main() {
 
     echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n\n"
     echo -e "Script has discovered USB flash device @ \033[1;32m ${my_usb} $*\033[m"
-	input='y' # pre-define no verification/loop for the read
     read -p "Do you want to see fdisk details for all disks to verify? (y/n): " input
-    ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ]) && input=true || input=false
+	if [[ ! -z $input ]]; then 
+        ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ]) && input=true || input=false
+    else
+        input=true
+    fi
     if $input; then
     echo "Displaying fdisk -l output in 'less' press q to quit"
     sleep 3

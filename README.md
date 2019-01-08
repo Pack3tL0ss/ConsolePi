@@ -81,7 +81,7 @@ cd /etc/ConsolePi/installer
 sudo ./install.sh
 ```
 
-#**Automated Flash Card Imaging with AutoInstall on boot**
+**Automated Flash Card Imaging with AutoInstall on boot**
 
 *This is a script I used during testing to expedite the process Use at your own risk it does flash a drive so it could do harm*
 Using a Linux System (Ubuntu/Debian variant... tested on Raspbian and Mint) enter the following command:

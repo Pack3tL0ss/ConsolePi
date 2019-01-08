@@ -918,7 +918,7 @@ post_install_msg() {
     echo "*   An install log can be found in ${consolepi_dir}/installer/install.log                                                 *"
     echo "*                                                                                                                       *"
 	echo -e "* \033[1;32mConsolePi Commands$*\033[m                                                                                                    *"
-	echo "*     consolepi-upgrade: upgrade consolepi. same as doing sudo /etc/ConsolePi/installer.sh                              *"
+	echo "*     consolepi-upgrade: upgrade consolepi. - using install script direct from repo | ser2net upgrade bypassed for now  *"
 	echo "*     consolepi-addssids: Add additional known ssids. same as doing sudo /etc/ConsolePi/ssids.sh                        *"
 	echo "*     consolepi-addconsole: Configure serial adapter to telnet port rules. same as doing sudo /etc/ConsolePi/udev.sh    *"
 	echo "*                                                                                                                       *"

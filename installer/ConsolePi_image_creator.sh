@@ -85,13 +85,15 @@ main() {
             ((retry++))
             [[ -z $img_file ]] && [[ $retry > 2 ]] && echo "exceeded retries exitting " && exit 1
     done
+    
+    # Burn Raspian image to device (micro-sd)
     clear
     echo -e "Last chance to abort!! (ctrl+c)"
     echo "Press any key to burn ${img_file} to ${my_usb}" 
     read
     echo -e "Now Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"
-    sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo -e "/n/n\033[1;32mImage written to flash - no Errors$*\033[m/n/n" || 
-        echo "\033[1;32mError occurred burning image $*\033[m"
+    sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo -e "\n\n\033[1;32mImage written to flash - no Errors$*\033[m\n\n" || 
+        echo "\n\n\033[1;32mError occurred burning image $*\033[m\n\n"
 
     echo "Mounting boot to enable ssh"
     # Create some mount-points

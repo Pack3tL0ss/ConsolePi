@@ -48,7 +48,7 @@ main() {
     echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n\n"
     echo -e "Script has discovered USB flash device @ \033[1;32m ${my_usb} $*\033[m"
     read -p "Do you want to see fdisk details for all disks to verify? (y/n): " input
-	if [[ ! -z $input ]]; then 
+    if [[ ! -z $input ]]; then 
         ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ]) && input=true || input=false
     else
         input=true
@@ -56,9 +56,7 @@ main() {
     if $input; then
     echo "Displaying fdisk -l output in 'less' press q to quit"
     sleep 3
-    echo "--------------------------------------------------------------"
     sudo fdisk -l | less
-    echo "--------------------------------------------------------------"
     fi
 
     echo -e "Press enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device i.e. 'sdc'"

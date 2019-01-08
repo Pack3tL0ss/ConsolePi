@@ -907,8 +907,9 @@ post_install_msg() {
     echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
     echo -e "\n\n"
     #Press a key to reboot
-    read -s -n 1 -p "Press any key to reboot"
-    sudo reboot
+	prompt="A reboot is required, do you want to reboot now"
+    $go_reboot=$(user_input_bool)
+    $go_reboot && sudo reboot || echo "ConsolePi Install script Complete, Reboot is required"
 }
 
 main() {

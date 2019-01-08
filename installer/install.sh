@@ -443,7 +443,8 @@ updatepi () {
     header
     process="Update/Upgrade ConsolePi (apt)"
     logit "${process}" "Update Sources"
-    if [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
+	# Only update if initial install (no install.log) or if last update was not today
+    if [[ ! -f "${consolepi_dir}/installer/install.log" ]] || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
         sudo apt-get update 1>/dev/null 2>> $tmp_log && logit "${process}" "Update Successful" || logit "${process}" "FAILED to Update" "ERROR"
     else
         logit "${process}" "Skipping Source Update - Already Updated today"

@@ -854,6 +854,12 @@ get_known_ssids() {
     logit "${process}" "${process} Complete"
 }
 
+update_consolepi_command() {
+    [[ -f "/usr/local/bin/consolepi-install" ]] && sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade" &&
+        logger -t "create consolepi-upgrade cmd" "Changed consolepi-install to consolepi-upgrade" || 
+        logger -t "create consolepi-upgrade cmd" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
+}
+
 get_serial_udev() {
     process="Predictable Console Ports"
     logit "${process}" "${process} Starting."
@@ -937,6 +943,7 @@ main() {
         dhcpcd_conf
         update_banner
         get_known_ssids
+		update_consolepi_command
         get_serial_udev
         move_log
         post_install_msg

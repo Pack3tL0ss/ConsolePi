@@ -11,6 +11,8 @@ ovpn_options="--persist-remote-ip --ping 15"                        # openvpn co
 # Get Configuration from config file default if config file doesn't exist
 if [[ -f "/etc/ConsolePi/ConsolePi.conf" ]]; then
 	. "/etc/ConsolePi/ConsolePi.conf"
+	# Disable OpenVPN if ovpn config is not found
+	$ovpn_enable && [[ ! -f "${ovpn_config}" ]] && ovpn_enable=false && logger -t puship-ovpn ERROR: OpenVPN is enabled but ConsolePi.ovpn not found - disabling
 else
 	push=false                                                          # PushBullet Notifications: true - enable, false - disable
 	ovpn_enable=false                                                   # if enabled will establish VPN connection
@@ -68,7 +70,7 @@ StashNewIP() {
     echo $(date +'%s') >> /tmp/$interface       # TimeStamp not currently used but can be to put a cap on push frequency if something started causing a lot of them
 }
 
-# >> Get Current Interface IPs <<
+# >> This Function is depricated and no longer called - will be removed <<
 OldGetCurrentIP() {
     $debug && logger -t puship-DEBUG Enter GetCurrentIP Function
     eth0_ip=`ip addr show dev eth0 2>/dev/null | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`

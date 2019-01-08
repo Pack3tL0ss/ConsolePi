@@ -590,9 +590,9 @@ install_ovpn() {
         sudo apt-get -y install openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "OpenVPN installed Successfully" || logit "${process}" "FAILED to install OpenVPN" "WARNING"
         if ! $ovpn_enable; then
             logit "${process}" "You've chosen not to use the OpenVPN function.  Disabling OpenVPN. Package will remain installed. '/lib/systemd/systemd-sysv-install enable openvpn' to enable"
-            /lib/systemd/systemd-sysv-install disable openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "Failed to disable OpenVPN" || logit "${process}" "FAILED to disable OpenVPN" "WARNING"
+            /lib/systemd/systemd-sysv-install disable openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "OpenVPN Disabled" || logit "${process}" "FAILED to disable OpenVPN" "WARNING"
         else
-            /lib/systemd/systemd-sysv-install enable openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "Failed to enable OpenVPN" || logit "${process}" "FAILED to enable OpenVPN" "WARNING"
+            /lib/systemd/systemd-sysv-install enable openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "OpenVPN Enabled" || logit "${process}" "FAILED to enable OpenVPN" "WARNING"
         fi
     else
         logit "${process}" "OpenVPN Already present"
@@ -602,10 +602,9 @@ install_ovpn() {
         [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client" ||
             logit "${process}" "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
     else
-        cp "/home/${iam}/ConsolePi.ovpn" "/etc/openvpn" &&
-            logit "${process}" "Found ConsolePi.ovpn in /home/${iam}.  Copying the config you've provided." &&
-            logit "${process}" "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in \etc\ConsolePi\src" "WARNING" &&
-            logit "${process}" "For security, once verified you should delete or chmod the ovpn config in your home dir, it's been copied to /openvpn/clients dir" "WARNING" ||
+        mv "/home/${iam}/ConsolePi.ovpn" "/etc/openvpn/client" &&
+            logit "${process}" "Found ConsolePi.ovpn in /home/${iam}.  Moving the config you've provided." &&
+            logit "${process}" "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in /etc/ConsolePi/src" "WARNING" ||
             logit "${process}" "Error occurred moving your ovpn config" "WARNING"
     fi
     
@@ -613,14 +612,12 @@ install_ovpn() {
         [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client" ||
             logit "${process}" "Retaining existing ovpn_credentials file. See src dir for original example file."
     else
-        cp "/home/${iam}/ovpn_credentials" "/etc/ovpn_credentials" &&
-            logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving your provided file to openvpn/client dir."  &&
-            logit "${process}" "For security, once verified you should delete or chmod the ovpn_credentials in your home dir, it's been copied to /openvpn/clients dir" "WARNING" ||
+        mv "/home/${iam}/ovpn_credentials" "/etc/client/ovpn_credentials" &&
+            logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving your provided file to openvpn/client dir."  ||
             logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
     fi
             
-    sudo chmod 600 /etc/openvpn/client/* 1>/dev/null 2>> $tmp_log || 
-        logit "${process}" "Failed chmod 600 openvpn client files" "WARNING"
+    sudo chmod 600 /etc/openvpn/client/* 1>/dev/null 2>> $tmp_log || logit "${process}" "Failed chmod 600 openvpn client files" "WARNING"
 }
 
 ovpn_graceful_shutdown() {

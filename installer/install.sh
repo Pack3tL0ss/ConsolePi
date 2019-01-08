@@ -874,8 +874,7 @@ update_consolepi_command() {
     [[ ! -f "/usr/local/bin/consolepi-upgrade" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-upgrade &&
         echo -e 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' \
-    	    >> /usr/local/bin/consolepi-upgrade || 
-        logit "${process}" "consolepi-upgrade already exists"
+    	    >> /usr/local/bin/consolepi-upgrade
     [[ ! -f "/usr/local/bin/consolepi-addssids" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addssids &&
         echo -e 'sudo /etc/ConsolePi/installer/ssids.sh' >> /usr/local/bin/consolepi-addssids || 

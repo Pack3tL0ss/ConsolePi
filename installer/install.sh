@@ -915,8 +915,8 @@ post_install_msg() {
 }
 
 main() {
-    iam=`whoami`
-    if [ "${iam}" = "root" ]; then 
+    script_iam=`whoami`
+    if [ "${script_iam}" = "root" ]; then 
         updatepi
         gitConsolePi
         get_config

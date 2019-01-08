@@ -431,7 +431,7 @@ set_timezone() {
 		set_tz=$(user_input_bool)
 
         if $set_tz; then
-            sudo dpkg-reconfigure tzdata 2>> $tmp_log && logit "${process}" "Set new TimeZone to $(date +"%Z") Success" ||
+            echo "Launching, standby..." && sudo dpkg-reconfigure tzdata 2>> $tmp_log && header && logit "${process}" "Set new TimeZone to $(date +"%Z") Success" ||
                 logit "${process}" "FAILED to set new TimeZone" "WARNING"
         fi
     else

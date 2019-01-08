@@ -858,18 +858,18 @@ get_known_ssids() {
 
 update_consolepi_command() {
     process="Create/Update consolepi- quick commands"
-    logger -t "${process}" ${process} - Starting"
+    logit "${process}" "${process} - Starting"
     [[ -f "/usr/local/bin/consolepi-install" ]] && sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
-        logger -t "${process}" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
+        logit "${process}" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
     [[ ! -f "/usr/local/bin/consolepi-addssids" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addssids &&
         echo -e 'sudo /etc/ConsolePi/installer/ssids.sh' >> /usr/local/bin/consolepi-addssids || 
-        logger -t "${process}" "Failed to create consolepi-addssids command script" "WARNING"
+        logit "${process}" "Failed to create consolepi-addssids command script" "WARNING"
     [[ ! -f "/usr/local/bin/consolepi-addconsole" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
         echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole || 
-        logger -t "${process}" "Failed to create consolepi-addconsole command script" "WARNING"
-    logger -t "${process}" ${process} - Complete"
+        logit "${process}" "Failed to create consolepi-addconsole command script" "WARNING"
+    logit "${process}" "${process} - Complete"
 }
 
 get_serial_udev() {
@@ -917,7 +917,13 @@ post_install_msg() {
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
     echo "*                                                                                                                       *"
-    echo "*   An install log can be found in ${consolepi_dir}/installer/install.log                                                 *"
+    echo -e "* \033[1;32mLogging$*\033[m                                                                                                               *"
+    echo "*     The bulk is sent to syslog. the tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest     *"
+    echo "*     openvpn log is sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn     *"
+    echo "*     pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log                *"
+    echo "*     An install log can be found in ${consolepi_dir}/installer/install.log                                               *"
+    echo "*       You might also check for /tmp/consolepi_installer.log this file is moved to installer.log after the installer   *"
+    echo "*       completes, but if there was a failure or you broke out of the script it's possible it remains.                  *"
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mConsolePi Commands$*\033[m                                                                                                    *"
     echo "*     consolepi-upgrade: upgrade consolepi. - using install script direct from repo | ser2net upgrade bypassed for now  *"

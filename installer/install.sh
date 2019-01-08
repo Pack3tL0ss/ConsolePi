@@ -859,7 +859,7 @@ get_known_ssids() {
 update_consolepi_command() {
     process="Create/Update consolepi- quick commands"
     [[ -f "/usr/local/bin/consolepi-install" ]] && sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
-        logger -t "${process} "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
+        logger -t "${process}" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
 	[[ ! -f "/usr/local/bin/consolepi-addssids" ]] && 
 	    echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addssids &&
 		echo -e 'sudo /etc/ConsolePi/installer/ssids.sh' >> /usr/local/bin/consolepi-addssids || 

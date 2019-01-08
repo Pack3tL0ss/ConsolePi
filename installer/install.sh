@@ -879,6 +879,8 @@ update_consolepi_command() {
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
         echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole || 
         logit "${process}" "consolepi-addconsole already exists"
+    sudo chmod +x /usr/local/bin/consolepi-* ||
+        logit "${process}" "Failed to chmod consolepi quick commands" "WARNING"
     logit "${process}" "${process} - Complete"
 }
 

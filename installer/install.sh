@@ -889,7 +889,10 @@ update_consolepi_command() {
 }
 
 misc_stuff() {
-    sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard
+    process="Set Keyboard Layout"
+    logit "${process}" "${process} - Starting"
+    sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard && logit "${process}" "KeyBoard Layout changed to ${wlan_country,,}"
+	logit "${process}" "${process} - Complete"
 }
 
 get_serial_udev() {

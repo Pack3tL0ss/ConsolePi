@@ -117,7 +117,7 @@ main() {
         sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
     fi
     
-    first-boot script
+    # first-boot script
     if $auto_install; then
         sudo sed -i "s#exit 0#/usr/local/bin/consolepi-install || exit 1#g" /mnt/usb2/etc/rc.local
         sudo echo "exit 0" >> /mnt/usb2/etc/rc.local

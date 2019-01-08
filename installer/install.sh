@@ -32,18 +32,20 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 # -- Build Config File and Directory Structure - Read defaults from config
 get_config() {
-	process="get config"
+    process="get config"
     bypass_verify=false
-	logit "${process}" "Starting get/build Configuration"
+    logit "${process}" "Starting get/build Configuration"
+	[[ ! -f "${default_config}" ]] && echo "default not found" || echo "default found"
+	[[ ! -f "/home/${iam}/ConsolePi.conf" ]] && echo "home dir config not found" || echo "home dir config found"
     if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
-		logit "${process}" "No Existing Config found - building default config /home/${iam}/ConsolePi.conf"
+        logit "${process}" "No Existing Config found - building default config /home/${iam}/ConsolePi.conf"
         # This indicates it's the first time the script has ran
         # [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
         echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
         echo "push_all=true                                # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
         echo "push_api_key=\"PutYourPBAPIKeyHereChangeMe:\"    # PushBullet API key" >> "${default_config}"
         echo "push_iden=\"putyourPBidenHere\"                    # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
-        echo "ovpn_enable=true                        # if enabled will establish VPN connection" >> "${default_config}"
+        echo "ovpn_enable=true                             # if enabled will establish VPN connection" >> "${default_config}"
         echo "vpn_check_ip=\"10.0.150.1\"                    # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
         echo "net_check_ip=\"8.8.8.8\"                        # used to check internet connectivity" >> "${default_config}"
         echo "local_domain=\"arubalab.net\"                    # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
@@ -60,25 +62,25 @@ get_config() {
         user_input true "${prompt}"
         continue=$result
         if $continue ; then
-            bypass_verify=true		# bypass verify function
-			input=false				# so collect function will run (while loop in main)
+            bypass_verify=true        # bypass verify function
+            input=false                # so collect function will run (while loop in main)
         else
             header
             echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
             echo "i.e. \"sudo nano ${default_config}\""
             echo
-			move_log
+            move_log
             exit 0
         fi
-	elif [[ -f "/home/${iam}/ConsolePi.conf" ]]; then
-	    logit "${process}" "using config found in user home directory"
-		sudo cp "/home/${iam}/ConsolePi.conf" "$default_config" ||
-		    logit "${process}" "Error Copying Config found in user home directory" "WARNING"
-	elif [[ -f "${default_config}" ]]; then
-		logit "${process}" "Using existing Config found in ${consolepi_dir}"
+    elif [[ -f "/home/${iam}/ConsolePi.conf" ]]; then
+        logit "${process}" "using config found in user home directory"
+        sudo cp "/home/${iam}/ConsolePi.conf" "$default_config" ||
+            logit "${process}" "Error Copying Config found in user home directory" "WARNING"
+    elif [[ -f "${default_config}" ]]; then
+        logit "${process}" "Using existing Config found in ${consolepi_dir}"
     fi
-	. "$default_config" || 
-	    logit "${process}" "Error Loading Configuration defaults"
+    . "$default_config" || 
+        logit "${process}" "Error Loading Configuration defaults"
     hotspot_dhcp_range
 }
 
@@ -123,7 +125,7 @@ header() {
 
 update_banner() {
     process="update motd"
-	logit "${process}" "Update motd with Custom ConsolePi Banner"
+    logit "${process}" "Update motd with Custom ConsolePi Banner"
     # Update ConsolePi Banner to display ConsolePi ascii logo at login           
     sed -i '1s/^/        CCCCCCCCCCCCC                                                                     lllllll                   PPPPPPPPPPPPPPPPP     iiii  \n/' /etc/motd
     sed -i '2s/^/     CCC::::::::::::C                                                                     l:::::l                   P::::::::::::::::P   i::::i \n/' /etc/motd
@@ -300,7 +302,7 @@ verify() {
         echo " PushBullet API Key:                                      ${push_api_key}"
         echo " Send Push Notification to all devices?:                  $push_all"
         ! $push_all && \
-	    echo " iden of device to receive PushBullet Notifications:      ${push_iden}"
+        echo " iden of device to receive PushBullet Notifications:      ${push_iden}"
     fi
 
     echo " Enable Automatic VPN?:                                   $ovpn_enable"
@@ -330,28 +332,28 @@ move_log() {
     [[ -f "${consolepi_dir}/installer/install.log.2" ]] && sudo mv "${consolepi_dir}/installer/install.log.2" "${consolepi_dir}/installer/install.log.3"
     [[ -f "${consolepi_dir}/installer/install.log.1" ]] && sudo mv "${consolepi_dir}/installer/install.log.1" "${consolepi_dir}/installer/install.log.2"
     [[ -f "${consolepi_dir}/installer/install.log" ]] && sudo mv "${consolepi_dir}/installer/install.log" "${consolepi_dir}/installer/install.log.1"
-	mv $tmp_log "${consolepi_dir}/installer/install.log" || echo -e "\n!!!!\nFailed to move install.log from ${tmp_log}\n!!!!"
+    mv $tmp_log "${consolepi_dir}/installer/install.log" || echo -e "\n!!!!\nFailed to move install.log from ${tmp_log}\n!!!!"
 }
 
 logit() {
-	# Logging Function: logit <process|string> <message|string> [<status|string>]
+    # Logging Function: logit <process|string> <message|string> [<status|string>]
     process=$1                                      # 1st argument is process
     message=$2                                      # 2nd argument is message
-	fatal=false                                        # fatal is determined by status default to false.  true if status = ERROR
+    fatal=false                                        # fatal is determined by status default to false.  true if status = ERROR
     if [[ -z "${3}" ]]; then                        # 3rd argument is status default to INFO
-	    status="INFO"
+        status="INFO"
     else
-	    status=$3
-		[[ "${status}" == "ERROR" ]] && fatal=true
-	fi
+        status=$3
+        [[ "${status}" == "ERROR" ]] && fatal=true
+    fi
     
-	# Log to stdout and log-file
+    # Log to stdout and log-file
     echo "$(date +"%b %d %T") ${process} [${status}] ${message}" | tee -a $tmp_log
-	# if status was ERROR which means FATAL then log and exit script
+    # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
         move_log
-	    echo "$(date +'%b %d %T') ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" && exit 1
-	fi
+        echo "$(date +'%b %d %T') ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" && exit 1
+    fi
 }
 
 user_input_bool() {
@@ -373,7 +375,7 @@ user_input_bool() {
 chg_password() {
     # count=$(who | grep -c '^pi\s') 
     if [[ $iam == "pi" ]]; then 
-	    header
+        header
         echo "You are logged in as pi, the default user."
         prompt="Do You want to change the password for user pi"
         response=$(user_input_bool)
@@ -385,165 +387,165 @@ chg_password() {
                 [[ "${pass}" == "${pass2}" ]] && match=true || match=false
                 ! $match && echo -e "ERROR: Passwords Do Not Match\n"
             done
-			process="pi user password change"
+            process="pi user password change"
             echo "pi:${pass}" | sudo chpasswd 2>> $tmp_log && logit "${process}" "Success" || 
-			  ( logit "${process}" "Failed to Change Password for pi user" "WARNING" &&
-			  echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
+              ( logit "${process}" "Failed to Change Password for pi user" "WARNING" &&
+              echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
         fi
     fi
 }
 
 set_hostname() {
-	process="Change Hostname"
+    process="Change Hostname"
     if [[ $HOSTNAME == "raspberrypi" ]]; then
-		header
-		valid_response=false
-		hostn=$(cat /etc/hostname)
+        header
+        valid_response=false
+        hostn=$(cat /etc/hostname)
 
-		while ! $valid_response; do
-			#Display existing hostname
-			read -p "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
-			response=${response,,}    # tolower
-			( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
-		done
-		if [[ "$response" =~ ^(yes|y)$ ]]; then
-			#Ask for new hostname $newhost
-			read -p "Enter new hostname: " newhost
+        while ! $valid_response; do
+            #Display existing hostname
+            read -p "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
+            response=${response,,}    # tolower
+            ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
+        done
+        if [[ "$response" =~ ^(yes|y)$ ]]; then
+            #Ask for new hostname $newhost
+            read -p "Enter new hostname: " newhost
 
-			#change hostname in /etc/hosts & /etc/hostname
-			sudo sed -i "s/$hostn/$newhost/g" /etc/hosts
-			sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
-			sudo sed -i "s/$hostn/$newhost/g" /etc/hostname
-			
-			logit "${process}" "New hostname set $newhost" | tee -a $tmp_log
-		fi
-	else
-		logit "${process}" "Hostname is not default, assuming it is desired hostname"
-	fi
+            #change hostname in /etc/hosts & /etc/hostname
+            sudo sed -i "s/$hostn/$newhost/g" /etc/hosts
+            sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
+            sudo sed -i "s/$hostn/$newhost/g" /etc/hostname
+            
+            logit "${process}" "New hostname set $newhost" | tee -a $tmp_log
+        fi
+    else
+        logit "${process}" "Hostname is not default, assuming it is desired hostname"
+    fi
 }
 
 set_timezone() {
-	cur_tz=$(date +"%Z")
-	process="Configure ConsolePi TimeZone"
-	if [[ $cur_tz == "GMT" ]]; then
-		header
+    cur_tz=$(date +"%Z")
+    process="Configure ConsolePi TimeZone"
+    if [[ $cur_tz == "GMT" ]]; then
+        header
 
-		prompt="Current TimeZone $cur_tz. Do you want to configure the timezone" response
-		response=$(user_input_bool)
+        prompt="Current TimeZone $cur_tz. Do you want to configure the timezone" response
+        response=$(user_input_bool)
 
-		if $response; then
-			sudo dpkg-reconfigure tzdata 2>> $tmp_log && logit "${process}" "Set new TimeZone to $(date +"%Z") Success" ||
-			    logit "${process}" "FAILED to set new TimeZone" "WARNING"
-		fi
-	else
-		logit "${process}" "TimeZone cur_tz not default (GMT) assuming set as desired."
-	fi
+        if $response; then
+            sudo dpkg-reconfigure tzdata 2>> $tmp_log && logit "${process}" "Set new TimeZone to $(date +"%Z") Success" ||
+                logit "${process}" "FAILED to set new TimeZone" "WARNING"
+        fi
+    else
+        logit "${process}" "TimeZone cur_tz not default (GMT) assuming set as desired."
+    fi
 }
 
 updatepi () {
-	header
-	process="Update/Upgrade ConsolePi (apt)"
-	logit "${process}" "Update Sources"
-	if [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
+    header
+    process="Update/Upgrade ConsolePi (apt)"
+    logit "${process}" "Update Sources"
+    if [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
         sudo apt-get update 1>/dev/null 2>> $tmp_log && logit "${process}" "Update Successful" || logit "${process}" "FAILED to Update" "ERROR"
-	else
-	    logit "${process}" "Skipping Source Update - Already Updated today"
-	fi
-	
+    else
+        logit "${process}" "Skipping Source Update - Already Updated today"
+    fi
+    
     logit "${process}" "Upgrading ConsolePi via apt. This may take a while"
     sudo apt-get -y upgrade 1>/dev/null 2>> $tmp_log && logit "${process}" "Upgrade Successful" || logit "${process}" "FAILED to Upgrade" "ERROR"
-	
+    
     logit "${process}" "Performing dist-upgrade"
     sudo apt-get -y dist-upgrade 1>/dev/null 2>> $tmp_log && logit "${process}" "dist-upgrade Successful" || logit "${process}" "FAILED dist-upgrade" "WARNING"
 
     logit "${process}" "Tidying up (autoremove)"
     apt-get -y autoremove 1>/dev/null 2>> $tmp_log && logit "${process}" "Everything is tidy now" || logit "${process}" "apt-get autoremove FAILED" "WARNING"
-		
+        
     logit "${process}" "Installing git dependency via apt"
     apt-get -y install git 1>/dev/null 2>> $tmp_log && logit "${process}" "git install Successful" || logit "${process}" "git install FAILED to install" "ERROR"
-	logit "${process}" "Process Complete"
+    logit "${process}" "Process Complete"
 }
 
 gitConsolePi () {
     process="git Clone/Update ConsolePi"
     cd "/etc"
     if [ ! -d $consolepi_dir ]; then 
-	    logit "${process}" "Clean Install git clone ConsolePi"
+        logit "${process}" "Clean Install git clone ConsolePi"
         git clone "${consolepi_source}" 1>/dev/null 2>> $tmp_log && logit "${process}" "ConsolePi clone Success" || logit "${process}" "Failed to Clone ConsolePi" "ERROR"
     else
         cd $consolepi_dir
-		logit "${process}" "Directory exists Updating ConsolePi via git"
+        logit "${process}" "Directory exists Updating ConsolePi via git"
         git pull "${consolepi_source}" 1>/dev/null 2>> $tmp_log && 
-		    logit "${process}" "ConsolePi update/pull Success" || logit "${process}" "Failed to update/pull ConsolePi" "WARNING"
+            logit "${process}" "ConsolePi update/pull Success" || logit "${process}" "Failed to update/pull ConsolePi" "WARNING"
     fi
 }
 
 install_ser2net () {
-	# To Do add check to see if already installed / update
-	process="Install ser2net"
-	ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
-	if [[ -z $ser2net_ver ]] ; then
-		logit "${process}" "Installing ser2net from source"
-		cd /usr/local/bin
+    # To Do add check to see if already installed / update
+    process="Install ser2net"
+    ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
+    if [[ -z $ser2net_ver ]] ; then
+        logit "${process}" "Installing ser2net from source"
+        cd /usr/local/bin
 
-		logit "${process}" "Retrieve and extract package"
-		wget -q "${ser2net_source}" -O ./ser2net.tar.gz 1>/dev/null 2>> $tmp_log && 
-			logit "${process}" "Successfully pulled ser2net from source" || logit "${process}" "Failed to pull ser2net from source" "ERROR"
+        logit "${process}" "Retrieve and extract package"
+        wget -q "${ser2net_source}" -O ./ser2net.tar.gz 1>/dev/null 2>> $tmp_log && 
+            logit "${process}" "Successfully pulled ser2net from source" || logit "${process}" "Failed to pull ser2net from source" "ERROR"
 
-		tar -zxvf ser2net.tar.gz 1>/dev/null 2>> $tmp_log &&
-			logit "${process}" "ser2net extracted" ||
-			logit "${process}" "Failed to extract ser2net from source" "ERROR"
+        tar -zxvf ser2net.tar.gz 1>/dev/null 2>> $tmp_log &&
+            logit "${process}" "ser2net extracted" ||
+            logit "${process}" "Failed to extract ser2net from source" "ERROR"
 
-		rm -f /usr/local/bin/ser2net.tar.gz || logit "${process}" "Failed to remove tar.gz" "WARNING"
-		cd ser2net*/
+        rm -f /usr/local/bin/ser2net.tar.gz || logit "${process}" "Failed to remove tar.gz" "WARNING"
+        cd ser2net*/
 
-		logit "${process}" "./configure ser2net"
-		./configure 1>/dev/null 2>> $tmp_log &&
-			logit "${process}" "./configure ser2net Success" ||
-			logit "${process}" "ser2net ./configure Failed" "ERROR"
+        logit "${process}" "./configure ser2net"
+        ./configure 1>/dev/null 2>> $tmp_log &&
+            logit "${process}" "./configure ser2net Success" ||
+            logit "${process}" "ser2net ./configure Failed" "ERROR"
 
-		logit "${process}" "ser2net make, make install, make clean"
-		make 1>/dev/null 2>> $tmp_log &&
-			logit "${process}" "ser2net make Success" ||
-			logit "${process}" "ser2net make Failed" "ERROR"
+        logit "${process}" "ser2net make, make install, make clean"
+        make 1>/dev/null 2>> $tmp_log &&
+            logit "${process}" "ser2net make Success" ||
+            logit "${process}" "ser2net make Failed" "ERROR"
 
-		make install 1>/dev/null 2>> $tmp_log &&
-			logit "${process}" "ser2net make install Success" ||
-			logit "${process}" "ser2net make install Failed" "ERROR"
+        make install 1>/dev/null 2>> $tmp_log &&
+            logit "${process}" "ser2net make install Success" ||
+            logit "${process}" "ser2net make install Failed" "ERROR"
 
-		make clean 1>/dev/null 2>> $tmp_log &&
-			logit "${process}" "ser2net make clean Success" ||
-			logit "${process}" "ser2net make clean Failed" "WARNING"
-		
-		logit "${process}" "Building init & ConsolePi Config for ser2net"
-		cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $tmp_log || 
-			logit "${process}" "ser2net Failed to copy config file from ConsolePi src" "ERROR"
-		
-		cp /etc/ConsolePi/src/ser2net.init /etc/init.d/ser2net 2>> $tmp_log || 
-			logit "${process}" "ser2net Failed to copy init file from ConsolePi src" "ERROR"
-			
-		chmod +x /etc/init.d/ser2net 2>> $tmp_log || 
-			logit "${process}" "ser2net Failed to make init executable" "WARNING"
-		
-		logit "${process}" "ser2net Enable init"
-		/lib/systemd/systemd-sysv-install enable ser2net 1>/dev/null 2>> $tmp_log && 
-			logit "${process}" "ser2net init file enabled" ||
-			logit "${process}" "ser2net failed to enable init file (start on boot)" "WARNING"
-			
-		systemctl daemon-reload || 
-			logit "${process}" "systemctl failed to reload daemons" "WARNING"
-	else
-	    logit "${process}" "Ser2Net ${ser2net_ver} already installed. No Action Taken re ser2net"
-		logit "${process}" "Ser2Net Upgrade is a Potential future function of this script"
-	fi
-		
+        make clean 1>/dev/null 2>> $tmp_log &&
+            logit "${process}" "ser2net make clean Success" ||
+            logit "${process}" "ser2net make clean Failed" "WARNING"
+        
+        logit "${process}" "Building init & ConsolePi Config for ser2net"
+        cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $tmp_log || 
+            logit "${process}" "ser2net Failed to copy config file from ConsolePi src" "ERROR"
+        
+        cp /etc/ConsolePi/src/ser2net.init /etc/init.d/ser2net 2>> $tmp_log || 
+            logit "${process}" "ser2net Failed to copy init file from ConsolePi src" "ERROR"
+            
+        chmod +x /etc/init.d/ser2net 2>> $tmp_log || 
+            logit "${process}" "ser2net Failed to make init executable" "WARNING"
+        
+        logit "${process}" "ser2net Enable init"
+        /lib/systemd/systemd-sysv-install enable ser2net 1>/dev/null 2>> $tmp_log && 
+            logit "${process}" "ser2net init file enabled" ||
+            logit "${process}" "ser2net failed to enable init file (start on boot)" "WARNING"
+            
+        systemctl daemon-reload || 
+            logit "${process}" "systemctl failed to reload daemons" "WARNING"
+    else
+        logit "${process}" "Ser2Net ${ser2net_ver} already installed. No Action Taken re ser2net"
+        logit "${process}" "Ser2Net Upgrade is a Potential future function of this script"
+    fi
+        
     logit "${process}" "${process} Complete"
 }
 
 dhcp_run_hook() {
-	process="Configure dhcp.exit-hook"
-	error=0
-	# ToDo add error checking, Verify logic the first if seems wrong
+    process="Configure dhcp.exit-hook"
+    error=0
+    # ToDo add error checking, Verify logic the first if seems wrong
     logit "${process}" "Point dhcp.exit-hook to ConsolePi script"
     [[ -f /etc/dhcpcd.exit-hook ]] && exists=true || exists=false                      # find out if exit-hook file already exists
     if $exists; then
@@ -552,7 +554,7 @@ dhcp_run_hook() {
         if [[ $is_there > 0 ]] && [[ $lines > 1 ]]; then                                 # This scenario we just create a new script
             [[ ! -d "/etc/ConsolePi/originals" ]] && mkdir /etc/ConsolePi/originals 
             mv /etc/dhcpcd.exit-hook /etc/ConsolePi/originals/dhcpcd.exit-hook && 
-			  logit "${process}" "existing exit-hook backed up to originals folder" || logit "${process}" "Failed backup existing exit-hook file" "WARNING"
+              logit "${process}" "existing exit-hook backed up to originals folder" || logit "${process}" "Failed backup existing exit-hook file" "WARNING"
             echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "${process}" "Failed to create exit-hook script" "ERROR"
         elif [[ $is_there == 0 ]]; then                                                # exit-hook exist but ConsolePi line does not append to file
             echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" >> "/etc/dhcpcd.exit-hook" || logit "${process}" "Failed to append ConsolePi pointer to exit-hook script" "ERROR"
@@ -562,25 +564,25 @@ dhcp_run_hook() {
     else
         echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "${process}" "Failed to create exit-hook script" "ERROR"
     fi
-	
+    
     chmod +x /etc/dhcpcd.exit-hook 2>> $tmp_log || logit "${process}" "Failed to make dhcpcd.exit-hook executable" "WARNING"
-	logit "${process}" "Install ConsolePi script Success"
+    logit "${process}" "Install ConsolePi script Success"
 }
 
 ConsolePi_cleanup() {
     # ConsolePi_cleanup is an init script that runs on startup / shutdown.  On startup it removes tmp files used by ConsolePi script to determine if the ip
-	# address of an interface has changed (PB notifications only occur if there is a change). So notifications are always sent on reboot
-	# It also does a graceful shutdown of any openvpn sessions on shutdown.  This prevents an errant PB notification as the interfaces may bounce during shutdown
-	# causing a reset of the openvpn session and an extraneous PB notification
+    # address of an interface has changed (PB notifications only occur if there is a change). So notifications are always sent on reboot
+    # It also does a graceful shutdown of any openvpn sessions on shutdown.  This prevents an errant PB notification as the interfaces may bounce during shutdown
+    # causing a reset of the openvpn session and an extraneous PB notification
     process="Deploy ConsolePi cleanup init Script"
     logit "${process}" "copy and enable ConsolePi_cleanup init script"
     cp "/etc/ConsolePi/src/ConsolePi_cleanup" "/etc/init.d" 1>/dev/null 2>> $tmp_log || 
-	    logit "${process}" "Error Copying ConsolePi_cleanup init script." "WARNING"
+        logit "${process}" "Error Copying ConsolePi_cleanup init script." "WARNING"
     chmod +x /etc/init.d/ConsolePi_cleanup 1>/dev/null 2>> $tmp_log || 
-	    logit "${process}" "Failed to make ConsolePi_cleanup init script executable." "WARNING"
+        logit "${process}" "Failed to make ConsolePi_cleanup init script executable." "WARNING"
     sudo /lib/systemd/systemd-sysv-install enable ConsolePi_cleanup 1>/dev/null 2>> $tmp_log || 
-	    logit "${process}" "Failed to enable ConsolePi_cleanup init script." "WARNING"
-		
+        logit "${process}" "Failed to enable ConsolePi_cleanup init script." "WARNING"
+        
     logit "${process}" "copy and enable ConsolePi_cleanup init script - Complete"
 }
 
@@ -589,39 +591,39 @@ install_ovpn() {
     logit "${process}" "Install OpenVPN"
     if [[ ! $(dpkg -l openvpn | tail -1 |cut -d" " -f1) == "ii" ]]; then
         sudo apt-get -y install openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "OpenVPN installed Successfully" || logit "${process}" "FAILED to install OpenVPN" "WARNING"
-		if ! $ovpn_enable; then
-			logit "${process}" "You've chosen not to use the OpenVPN function.  Disabling OpenVPN. Package will remain installed. '/lib/systemd/systemd-sysv-install enable openvpn' to enable"
-			/lib/systemd/systemd-sysv-install disable openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "Failed to disable OpenVPN" || logit "${process}" "FAILED to disable OpenVPN" "WARNING"
-		else
-			/lib/systemd/systemd-sysv-install enable openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "Failed to enable OpenVPN" || logit "${process}" "FAILED to enable OpenVPN" "WARNING"
-		fi
-	else
-	    logit "${process}" "OpenVPN Already present"
-	fi
-	
-	if [[ ! -f "/home/${iam}/ConsolePi.ovpn" ]]; then 
-		[[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client" ||
-			logit "${process}" "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
-	else
-		cp "/home/${iam}/ConsolePi.ovpn" "/etc/openvpn" &&
-			logit "${process}" "Found ConsolePi.ovpn in /home/${iam}.  Copying the config you've provided." &&
-			logit "${process}" "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in \etc\ConsolePi\src" "WARNING" &&
-			logit "${process}" "For security, once verified you should delete or chmod the ovpn config in your home dir, it's been copied to /openvpn/clients dir" "WARNING" ||
-			logit "${process}" "Error occurred moving your ovpn config" "WARNING"
-	fi
-	
-	if [[ ! -f "/home/${iam}/ovpn_credentials" ]]; then 
-		[[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client" ||
-			logit "${process}" "Retaining existing ovpn_credentials file. See src dir for original example file."
-	else
-		cp "/home/${iam}/ovpn_credentials" "/etc/ovpn_credentials" &&
-			logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving your provided file to openvpn/client dir."  &&
-			logit "${process}" "For security, once verified you should delete or chmod the ovpn_credentials in your home dir, it's been copied to /openvpn/clients dir" "WARNING" ||
-			logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
-	fi
-			
-	sudo chmod 600 /etc/openvpn/client/* 1>/dev/null 2>> $tmp_log || 
-	    logit "${process}" "Failed chmod 600 openvpn client files" "WARNING"
+        if ! $ovpn_enable; then
+            logit "${process}" "You've chosen not to use the OpenVPN function.  Disabling OpenVPN. Package will remain installed. '/lib/systemd/systemd-sysv-install enable openvpn' to enable"
+            /lib/systemd/systemd-sysv-install disable openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "Failed to disable OpenVPN" || logit "${process}" "FAILED to disable OpenVPN" "WARNING"
+        else
+            /lib/systemd/systemd-sysv-install enable openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "Failed to enable OpenVPN" || logit "${process}" "FAILED to enable OpenVPN" "WARNING"
+        fi
+    else
+        logit "${process}" "OpenVPN Already present"
+    fi
+    
+    if [[ ! -f "/home/${iam}/ConsolePi.ovpn" ]]; then 
+        [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client" ||
+            logit "${process}" "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
+    else
+        cp "/home/${iam}/ConsolePi.ovpn" "/etc/openvpn" &&
+            logit "${process}" "Found ConsolePi.ovpn in /home/${iam}.  Copying the config you've provided." &&
+            logit "${process}" "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in \etc\ConsolePi\src" "WARNING" &&
+            logit "${process}" "For security, once verified you should delete or chmod the ovpn config in your home dir, it's been copied to /openvpn/clients dir" "WARNING" ||
+            logit "${process}" "Error occurred moving your ovpn config" "WARNING"
+    fi
+    
+    if [[ ! -f "/home/${iam}/ovpn_credentials" ]]; then 
+        [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client" ||
+            logit "${process}" "Retaining existing ovpn_credentials file. See src dir for original example file."
+    else
+        cp "/home/${iam}/ovpn_credentials" "/etc/ovpn_credentials" &&
+            logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving your provided file to openvpn/client dir."  &&
+            logit "${process}" "For security, once verified you should delete or chmod the ovpn_credentials in your home dir, it's been copied to /openvpn/clients dir" "WARNING" ||
+            logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
+    fi
+            
+    sudo chmod 600 /etc/openvpn/client/* 1>/dev/null 2>> $tmp_log || 
+        logit "${process}" "Failed chmod 600 openvpn client files" "WARNING"
 }
 
 ovpn_graceful_shutdown() {
@@ -631,9 +633,9 @@ ovpn_graceful_shutdown() {
     echo -e "[Unit]\nDescription=Gracefully terminates any ovpn sessions on shutdown/reboot\nDefaultDependencies=no\nBefore=networking.service\n\n" > "${this_file}" 
     echo -e "[Service]\nType=oneshot\nExecStart=/bin/sh -c 'pkill -SIGTERM -e -F /var/run/ovpn.pid '\n\n" >> "${this_file}"
     echo -e "[Install]\nWantedBy=reboot.target halt.target poweroff.target" >> "${this_file}"
-	lines=$(wc -l < "${this_file}") || lines=0
-	[[ $lines == 0 ]] && 
-	    logit "${process}" "Failed to create ovpn_graceful_shutdown in reboot.target.wants dir" "WARNING"
+    lines=$(wc -l < "${this_file}") || lines=0
+    [[ $lines == 0 ]] && 
+        logit "${process}" "Failed to create ovpn_graceful_shutdown in reboot.target.wants dir" "WARNING"
     chmod +x "${this_file}" 1>/dev/null 2>> $tmp_log || logit "${process}" "Failed to chmod File" "WARNING"
     logit "${process}" "deploy ovpn_graceful_shutdown to reboot.target.wants Complete"
 }
@@ -643,7 +645,7 @@ ovpn_logging() {
     logit "${process}" "Configure Logging in /var/log/ConsolePi - Other ConsolePi functions log to syslog"
     if [[ ! -d "/var/log/ConsolePi" ]]; then
         sudo mkdir /var/log/ConsolePi 1>/dev/null 2>> $tmp_log || logit "${process}" "Failed to create Log Directory"
-	fi
+    fi
     touch /var/log/ConsolePi/ovpn.log || logit "${process}" "Failed to create OpenVPN log file" "WARNING"
     touch /var/log/ConsolePi/push_response.log || logit "${process}" "Failed to create PushBullet log file" "WARNING"
     echo "/var/log/ConsolePi/ovpn.log" > "/etc/logrotate.d/ConsolePi"
@@ -656,7 +658,7 @@ ovpn_logging() {
     echo "        compress" >> "/etc/logrotate.d/ConsolePi"
     echo "        delaycompress" >> "/etc/logrotate.d/ConsolePi"
     echo "}" >> "/etc/logrotate.d/ConsolePi"
-	lines=$(wc -l < "/etc/logrotate.d/ConsolePi")
+    lines=$(wc -l < "/etc/logrotate.d/ConsolePi")
     [[ $lines == 10 ]] && logit "${process}" "${process} Completed Successfully" || logit "${process}" "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
 }
 
@@ -664,11 +666,11 @@ install_autohotspotn () {
     process="AutoHotSpotN"
     logit "${process}" "Install AutoHotSpotN"
     [[ -f "${src_dir}/autohotspotN" ]] && cp "${src_dir}/autohotspotN" /usr/bin 1>/dev/null 2>> $tmp_log
-	[[ $? == 0 ]] && logit "${process}" "Create autohotspotN script Success" || logit "${process}" "Failed to create autohotspotN script" "WARNING"
-		
+    [[ $? == 0 ]] && logit "${process}" "Create autohotspotN script Success" || logit "${process}" "Failed to create autohotspotN script" "WARNING"
+        
     chmod +x /usr/bin/autohotspotN 1>/dev/null 2>> $tmp_log ||
         logit "${process}" "Failed to chmod autohotspotN script" "WARNING"
-		
+        
     logit "${process}" "Installing hostapd via apt."
     apt-get -y install hostapd 1>/dev/null 2>> $tmp_log &&
         logit "${process}" "hostapd install Success" ||
@@ -679,10 +681,10 @@ install_autohotspotn () {
         logit "${process}" "dnsmasq install Success" ||
         logit "${process}" "dnsmasq install Failed" "WARNING"
     
-	logit "${process}" "disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)."
+    logit "${process}" "disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)."
     sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $tmp_log && res=$?
     sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $tmp_log && ((res=$?+$res))
-	[[ $res == 0 ]] && logit "${process}" "hostapd and dnsmasq autostart disabled Successfully" ||
+    [[ $res == 0 ]] && logit "${process}" "hostapd and dnsmasq autostart disabled Successfully" ||
         logit "${process}" "An error occurred disabling hostapd and/or dnsmasq autostart" "WARNING"
 
     logit "${process}" "Create/Configure hostapd.conf"
@@ -773,8 +775,8 @@ install_autohotspotn () {
     
     logit "${process}" "Enable IP-forwarding (/etc/sysctl.conf)"
     sed -i '/^#net\.ipv4\.ip_forward=1/s/^#//g' /etc/sysctl.conf
-	
-	logit "${process}" "${process} Complete"
+    
+    logit "${process}" "${process} Complete"
 }
 
 gen_dnsmasq_conf () {
@@ -782,7 +784,7 @@ gen_dnsmasq_conf () {
     logit "${process}" "Generating Files for dnsmasq."
     echo "# dnsmasq configuration created by ConsolePi installer" > /tmp/dnsmasq.conf
     echo "# modifications can be made but the 'dhcp-option-wlan0,3' line needs to exist" >> /tmp/dnsmasq.conf
-	echo "# for the default-gateway on/off based on eth0 status function to work" >> /tmp/dnsmasq.conf
+    echo "# for the default-gateway on/off based on eth0 status function to work" >> /tmp/dnsmasq.conf
     common_text="interface=wlan0\nbogus-priv\ndomain-needed\ndhcp-range=${wlan_dhcp_start},${wlan_dhcp_end},255.255.255.0,12h\ndhcp-option=wlan0,3\n"
     echo -e "$common_text" >> /tmp/dnsmasq.conf
     [[ -f "/etc/dnsmasq.conf" ]] && mv "/etc/dnsmasq.conf" "${orig_dir}" && logit "${process}" "Existing dnsmasq.conf backed up to originals folder"
@@ -792,49 +794,49 @@ gen_dnsmasq_conf () {
 
 dhcpcd_conf () {
     process="dhcpcd.conf"
-	logit "${process}" "configure dhcp client and static fallback"
-	[[ -f /etc/dhcpcd.conf ]] && mv /etc/dhcpcd.conf /etc/ConsolePi/originals
-	cp /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf 1>/dev/null 2>> $tmp_log
-	res=$?
-	if [[ $res == 0 ]]; then
-		echo "" >> "/etc/dhcpcd.conf"
-		echo "# wlan static fallback profile" >> "/etc/dhcpcd.conf"
-		echo "profile static_wlan0" >> "/etc/dhcpcd.conf"
-		echo "static ip_address=${wlan_ip}/24" >> "/etc/dhcpcd.conf"
-		echo "" >> "/etc/dhcpcd.conf"
-		echo "# wired static fallback profile" >> "/etc/dhcpcd.conf"
-		echo "# defined - currently commented out/disabled" >> "/etc/dhcpcd.conf"
-		echo "profile static_eth0" >> "/etc/dhcpcd.conf"
-		echo "static ip_address=192.168.25.10/24" >> "/etc/dhcpcd.conf"
-		echo "static routers=192.168.25.1" >> "/etc/dhcpcd.conf"
-		echo "static domain_name_servers=1.0.0.1 8.8.8.8" >> "/etc/dhcpcd.conf"
-		echo "" >> "/etc/dhcpcd.conf"
-		echo "# Assign fallback to static profile on wlan0" >> "/etc/dhcpcd.conf"
-		echo "interface wlan0" >> "/etc/dhcpcd.conf"
-		echo "fallback static_wlan0" >> "/etc/dhcpcd.conf"
-		echo "interface eth0" >> "/etc/dhcpcd.conf"
-		echo "# fallback static_eth0" >> "/etc/dhcpcd.conf"
-		echo "" >> "/etc/dhcpcd.conf"
-		echo "#For AutoHotkeyN" >> "/etc/dhcpcd.conf"
-		echo "nohook wpa_supplicant" >> "/etc/dhcpcd.conf"
-		logit "${process}" "Process Completed Successfully"
-	else
-		logit "${process}" "Error Code (${res}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
-		logit "${process}" "Verify dhcpcd.conf and configure manually after install completes"
-	fi
+    logit "${process}" "configure dhcp client and static fallback"
+    [[ -f /etc/dhcpcd.conf ]] && mv /etc/dhcpcd.conf /etc/ConsolePi/originals
+    cp /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf 1>/dev/null 2>> $tmp_log
+    res=$?
+    if [[ $res == 0 ]]; then
+        echo "" >> "/etc/dhcpcd.conf"
+        echo "# wlan static fallback profile" >> "/etc/dhcpcd.conf"
+        echo "profile static_wlan0" >> "/etc/dhcpcd.conf"
+        echo "static ip_address=${wlan_ip}/24" >> "/etc/dhcpcd.conf"
+        echo "" >> "/etc/dhcpcd.conf"
+        echo "# wired static fallback profile" >> "/etc/dhcpcd.conf"
+        echo "# defined - currently commented out/disabled" >> "/etc/dhcpcd.conf"
+        echo "profile static_eth0" >> "/etc/dhcpcd.conf"
+        echo "static ip_address=192.168.25.10/24" >> "/etc/dhcpcd.conf"
+        echo "static routers=192.168.25.1" >> "/etc/dhcpcd.conf"
+        echo "static domain_name_servers=1.0.0.1 8.8.8.8" >> "/etc/dhcpcd.conf"
+        echo "" >> "/etc/dhcpcd.conf"
+        echo "# Assign fallback to static profile on wlan0" >> "/etc/dhcpcd.conf"
+        echo "interface wlan0" >> "/etc/dhcpcd.conf"
+        echo "fallback static_wlan0" >> "/etc/dhcpcd.conf"
+        echo "interface eth0" >> "/etc/dhcpcd.conf"
+        echo "# fallback static_eth0" >> "/etc/dhcpcd.conf"
+        echo "" >> "/etc/dhcpcd.conf"
+        echo "#For AutoHotkeyN" >> "/etc/dhcpcd.conf"
+        echo "nohook wpa_supplicant" >> "/etc/dhcpcd.conf"
+        logit "${process}" "Process Completed Successfully"
+    else
+        logit "${process}" "Error Code (${res}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
+        logit "${process}" "Verify dhcpcd.conf and configure manually after install completes"
+    fi
 }
 
 get_known_ssids() {
     process="Get Known SSIDs"
     logit "${process}" "${process} Started"
-	header
+    header
     if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
-		echo
-		echo "----------------------------------------------------------------------------------------------"
+        echo
+        echo "----------------------------------------------------------------------------------------------"
         echo "wpa_supplicant.conf already exists with the following configuration"
-		echo "----------------------------------------------------------------------------------------------"
+        echo "----------------------------------------------------------------------------------------------"
         cat $wpa_supplicant_file
-		echo "----------------------------------------------------------------------------------------------"
+        echo "----------------------------------------------------------------------------------------------"
         echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
         prompt="Do You want to configure additional SSIDs (Y/N)"
         user_input false "${prompt}"
@@ -848,20 +850,20 @@ get_known_ssids() {
             known_ssid_init
             known_ssid_main
             mv "$wpa_supplicant_file" "/etc/ConsolePi/originals" 1>/dev/null 2>> $tmp_log ||
-	            logit "${process}" "Failed to backup existing file to originals dir" "WARNING"
+                logit "${process}" "Failed to backup existing file to originals dir" "WARNING"
             mv "$wpa_temp_file" "$wpa_supplicant_file" 1>/dev/null 2>> $tmp_log ||
-	            logit "${process}" "Failed to move collected ssids to wpa_supplicant.conf Verify Manually" "WARNING"
+                logit "${process}" "Failed to move collected ssids to wpa_supplicant.conf Verify Manually" "WARNING"
         else
             logit "${process}" "SSID collection script not found in ConsolePi install dir" "WARNING"
         fi
     fi
-	logit "${process}" "${process} Complete"
+    logit "${process}" "${process} Complete"
 }
 
 get_serial_udev() {
     process="Predictable Console Ports"
-	logit "${process}" "${process} Starting."
-	header
+    logit "${process}" "${process} Starting."
+    header
     echo
     echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
     echo "-                                                                                                                   -"
@@ -883,7 +885,7 @@ get_serial_udev() {
             logit "${process}" "ERROR udev.sh not available in installer directory" "WARNING"
         fi
     fi
-	logit "${process}" "${process} Complete"
+    logit "${process}" "${process} Complete"
 }
 
 post_install_msg() {
@@ -903,49 +905,49 @@ post_install_msg() {
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
     echo "*                                                                                                                       *"
-	echo "*   An install log can be found in ${consolepi_dir}/installer/install.log                                               *"
-	echo "*                                                                                                                       *"
+    echo "*   An install log can be found in ${consolepi_dir}/installer/install.log                                               *"
+    echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
     echo -e "\n\n"
-	#Press a key to reboot
+    #Press a key to reboot
     read -s -n 1 -p "Press any key to reboot"
     sudo reboot
 }
 
 main() {
-	iam=`whoami`
-	if [ "${iam}" = "root" ]; then 
-		updatepi
-		gitConsolePi
-		get_config
-		! $bypass_verify && verify
-		while ! $input; do
-			collect "fix"
-			verify
-		done
-		update_config
-		if [[ ! -f "{consolepi_dir}/installer/install.log}" ]]; then 
-			chg_password
-			set_hostname
-			set_timezone
-		fi
-		install_ser2net
-		dhcp_run_hook
-		ConsolePi_cleanup
-		install_ovpn
-		ovpn_graceful_shutdown
-		ovpn_logging
-		install_autohotspotn
-		gen_dnsmasq_conf
-		dhcpcd_conf
-		update_banner
-		get_known_ssids
-		get_serial_udev
-		move_log
-		post_install_msg
-	else
-	  echo 'Script should be ran as root. exiting.'
-	fi
+    iam=`whoami`
+    if [ "${iam}" = "root" ]; then 
+        updatepi
+        gitConsolePi
+        get_config
+        ! $bypass_verify && verify
+        while ! $input; do
+            collect "fix"
+            verify
+        done
+        update_config
+        if [[ ! -f "{consolepi_dir}/installer/install.log}" ]]; then 
+            chg_password
+            set_hostname
+            set_timezone
+        fi
+        install_ser2net
+        dhcp_run_hook
+        ConsolePi_cleanup
+        install_ovpn
+        ovpn_graceful_shutdown
+        ovpn_logging
+        install_autohotspotn
+        gen_dnsmasq_conf
+        dhcpcd_conf
+        update_banner
+        get_known_ssids
+        get_serial_udev
+        move_log
+        post_install_msg
+    else
+      echo 'Script should be ran as root. exiting.'
+    fi
 }
 
 main

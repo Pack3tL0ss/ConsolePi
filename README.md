@@ -49,8 +49,7 @@ Each Time a Notification is triggered all interface IPs are sent in the message 
 **Automatic Installation**
 
 This assumes you have raspbian installed.
-
-Once Configured and connected to the network run this command for completely automated install
+Once Configured and connected to the network run this command for automated install
 
 ```
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
@@ -73,11 +72,8 @@ sudo nano /etc/ConsolePi.conf
 ```
 
 Configure parameters to your liking then
-
 ctrl + o  --> to save
-
 ctrl + x  --> to exit
-
 Then run the installer
 
 ```cd /etc/ConsolePi
@@ -85,7 +81,8 @@ cd /etc/ConsolePi/installer
 sudo ./install.sh
 ```
 
-**Automated Flash Card Imaging with AutoInstall on boot**
+#**Automated Flash Card Imaging with AutoInstall on boot**
+
 *This is a script I used during testing to expedite the process Use at your own risk it does flash a drive so it could do harm*
 Using a Linux System (Ubuntu/Debian variant... tested on Raspbian and Mint) enter the following command:
 `curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/ConsolePi_image_creator.sh  && sudo chmod +x ConsolePi_image_creator.sh`

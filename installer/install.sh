@@ -435,7 +435,7 @@ set_timezone() {
                 logit "${process}" "FAILED to set new TimeZone" "WARNING"
         fi
     else
-        logit "${process}" "TimeZone cur_tz not default (GMT) assuming set as desired."
+        logit "${process}" "TimeZone ${cur_tz} not default (GMT) assuming set as desired."
     fi
 }
 
@@ -927,7 +927,7 @@ main() {
             verify
         done
         update_config
-        if [[ ! -f "{consolepi_dir}/installer/install.log}" ]]; then 
+        if [[ ! -f "${consolepi_dir}/installer/install.log" ]]; then 
             chg_password
             set_hostname
             set_timezone

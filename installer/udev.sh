@@ -4,8 +4,8 @@ udev_init(){
     shopt -s nocasematch
     input="go"
     rules_file='/etc/udev/rules.d/10-consolePi.rules'
-    ser2net_conf='/etc/ser2net.conf'
-    process="Predictable Console Ports"
+    ser2net_conf='/etc/ser2net.conf'
+    process="Predictable Console Ports"
     [[ ! -f "/tmp/consolepi_install.log" ]] && touch /tmp/consolepi_install.log
 }
 
@@ -67,7 +67,7 @@ udev_main() {
     # mv /tmp/10-consolePi.rules /etc/udev/rules.d/10-consolePi.rules 
     echo "--------------------------------------->> The Following Rules have been created <<---------------------------------------"
     cat $rules_file
-    echo "-------------------------------------------------------------------------------------------------------------------------"
+    echo "-------------------------------------------------------------------------------------------------------------------------"
     sudo udevadm control --reload-rules && udevadm trigger
     # rm -f /tmp/10-consolePi.rules
     

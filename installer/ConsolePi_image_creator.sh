@@ -34,8 +34,8 @@
 
 # WLAN Pre-Configuration - change fist parameter to true and configure valid parameters for the remainder to pre-configure an SSID on the image
 configure_wpa_supplicant=false
-ssid="ExampleSSID"
-psk="ChangeMe!!"
+ssid='ExampleSSID'
+psk='ChangeMe!!'
 wlan_country="US"
 
 # This option Configures ConsolePi image to install on first boot automatically

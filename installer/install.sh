@@ -834,7 +834,7 @@ get_known_ssids() {
         cat $wpa_supplicant_file
         echo "----------------------------------------------------------------------------------------------"
         echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
-        prompt="Do You want to configure additional SSIDs (Y/N)"
+        prompt="Do You want to configure additional SSIDs? (Y/N)"
         user_input false "${prompt}"
         continue=$result
     else

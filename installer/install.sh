@@ -889,6 +889,10 @@ update_consolepi_command() {
     logit "${process}" "${process} - Complete"
 }
 
+misc_stuff() {
+    sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard
+}
+
 get_serial_udev() {
     process="Predictable Console Ports"
     logit "${process}" "${process} Starting."
@@ -984,6 +988,7 @@ main() {
         update_banner
         get_known_ssids
         update_consolepi_command
+		misc_stuff
         get_serial_udev
         move_log
         post_install_msg

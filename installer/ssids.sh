@@ -8,7 +8,7 @@ known_ssid_init() {
     wpa_temp_file="/tmp/wpa_temp"
     wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
     header_txt="----------------->>Enter Known SSIDs - ConsolePi will attempt connect to these if available prior to switching to HotSpot mode<<-----------------\n"
-    ( [[ -f "/etc/ConsolePi/ConsolePi.conf" ]] && . "/etc/ConsolePi/ConsolePi.conf" && country_txt="country=${wlan_country}" ) || country_txt="#"
+    ( [[ -f "/etc/ConsolePi/ConsolePi.conf" ]] && . "/etc/ConsolePi/ConsolePi.conf" && country_txt="country=${wlan_country}" ) 
 }
 
 # defining header and user-input again here so the script can be ran directly until I re-factor so this is less lame
@@ -85,7 +85,8 @@ user_input() {
 init_wpa_temp_file() {
     ( [[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" && cp "${wpa_supplicant_file}" "/etc/ConsolePi/originals" ) \
       || echo -e "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n${country_txt}\n" > "${wpa_temp_file}"
-    
+	# Set wifi country
+    [[ ! -z ${country_txt} ]] && wpa_cli -i wlan0 set country "${country_txt}" 1>/dev/null
 }
 
 known_ssid_main() {

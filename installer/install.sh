@@ -427,7 +427,7 @@ set_timezone() {
     if [[ $cur_tz == "GMT" ]]; then
         header
 
-        prompt="Current TimeZone $cur_tz. Do you want to configure the timezone" response
+        prompt="Current TimeZone $cur_tz. Do you want to configure the timezone"
         response=$(user_input_bool)
 
         if $response; then

@@ -177,7 +177,7 @@ known_ssid_main() {
 }
 
 echo $0
-if [[ ! $0 == *"ConsolePi"* ]] && [[ ! $0 == *"install"* ]] ; then
+if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/ssids.sh"* ]] ; then
     known_ssid_init
     known_ssid_main
     mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"

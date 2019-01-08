@@ -858,16 +858,18 @@ get_known_ssids() {
 
 update_consolepi_command() {
     process="Create/Update consolepi- quick commands"
+	logger -t "${process}" ${process} - Starting"
     [[ -f "/usr/local/bin/consolepi-install" ]] && sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
         logger -t "${process}" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
     [[ ! -f "/usr/local/bin/consolepi-addssids" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addssids &&
         echo -e 'sudo /etc/ConsolePi/installer/ssids.sh' >> /usr/local/bin/consolepi-addssids || 
-        logger -t "${process}" "Failed to create consolepi-addssids command script"
+        logger -t "${process}" "Failed to create consolepi-addssids command script" "WARNING"
     [[ ! -f "/usr/local/bin/consolepi-addconsole" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
         echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole || 
-        logger -t "${process}" "Failed to create consolepi-addconsole command script"
+        logger -t "${process}" "Failed to create consolepi-addconsole command script" "WARNING"
+	logger -t "${process}" ${process} - Complete"
 }
 
 get_serial_udev() {

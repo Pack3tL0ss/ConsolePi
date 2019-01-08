@@ -37,6 +37,7 @@ configure_wpa_supplicant=false
 ssid='ExampleSSID'
 psk='ChangeMe!!'
 wlan_country="US"
+priority=0
 
 # Disabled below - didn't work
 # This option Configures ConsolePi image to install on first boot automatically
@@ -110,18 +111,15 @@ main() {
         sudo echo "network={" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         sudo echo "        ssid=\"${ssid}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         sudo echo "        psk=\"${psk}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "        priority=1" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+        [[ $priority > 0 ]] && sudo echo "        priority=${priority}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
     fi
     
-    # first-boot script
-    # if $auto_install; then
-        # echo -e "Configuring install on first boot"
-        # sudo echo '#!/usr/bin/env bash' > "/mnt/usb2/etc/init.d/first-boot"
-        # sudo echo "consolepi-install" >> "/mnt/usb2/etc/init.d/first-boot"
-        # sudo echo 'rm -r $0' >> "/mnt/usb2/etc/init.d/first-boot"
-        # sudo chmod +x "/mnt/usb2/etc/init.d/first-boot"
-    # fi
+    first-boot script
+    if $auto_install; then
+        sudo sed -i "s/exit 0//usr/local/bin/consolepi-install || exit 1/g" /etc/rc.local
+        echo -e "exit 0" >> /etc/rc.local
+    fi
 
     [[ ! -d /mnt/usb2/usr/local/bin ]] && sudo mkdir /mnt/usb2/usr/local/bin
     sudo echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install
@@ -131,7 +129,7 @@ main() {
     sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install
     echo
 
-	# Look for pre-configuration files in users home dir
+    # Look for pre-configuration files in users home dir
     cur_dir=$(pwd)
     pi_home="/mnt/usb2/home/pi"
     [[ -f "${cur_dir}/ConsolePi.conf" ]] && cp "${cur_dir}/ConsolePi.conf" $pi_home  && echo "ConsolePi.conf found pre-staging on image"

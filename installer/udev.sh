@@ -75,7 +75,7 @@ udev_main() {
 
 # __main__
 echo $0
-if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/ssids.sh"* ]] ; then
+if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/udev.sh"* ]] ; then
     iam=`whoami`
     if [ "${iam}" = "root" ]; then
         echo "...script ran from CLI..."

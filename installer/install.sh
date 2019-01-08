@@ -460,7 +460,7 @@ updatepi () {
     logit "${process}" "Tidying up (autoremove)"
     apt-get -y autoremove 1>/dev/null 2>> $tmp_log && logit "${process}" "Everything is tidy now" || logit "${process}" "apt-get autoremove FAILED" "WARNING"
         
-    logit "${process}" "Installing git dependency via apt"
+    logit "${process}" "Installing git via apt"
     apt-get -y install git 1>/dev/null 2>> $tmp_log && logit "${process}" "git install Successful" || logit "${process}" "git install FAILED to install" "ERROR"
     logit "${process}" "Process Complete"
 }

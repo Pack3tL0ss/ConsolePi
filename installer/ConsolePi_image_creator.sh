@@ -38,8 +38,9 @@ ssid='ExampleSSID'
 psk='ChangeMe!!'
 wlan_country="US"
 
+# Disabled below - didn't work
 # This option Configures ConsolePi image to install on first boot automatically
-auto-install=true
+#auto-install=true
 
 main() {
     clear
@@ -114,13 +115,13 @@ main() {
     fi
     
     # first-boot script
-    if $auto_install; then
-        echo -e "Configuring install on first boot"
-        sudo echo '#!/usr/bin/env bash' > "/mnt/usb2/etc/init.d/first-boot"
-        sudo echo "consolepi-install" >> "/mnt/usb2/etc/init.d/first-boot"
-        sudo echo 'rm -r $0' >> "/mnt/usb2/etc/init.d/first-boot"
-        sudo chmod +x "/mnt/usb2/etc/init.d/first-boot"
-    fi
+    # if $auto_install; then
+        # echo -e "Configuring install on first boot"
+        # sudo echo '#!/usr/bin/env bash' > "/mnt/usb2/etc/init.d/first-boot"
+        # sudo echo "consolepi-install" >> "/mnt/usb2/etc/init.d/first-boot"
+        # sudo echo 'rm -r $0' >> "/mnt/usb2/etc/init.d/first-boot"
+        # sudo chmod +x "/mnt/usb2/etc/init.d/first-boot"
+    # fi
 
     [[ ! -d /mnt/usb2/usr/local/bin ]] && sudo mkdir /mnt/usb2/usr/local/bin
     sudo echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install

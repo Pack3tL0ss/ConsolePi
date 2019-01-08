@@ -4,9 +4,9 @@ udev_init(){
     shopt -s nocasematch
     input="go"
     rules_file='/etc/udev/rules.d/10-consolePi.rules'
-    ser2net_conf='/etc/ser2net.conf'
-	process="Predictable Console Ports"
-	[[ ! -f "/tmp/consolepi_install.log" ]] && touch /tmp/consolepi_install.log
+    ser2net_conf='/etc/ser2net.conf'
+    process="Predictable Console Ports"
+    [[ ! -f "/tmp/consolepi_install.log" ]] && touch /tmp/consolepi_install.log
 }
 
 header() {
@@ -40,7 +40,7 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep ttyUSB); do
         echo $this_dev > $rules_file
     fi
     [ -f $ser2net_conf ] && echo "${port}:telnet:0:/dev/ConsolePi${port}:9600 8DATABITS NONE 1STOPBIT banner" >> $ser2net_conf
-	echo "${process}" "${ID_MODEL_FROM_DATABASE} Found with idVendor: ${ID_VENDOR_ID} idProduct ID: ${ID_MODEL_ID} and Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port}"
+    echo "${process}" "${ID_MODEL_FROM_DATABASE} Found with idVendor: ${ID_VENDOR_ID} idProduct ID: ${ID_MODEL_ID} and Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port}"
     echo "  ${process}" "${ID_MODEL_FROM_DATABASE} idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port}" >> /tmp/consolepi_install.log
     ((port++))
 done
@@ -67,19 +67,18 @@ udev_main() {
     # mv /tmp/10-consolePi.rules /etc/udev/rules.d/10-consolePi.rules 
     echo "--------------------------------------->> The Following Rules have been created <<---------------------------------------"
     cat $rules_file
-    echo "-------------------------------------------------------------------------------------------------------------------------"
-	sudo udevadm control --reload-rules && udevadm trigger
+    echo "-------------------------------------------------------------------------------------------------------------------------"
+    sudo udevadm control --reload-rules && udevadm trigger
     # rm -f /tmp/10-consolePi.rules
     
 }
 
 # __main__
-echo $0
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/udev.sh"* ]] ; then
     iam=`whoami`
     if [ "${iam}" = "root" ]; then
         echo "...script ran from CLI..."
-		[[ -f /tmp/consolepi_install.log ]] && sudo mv /tmp/consolepi_install.log /etc/ConsolePi/installer/install.log
+        [[ -f /tmp/consolepi_install.log ]] && sudo mv /tmp/consolepi_install.log /etc/ConsolePi/installer/install.log
         udev_main
     else
         echo 'Script should be ran as root. exiting.'

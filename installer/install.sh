@@ -29,7 +29,6 @@ logline="-----------------------------------------------------------------------
 ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download"
 consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
-
 # -- Build Config File and Directory Structure - Read defaults from config
 get_config() {
     process="get config"

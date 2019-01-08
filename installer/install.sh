@@ -511,11 +511,12 @@ install_ser2net () {
             logit "${process}" "./configure ser2net Success" ||
             logit "${process}" "ser2net ./configure Failed" "ERROR"
 
-        logit "${process}" "ser2net make, make install, make clean"
+        logit "${process}" "ser2net make - be patient, this takes a few."
         make 1>/dev/null 2>> $tmp_log &&
             logit "${process}" "ser2net make Success" ||
             logit "${process}" "ser2net make Failed" "ERROR"
-
+			
+        logit "${process}" "ser2net make install, make clean"
         make install 1>/dev/null 2>> $tmp_log &&
             logit "${process}" "ser2net make install Success" ||
             logit "${process}" "ser2net make install Failed" "ERROR"

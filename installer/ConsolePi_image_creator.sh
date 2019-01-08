@@ -89,7 +89,7 @@ main() {
     echo "Press any key to burn ${img_file} to ${my_usb}" 
     read
     echo -e "Now Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"
-    sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo "Image written to flash - no Errors" || echo "Error occurred burning image"
+    sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo "Image written to flash - no Errors" || echo "\033[1;32mError occurred burning image $*\033[m"
 
     echo "Mounting boot to enable ssh"
     # Create some mount-points
@@ -118,7 +118,7 @@ main() {
         echo -e "Configuring install on first boot"
         sudo echo '#!/usr/bin/env bash' > "/mnt/usb2/etc/init.d/first-boot"
         sudo echo "consolepi-install" >> "/mnt/usb2/etc/init.d/first-boot"
-        sudo echo "rm -r $0" >> "/mnt/usb2/etc/init.d/first-boot"
+        sudo echo 'rm -r $0' >> "/mnt/usb2/etc/init.d/first-boot"
         sudo chmod +x "/mnt/usb2/etc/init.d/first-boot"
     fi
 

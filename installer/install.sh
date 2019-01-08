@@ -929,7 +929,7 @@ post_install_msg() {
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mser2net Usage:$*\033[m                                                                                                        *"
     echo "*   Serial Ports are available starting with telnet port 8001 to 8005 incrementing with each adapter plugged in.        *"
-    echo "*   if you configured predictable ports for specific serial adapters those start with 7001 to 7005 - label the          *"
+    echo "*   if you configured predictable ports for specific serial adapters those start with 7001 - (no max) label the         *"
     echo "*   adapters appropriately.                                                                                             *"
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"

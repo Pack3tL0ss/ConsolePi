@@ -603,7 +603,7 @@ install_ovpn() {
             logit "${process}" "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
     else
         mv "/home/${iam}/ConsolePi.ovpn" "/etc/openvpn/client" &&
-            logit "${process}" "Found ConsolePi.ovpn in /home/${iam}.  Moving the config you've provided." &&
+            logit "${process}" "Found ConsolePi.ovpn in /home/${iam}.  Moving to /etc/openvpn/client" &&
             logit "${process}" "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in /etc/ConsolePi/src" "WARNING" ||
             logit "${process}" "Error occurred moving your ovpn config" "WARNING"
     fi
@@ -612,8 +612,8 @@ install_ovpn() {
         [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client" ||
             logit "${process}" "Retaining existing ovpn_credentials file. See src dir for original example file."
     else
-        mv "/home/${iam}/ovpn_credentials" "/etc/client/ovpn_credentials" &&
-            logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving your provided file to openvpn/client dir."  ||
+        mv "/home/${iam}/ovpn_credentials" "/etc/openvpn/client" &&
+            logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving to /etc/openvpn/client"  ||
             logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
     fi
             

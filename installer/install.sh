@@ -536,7 +536,7 @@ install_ser2net () {
         logit "${process}" "Ser2Net Upgrade is a Potential future function of this script"
     fi
         
-    logit "${process}" "${process} Complete"
+    logit "${process}" "${process} - Complete"
 }
 
 dhcp_run_hook() {
@@ -563,7 +563,7 @@ dhcp_run_hook() {
     fi
     
     chmod +x /etc/dhcpcd.exit-hook 2>> $tmp_log || logit "${process}" "Failed to make dhcpcd.exit-hook executable" "WARNING"
-    logit "${process}" "Install ConsolePi script Success"
+    logit "${process}" "Point dhcp.exit-hook to ConsolePi script - Complete"
 }
 
 ConsolePi_cleanup() {
@@ -890,7 +890,7 @@ post_install_msg() {
     echo -e "*   \033[1;32mOpenVPN:$*\033[m if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and ovpn_credentials    *"
     echo "*     files in /etc/openvpn/client.  Refer to the example ovpn file as there are a couple of lines specific to          *"
     echo "*     ConsolePi functionality (bottom of the example file)                                                              *"
-    echo "*     You chould \"sudo chmod 600 <filename>\"both of the files for added security                                        *"
+    echo "*     You should \"sudo chmod 600 <filename>\" both of the files for added security                                       *"
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mser2net Usage:$*\033[m                                                                                                        *"
     echo "*   Serial Ports are available starting with telnet port 8001 to 8005 incrementing with each adapter plugged in.        *"
@@ -899,7 +899,7 @@ post_install_msg() {
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
     echo "*                                                                                                                       *"
-    echo "*   An install log can be found in ${consolepi_dir}/installer/install.log                                               *"
+    echo "*   An install log can be found in ${consolepi_dir}/installer/install.log                                                 *"
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
     echo -e "\n\n"

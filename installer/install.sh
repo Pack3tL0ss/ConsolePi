@@ -415,7 +415,7 @@ set_hostname() {
             sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
             sudo sed -i "s/$hostn/$newhost/g" /etc/hostname
             
-            logit "${process}" "New hostname set $newhost" | tee -a $tmp_log
+            logit "${process}" "New hostname set $newhost"
         fi
     else
         logit "${process}" "Hostname ${hostn} is not default, assuming it is desired hostname"

@@ -892,7 +892,7 @@ update_consolepi_command() {
         echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole || 
         logit "${process}" "consolepi-addconsole already exists"
 	[[ ! -f "/usr/local/bin/consolepi-autohotspot" ]] && 
-	echo -e '#!/usr/bin/env bash\n/usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot || 
+	echo -e '#!/usr/bin/env bash\nsudo /usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot || 
         logit "${process}" "consolepi-autohotspot already exists"
 		
     sudo chmod +x /usr/local/bin/consolepi-* ||

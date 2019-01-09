@@ -580,8 +580,6 @@ dhcp_run_hook() {
 ConsolePi_cleanup() {
     # ConsolePi_cleanup is an init script that runs on startup / shutdown.  On startup it removes tmp files used by ConsolePi script to determine if the ip
     # address of an interface has changed (PB notifications only occur if there is a change). So notifications are always sent on reboot
-    # It also does a graceful shutdown of any openvpn sessions on shutdown.  This prevents an errant PB notification as the interfaces may bounce during shutdown
-    # causing a reset of the openvpn session and an extraneous PB notification
     process="Deploy ConsolePi cleanup init Script"
     logit "${process}" "${process} Starting"
     cp "/etc/ConsolePi/src/ConsolePi_cleanup" "/etc/init.d" 1>/dev/null 2>> $tmp_log || 
@@ -785,11 +783,7 @@ install_autohotspotn () {
     else
         logit "${process}" "iw is already installed/current."
     fi
-	
-	# logit "${process}" "Set Country wlan Country"
-	# wlan_country_up=$(echo $wlan_country | awk '{print toupper($0)}')
-	
-    
+	    
     logit "${process}" "Enable IP-forwarding (/etc/sysctl.conf)"
     sed -i '/^#net\.ipv4\.ip_forward=1/s/^#//g' /etc/sysctl.conf 1>/dev/null 2>> $tmp_log && logit "${process}" "Enable IP-forwarding - Success" ||
         logit "${process}" "FAILED to enable IP-forwarding verify /etc/sysctl.conf 'net.ipv4.ip_forward=1'" "WARNING"

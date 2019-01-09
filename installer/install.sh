@@ -635,8 +635,8 @@ ovpn_graceful_shutdown() {
     process="OpenVPN Graceful Shutdown on Reboot"
     logit "${process}" "Deploy ovpn_graceful_shutdown to reboot.target.wants"
     this_file="/etc/systemd/system/reboot.target.wants/ovpn-graceful-shutdown"
-    echo -e "[Unit]\nDescription=Gracefully terminates any ovpn sessions on reboot\nDefaultDependencies=no\nBefore=networking.service\n\n" > "${this_file}" 
-    echo -e "[Service]\nType=oneshot\nExecStart=/bin/bash -c '[[ -z /var/run/ovpn.pid ]] && pkill -SIGTERM -e -F /var/run/ovpn.pid '\n\n" >> "${this_file}"
+    echo -e "[Unit]\nDescription=Gracefully terminates any ovpn sessions on reboot or shutdown\nDefaultDependencies=no\nBefore=networking.service\n\n" > "${this_file}" 
+    echo -e "[Service]\nType=oneshot\nExecStart=/bin/bash -c '[[ -f /var/run/ovpn.pid ]] && pkill -SIGTERM -e -F /var/run/ovpn.pid '\n\n" >> "${this_file}"
     echo -e "[Install]\nWantedBy=reboot.target halt.target poweroff.target" >> "${this_file}"
     lines=$(wc -l < "${this_file}") || lines=0
     [[ $lines == 0 ]] && 

@@ -634,14 +634,13 @@ install_ovpn() {
 ovpn_graceful_shutdown() {
     process="OpenVPN Graceful Shutdown on Reboot"
     logit "${process}" "Deploy ovpn_graceful_shutdown to reboot.target.wants"
-    this_file="/etc/systemd/system/reboot.target.wants/ovpn-graceful-shutdown"
-    echo -e "[Unit]\nDescription=Gracefully terminates any ovpn sessions on reboot or shutdown\nDefaultDependencies=no\nBefore=networking.service\n\n" > "${this_file}" 
-    echo -e "[Service]\nType=oneshot\nExecStart=/bin/bash -c '[[ -f /var/run/ovpn.pid ]] && pkill -SIGTERM -e -F /var/run/ovpn.pid '\n\n" >> "${this_file}"
+    this_file="/etc/systemd/system/reboot.target.wants/ovpn-graceful-shutdown.service"
+    echo -e "[Unit]\nDescription=Gracefully terminates any ovpn sessions on reboot or shutdown\nConditionPathExists=/var/run/ovpn.pid" > "${this_file}" 
+	echo -e "DefaultDependencies=no\nBefore=networking.service\n\n" >> "${this_file}" 
+    echo -e "[Service]\nType=oneshot\nExecStart=/bin/pkill -SIGTERM -e -F /var/run/ovpn.pid\n\n" >> "${this_file}"
     echo -e "[Install]\nWantedBy=reboot.target halt.target poweroff.target" >> "${this_file}"
     lines=$(wc -l < "${this_file}") || lines=0
-    [[ $lines == 0 ]] && 
-        logit "${process}" "Failed to create ovpn_graceful_shutdown in reboot.target.wants dir" "WARNING"
-    chmod +x "${this_file}" 1>/dev/null 2>> $tmp_log || logit "${process}" "Failed to chmod File" "WARNING"
+    [[ $lines == 0 ]] && logit "${process}" "Failed to create ovpn_graceful_shutdown in reboot.target.wants dir" "WARNING"
     logit "${process}" "deploy ovpn_graceful_shutdown to reboot.target.wants Complete"
 }
 
@@ -781,10 +780,15 @@ install_autohotspotn () {
     logit "${process}" "Verify iw is installed on system."
     if [[ ! $(dpkg -l iw | tail -1 |cut -d" " -f1) == "ii" ]]; then
         logit "${process}" "iw not found, Installing iw via apt."
-        apt-get -y install iw 1>/dev/null 2>> $tmp_log && logit "${process}" "iw installed Successfully" || logit "${process}" "FAILED to install iw" "WARNING"
+        ( apt-get -y install iw 1>/dev/null 2>> $tmp_log && logit "${process}" "iw installed Successfully" &&  iw_inst=true ) || 
+            logit "${process}" "FAILED to install iw" "WARNING"
     else
         logit "${process}" "iw is already installed/current."
     fi
+	
+	# logit "${process}" "Set Country wlan Country"
+	# wlan_country_up=$(echo $wlan_country | awk '{print toupper($0)}')
+	
     
     logit "${process}" "Enable IP-forwarding (/etc/sysctl.conf)"
     sed -i '/^#net\.ipv4\.ip_forward=1/s/^#//g' /etc/sysctl.conf 1>/dev/null 2>> $tmp_log && logit "${process}" "Enable IP-forwarding - Success" ||

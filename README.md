@@ -49,7 +49,7 @@ Each Time a Notification is triggered all interface IPs are sent in the message 
 
 ## Installation
 
-If you have a Linux system available you can use the Automated FlashCard imaging script (#3) below to burn the image to a micro-sd, enable SSH, and pre-configure a WLAN as well as PreConfigure ConsolePi settings.  This is the most automated way to install ConsolePi, and was used numerous times during testing.
+If you have a Linux system available you can use the Automated FlashCard imaging script (#3) below to burn the image to a micro-sd, enable SSH, pre-configure a WLAN (optional), and PreConfigure ConsolePi settings (optional).  This script is especially useful for doing headless installations.
 
 **The Following Applies to All Automated Installation methods**
 
@@ -57,7 +57,7 @@ ConsolePi will optionally use pre-configured settings for the following if they 
 
 - ConsolePi.conf: This is the main configuration file where all ConsolePi.conf configurable settings are defined.  If provided in the users home dir the installer will ask for verification then create the working config /etc/ConsolePi/ConsolePi.conf
 
-- ConsolePi.ovpn: If using the automatic OpenVPN feature this file is placed in the appropriate directory during the install. *Note: there are a few lines specific to ConsolePi functionality that should be at the end of the file, I haven't automated the check/add for those lines so make sure they are there.  Refer to the example file in the ConsolePi/src dir*
+- ConsolePi.ovpn: If using the automatic OpenVPN feature this file is placed in the appropriate directory during the install. *Note: there are a few lines specific to ConsolePi functionality that should be at the end of the file, I haven't automated the check/add for those lines so make sure they are there.  Refer to the example file in the /etc/ConsolePi/src dir*
 
 - ovpn_credentials: Credentials file for OpenVPN.  Will be placed in the appropriate OpenVPN dir during the install.  This is a simple text file with the openvpn username on the first line and the password on the second line.
 

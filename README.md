@@ -10,6 +10,7 @@ Single Command Install Script. Run from a RaspberryPi running raspbian (that has
 # Contents
  - [What Does it Do](#what-does-it-do)
  - [Installation](#installation)
+ - [ConsolePi Usage](#consolepi-usage)
  - [Tested Hardware](#tested-hardware)
  - [Credits](#credits)
 ------
@@ -127,6 +128,32 @@ Once Complete you place the newley blessed micro-sd in your raspberryPi and boot
 Manual installation instructions are incomplete at the moment
 
 For the brave or curious... Instructions on how to manually install can be found [here](readme_content/ConsolePi - Manual Installation.md).
+
+## ConsolePi Usage:
+
+**Configuration:**
+
+The Configuration file is validated and created during the install.  Settings can be modified post-install via the configuration file /etc/ConsolePi.conf
+
+**Console Server:**
+
+- Serial/Console adapters are reachable starting with telnet port 8001 +1 for each subsequent adapter plugged in (8002, 8003...).  If you are using a multi-port pigtail adapter or have multiple adapters plugged in @ boot, then it's a crap shoot which will be assigned to each telnet port.  Hence the next step.
+- The install script automates the mapping of specific adapters to specific ports.  The defined predictable adapters start with 7001 +1 for each adapter you define.  The reasoning behind this is so you can label the adapters and always know what port you would reach them on.  Key if you are using a  multi-port pig-tail adapter, or if this is going to be stationary and occasionally boot up with multiple adapter plugged in.  
+
+Note: the 8000 range always valid even if you are using an adapter specifically mapped to a port in the 7000 range.  So if you plug in an adapter pre-mapped to port 7005, and it's the only adapter plugged in, it would also be available onport 8001
+
+- Port monitoring/and control is available on telnet port 7000.  This allows you to change the baud rate of the port on the fly without changing the config permanantly.  The installer configures all ports to 9600 8N1. 
+- Serial Port configuration options can be modified after the install in /etc/ser2net.conf 
+
+**Convenience Commands:**
+
+There are a few convenience commands created for ConsolePi during the automated install
+
+- consolepi-upgrade:  Upgrades ConsolePi:  More useful in the future.  Currently bypasses upgrade of ser2net (it's compiled from source).  I'll eventually remove the bypass.  For now this is essentially the same as doing a 'sudo git pull' from /etc/ConsolePi and updating/upgrading the other packages via apt.  Note: in it's current form it may overwrite some custom changes.  It's only lightly been tested as an upgrade script.
+- consolepi-addssids:  runs the /etc/ConsolePi/installer/ssids.sh script.  This script automates the creation of additional SSIDs which ConsolePi will attempt to connect to on boot.  Currently only supports psk and open SSIDs, but may eventually be improved to automate creation of other SSID types.
+- consolepi-addconsole: runs the /etc/ConsolePi/installer/udev.sh  This script automates the process of detecting USB to serial adapters and mapping them to specific telnet ports.  It does this by collecting the data required to create a udev rule.  It then creates the udev rule starting with the next available port (if rules already exist).
+- consolepi-autohotspot: runs /usr/bin/autohotspotN script  This script re-runs the autohotspot script which runs at boot (or periodically via cron although the installer currently doens't configure that).  If the wlan adapter is already connected to an SSID it doesn't do anything.  If it's acting as a hotspot or not connected, it will scan for known SSIDs and attempt to connect, then fallback to a hotspot if it's unable to find/connect to a known SSID. 
+
 
 ## Tested Hardware
 

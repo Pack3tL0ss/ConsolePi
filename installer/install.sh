@@ -630,16 +630,18 @@ install_ovpn() {
 }
 
 ovpn_graceful_shutdown() {
-    process="OpenVPN Graceful Shutdown on Reboot"
+    process="OpenVPN Graceful Shutdown"
     logit "${process}" "Deploy ovpn_graceful_shutdown to reboot.target.wants"
-    this_file="/etc/systemd/system/reboot.target.wants/ovpn-graceful-shutdown.service"
+    this_file="/etc/systemd/system/ovpn-graceful-shutdown.service"
     echo -e "[Unit]\nDescription=Gracefully terminates any ovpn sessions on reboot or shutdown\nConditionPathExists=/var/run/ovpn.pid" > "${this_file}" 
 	echo -e "DefaultDependencies=no\nBefore=networking.service\n\n" >> "${this_file}" 
     echo -e "[Service]\nType=oneshot\nExecStart=/bin/pkill -SIGTERM -e -F /var/run/ovpn.pid\n\n" >> "${this_file}"
     echo -e "[Install]\nWantedBy=reboot.target halt.target poweroff.target" >> "${this_file}"
     lines=$(wc -l < "${this_file}") || lines=0
-    [[ $lines == 0 ]] && logit "${process}" "Failed to create ovpn_graceful_shutdown in reboot.target.wants dir" "WARNING"
-    logit "${process}" "deploy ovpn_graceful_shutdown to reboot.target.wants Complete"
+    [[ $lines == 0 ]] && logit "${process}" "Failed to create ovpn_graceful_shutdown in systemd dir" "WARNING"
+	sudo systemctl enable ovpn-graceful-shutdown.service 1>/dev/null 2>> $tmp_log && logit "${process}" "ovpn-gracefule-shutdown.service enabled" ||
+        logit "${process}" "Failed to enable ovpn-graceful-shutdown service" "WARNING"
+    logit "${process}" "${process} Complete"
 }
 
 ovpn_logging() {

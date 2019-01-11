@@ -149,7 +149,7 @@ main() {
         client_cert=$(grep client_cert wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
 		if [[ ! -z $client_cert ]]; then
             cert_path="/mnt/usb2"${client_cert%/*}
-            ca_cert=${$(grep ca_cert wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)##*/}
+            ca_cert=$(grep ca_cert wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)##*/}
 			private_key=$(grep private_key wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
 			[[ -d cert ]] && cd cert	# if script dir contains cert subdir look there for certs - otherwise look in script dir
 			[[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...

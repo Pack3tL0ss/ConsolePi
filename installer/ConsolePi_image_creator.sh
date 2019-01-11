@@ -45,7 +45,7 @@ auto_install=true
 main() {
     clear
 	! $configure_wpa_supplicant && echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ top of this script"
-    my_usb=$(ls -l /dev/disk/by-path/*usb* |grep -v part | sed 's/.*\(...\)/\1/') 2>/dev/null
+    my_usb=$(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/') 
 	[[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
 
     echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n\n"

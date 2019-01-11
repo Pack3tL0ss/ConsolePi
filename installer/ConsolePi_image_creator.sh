@@ -44,9 +44,9 @@ auto_install=true
 
 main() {
     clear
-	! $configure_wpa_supplicant && echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ top of this script"
+    ! $configure_wpa_supplicant && echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ top of this script"
     my_usb=$(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/') 
-	[[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
+    [[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
 
     echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n\n"
     echo -e "Script has discovered USB flash device @ \033[1;32m ${my_usb} $*\033[m"
@@ -65,7 +65,7 @@ main() {
     echo -e "Press enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device i.e. 'sdc'"
     read -p "Device to flash with image [${my_usb}]:" input
     [[ ! -z input ]] && my_usb=$input
-	[[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
+    [[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
     #echo -e "This script is going to flash the drive \033[1;32m ${my_usb} $*\033[m with raspian image\n Ctrl-C now to abort or press Enter to Continue"
     #read
     # umount device if currently mounted
@@ -102,14 +102,14 @@ main() {
     [[ ! -d /mnt/usb1 ]] && sudo mkdir /mnt/usb1 && usb1_existed=false
     [[ ! -d /mnt/usb2 ]] && sudo mkdir /mnt/usb2 && usb2_existed=false
     ( [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 ) ||
-	  sudo mount /dev/${my_usb}1 /mnt/usb1
-	[[ $? > 0 ]] && exit 1
+      sudo mount /dev/${my_usb}1 /mnt/usb1
+    [[ $? > 0 ]] && exit 1
     echo "Configuring ssh to be enabled by default"
     sudo touch /mnt/usb1/ssh
     sudo umount /mnt/usb1
 
     echo -e "SSh is now enabled\n\nMounting System Drive"
-	[[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 ||
+    [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 ||
       sudo mount /dev/${my_usb}2 /mnt/usb2
     
     #Configure simple psk SSID based on params in this script
@@ -133,6 +133,7 @@ main() {
     sudo echo "sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi" \
           >> /mnt/usb2/usr/local/bin/consolepi-install
 
+    # make install command/script executable
     sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install
     echo
 
@@ -142,27 +143,27 @@ main() {
     [[ -f "${cur_dir}/ConsolePi.conf" ]] && cp "${cur_dir}/ConsolePi.conf" $pi_home  && echo "ConsolePi.conf found pre-staging on image"
     [[ -f "${cur_dir}/ConsolePi.ovpn" ]] && cp "${cur_dir}/ConsolePi.ovpn" $pi_home && echo "ConsolePi.ovpn found pre-staging on image"
     [[ -f "${cur_dir}/ovpn_credentials" ]] && cp "${cur_dir}/ovpn_credentials" $pi_home && echo "ovpn_credentials found pre-staging on image"
-	
-	# if wpa_supplicant.conf exist in script dir cp it to image extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
-	if [[ -f "${cur_dir}/wpa_supplicant.conf" ]]; then
+    
+    # if wpa_supplicant.conf exist in script dir cp it to image extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
+    if [[ -f "${cur_dir}/wpa_supplicant.conf" ]]; then
         echo "wpa_supplicant.conf found pre-staging on image"
         sudo cp "${cur_dir}/wpa_supplicant.conf" /mnt/usb2/etc/wpa_supplicant
-		sudo chown root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf
-		sudo chgrp root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf
-		sudo chmod 644 /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf 
+        sudo chown root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf
+        sudo chgrp root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf
+        sudo chmod 644 /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf 
         client_cert=$(grep client_cert= wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
-		if [[ ! -z $client_cert ]]; then
+        if [[ ! -z $client_cert ]]; then
             cert_path="/mnt/usb2"${client_cert%/*}
             ca_cert=$(grep ca_cert= wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
-			private_key=$(grep private_key= wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
-			[[ -d cert ]] && cd cert	# if script dir contains cert subdir look there for certs - otherwise look in script dir
-			[[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...
-			[[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
-			[[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
-			[[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
-			cd "${cur_dir}"
-		fi
-	fi	
+            private_key=$(grep private_key= wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
+            [[ -d cert ]] && cd cert    # if script dir contains cert subdir look there for certs - otherwise look in script dir
+            [[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...
+            [[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
+            [[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
+            [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
+            cd "${cur_dir}"
+        fi
+    fi    
 
     sudo umount /mnt/usb2
     # Remove our mount_points if they didn't happen to already exist when the script started

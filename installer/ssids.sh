@@ -92,7 +92,6 @@ init_wpa_temp_file() {
         line=$(sudo grep -n "network" "${wpa_temp_file}" | head -1 | cut -d: -f1)
         [[ -z $line ]] && echo "${country_txt}" >> "$wpa_temp_file" || sed -i "${line}s/^/${country_txt}\n/" "$wpa_temp_file"
     fi
-fi
 }
 
 known_ssid_main() {

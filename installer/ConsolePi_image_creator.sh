@@ -146,16 +146,16 @@ main() {
 		sudo chown root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf
 		sudo chgrp root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf
 		sudo chmod 644 /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf 
-        client_cert=$(grep client_cert wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
+        client_cert=$(grep client_cert= wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
 		if [[ ! -z $client_cert ]]; then
             cert_path="/mnt/usb2"${client_cert%/*}
-            ca_cert=$(grep ca_cert wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)##*/}
-			private_key=$(grep private_key wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
+            ca_cert=$(grep ca_cert= wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
+			private_key=$(grep private_key= wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
 			[[ -d cert ]] && cd cert	# if script dir contains cert subdir look there for certs - otherwise look in script dir
 			[[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...
-			[[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}${client_cert##*/}"
-			[[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}${ca_cert##*/}"
-			[[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}${private_key##*/}"
+			[[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
+			[[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
+			[[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
 			cd "${cur_dir}"
 		fi
 	fi	

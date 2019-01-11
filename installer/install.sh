@@ -69,7 +69,7 @@ get_config() {
         fi
     elif [[ -f "/home/${iam}/ConsolePi.conf" ]]; then
         logit "${process}" "using config found in ${iam} home directory"
-        sudo cp "/home/${iam}/ConsolePi.conf" "$default_config" ||
+        sudo mv "/home/${iam}/ConsolePi.conf" "$default_config" ||
             logit "${process}" "Error Copying Config found in user home directory" "WARNING"
     elif [[ -f "${default_config}" ]]; then
         logit "${process}" "Using existing Config found in ${consolepi_dir}"

@@ -64,7 +64,7 @@ main() {
 
     echo -e "Press enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device i.e. 'sdc'"
     read -p "Device to flash with image [${my_usb}]:" drive
-    [[ ! -z drive ]] && my_usb=$drive
+    [[ ! -z $drive ]] && my_usb=$drive
     [[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
     #echo -e "This script is going to flash the drive \033[1;32m ${my_usb} $*\033[m with raspian image\n Ctrl-C now to abort or press Enter to Continue"
     #read

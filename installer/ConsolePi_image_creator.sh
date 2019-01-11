@@ -64,6 +64,7 @@ main() {
     echo -e "Press enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device i.e. 'sdc'"
     read -p "Device to flash with image [${my_usb}]:" input
     [[ ! -z input ]] && my_usb=$input
+	[[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
     #echo -e "This script is going to flash the drive \033[1;32m ${my_usb} $*\033[m with raspian image\n Ctrl-C now to abort or press Enter to Continue"
     #read
     # umount device if currently mounted
@@ -88,8 +89,7 @@ main() {
     done
     
     # Burn Raspian image to device (micro-sd)
-    clear
-    echo -e "Last chance to abort!! (ctrl+c)"
+    echo -e "\n\nLast chance to abort!! (ctrl+c)"
     echo "Press any key to burn ${img_file} to ${my_usb}" 
     read
     echo -e "Now Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"

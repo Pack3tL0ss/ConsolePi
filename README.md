@@ -104,6 +104,8 @@ sudo ./install.sh
 
 **3. Automated Flash Card Imaging with AutoInstall on boot**
 
+**Script only supports USB/microSD adapters currently as that's what I used.  I disabled other adapter types as I didn't test them.**
+
 *This is a script I used during testing to expedite the process Use at your own risk it does flash a drive so it could do harm*
 Using a Linux System (Most distros should work ... tested on Raspbian and Mint) enter the following command:
 `curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/ConsolePi_image_creator.sh  && sudo chmod +x ConsolePi_image_creator.sh`
@@ -116,7 +118,8 @@ Then I would suggest `head -40 ConsolePi_image_creator.sh`, Which will print the
 - Make an attempt to determine the correct drive to be flashed, allow user to verify/confirm (given option to display fdisk -l output)
 - Flash image to micro-sd card
 - PreConfigure ConsolePi with parameters normally entered during the initial install.  So you bypass data entry and just get a verification screen.
-- PreConfigure a WLAN for the ConsolePi to connect to & enable SSH.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP.
+- Pre-Configure a psk or open WLAN via parameters in script, and Enable SSH.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP.
+- You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the script dir.  This method supports EAP-TLS pre-config.  Just place the cert files referenced in the provided wpa_supplicant.conf file in either the script dir, or a 'cert' sub-folder.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ).
 - Use real ovpn installation.  The installer puts an example in, but as the config is specific to your ovpn server, the installer doesn't put a working config in.
 - create a quick command 'consolepi-install' to simplify the long command string to pull the installer from this repo and launch.
 - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.
@@ -187,7 +190,7 @@ ConsolePi utilizes a couple of other projects so Some Credit
 
    https://github.com/cminyard/ser2net
 
-   *The ser2net available from apt works and has been tested, the installation script pulls the far more current version from source and compiles/installs it and builds the config*
+   *The ser2net available from apt works and has been tested, the installation script pulls the far more current version from sourceforge and compiles/installs it and builds the config*
 
 3. -- Not Currently Packaged -- **RaspAp** ([billz](https://github.com/billz))
 

@@ -880,8 +880,10 @@ get_known_ssids() {
 update_consolepi_command() {
     process="Create/Update consolepi- quick commands"
     logit "${process}" "${process} - Starting"
-    [[ -f "/usr/local/bin/consolepi-install" ]] && sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
+    if [[ -f "/usr/local/bin/consolepi-install" ]]; then
+	    sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
         logit "${process}" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
+    fi
     [[ ! -f "/usr/local/bin/consolepi-upgrade" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-upgrade &&
         echo -e 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' \

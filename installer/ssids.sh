@@ -37,7 +37,10 @@ header() {
 }
 
 user_input() {
-    case $1 in
+    [ ! -z "$1" ] && [[ ! "$1" == "NUL" ]] && default="$1"
+    [ ! -z "$2" ] && prompt="$2"
+	
+	case $1 in
         true|false)
             bool=true
         ;;
@@ -46,9 +49,6 @@ user_input() {
         ;;
     esac
 
-    [ ! -z "$1" ] && default="$1" 
-    [ ! -z "$2" ] && prompt="$2"
-
     if [ ! -z $default ]; then
         if $bool; then
             $default && prompt+=" [Y]: " || prompt+=" [N]: "
@@ -56,11 +56,11 @@ user_input() {
             prompt+=" [${default}]: "
         fi
     else
-        prompt+=" $prompt: "
+		prompt+=": "
     fi
     
-    printf "%s" "${prompt}"
-    read input
+    # printf "%s" "${prompt}"
+    read -p "${prompt}" input
     if $bool; then
         if [ ${#input} -gt 0 ] && ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ] || [ ${input,,} == 'true' ]); then 
             result=true
@@ -94,6 +94,7 @@ known_ssid_main() {
     while $continue; do
         # -- Known ssid --
         prompt="Input SSID" && header && echo -e $header_txt
+		default=
         user_input NUL "${prompt}"
         ssid=$result
         # -- Check if ssid input already defined --

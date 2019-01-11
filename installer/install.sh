@@ -633,7 +633,7 @@ install_ovpn() {
 
 ovpn_graceful_shutdown() {
     process="OpenVPN Graceful Shutdown"
-    logit "${process}" "Deploy ovpn_graceful_shutdown to reboot.target.wants"
+    logit "${process}" "Deploy ovpn_graceful_shutdown systemd service"
     this_file="/etc/systemd/system/ovpn-graceful-shutdown.service"
     echo -e "[Unit]\nDescription=Gracefully terminates any ovpn sessions on reboot or shutdown\nConditionPathExists=/var/run/ovpn.pid" > "${this_file}" 
     echo -e "DefaultDependencies=no\nBefore=networking.service\n\n" >> "${this_file}" 

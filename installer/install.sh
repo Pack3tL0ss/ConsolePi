@@ -595,7 +595,9 @@ ConsolePi_cleanup() {
 install_ovpn() {
     process="OpenVPN"
     logit "${process}" "Install OpenVPN"
-    if [[ ! $(dpkg -l openvpn | tail -1 |cut -d" " -f1) == "ii" ]]; then
+	ovpn_ver=$(openvpn --version 2>/dev/null| head -1 | awk '{print $2}')
+#    if [[ ! $(dpkg -l openvpn | tail -1 |cut -d" " -f1) == "ii" ]]; then
+    if [[ -z $ovpn_ver ]]; then
         sudo apt-get -y install openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "OpenVPN installed Successfully" || logit "${process}" "FAILED to install OpenVPN" "WARNING"
         if ! $ovpn_enable; then
             logit "${process}" "You've chosen not to use the OpenVPN function.  Disabling OpenVPN. Package will remain installed. '/lib/systemd/systemd-sysv-install enable openvpn' to enable"
@@ -604,7 +606,7 @@ install_ovpn() {
             /lib/systemd/systemd-sysv-install enable openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "OpenVPN Enabled" || logit "${process}" "FAILED to enable OpenVPN" "WARNING"
         fi
     else
-        logit "${process}" "OpenVPN Already present"
+        logit "${process}" "OpenVPN ${ovpn_ver} Already Installed/Current"
     fi
     
     if [[ ! -f "/home/${iam}/ConsolePi.ovpn" ]]; then 

@@ -981,7 +981,7 @@ post_install_msg() {
     echo "*   The bulk is sent to syslog. the tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest.      *"
     echo "*   - openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn   *"
     echo "*   - pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log                *"
-    echo "*   - An install log can be found in ${consolepi_dir}/installer/install.log                                                             *"
+    echo "*   - An install log can be found in ${consolepi_dir}/installer/install.log                                               *"
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mConsolePi Commands:$*\033[m                                                                                                   *"
     echo "*   - consolepi-upgrade: upgrade consolepi. - using install script direct from repo | ser2net upgrade bypassed for now  *"

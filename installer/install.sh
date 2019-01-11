@@ -595,7 +595,7 @@ ConsolePi_cleanup() {
 install_ovpn() {
     process="OpenVPN"
     logit "${process}" "Install OpenVPN"
-	ovpn_ver=$(openvpn --version 2>/dev/null| head -1 | awk '{print $2}')
+    ovpn_ver=$(openvpn --version 2>/dev/null| head -1 | awk '{print $2}')
 #    if [[ ! $(dpkg -l openvpn | tail -1 |cut -d" " -f1) == "ii" ]]; then
     if [[ -z $ovpn_ver ]]; then
         sudo apt-get -y install openvpn 1>/dev/null 2>> $tmp_log && logit "${process}" "OpenVPN installed Successfully" || logit "${process}" "FAILED to install OpenVPN" "WARNING"
@@ -853,7 +853,7 @@ get_known_ssids() {
         echo "----------------------------------------------------------------------------------------------"
         cat $wpa_supplicant_file
         echo "----------------------------------------------------------------------------------------------"
-		word=" additional"
+        word=" additional"
     fi
 
     echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
@@ -873,8 +873,8 @@ get_known_ssids() {
         else
             logit "${process}" "SSID collection script not found in ConsolePi install dir" "WARNING"
         fi
-	else
-	    logit "${process}" "User chose not to configure SSIDs via script.  You can run consolepi-addssid to invoke script after install"
+    else
+        logit "${process}" "User chose not to configure SSIDs via script.  You can run consolepi-addssid to invoke script after install"
     fi
     logit "${process}" "${process} Complete"
 }
@@ -883,7 +883,7 @@ update_consolepi_command() {
     process="Create/Update consolepi- quick commands"
     logit "${process}" "${process} - Starting"
     if [[ -f "/usr/local/bin/consolepi-install" ]]; then
-	    sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
+        sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
             logit "${process}" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
     fi
     [[ ! -f "/usr/local/bin/consolepi-upgrade" ]] && 
@@ -901,6 +901,22 @@ update_consolepi_command() {
     [[ ! -f "/usr/local/bin/consolepi-autohotspot" ]] && 
     echo -e '#!/usr/bin/env bash\nsudo /usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot || 
         logit "${process}" "consolepi-autohotspot already exists"
+    if [[ ! -f /usr/local/bin/consolepi-killvpn ]]; then
+        echo '#!/usr/bin/env bash' > /usr/local/bin/consolepi-killvpn
+        echo '' >> /usr/local/bin/consolepi-killvpn
+        echo 'if [[ -f /var/run/ovpn.pid ]]; then' >> /usr/local/bin/consolepi-killvpn
+        echo '    sudo pkill -SIGTERM -F /var/run/ovpn.pid' >> /usr/local/bin/consolepi-killvpn
+        echo '    [[ $? == 0 ]] && PID=$(head -1 /var/run/ovpn.pid)' >> /usr/local/bin/consolepi-killvpn
+        echo '    sudo rm /var/run/ovpn.pid ' >> /usr/local/bin/consolepi-killvpn
+        echo '    [[ $? == 0 ]] && msg=", stale pid file removed"' >> /usr/local/bin/consolepi-killvpn
+        echo 'else' >> /usr/local/bin/consolepi-killvpn
+        echo '    sudo pkill -f openvpn    ' >> /usr/local/bin/consolepi-killvpn
+        echo 'fi' >> /usr/local/bin/consolepi-killvpn
+        echo '' >> /usr/local/bin/consolepi-killvpn
+        echo '[[ ! -z $PID ]] && echo killed OpenVPN process $PID || echo "No OpenVPN process found${msg}"' >> /usr/local/bin/consolepi-killvpn
+    else
+        logit "${process}" "consolepi-killvpn already exists"
+    fi
         
     sudo chmod +x /usr/local/bin/consolepi-* ||
         logit "${process}" "Failed to chmod consolepi quick commands" "WARNING"

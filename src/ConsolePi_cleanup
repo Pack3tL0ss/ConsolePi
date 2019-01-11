@@ -21,9 +21,8 @@ start|stop)
   echo puship-ConsolePiCleanUp CleanUp Complete
   exit 0
   ;;
-stop)
-  pkill -SIGTERM -e -F /var/run/ovpn.pid
-  echo puship OpenVPN Gracefully shutdown by ConsolePiCleanUp
-  exit 0
+*)
+  echo Error valid options are start stop
+  exit 1
   ;; 
 esac

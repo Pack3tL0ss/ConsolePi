@@ -45,7 +45,8 @@ auto_install=true
 main() {
     clear
 	! $configure_wpa_supplicant && echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ top of this script"
-    my_usb=$(ls -l /dev/disk/by-path/*usb* |grep -v part | sed 's/.*\(...\)/\1/')
+    my_usb=$(ls -l /dev/disk/by-path/*usb* |grep -v part | sed 's/.*\(...\)/\1/') 2>/dev/null
+	[[ $? > 0 ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
 
     echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n\n"
     echo -e "Script has discovered USB flash device @ \033[1;32m ${my_usb} $*\033[m"
@@ -100,13 +101,16 @@ main() {
     # Create some mount-points
     [[ ! -d /mnt/usb1 ]] && sudo mkdir /mnt/usb1 && usb1_existed=false
     [[ ! -d /mnt/usb2 ]] && sudo mkdir /mnt/usb2 && usb2_existed=false
-    sudo mount /dev/${my_usb}1 /mnt/usb1 || exit 1
+    ( [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 ) ||
+	  sudo mount /dev/${my_usb}1 /mnt/usb1
+	[[ $? > 0 ]] && exit 1
     echo "Configuring ssh to be enabled by default"
     sudo touch /mnt/usb1/ssh
     sudo umount /mnt/usb1
 
     echo -e "SSh is now enabled\n\nMounting System Drive"
-    sudo mount /dev/${my_usb}2 /mnt/usb2
+	[[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 ||
+      sudo mount /dev/${my_usb}2 /mnt/usb2
     
     #Configure simple psk SSID based on params in this script
     if $configure_wpa_supplicant; then

@@ -107,7 +107,8 @@ main() {
 
     echo -e "SSh is now enabled\n\nMounting System Drive"
     sudo mount /dev/${my_usb}2 /mnt/usb2
-
+    
+    #Configure simple psk SSID based on params in this script
     if $configure_wpa_supplicant; then
         echo -e "Configuring wpa_supplicant.conf | defining ${ssid}"
         sudo echo "country=${wlan_country}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
@@ -117,7 +118,7 @@ main() {
         [[ $priority > 0 ]] && sudo echo "        priority=${priority}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
     fi
-    
+   
     # first-boot script
     if $auto_install; then
         sudo echo "consolepi-install" >> /mnt/usb2/home/pi/.bashrc
@@ -137,6 +138,27 @@ main() {
     [[ -f "${cur_dir}/ConsolePi.conf" ]] && cp "${cur_dir}/ConsolePi.conf" $pi_home  && echo "ConsolePi.conf found pre-staging on image"
     [[ -f "${cur_dir}/ConsolePi.ovpn" ]] && cp "${cur_dir}/ConsolePi.ovpn" $pi_home && echo "ConsolePi.ovpn found pre-staging on image"
     [[ -f "${cur_dir}/ovpn_credentials" ]] && cp "${cur_dir}/ovpn_credentials" $pi_home && echo "ovpn_credentials found pre-staging on image"
+	
+	# if wpa_supplicant.conf exist in script dir cp it to image extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
+	if [[ -f "${cur_dir}/wpa_supplicant.conf" ]]; then
+        echo "wpa_supplicant.conf found pre-staging on image"
+        sudo cp "${cur_dir}/wpa_supplicant.conf" /mnt/usb2/etc/wpa_supplicant
+		sudo chown root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf
+		sudo chgrp root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf
+		sudo chmod 644 /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf 
+        client_cert=$(grep client_cert wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
+		if [[ ! -z $client_cert ]]; then
+            cert_path="/mnt/usb2"${client_cert%/*}
+            ca_cert=${$(grep ca_cert wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)##*/}
+			private_key=$(grep private_key wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
+			[[ -d cert ]] && cd cert	# if script dir contains cert subdir look there for certs - otherwise look in script dir
+			[[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...
+			[[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}${client_cert##*/}"
+			[[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}${ca_cert##*/}"
+			[[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}${private_key##*/}"
+			cd "${cur_dir}"
+		fi
+	fi	
 
     sudo umount /mnt/usb2
     # Remove our mount_points if they didn't happen to already exist when the script started

@@ -100,7 +100,7 @@ Connect_VPN() {
     $debug && logger -t puship-DEBUG Enter Connect_VPN Function
     openvpn --config ${ovpn_config} --auth-user-pass ${ovpn_creds} --log-append ${ovpn_log} ${ovpn_options} --writepid /var/run/ovpn.pid --daemon
     # openvpn --config ${ovpn_config}
-    logger -t puship-ovpn Starting openvpn client connection.
+    logger -t puship-ovpn Starting OpenVPN client connection.
 }
 
 # >> Check if VPN process is running and get PID <<
@@ -210,7 +210,9 @@ run() {
 
 # __main__
 [ "${new_domain_name}" = "${local_domain}" ] && remote=false || remote=true
-logger -t puship Arguments: $0 $1 $interface $3 $4 $new_ip_address $6 $7 $reason "${local_domain}" "${new_domain_name}" $remote
+$debug && [[ -z $local_domain ]] && local_domain="null_local_domain"
+$debug && [[ -z $new_domain_name ]] && new_domain_name="null_cur_domain"
+$debug && logger -t puship Arguments: $0 $1 $interface $3 $4 $new_ip_address $6 $7 $reason "${local_domain}" "${new_domain_name}" $remote
 declare -A interfaces       
 
 case "$reason" in

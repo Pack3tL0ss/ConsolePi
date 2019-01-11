@@ -8,7 +8,7 @@ known_ssid_init() {
     wpa_temp_file="/tmp/wpa_temp"
     wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
     header_txt="----------------->>Enter Known SSIDs - ConsolePi will attempt connect to these if available prior to switching to HotSpot mode<<-----------------\n"
-    ( [[ -f "/etc/ConsolePi/ConsolePi.conf" ]] && . "/etc/ConsolePi/ConsolePi.conf" && country_txt="country=${wlan_country}" ) 
+    ( [[ -f "/etc/ConsolePi/ConsolePi.conf" ]] && . "/etc/ConsolePi/ConsolePi.conf" && country_txt="country=${wlan_country,,}" ) 
 }
 
 # defining header and user-input again here so the script can be ran directly until I re-factor so this is less lame
@@ -83,10 +83,16 @@ user_input() {
 }
 
 init_wpa_temp_file() {
-    ( [[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" && cp "${wpa_supplicant_file}" "/etc/ConsolePi/originals" ) \
-      || echo -e "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n${country_txt}\n" > "${wpa_temp_file}"
+    ( [[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" && cp "${wpa_supplicant_file}" "/etc/ConsolePi/originals" ) ||
+        echo -e "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n${country_txt}\n" > "${wpa_temp_file}"
 	# Set wifi country
-    [[ ! -z ${country_txt} ]] && wpa_cli -i wlan0 set country "${country_txt}" 1>/dev/null
+    # [[ ! -z ${country_txt} ]] && wpa_cli -i wlan0 set country "${country_txt}" 1>/dev/null
+	# Make Sure Wifi country is set in wpa_temp_file which will eventually be wpa_supplicant.conf
+	if [[ ! -z ${country_txt} ]] && [[ ! $(sudo grep "country=" "${wpa_temp_file}") ]]; then
+        line=$(sudo grep -n "network" "${wpa_temp_file}" | head -1 | cut -d: -f1)
+        [[ -z $line ]] && echo "${country_txt}" >> "$wpa_temp_file" || sed -i "${line}s/^/${country_txt}\n/" "$wpa_temp_file"
+    fi
+fi
 }
 
 known_ssid_main() {
@@ -178,10 +184,26 @@ known_ssid_main() {
     done
 }
 
-#echo $0
+#__main__
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/ssids.sh"* ]] ; then
-    known_ssid_init
-    known_ssid_main
-    mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
-    mv "$wpa_temp_file" "$wpa_supplicant_file"
+    if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
+        echo
+        echo "----------------------------------------------------------------------------------------------"
+        echo "wpa_supplicant.conf already exists with the following configuration"
+        echo "----------------------------------------------------------------------------------------------"
+        cat $wpa_supplicant_file
+        echo "----------------------------------------------------------------------------------------------"
+        echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
+        prompt="Do You want to configure additional SSIDs? (Y/N)"
+        user_input false "${prompt}"
+        continue=$result
+    else
+        continue=true
+    fi
+    if $continue; then
+		known_ssid_init
+		known_ssid_main
+		mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
+		mv "$wpa_temp_file" "$wpa_supplicant_file"
+	fi
 fi

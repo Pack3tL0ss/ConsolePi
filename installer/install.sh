@@ -882,7 +882,7 @@ update_consolepi_command() {
     logit "${process}" "${process} - Starting"
     if [[ -f "/usr/local/bin/consolepi-install" ]]; then
 	    sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
-        logit "${process}" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
+            logit "${process}" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
     fi
     [[ ! -f "/usr/local/bin/consolepi-upgrade" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-upgrade &&

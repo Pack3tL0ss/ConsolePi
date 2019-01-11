@@ -515,7 +515,7 @@ install_ser2net () {
         make 1>/dev/null 2>> $tmp_log &&
             logit "${process}" "ser2net make Success" ||
             logit "${process}" "ser2net make Failed" "ERROR"
-			
+            
         logit "${process}" "ser2net make install, make clean"
         make install 1>/dev/null 2>> $tmp_log &&
             logit "${process}" "ser2net make install Success" ||
@@ -634,12 +634,12 @@ ovpn_graceful_shutdown() {
     logit "${process}" "Deploy ovpn_graceful_shutdown to reboot.target.wants"
     this_file="/etc/systemd/system/ovpn-graceful-shutdown.service"
     echo -e "[Unit]\nDescription=Gracefully terminates any ovpn sessions on reboot or shutdown\nConditionPathExists=/var/run/ovpn.pid" > "${this_file}" 
-	echo -e "DefaultDependencies=no\nBefore=networking.service\n\n" >> "${this_file}" 
+    echo -e "DefaultDependencies=no\nBefore=networking.service\n\n" >> "${this_file}" 
     echo -e "[Service]\nType=oneshot\nExecStart=/bin/pkill -SIGTERM -e -F /var/run/ovpn.pid\n\n" >> "${this_file}"
     echo -e "[Install]\nWantedBy=reboot.target halt.target poweroff.target" >> "${this_file}"
     lines=$(wc -l < "${this_file}") || lines=0
     [[ $lines == 0 ]] && logit "${process}" "Failed to create ovpn_graceful_shutdown in systemd dir" "WARNING"
-	sudo systemctl enable ovpn-graceful-shutdown.service 1>/dev/null 2>> $tmp_log && logit "${process}" "ovpn-gracefule-shutdown.service enabled" ||
+    sudo systemctl enable ovpn-graceful-shutdown.service 1>/dev/null 2>> $tmp_log && logit "${process}" "ovpn-gracefule-shutdown.service enabled" ||
         logit "${process}" "Failed to enable ovpn-graceful-shutdown service" "WARNING"
     logit "${process}" "${process} Complete"
 }
@@ -785,7 +785,7 @@ install_autohotspotn () {
     else
         logit "${process}" "iw is already installed/current."
     fi
-	    
+        
     logit "${process}" "Enable IP-forwarding (/etc/sysctl.conf)"
     sed -i '/^#net\.ipv4\.ip_forward=1/s/^#//g' /etc/sysctl.conf 1>/dev/null 2>> $tmp_log && logit "${process}" "Enable IP-forwarding - Success" ||
         logit "${process}" "FAILED to enable IP-forwarding verify /etc/sysctl.conf 'net.ipv4.ip_forward=1'" "WARNING"
@@ -851,13 +851,14 @@ get_known_ssids() {
         echo "----------------------------------------------------------------------------------------------"
         cat $wpa_supplicant_file
         echo "----------------------------------------------------------------------------------------------"
-        echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
-        prompt="Do You want to configure additional SSIDs? (Y/N)"
-        user_input false "${prompt}"
-        continue=$result
-    else
-        continue=true
+		word=" additional"
     fi
+
+    echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
+    prompt="Do You want to configure${word} SSIDs? (Y/N)"
+    user_input false "${prompt}"
+    continue=$result
+
     if $continue; then
         if [ -f $consolepi_dir/installer/ssids.sh ]; then
             . $consolepi_dir/installer/ssids.sh
@@ -870,6 +871,8 @@ get_known_ssids() {
         else
             logit "${process}" "SSID collection script not found in ConsolePi install dir" "WARNING"
         fi
+	else
+	    logit "${process}" "User chose not to configure SSIDs via script.  You can run consolepi-addssid to invoke script after install"
     fi
     logit "${process}" "${process} Complete"
 }
@@ -891,10 +894,10 @@ update_consolepi_command() {
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
         echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole || 
         logit "${process}" "consolepi-addconsole already exists"
-	[[ ! -f "/usr/local/bin/consolepi-autohotspot" ]] && 
-	echo -e '#!/usr/bin/env bash\nsudo /usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot || 
+    [[ ! -f "/usr/local/bin/consolepi-autohotspot" ]] && 
+    echo -e '#!/usr/bin/env bash\nsudo /usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot || 
         logit "${process}" "consolepi-autohotspot already exists"
-		
+        
     sudo chmod +x /usr/local/bin/consolepi-* ||
         logit "${process}" "Failed to chmod consolepi quick commands" "WARNING"
     logit "${process}" "${process} - Complete"
@@ -976,7 +979,7 @@ post_install_msg() {
 main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then 
-		remove_first_boot
+        remove_first_boot
         updatepi
         gitConsolePi
         get_config

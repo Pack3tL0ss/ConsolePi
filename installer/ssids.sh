@@ -39,8 +39,8 @@ header() {
 user_input() {
     [ ! -z "$1" ] && [[ ! "$1" == "NUL" ]] && default="$1"
     [ ! -z "$2" ] && prompt="$2"
-	
-	case $1 in
+    
+    case $1 in
         true|false)
             bool=true
         ;;
@@ -56,7 +56,7 @@ user_input() {
             prompt+=" [${default}]: "
         fi
     else
-		prompt+=": "
+        prompt+=": "
     fi
     
     # printf "%s" "${prompt}"
@@ -85,10 +85,10 @@ user_input() {
 init_wpa_temp_file() {
     ( [[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" && cp "${wpa_supplicant_file}" "/etc/ConsolePi/originals" ) ||
         echo -e "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n${country_txt}\n" > "${wpa_temp_file}"
-	# Set wifi country
+    # Set wifi country
     # [[ ! -z ${country_txt} ]] && wpa_cli -i wlan0 set country "${country_txt}" 1>/dev/null
-	# Make Sure Wifi country is set in wpa_temp_file which will eventually be wpa_supplicant.conf
-	if [[ ! -z ${country_txt} ]] && [[ ! $(sudo grep "country=" "${wpa_temp_file}") ]]; then
+    # Make Sure Wifi country is set in wpa_temp_file which will eventually be wpa_supplicant.conf
+    if [[ ! -z ${country_txt} ]] && [[ ! $(sudo grep "country=" "${wpa_temp_file}") ]]; then
         line=$(sudo grep -n "network" "${wpa_temp_file}" | head -1 | cut -d: -f1)
         [[ -z $line ]] && echo "${country_txt}" >> "$wpa_temp_file" || sed -i "${line}s/^/${country_txt}\n/" "$wpa_temp_file"
     fi
@@ -99,7 +99,7 @@ known_ssid_main() {
     while $continue; do
         # -- Known ssid --
         prompt="Input SSID" && header && echo -e $header_txt
-		default=
+        default=
         user_input NUL "${prompt}"
         ssid=$result
         # -- Check if ssid input already defined --
@@ -162,13 +162,13 @@ known_ssid_main() {
         echo
         if $bypass_prompt ; then
             echo "Press any key to continue" && read
-            accept=true		# prompt to see if they want to continue adding - yields $continue
+            accept=true        # prompt to see if they want to continue adding - yields $continue
             bypass_prompt=false  # reset bypass_prompt
-			psk_valid=false      # reset psk_valid
+            psk_valid=false      # reset psk_valid
         else
             prompt="Enter Y to accept as entered or N to reject and re-enter"
             user_input true "${prompt}"
-			accept=$result
+            accept=$result
         fi
         if $accept; then
             [[ $match == 0 ]] && echo -e "$temp" >> $wpa_temp_file
@@ -185,6 +185,8 @@ known_ssid_main() {
 
 #__main__
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/ssids.sh"* ]] ; then
+    known_ssid_init
+    header
     if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
         echo
         echo "----------------------------------------------------------------------------------------------"
@@ -200,9 +202,8 @@ if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/ssids.sh"* ]] ; then
         continue=true
     fi
     if $continue; then
-		known_ssid_init
-		known_ssid_main
-		mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
-		mv "$wpa_temp_file" "$wpa_supplicant_file"
-	fi
+        known_ssid_main
+        mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
+        mv "$wpa_temp_file" "$wpa_supplicant_file"
+    fi
 fi

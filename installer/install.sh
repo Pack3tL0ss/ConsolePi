@@ -855,7 +855,8 @@ do_blue_config() {
 
     # create /etc/systemd/system/rfcomm.service to enable 
     # the Bluetooth serial port from systemctl
-    sudo cat <<EOF | sudo tee /etc/systemd/system/rfcomm.service > /dev/null
+
+sudo cat <<EOF | sudo tee /etc/systemd/system/rfcomm.service > /dev/null
 [Unit]
 Description=RFCOMM service
 After=bluetooth.service
@@ -869,24 +870,34 @@ WantedBy=multi-user.target
 EOF
 
     # enable the new rfcomm service
-    sudo systemctl enable rfcomm && logit "${process}" "rfcomm systemd script enabled" || 
+    sudo systemctl enable rfcomm 1>/dev/null 2>> $tmp_log  && logit "${process}" "rfcomm systemd script enabled" || 
                 logit "${process}" "FAILED to enable rfcomm systemd script" "WARNING"
 
     # start the rfcomm service
-    sudo systemctl restart rfcomm
+    sudo systemctl restart rfcomm 1>/dev/null 2>> $tmp_log 
+	
+	#create rfcomm device if not already there
+	rfdev=$( rfdev=(/dev/rfcomm*) && echo ${rfdev##*/} )
+	[[ $rfdev =~ '*' ]] && rfdev=
+	if [[ -z $rfdev ]]; then
+	    bt_mac=$(sudo hciconfig |grep "BD Address" |awk '{print $3}')
+		sudo rfcomm bind 0 ${bt_mac} && logit "${process}" "bluetooth device now assigned to ${rfdev}" || logit "${process}" "Failed to assign bluetooth device to ${rfdev}"
+	else
+		logit "${process}" "bluetooth device ${rfdev} exists"
+	fi
     
     # add blue user and set to launch menu on login
-    echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue
+    echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue 1>/dev/null 2>> $tmp_log 
     sudo echo consolepi-menu | sudo tee -a /home/blue/.bashrc > /dev/null
     [[ $(grep consolepi-menu /home/blue/.bashrc) ]] && logit "${process}" "BlueTooth User Configured to launch menu on login" || 
                 logit "${process}" "FAILED to enable menu on login for BlueTooth User" "WARNING"
 
     # Install Screen
-    if [[ $(screen -v | awk '{print $3}') ]]; then 
+    if [[ $(screen -v 2>/dev/null | awk '{print $3}') ]]; then 
         logit "${process}" "Screen $(screen -v | awk '{print $3}') is already installed"
     else
         logit "${process}" "Installing Screen"
-        sudo apt-get -y install screen && logit "${process}" "Install Screen Success" || 
+        sudo apt-get -y install screen 1>/dev/null 2>> $tmp_log && logit "${process}" "Install Screen Success" || 
                 logit "${process}" "FAILED to Install Screen" "WARNING"
     fi
        

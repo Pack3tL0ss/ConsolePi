@@ -101,11 +101,15 @@ main() {
     # Create some mount-points
     [[ ! -d /mnt/usb1 ]] && sudo mkdir /mnt/usb1 && usb1_existed=false
     [[ ! -d /mnt/usb2 ]] && sudo mkdir /mnt/usb2 && usb2_existed=false
+	# sd to micro-sd adapter ... script doesn't currently work with anything other than USB adapter.  This was a quick attempt at adding support for sdcard adapter
+	# but it's more involved and given I use a USB I didn't develop further and disabled anything but USB adapter support
     ( [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 ) ||
       sudo mount /dev/${my_usb}1 /mnt/usb1
     [[ $? > 0 ]] && exit 1
     echo "Configuring ssh to be enabled by default"
     sudo touch /mnt/usb1/ssh
+	# move any overlay files to /boot/overlays (usb1/overlays)
+	[[ -f $(ls *.dtbo) ]] && cp *.dtbo /mnt/usb1/overlays && echo "found overlay files in script dir moved to /boot/overlays dir"
     sudo umount /mnt/usb1
 
     echo -e "SSh is now enabled\n\nMounting System Drive"

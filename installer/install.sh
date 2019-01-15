@@ -874,7 +874,8 @@ EOF
                 logit "${process}" "FAILED to enable rfcomm systemd script" "WARNING"
 
     # start the rfcomm service
-    sudo systemctl restart rfcomm 1>/dev/null 2>> $tmp_log 
+    sudo systemctl stop rfcomm 1>/dev/null 2>> $tmp_log 
+	sudo systemctl start rfcomm 1>/dev/null 2>> $tmp_log 
 	
 	#create rfcomm device if not already there
 	rfdev=$( rfdev=(/dev/rfcomm*) && echo ${rfdev##*/} )

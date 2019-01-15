@@ -842,6 +842,57 @@ dhcpcd_conf () {
     fi
 }
 
+do_blue_config() {
+    process="Bluetooth Console"
+    logit "${process}" "${process} Starting"
+    ## Some Sections of the bluetooth configuration from https://hacks.mozilla.org/2017/02/headless-raspberry-pi-configuration-over-bluetooth/
+    ## Edit /lib/systemd/system/bluetooth.service
+    sudo sed -i: 's|^Exec.*toothd$| \
+    ExecStart=/usr/lib/bluetooth/bluetoothd -C \
+    ExecStartPost=/usr/bin/sdptool add SP \
+    ExecStartPost=/bin/hciconfig hci0 piscan \
+    |g' /lib/systemd/system/bluetooth.service
+
+    # create /etc/systemd/system/rfcomm.service to enable 
+    # the Bluetooth serial port from systemctl
+    sudo cat <<EOF | sudo tee /etc/systemd/system/rfcomm.service > /dev/null
+[Unit]
+Description=RFCOMM service
+After=bluetooth.service
+Requires=bluetooth.service
+
+[Service]
+ExecStart=/usr/bin/rfcomm watch hci0 1 getty rfcomm0 115200 vt100 -a blue
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # enable the new rfcomm service
+    sudo systemctl enable rfcomm && logit "${process}" "rfcomm systemd script enabled" || 
+                logit "${process}" "FAILED to enable rfcomm systemd script" "WARNING"
+
+    # start the rfcomm service
+    sudo systemctl restart rfcomm
+    
+    # add blue user and set to launch menu on login
+    echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue
+    sudo echo consolepi-menu | sudo tee -a /home/blue/.bashrc > /dev/null
+    [[ $(grep consolepi-menu /home/blue/.bashrc) ]] && logit "${process}" "BlueTooth User Configured to launch menu on login" || 
+                logit "${process}" "FAILED to enable menu on login for BlueTooth User" "WARNING"
+
+    # Install Screen
+    if [[ $(screen -v | awk '{print $3}') ]]; then 
+        logit "${process}" "Screen $(screen -v | awk '{print $3}') is already installed"
+    else
+        logit "${process}" "Installing Screen"
+        sudo apt-get -y install screen && logit "${process}" "Install Screen Success" || 
+                logit "${process}" "FAILED to Install Screen" "WARNING"
+    fi
+       
+    logit "${process}" "${process} Complete"
+}
+
 get_known_ssids() {
     process="Get Known SSIDs"
     logit "${process}" "${process} Started"
@@ -916,6 +967,14 @@ update_consolepi_command() {
         echo '[[ ! -z $PID ]] && echo killed OpenVPN process $PID || echo "No OpenVPN process found${msg}"' >> /usr/local/bin/consolepi-killvpn
     else
         logit "${process}" "consolepi-killvpn already exists"
+    fi
+    
+    # consolepi-menu
+    if [[ -f /usr/local/bin/consolepi-menu ]]; then
+        sudo ln -s /etc/ConsolePi/src/bluemenu.sh /usr/local/bin/consolepi-menu && logit "${process}" "consolepi-menu command created Successfully" || 
+        logit "${process}" "FAILED to consolepi-menu command" "WARNING"
+    else
+        logit "${process}" "consolepi-menu already exists"
     fi
         
     sudo chmod +x /usr/local/bin/consolepi-* ||
@@ -1026,6 +1085,7 @@ main() {
         gen_dnsmasq_conf
         dhcpcd_conf
         update_banner
+        do_blue_config
         get_known_ssids
         update_consolepi_command
         misc_stuff

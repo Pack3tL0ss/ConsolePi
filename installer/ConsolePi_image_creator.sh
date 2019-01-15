@@ -147,6 +147,7 @@ main() {
     [[ -f "${cur_dir}/ConsolePi.conf" ]] && cp "${cur_dir}/ConsolePi.conf" $pi_home  && echo "ConsolePi.conf found pre-staging on image"
     [[ -f "${cur_dir}/ConsolePi.ovpn" ]] && cp "${cur_dir}/ConsolePi.ovpn" $pi_home && echo "ConsolePi.ovpn found pre-staging on image"
     [[ -f "${cur_dir}/ovpn_credentials" ]] && cp "${cur_dir}/ovpn_credentials" $pi_home && echo "ovpn_credentials found pre-staging on image"
+	[[ -d "${cur_dir}/ConsolePi_stage" ]] && sudo mkdir $pi_home/staged && cp "${cur_dir}/ConsolePi_stage/*" $pi_home/staged && echo "ConsolePi_stage dir found Pre-Staging all files"
     
     # if wpa_supplicant.conf exist in script dir cp it to image extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
     if [[ -f "${cur_dir}/wpa_supplicant.conf" ]]; then

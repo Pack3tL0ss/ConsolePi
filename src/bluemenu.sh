@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Dynamic Console Menu
+# Creates menu items only for USB to serial adapters that are plugged in
 ## this_usb=$( this=$(ls -l /sys/bus/usb-serial/devices | tail -n +2 ) && echo ${this##*/} )
 tty_list=(/sys/bus/usb-serial/devices/*)
 baud=9600

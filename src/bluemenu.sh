@@ -175,7 +175,8 @@ do_flow_pretty
         echo "2. Change Data Bits (${dbits})"
         echo "3. Change Parity (${parity_pretty})"
         echo "4. Change Flow Control (${flow_pretty})"
-        echo "x. exit [${baud} ${dbits}${parity_up}1 flow: ${flow_pretty}]"
+	[[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
+        echo "x. exit [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
         echo ''
         read -p "Select menu item: " selection
 
@@ -257,8 +258,9 @@ main_menu() {
         echo "${item}. Connect to ${tty_name} Using default settings"
 		((item++))
 		done
+	[[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
 
-        echo "c. Change Connection Settings [${baud} ${dbits}${parity_up}1 flow: ${flow_pretty}]"
+        echo "c. Change Connection Settings [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
         echo 'x. exit to shell'
         echo ''
         read -p "Select menu item: " selection
@@ -269,10 +271,13 @@ main_menu() {
 	this_tty="${tty_list[$((selection - 1))]}"
         do_get_tty_name
 	# screen "/dev/${tty_list[$((selection - 1))]##*/}" $baud
-	picocom "/dev/${tty_name}" -b $baud
+	# Always use native dev (ttyUSB#)
+        picocom "/dev/${tty_list[$((selection - 1))]##*/}" -b $baud -f $flow -d $dbits -p $parity
+        # Use predefined aliases if defined
+        # picocom "/dev/${tty_name}" -b $baud -f $flow -d $dbits -p $parity
     elif [[ ${selection,,} == "c" ]]; then
-        valid_selection=false # force re-print of menu
 	port_config_menu
+        valid_selection=false # force re-print of menu
     elif [[ ${selection,,} == "x" ]]; then
         valid_selection=true
         exit 0

@@ -285,7 +285,7 @@ done
 
 main() {
 	[[ -z $tty_list ]] && echo "No USB to Serial adapters found... exiting" && exit 1
-	[[ -z $(picocom --help | head -1) ]] && echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && exit 1
+	[[ -z $(picocom --help 2>>/dev/null | head -1) ]] && echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && exit 1
         main_menu
 }
 

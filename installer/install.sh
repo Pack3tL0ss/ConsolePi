@@ -848,7 +848,7 @@ do_blue_config() {
     ## Some Sections of the bluetooth configuration from https://hacks.mozilla.org/2017/02/headless-raspberry-pi-configuration-over-bluetooth/
     ## Edit /lib/systemd/system/bluetooth.service
     sudo sed -i: 's|^Exec.*toothd$| \
-    ExecStart=/usr/lib/bluetooth/bluetoothd -C \
+    ExecStart=/usr/lib/bluetooth/bluetoothd -C --noplugin=sap\
     ExecStartPost=/usr/bin/sdptool add SP \
     ExecStartPost=/bin/hciconfig hci0 piscan \
     |g' /lib/systemd/system/bluetooth.service
@@ -889,9 +889,23 @@ EOF
     # fi
     
     # add blue user and set to launch menu on login
-    echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue 1>/dev/null 2>> $tmp_log 
+	if [[ ! $(cat /etc/passwd | grep -o blue | sort -u) ]]; then
+        echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue 1>/dev/null 2>> $tmp_log && 
+		logit "${process}" "BlueTooth User created" || 
+        logit "${process}" "FAILED to create Bluetooth user" "WARNING"
+	else
+		logit "${process}" "BlueTooth User already exists"
+    fi
+	
+	# add blue user to dialout group so they can access /dev/ttyUSB_ devices
+	if [[ ! $(groups blue | grep -o dialout) ]]; then
     sudo usermod -a -G dialout blue 2>> $tmp_log && logit "${process}" "BlueTooth User added to dialout group" || 
         logit "${process}" "FAILED to add Bluetooth user to dialout group" "WARNING"
+	else
+		logit "${process}" "BlueTooth User already in dialout group" 
+	fi
+	
+	# Configure blue user to auto-launch consolepi-menu on login (blue user is automatically logged in when connection via bluetooth is established)
     if [[ ! $(sudo grep consolepi-menu /home/blue/.bashrc) ]]; then
         sudo echo consolepi-menu | sudo tee -a /home/blue/.bashrc > /dev/null && 
             logit "${process}" "BlueTooth User Configured to launch menu on Login" || 

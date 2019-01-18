@@ -94,13 +94,12 @@ main() {
         echo "Displaying fdisk -l output in 'less' press q to quit"
         sleep 3
         sudo fdisk -l | less
-    else
-        echo -e '\n\n'
     fi
     
     # Give user chance to change target drive
-    echo -e "Press enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
+    echo -e "\n\nPress enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
     read -p "Device to flash with image [\033[1;32m${my_usb}$*\033[m]:" drive
+    [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
     [[ ! -z $drive ]] && my_usb=$drive
     [[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
 

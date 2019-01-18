@@ -890,23 +890,23 @@ EOF
     # fi
     
     # add blue user and set to launch menu on login
-	if [[ ! $(cat /etc/passwd | grep -o blue | sort -u) ]]; then
+    if [[ ! $(cat /etc/passwd | grep -o blue | sort -u) ]]; then
         echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue 1>/dev/null 2>> $tmp_log && 
-		logit "${process}" "BlueTooth User created" || 
+        logit "${process}" "BlueTooth User created" || 
         logit "${process}" "FAILED to create Bluetooth user" "WARNING"
-	else
-		logit "${process}" "BlueTooth User already exists"
+    else
+        logit "${process}" "BlueTooth User already exists"
     fi
-	
-	# add blue user to dialout group so they can access /dev/ttyUSB_ devices
-	if [[ ! $(groups blue | grep -o dialout) ]]; then
+    
+    # add blue user to dialout group so they can access /dev/ttyUSB_ devices
+    if [[ ! $(groups blue | grep -o dialout) ]]; then
     sudo usermod -a -G dialout blue 2>> $tmp_log && logit "${process}" "BlueTooth User added to dialout group" || 
         logit "${process}" "FAILED to add Bluetooth user to dialout group" "WARNING"
-	else
-		logit "${process}" "BlueTooth User already in dialout group" 
-	fi
-	
-	# Configure blue user to auto-launch consolepi-menu on login (blue user is automatically logged in when connection via bluetooth is established)
+    else
+        logit "${process}" "BlueTooth User already in dialout group" 
+    fi
+    
+    # Configure blue user to auto-launch consolepi-menu on login (blue user is automatically logged in when connection via bluetooth is established)
     if [[ ! $(sudo grep consolepi-menu /home/blue/.bashrc) ]]; then
         sudo echo consolepi-menu | sudo tee -a /home/blue/.bashrc > /dev/null && 
             logit "${process}" "BlueTooth User Configured to launch menu on Login" || 
@@ -915,7 +915,7 @@ EOF
         logit "${process}" "blue user already configured to launch menu on Login"
     fi
 
-	# Configure blue user default tty cols/rows
+    # Configure blue user default tty cols/rows
     if [[ ! $(sudo grep stty /home/blue/.bashrc) ]]; then
         sudo echo stty rows 70 cols 150 | sudo tee -a /home/blue/.bashrc > /dev/null && 
             logit "${process}" "Changed default Bluetooth tty rows cols" || 
@@ -923,7 +923,7 @@ EOF
     else
         logit "${process}" "blue user tty rows cols already configured"
     fi
-	
+    
     # Install picocom
     if [[ $(picocom --help 2>/dev/null | head -1) ]]; then 
         logit "${process}" "$(picocom --help 2>/dev/null | head -1) is already installed"
@@ -1036,15 +1036,15 @@ get_serial_udev() {
     process="Predictable Console Ports"
     logit "${process}" "${process} Starting."
     header
-	if [[ -f 10-consolePi.rules ]]; then
-		echo "udev rules file found in $(pwd) enabling provided udev rules"
-		sudo cp 10-consolePi.rules /etc/udev/rules.d
-		sudo udevadm control --reload-rules
-	elif [[ -f staged/10-consolePi.rules ]]; then
-		echo "udev rules file found in $(pwd)/staged enabling provided udev rules"
-		sudo cp staged/10-consolePi.rules /etc/udev/rules.d
-		sudo udevadm control --reload-rules
-	fi
+    if [[ -f 10-consolePi.rules ]]; then
+        echo "udev rules file found in $(pwd) enabling provided udev rules"
+        sudo cp 10-consolePi.rules /etc/udev/rules.d
+        sudo udevadm control --reload-rules
+    elif [[ -f staged/10-consolePi.rules ]]; then
+        echo "udev rules file found in $(pwd)/staged enabling provided udev rules"
+        sudo cp staged/10-consolePi.rules /etc/udev/rules.d
+        sudo udevadm control --reload-rules
+    fi
     echo
     echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
     echo "-                                                                                                                   -"
@@ -1055,11 +1055,11 @@ get_serial_udev() {
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
-	if [[ -f /etc/udev/rules.d/10-consolePi.rules ]]; then
-		echo "------------ Existing rules file found with the following rules, adding ports will append to these rules ------------"
-		cat /etc/udev/rules.d/10-ConsolePi.rules
-		echo "---------------------------------------------------------------------------------------------------------------------"
-	fi
+    if [[ -f /etc/udev/rules.d/10-consolePi.rules ]]; then
+        echo "------------ Existing rules file found with the following rules, adding ports will append to these rules ------------"
+        cat /etc/udev/rules.d/10-ConsolePi.rules
+        echo "---------------------------------------------------------------------------------------------------------------------"
+    fi
     echo "You need to have the serial adapters you want to map to specific telnet ports available"
     prompt="Would you like to configure predictable serial ports now (Y/N)"
     user_input true "${prompt}"
@@ -1093,13 +1093,13 @@ post_install_msg() {
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
     echo "*                                                                                                                       *"
-	echo -e "* \033[1;32mBlueTooth:$*\033[m                                                                                                            *"
-	echo "*   ConsolePi should be discoverable (after reboot if this is the initial installation).                                *"
-	echo "*   - Configure bluetooth serial on your device and pair with ConsolePi                                                 *"
-	echo "*   - On client device attach to the com port created after the step above was completed                                *"
-	echo "*   - Once Connected the Console Menu will automatically launch allowing you to connect to any serial devices found     *"
-	echo "*   NOTE: The Console Menu is available from any shell session (bluetooth or SSH) via the consolepi-menu command        *"
-	echo "*                                                                                                                       *"
+    echo -e "* \033[1;32mBlueTooth:$*\033[m                                                                                                            *"
+    echo "*   ConsolePi should be discoverable (after reboot if this is the initial installation).                                *"
+    echo "*   - Configure bluetooth serial on your device and pair with ConsolePi                                                 *"
+    echo "*   - On client device attach to the com port created after the step above was completed                                *"
+    echo "*   - Once Connected the Console Menu will automatically launch allowing you to connect to any serial devices found     *"
+    echo "*   NOTE: The Console Menu is available from any shell session (bluetooth or SSH) via the consolepi-menu command        *"
+    echo "*                                                                                                                       *"
     echo -e "* \033[1;32mLogging:$*\033[m                                                                                                              *"
     echo "*   The bulk is sent to syslog. the tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest.      *"
     echo "*   - openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn   *"
@@ -1110,21 +1110,21 @@ post_install_msg() {
     echo "*   - consolepi-upgrade: upgrade consolepi. - using install script direct from repo | ser2net upgrade bypassed for now  *"
     echo "*   - consolepi-addssids: Add additional known ssids. same as doing sudo /etc/ConsolePi/ssids.sh                        *"
     echo "*   - consolepi-addconsole: Configure serial adapter to telnet port rules. same as doing sudo /etc/ConsolePi/udev.sh    *"
+    echo "*   - consolepi-menu: Launch Console Menu which will provide connection options for connected serial adapters           *"
+    echo "*   - consolepi-killvpn: Gracefully terminate openvpn tunnel if one is established                                      *"
     echo "*   - consolepi-autohotspot: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found  *"
-	echo "*   - consolepi-menu: Launch Console Menu which will provide connection options for connected serial adapters           *"
-	echo "*   - consolepi-killvpn: Gracefully terminate openvpn tunnel if one is established                                      *"
     echo "*       then fall-back to HotSpot mode if not found or unable to connect.                                               *"
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
     echo -e "\n\n"
     # Script Complete Prompt for reboot if first install
-	if $upgrade; then
-		echo "ConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade"
-	else
-		prompt="A reboot is required, do you want to reboot now"
-		go_reboot=$(user_input_bool)
-		$go_reboot && sudo reboot || echo "ConsolePi Install script Complete, Reboot is required"
-	fi
+    if $upgrade; then
+        echo "ConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade"
+    else
+        prompt="A reboot is required, do you want to reboot now"
+        go_reboot=$(user_input_bool)
+        $go_reboot && sudo reboot || echo "ConsolePi Install script Complete, Reboot is required"
+    fi
 }
 
 main() {

@@ -45,8 +45,9 @@ auto_install=true
 main() {
     clear
     ! $configure_wpa_supplicant && echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ top of this script"
-    my_usb=$(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/') 
-    [[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
+    my_usb=$(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/')
+    [[ -z $my_usb ]] && my_usb=$(my_usb=$( sudo fdisk -l | grep 'Disk /dev/mmcblk' | awk '{print $2}' | cut -d: -f1 | cut -d'/' -f3) && prepend=true || prepend=false
+    #[[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
 
     echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n\n"
     echo -e "Script has discovered USB flash device @ \033[1;32m ${my_usb} $*\033[m"
@@ -103,7 +104,7 @@ main() {
     [[ ! -d /mnt/usb2 ]] && sudo mkdir /mnt/usb2 && usb2_existed=false
 	# sd to micro-sd adapter ... script doesn't currently work with anything other than USB adapter.  This was a quick attempt at adding support for sdcard adapter
 	# but it's more involved and given I use a USB I didn't develop further and disabled anything but USB adapter support
-    ( [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 ) ||
+    ( [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 /mnt/usb1) ||
       sudo mount /dev/${my_usb}1 /mnt/usb1
     [[ $? > 0 ]] && exit 1
     echo "Configuring ssh to be enabled by default"
@@ -113,7 +114,7 @@ main() {
     sudo umount /mnt/usb1
 
     echo -e "SSh is now enabled\n\nMounting System Drive"
-    [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 ||
+    [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 /mnt/usb2 ||
       sudo mount /dev/${my_usb}2 /mnt/usb2
     
     #Configure simple psk SSID based on params in this script

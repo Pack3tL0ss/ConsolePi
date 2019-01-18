@@ -270,7 +270,7 @@ main() {
     ! $usb1_existed && rmdir /mnt/usb1
     ! $usb2_existed && rmdir /mnt/usb2
 
-    echo -e "\npi zero flash drive ready\n\n"
+    echo -e "\nConsolepi image ready\n\n"
     echo "Boot RaspberryPi with this image, if auto-install was disabled in script enter 'consolepi-install' to deploy ConsolePi"
 }
 

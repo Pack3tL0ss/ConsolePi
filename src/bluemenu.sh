@@ -2,19 +2,26 @@
 
 # Dynamic Console Menu
 # Creates menu items only for USB to serial adapters that are plugged in
-## this_usb=$( this=$(ls -l /sys/bus/usb-serial/devices | tail -n +2 ) && echo ${this##*/} )
-tty_list=(/sys/bus/usb-serial/devices/*)
-[[ ${tty_list[0]} == '/sys/bus/usb-serial/devices/*' ]] && tty_list=
+
+# -- Defaults --
 baud=9600
 flow="n"
 parity="n"
 dbits=8
 
+# -- Get List of all ttyUSB_ devices currently connected --
+get_tty_devices() {
+	tty_list=(/sys/bus/usb-serial/devices/*)
+	[[ ${tty_list[0]} == '/sys/bus/usb-serial/devices/*' ]] && tty_list=
+}
+
+# -- If ttyUSB device has defined alias, Display the alias in menu --
 do_get_tty_name() {
     tty_name=$(ls -l /dev |grep lrwx.*${this_tty##*/}.* |cut -d: -f2|awk '{print $2}')
     [[ -z tty_name ]] && tty_name=${this_tty##*/}
 }
 
+# -- Pretty Display text for flow control selection --
 do_flow_pretty() {
     case $flow in
         "x")
@@ -32,7 +39,7 @@ do_flow_pretty() {
      esac
 }
 
-
+# -- Flow Control Selection Menu --
 flow_menu() {
     do_flow_pretty
     valid_selection=false
@@ -67,6 +74,7 @@ flow_menu() {
     done
 }
 
+# -- Pretty Display text for Parity selection --
 do_parity_pretty() {
     case $parity in
         "o")
@@ -88,6 +96,7 @@ do_parity_pretty() {
      esac
 }
 
+# -- Parity selection menu --
 parity_menu() {
     do_parity_pretty
     valid_input=false
@@ -121,6 +130,7 @@ parity_menu() {
     done
 }
 
+# -- data-bits selection menu --
 databits_menu() {
     echo '#################################'
     echo '##  Select desired data bits   ##'
@@ -144,24 +154,43 @@ databits_menu() {
         fi
     done
 }
-    
+
+# -- baud rate selection menu --
 baud_menu() {
-    echo '#################################'
-    echo '##  Select desired baud rate.  ##'
-    echo '#################################'
-    echo ''
-    echo '1. 300'
-    echo '2. 1200'
-    echo '3. 9600 (default)'
-    echo '4. 19200'
-    echo '5. 57600'            
-    echo '6. 115200'
-    echo '7. custom'
-    echo "x. exit - baud will remain ${baud}"
-    echo ''
-    read -p "Select menu item: " selection
+    baud_valid=false
+    baud_list=(300 1200 9600 19200 57600 115200 0)
+    while ! $baud_valid; do
+		echo '#################################'
+		echo '##  Select desired baud rate.  ##'
+		echo '#################################'
+		echo ''
+		echo '1. 300'
+		echo '2. 1200'
+		echo '3. 9600 (default)'
+		echo '4. 19200'
+		echo '5. 57600'            
+		echo '6. 115200'
+		echo '7. custom'
+		echo "x. exit - baud will remain ${baud}"
+		echo ''
+		read -p "Select menu item: " selection
+		
+        if (( ! $selection == "x" )) && (( $selection > 0 )) && (( $selection < 7 )); then
+            baud=${baud_list[ (($selection-1)) ]}
+            baud_valid=true
+        elif (( $selection == 7 )); then
+            read -p "Input baud rate" baud
+            baud_valid=true
+        elif (( $selection == "x" )); then
+            baud_valid=true
+        else
+            echo -e "\nInvalid Selection Try Again\n\n"
+        fi
+
+    done
 }
 
+# -- main port configuration menu --
 port_config_menu() {
     valid_input_pcm=false
     while ! $valid_input_pcm; do
@@ -183,7 +212,7 @@ port_config_menu() {
         # Re-Print menu until exit
         case $selection in
             "1")
-             do_change_baud
+             baud_menu
              ;;
              "2")
              databits_menu
@@ -203,27 +232,8 @@ port_config_menu() {
         esac
     done
 }
-
-do_change_baud() {
-    baud_valid=false
-    baud_list=(300 1200 9600 19200 57600 115200 0)
-    while ! $baud_valid; do
-        baud_menu
-        if (( ! $selection == "x" )) && (( $selection > 0 )) && (( $selection < 7 )); then
-            baud=${baud_list[ (($selection-1)) ]}
-            baud_valid=true
-        elif (( $selection == 7 )); then
-            read -p "Input baud rate" baud
-            baud_valid=true
-        elif (( $selection == "x" )); then
-            baud_valid=true
-        else
-            echo -e "\nInvalid Selection Try Again\n\n"
-        fi
-    done
-}
     
-
+# -- ConsolePi Main Menu --
 main_menu() {
     clear
     valid_selection=false
@@ -289,9 +299,12 @@ main_menu() {
 }
 
 main() {
-    [[ -z $tty_list ]] && echo "No USB to Serial adapters found... exiting" && exit 1
-    [[ -z $(picocom --help 2>>/dev/null | head -1) ]] && echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && exit 1
-    main_menu
+    [[ $tty_list ]] && ttyusb_connected=true ||
+	    echo -e "\n*******************************\nNo USB to Serial adapters found\nNo Need to display Console Menu\n*******************************" && ttyusb_connected=false
+    [[ $(picocom --help 2>>/dev/null | head -1) ]] && dep_installed=true ||
+	    echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && dep_installed=false
+    $ttyusb_connected && $dep_installed && main_menu
 }
 
+# __main__
 main

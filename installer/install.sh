@@ -13,10 +13,10 @@
 # -- Installation Defaults --
 ver="1.1"
 iam=$(who am i | awk '{print $1}')
-consolepi_dir="/etc/ConsolePi"
-src_dir="${consolepi_dir}/src"
-orig_dir="${consolepi_dir}/originals"
-stage_dir="/home/${iam}/ConsolePi_stage"
+consolepi_dir="/etc/ConsolePi/"
+src_dir="${consolepi_dir}/src/"
+orig_dir="${consolepi_dir}/originals/"
+stage_dir="/home/${iam}/ConsolePi_stage/"
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
@@ -48,7 +48,7 @@ get_config() {
     process="get config"
     bypass_verify=false
     logit "${process}" "Starting get/build Configuration"
-    if [[ ! -f $default_config ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]] && [[ ! -f $stag_dir/ConsolePi.conf ]]; then
+    if [[ ! -f $default_config ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]] && [[ ! -f ${stage_dir}ConsolePi.conf ]]; then
         logit "${process}" "No Existing Config found - building default"
         # This indicates it's the first time the script has ran
         echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
@@ -82,7 +82,7 @@ get_config() {
             move_log
             exit 0
         fi
-    elif [[ -f "/home/${iam}/ConsolePi.conf" ]] || [[ -f $stag_dir/ConsolePi.conf ]]; then
+    elif [[ -f "/home/${iam}/ConsolePi.conf" ]] || [[ -f ${stage_dir}ConsolePi.conf ]]; then
 		found_path=$(get_staged_file_path "ConsolePi.conf")
         logit "${process}" "using provided config: ${found_path}"
         sudo mv $found_path "$default_config" ||
@@ -338,11 +338,11 @@ verify() {
 }
 
 move_log() {
-    [[ -f "${consolepi_dir}/installer/install.log.3" ]] && sudo mv "${consolepi_dir}/installer/install.log.3" "${consolepi_dir}/installer/install.log.4"
-    [[ -f "${consolepi_dir}/installer/install.log.2" ]] && sudo mv "${consolepi_dir}/installer/install.log.2" "${consolepi_dir}/installer/install.log.3"
-    [[ -f "${consolepi_dir}/installer/install.log.1" ]] && sudo mv "${consolepi_dir}/installer/install.log.1" "${consolepi_dir}/installer/install.log.2"
-    [[ -f "${consolepi_dir}/installer/install.log" ]] && sudo mv "${consolepi_dir}/installer/install.log" "${consolepi_dir}/installer/install.log.1"
-    mv $tmp_log "${consolepi_dir}/installer/install.log" || echo -e "\n!!!!\nFailed to move install.log from ${tmp_log}\n!!!!"
+    [[ -f "${consolepi_dir}installer/install.log.3" ]] && sudo mv "${consolepi_dir}installer/install.log.3" "${consolepi_dir}installer/install.log.4"
+    [[ -f "${consolepi_dir}installer/install.log.2" ]] && sudo mv "${consolepi_dir}installer/install.log.2" "${consolepi_dir}installer/install.log.3"
+    [[ -f "${consolepi_dir}installer/install.log.1" ]] && sudo mv "${consolepi_dir}installer/install.log.1" "${consolepi_dir}installer/install.log.2"
+    [[ -f "${consolepi_dir}installer/install.log" ]] && sudo mv "${consolepi_dir}installer/install.log" "${consolepi_dir}installer/install.log.1"
+    mv $tmp_log "${consolepi_dir}installer/install.log" || echo -e "\n!!!!\nFailed to move install.log from ${tmp_log}\n!!!!"
 }
 
 logit() {
@@ -464,7 +464,7 @@ updatepi () {
     process="Update/Upgrade ConsolePi (apt)"
     logit "${process}" "Update Sources"
     # Only update if initial install (no install.log) or if last update was not today
-    if [[ ! -f "${consolepi_dir}/installer/install.log" ]] || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
+    if [[ ! -f "${consolepi_dir}installer/install.log" ]] || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
         sudo apt-get update 1>/dev/null 2>> $tmp_log && logit "${process}" "Update Successful" || logit "${process}" "FAILED to Update" "ERROR"
     else
         logit "${process}" "Skipping Source Update - Already Updated today"
@@ -628,7 +628,7 @@ install_ovpn() {
             logit "${process}" "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in /etc/ConsolePi/src" "WARNING" ||
             logit "${process}" "Error occurred moving your ovpn config" "WARNING"
 	else
-        [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && sudo cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client" ||
+        [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && sudo cp "${src_dir}ConsolePi.ovpn.example" "/etc/openvpn/client" ||
             logit "${process}" "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
     fi
     
@@ -638,7 +638,7 @@ install_ovpn() {
 		logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving to /etc/openvpn/client"  ||
 		logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
 	else
-        [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client" ||
+        [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}ovpn_credentials" "/etc/openvpn/client" ||
             logit "${process}" "Retaining existing ovpn_credentials file. See src dir for original example file."
     fi
             
@@ -693,7 +693,7 @@ ovpn_logging() {
 install_autohotspotn () {
     process="AutoHotSpotN"
     logit "${process}" "Install AutoHotSpotN"
-    [[ -f "${src_dir}/autohotspotN" ]] && cp "${src_dir}/autohotspotN" /usr/bin 1>/dev/null 2>> $tmp_log
+    [[ -f "${src_dir}autohotspotN" ]] && cp "${src_dir}autohotspotN" /usr/bin 1>/dev/null 2>> $tmp_log
     [[ $? == 0 ]] && logit "${process}" "Create autohotspotN script Success" || logit "${process}" "Failed to create autohotspotN script" "WARNING"
         
     chmod +x /usr/bin/autohotspotN 1>/dev/null 2>> $tmp_log ||
@@ -716,7 +716,8 @@ install_autohotspotn () {
         logit "${process}" "An error occurred disabling hostapd and/or dnsmasq autostart" "WARNING"
 
     logit "${process}" "Create/Configure hostapd.conf"
-    [[ -f "/etc/hostapd/hostapd.conf" ]] && mv "/etc/hostapd/hostapd.conf" "${orig_dir}" && logit "${process}" "existing hostapd.conf found, backed up to originals folder"
+    [[ -f "/etc/hostapd/hostapd.conf" ]] && sudo mv "/etc/hostapd/hostapd.conf" "${orig_dir}" && 
+	    logit "${process}" "existing hostapd.conf found, backed up to originals folder"
     echo "driver=nl80211" > "/tmp/hostapd.conf"
     echo "ctrl_interface=/var/run/hostapd" >> "/tmp/hostapd.conf"
     echo "ctrl_interface_group=0" >> "/tmp/hostapd.conf"
@@ -772,7 +773,7 @@ install_autohotspotn () {
         echo "source-directory /etc/network/interfaces.d" >> "/tmp/interfaces"
         mv /etc/network/interfaces "${orig_dir}" 1>/dev/null 2>> $tmp_log ||
             logit "${process}" "Failed to backup original interfaces file" "WARNING"
-        mv "/tmp/interfaces" "/etc/network" 1>/dev/null 2>> $tmp_log ||
+        mv "/tmp/interfaces" "/etc/network/" 1>/dev/null 2>> $tmp_log ||
             logit "${process}" "Failed to move interfaces file" "WARNING"
     fi
 
@@ -817,7 +818,7 @@ gen_dnsmasq_conf () {
     echo "# for the default-gateway on/off based on eth0 status function to work" >> /tmp/dnsmasq.conf
     common_text="interface=wlan0\nbogus-priv\ndomain-needed\ndhcp-range=${wlan_dhcp_start},${wlan_dhcp_end},255.255.255.0,12h\ndhcp-option=wlan0,3\n"
     echo -e "$common_text" >> /tmp/dnsmasq.conf
-    [[ -f "/etc/dnsmasq.conf" ]] && mv "/etc/dnsmasq.conf" "${orig_dir}" && logit "${process}" "Existing dnsmasq.conf backed up to originals folder"
+    [[ -f "/etc/dnsmasq.conf" ]] && mv "/etc/dnsmasq.conf" $orig_dir && logit "${process}" "Existing dnsmasq.conf backed up to originals folder"
     mv "/tmp/dnsmasq.conf" "/etc/dnsmasq.conf" 1>/dev/null 2>> $tmp_log ||
             logit "${process}" "Failed to Deploy ConsolePi dnsmasq.conf configuration" "WARNING"
 }
@@ -966,8 +967,8 @@ get_known_ssids() {
 				private_key=$(grep private_key= $found_path | cut -d'"' -f2| cut -d'"' -f1)
 				if [[ -d /home/${iam}/cert ]]; then
 					cd /home/$iam/cert     # if user home contains cert subdir look there for certs - otherwise look in stage subdir
-				elif [[ -d $stage_dir/cert ]]; then
-					cd $stage_dir/cert
+				elif [[ -d ${stage_dir}cert ]]; then
+					cd ${stage_dir}cert
 				fi
 					
 				[[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...
@@ -984,8 +985,8 @@ get_known_ssids() {
     continue=$result
 
     if $continue; then
-        if [ -f $consolepi_dir/installer/ssids.sh ]; then
-            . $consolepi_dir/installer/ssids.sh
+        if [ -f ${consolepi_dir}installer/ssids.sh ]; then
+            . ${consolepi_dir}installer/ssids.sh
             known_ssid_init
             known_ssid_main
             mv $wpa_supplicant_file $orig_dir 1>/dev/null 2>> $tmp_log ||
@@ -1088,8 +1089,8 @@ get_serial_udev() {
     prompt="Would you like to configure predictable serial ports now (Y/N)"
     user_input true "${prompt}"
     if $result ; then
-        if [ -f $consolepi_dir/installer/udev.sh ]; then
-            . $consolepi_dir/installer/udev.sh
+        if [ -f ${consolepi_dir}installer/udev.sh ]; then
+            . ${consolepi_dir}installer/udev.sh
             udev_main
         else
             logit "${process}" "ERROR udev.sh not available in installer directory" "WARNING"
@@ -1128,7 +1129,7 @@ post_install_msg() {
     echo "*   The bulk is sent to syslog. the tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest.      *"
     echo "*   - openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn   *"
     echo "*   - pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log                *"
-    echo "*   - An install log can be found in ${consolepi_dir}/installer/install.log                                               *"
+    echo "*   - An install log can be found in ${consolepi_dir}installer/install.log                                               *"
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mConsolePi Commands:$*\033[m                                                                                                   *"
     echo "*   - consolepi-upgrade: upgrade consolepi. - using install script direct from repo | ser2net upgrade bypassed for now  *"
@@ -1164,7 +1165,7 @@ main() {
             verify
         done
         update_config
-        if [[ ! -f "${consolepi_dir}/installer/install.log" ]]; then 
+        if [[ ! -f "${consolepi_dir}installer/install.log" ]]; then 
             chg_password
             set_hostname
             set_timezone

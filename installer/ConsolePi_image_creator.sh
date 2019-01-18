@@ -91,22 +91,24 @@ main() {
 
     # Display fdisk -l output if user wants to verify the correct drive is selected
     if $input; then
-    echo "Displaying fdisk -l output in 'less' press q to quit"
-    sleep 3
-    sudo fdisk -l | less
+        echo "Displaying fdisk -l output in 'less' press q to quit"
+        sleep 3
+        sudo fdisk -l | less
+    else
+        echo -e '\n\n'
     fi
     
     # Give user chance to change target drive
-    echo -e "Press enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device i.e. 'sdc' or 'mmcblk0'"
-    read -p "Device to flash with image [${my_usb}]:" drive
+    echo -e "Press enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
+    read -p "Device to flash with image [\033[1;32m${my_usb}$*\033[m]:" drive
     [[ ! -z $drive ]] && my_usb=$drive
     [[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
 
     # umount device if currently mounted
     go_umount=true
     while $go_umount; do
-    mount_point=$(mount | tail -1 | grep "${my_usb}" | awk '{print $3}')
-    [[ ! -z $mount_point ]] && sudo umount $mount_point && echo "un-mounting $mount_point" || go_umount=false
+        mount_point=$(mount | tail -1 | grep "${my_usb}" | awk '{print $3}')
+        [[ ! -z $mount_point ]] && sudo umount $mount_point && echo "un-mounting $mount_point" || go_umount=false
     done
 
     # get raspbian-lite image if not in script dir

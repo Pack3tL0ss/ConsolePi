@@ -46,26 +46,26 @@ get_input() {
     valid_input=false
     read -p "${prompt}" input
     while ! $valid_input; do
-		if [[ ! -z $input ]]; then 
-			case ${input,,} in
-				'y'|'yes')
-				input=true
-				valid_input=true
-				;;
-				'n'|'no')
-				input=false
-				valid_input=true
-				;;
-				'exit')
-				echo 'Exiting Script based on user input'
-				exit 1
-				;;
-				*)
-				valid_input=false
-				echo -e '\n\n!!! Invalid Input !!!\n\n'
-				;;
-			esac
-		fi
+        if [[ ! -z $input ]]; then 
+            case ${input,,} in
+                'y'|'yes')
+                input=true
+                valid_input=true
+                ;;
+                'n'|'no')
+                input=false
+                valid_input=true
+                ;;
+                'exit')
+                echo 'Exiting Script based on user input'
+                exit 1
+                ;;
+                *)
+                valid_input=false
+                echo -e '\n\n!!! Invalid Input !!!\n\n'
+                ;;
+            esac
+        fi
     done
 }
 
@@ -157,25 +157,7 @@ main() {
         do_unzip "${cur_rel}.zip"
         ((retry++))
     done
-            
-    ### Old Download function replaced by above
-    # retry=0
-    # while [[ -z $img_file ]] ; do
-            # # wget https://downloads.raspberrypi.org/raspbian_lite_latest
-            # if [[ ! $(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}') ]]; then
-                # echo "no image found in $(pwd) downloading image from raspberrypi.org"
-                # curl -JLO https://downloads.raspberrypi.org/raspbian_lite_latest
-            # else
-                # echo "found $(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}') extracting img..."
-# #                found_date=$(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}' | cut -d'-' -f1-3)
-            # fi
-            # zip_file=$(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}')
-            # unzip $zip_file
-            # img_file=$(ls -lc *raspbian-stretch-lite.zip 2>>/dev/null | awk '{print $9}')
-            # ((retry++))
-            # [[ -z $img_file ]] && [[ $retry > 2 ]] && echo "exceeded retries exiting " && exit 1
-    # done
-    
+   
     # Burn Raspian image to device (micro-sd)
     echo -e "\n\n!!! Last chance to abort !!!"
     echo "About to burn ${img_file} to ${my_usb}, Continue (y/n):" 

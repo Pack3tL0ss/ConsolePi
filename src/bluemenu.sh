@@ -302,7 +302,6 @@ main_menu() {
 
 main() {
 	get_tty_devices
-	echo $tty_list
     if [[ $tty_list ]]; then
 	    ttyusb_connected=true
 	else
@@ -314,8 +313,7 @@ main() {
 		ttyusb_connected=false
 	fi
     [[ $(picocom --help 2>>/dev/null | head -1) ]] && dep_installed=true ||
-	    echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && dep_installed=false
-	echo $ttyusb_connected $dep_installed
+	    ( echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && dep_installed=false )
     $ttyusb_connected && $dep_installed && main_menu
 }
 

@@ -914,6 +914,15 @@ EOF
         logit "${process}" "blue user already configured to launch menu on Login"
     fi
 
+	# Configure blue user default tty cols/rows
+    if [[ ! $(sudo grep stty /home/blue/.bashrc) ]]; then
+        sudo echo stty rows 70 cols 150 | sudo tee -a /home/blue/.bashrc > /dev/null && 
+            logit "${process}" "Changed default Bluetooth tty rows cols" || 
+            logit "${process}" "FAILED to change default Bluetooth tty rows cols" "WARNING"
+    else
+        logit "${process}" "blue user tty rows cols already configured"
+    fi
+	
     # Install picocom
     if [[ $(picocom --help 2>/dev/null | head -1) ]]; then 
         logit "${process}" "picocom $(picocom --help 2>/dev/null | head -1) is already installed"

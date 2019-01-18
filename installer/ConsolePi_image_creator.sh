@@ -44,7 +44,9 @@ auto_install=true
 
 main() {
     clear
-    ! $configure_wpa_supplicant && echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ top of this script"
+    ! $configure_wpa_supplicant && [[ ! -f "${pwd}/wpa_supplicant.conf" ]] && 
+		echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ top of this script"
+		
     my_usb=$(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/')
     [[ ! -z $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
     [[ $boot_list =~ $my_usb ]] && my_usb=    # if usb device found make sure it's not marked as bootable if so reset my_usb so we can check for sd card adapter

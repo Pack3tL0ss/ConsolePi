@@ -42,11 +42,43 @@ priority=0
 # This option Configures ConsolePi image to install on first boot automatically
 auto_install=true
 
+get_input() {
+    valid_input=false
+    read -p "${prompt}" input
+    while ! $valid_input; do
+    if [[ ! -z $input ]]; then 
+        case ${input,,} in
+            'y'|'yes')
+            input=true
+            valid_input=true
+            ;;
+            'n'|'no')
+            input=false
+            valid_input=true
+            ;;
+            'exit')
+            echo 'Exiting Script based on user input'
+            exit 1
+            ;;
+            *)
+            valid_input=false
+            echo -e '\n\n!!! Invalid Input !!!\n\n'
+            ;;
+        esac
+    done
+}
+
+do_unzip() {
+    unzip $1
+    img_file=$(ls -lc "${1%zip}.img" 2>>/dev/null | awk '{print $9}')
+    [[ -z $img_file ]] && echo 'Something went wrong img file not found after unzip... exiting' && exit 1
+}
+
 main() {
     clear
     ! $configure_wpa_supplicant && [[ ! -f "${pwd}/wpa_supplicant.conf" ]] && 
-		echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ top of this script"
-		
+        echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ top of this script"
+        
     my_usb=$(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/')
     [[ ! -z $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
     [[ $boot_list =~ $my_usb ]] && my_usb=    # if usb device found make sure it's not marked as bootable if so reset my_usb so we can check for sd card adapter
@@ -54,25 +86,23 @@ main() {
     ####[[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
 
     echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n\n"
-    echo -e "Script has discovered USB flash device @ \033[1;32m ${my_usb} $*\033[m"
-    read -p "Do you want to see fdisk details for all disks to verify? (y/n): " input
-    if [[ ! -z $input ]]; then 
-        ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ]) && input=true || input=false
-    else
-        input=true
-    fi
+    echo -e "Script has discovered USB flash device @ \033[1;32m ${my_usb} $*\033[m\n'exit' will abort script\n"
+    prompt="Do you want to see fdisk details for all disks to verify? (y/n): "
+    get_input
+
+    # Display fdisk -l output if user wants to verify the correct drive is selected
     if $input; then
     echo "Displaying fdisk -l output in 'less' press q to quit"
     sleep 3
     sudo fdisk -l | less
     fi
-
-    echo -e "Press enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device i.e. 'sdc'"
+    
+    # Give user chance to change target drive
+    echo -e "Press enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device i.e. 'sdc' or 'mmcblk0'"
     read -p "Device to flash with image [${my_usb}]:" drive
     [[ ! -z $drive ]] && my_usb=$drive
     [[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
-    #echo -e "This script is going to flash the drive \033[1;32m ${my_usb} $*\033[m with raspian image\n Ctrl-C now to abort or press Enter to Continue"
-    #read
+
     # umount device if currently mounted
     go_umount=true
     while $go_umount; do
@@ -80,46 +110,103 @@ main() {
     [[ ! -z $mount_point ]] && sudo umount $mount_point && echo "un-mounting $mount_point" || go_umount=false
     done
 
-    echo "getting image"
-    retry=0
-    img_file=$(ls -lc *raspbian*-lite.img 2>>/dev/null | awk '{print $9}')
+    # get raspbian-lite image if not in script dir
+    echo "getting raspbian-lite image"
+    
+    # Find out what current raspbian release is
+    cur_rel=$(curl -sIL https://downloads.raspberrypi.org/raspbian_lite_latest | 
+        grep -o -E "[0-9]{4}-[0-9]{2}-[0-9]{2}-raspbian-[a-z,A-Z]*-lite.zip" | head -1 | cut -d'.' -f1)
+    
+    # Check to see if any images exist in script dir already
+    found_img_file=$(ls -lc *raspbian*-lite.img 2>>/dev/null | awk '{print $9}')
+    found_img_zip=$(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}')
+    # img_file=$(ls -lc "${found_img_file}.img" 2>>/dev/null | awk '{print $9}')
+    
+    # If img or zip raspbian-lite image exists in script dir see if it is current
+    # if not prompt user to determine if they want to download current
+    if [[ $found_img_file ]]; then
+        if [[ ! ${found_img_file%.img} == $cur_rel ]]; then
+            echo "${found_img_file%.img} found, but the latest available release is ${cur_rel}"
+            prompt="Would you like to download and use the latest release? (${cur_rel}) (y/n):"
+            get_input
+            $input || img_file=$found_img_file
+        else
+            img_file=$found_img_file
+        fi
+    elif [[ $found_img_zip ]]; then
+        if [[ ! ${found_img_zip%.zip} == $cur_rel ]]; then
+            echo "${found_img_zip%.zip} found, but the latest available release is ${cur_rel}"
+            prompt="Would you like to download and use the latest release? (${cur_rel}) (y/n):"
+            get_input
+            $input || do_unzip $found_img_zip #img_file assigned in do_unzip
+        else
+            do_unzip $found_img_zip
+            #img_file assigned in do_unzip
+        fi
+    else
+        echo "no image found in $(pwd)"
+    fi
+    
+    # img_file will only be assigned if an image was found in the script dir
+    retry=1
     while [[ -z $img_file ]] ; do
-            echo "no image found in $(pwd) downloading image from raspberrypi.org"
-            # wget https://downloads.raspberrypi.org/raspbian_lite_latest
-            curl -JLO https://downloads.raspberrypi.org/raspbian_lite_latest
-            zip_file=$(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}')
-            unzip $zip_file
-            img_file=$(ls -lc *raspbian-stretch-lite.zip 2>>/dev/null | awk '{print $9}')
-            ((retry++))
-            [[ -z $img_file ]] && [[ $retry > 2 ]] && echo "exceeded retries exitting " && exit 1
-    done
+        [[ $retry > 3 ]] && echo "Exceeded retries exiting " && exit 1
+        echo "downloading image from raspberrypi.org.  Attempt: ${retry}"
+        curl -JLO https://downloads.raspberrypi.org/raspbian_lite_latest
+        do_unzip "${cur_rel}.zip"
+        ((retry++))
+    fi
+            
+    ### Old Download function replaced by above
+    # retry=0
+    # while [[ -z $img_file ]] ; do
+            # # wget https://downloads.raspberrypi.org/raspbian_lite_latest
+            # if [[ ! $(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}') ]]; then
+                # echo "no image found in $(pwd) downloading image from raspberrypi.org"
+                # curl -JLO https://downloads.raspberrypi.org/raspbian_lite_latest
+            # else
+                # echo "found $(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}') extracting img..."
+# #                found_date=$(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}' | cut -d'-' -f1-3)
+            # fi
+            # zip_file=$(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}')
+            # unzip $zip_file
+            # img_file=$(ls -lc *raspbian-stretch-lite.zip 2>>/dev/null | awk '{print $9}')
+            # ((retry++))
+            # [[ -z $img_file ]] && [[ $retry > 2 ]] && echo "exceeded retries exiting " && exit 1
+    # done
     
     # Burn Raspian image to device (micro-sd)
-    echo -e "\n\nLast chance to abort!! (ctrl+c)"
-    echo "Press any key to burn ${img_file} to ${my_usb}" 
-    read
-    echo -e "Now Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"
+    echo -e "\n\n!!! Last chance to abort !!!"
+    echo "About to burn ${img_file} to ${my_usb}, Continue (y/n):" 
+    get_input
+    ! $input && echo 'Exiting Script based on user input' && exit 1
+    echo -e "\nNow Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"
     sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo -e "\n\n\033[1;32mImage written to flash - no Errors$*\033[m\n\n" || 
-        echo "\n\n\033[1;32mError occurred burning image $*\033[m\n\n"
+        ( echo "\n\n\033[1;32mError occurred burning image $*\033[m\n\n" && exit 1 )
 
-    echo "Mounting boot to enable ssh"
-    # Create some mount-points
-    [[ ! -d /mnt/usb1 ]] && sudo mkdir /mnt/usb1 && usb1_existed=false
-    [[ ! -d /mnt/usb2 ]] && sudo mkdir /mnt/usb2 && usb2_existed=false
-    # sd to micro-sd adapter ... script doesn't currently work with anything other than USB adapter.  This was a quick attempt at adding support for sdcard adapter
-    # but it's more involved and given I use a USB I didn't develop further and disabled anything but USB adapter support
-    ( [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 /mnt/usb1) ||
-      sudo mount /dev/${my_usb}1 /mnt/usb1
-    [[ $? > 0 ]] && exit 1
-    echo "Configuring ssh to be enabled by default"
-    sudo touch /mnt/usb1/ssh
+    echo "Mounting boot partition to enable ssh"
+    # Create some mount-points if they don't exist already.  Script will remove them if it has to create them, they will remain if they were already there
+    [[ ! -d /mnt/usb1 ]] && sudo mkdir /mnt/usb1 && usb1_existed=false || usb1_existed=true
+    [[ ! -d /mnt/usb2 ]] && sudo mkdir /mnt/usb2 && usb2_existed=false || usb2_existed=true
+
+    # Mount boot partition
+    ( [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 /mnt/usb1 ) || sudo mount /dev/${my_usb}1 /mnt/usb1
+    [[ $? > 0 ]] && echo 'Error mounting boot partition' && exit 1
+    
+    # Create empty file ssh in boot partition
+    echo "Enabling ssh on image"
+    sudo touch /mnt/usb1/ssh || && echo -e "SSh is now enabled\n" || echo 'Error enabling SSH... script will continue anyway'
+    
     # move any overlay files to /boot/overlays (usb1/overlays)
     [[ -f $(ls *.dtbo) ]] && cp *.dtbo /mnt/usb1/overlays && echo "found overlay files in script dir moved to /boot/overlays dir"
+    
+    # Done with boot partition unmount
     sudo umount /mnt/usb1
 
-    echo -e "SSh is now enabled\n\nMounting System Drive"
+    echo -e "\n\nMounting System partition to Configure ConsolePi auto-install and copy over any pre-config files found in script dir"
     [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 /mnt/usb2 ||
       sudo mount /dev/${my_usb}2 /mnt/usb2
+    [[ $? > 0 ]] && echo 'Error mounting system partition' && exit 1
     
     #Configure simple psk SSID based on params in this script
     if $configure_wpa_supplicant; then
@@ -130,23 +217,26 @@ main() {
         sudo echo "        psk=\"${psk}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         [[ $priority > 0 ]] && sudo echo "        priority=${priority}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+    else
+        echo 'Script Option to pre-config psk ssid not enabled'
     fi
    
-    # first-boot script
+    # Configure pi user to auto-launch ConsolePi installer on first-login
     if $auto_install; then
+        echo 'auto-install enabled, configuring pi user to auto-launch ConsolePi installer on first-login'
         sudo echo "consolepi-install" >> /mnt/usb2/home/pi/.bashrc
     fi
 
+    # create auto install command/script
     [[ ! -d /mnt/usb2/usr/local/bin ]] && sudo mkdir /mnt/usb2/usr/local/bin
     sudo echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install
     sudo echo "sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi" \
           >> /mnt/usb2/usr/local/bin/consolepi-install
 
     # make install command/script executable
-    sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install
-    echo
+    sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install || echo 'ERROR making consolepi-install command/script executable'
 
-    # Look for pre-configuration files in users home dir
+    # Look for pre-configuration files in script dir.  Also if ConsolePi_stage subdir is found in script dir cp the dir to the ConsolePi image
     cur_dir=$(pwd)
     pi_home="/mnt/usb2/home/pi"
     [[ -f "${cur_dir}/ConsolePi.conf" ]] && cp "${cur_dir}/ConsolePi.conf" $pi_home  && echo "ConsolePi.conf found pre-staging on image"
@@ -154,7 +244,9 @@ main() {
     [[ -f "${cur_dir}/ovpn_credentials" ]] && cp "${cur_dir}/ovpn_credentials" $pi_home && echo "ovpn_credentials found pre-staging on image"
     [[ -d "${cur_dir}/ConsolePi_stage" ]] && sudo mkdir $pi_home/staged && sudo cp "${cur_dir}"/ConsolePi_stage/* $pi_home/staged && echo "ConsolePi_stage dir found Pre-Staging all files"
     
-    # if wpa_supplicant.conf exist in script dir cp it to image extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
+    # if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.
+    # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
+    #   certs should be in script dir or 'cert' subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
     if [[ -f "${cur_dir}/wpa_supplicant.conf" ]]; then
         echo "wpa_supplicant.conf found pre-staging on image"
         sudo cp "${cur_dir}/wpa_supplicant.conf" /mnt/usb2/etc/wpa_supplicant
@@ -175,13 +267,15 @@ main() {
         fi
     fi    
 
+    # Done prepping system partition un-mount
     sudo umount /mnt/usb2
+    
     # Remove our mount_points if they didn't happen to already exist when the script started
     ! $usb1_existed && rmdir /mnt/usb1
     ! $usb2_existed && rmdir /mnt/usb2
 
     echo -e "\npi zero flash drive ready\n\n"
-    echo "Boot RaspberryPi with this image, then enter 'consolepi-install' to deploy ConsolePi"
+    echo "Boot RaspberryPi with this image, if auto-install was disabled in script enter 'consolepi-install' to deploy ConsolePi"
 }
 
 

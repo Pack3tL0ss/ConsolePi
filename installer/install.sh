@@ -1057,7 +1057,7 @@ get_serial_udev() {
     echo
     if [[ -f /etc/udev/rules.d/10-consolePi.rules ]]; then
         echo "------------ Existing rules file found with the following rules, adding ports will append to these rules ------------"
-        cat /etc/udev/rules.d/10-ConsolePi.rules
+        cat /etc/udev/rules.d/10-consolePi.rules
         echo "---------------------------------------------------------------------------------------------------------------------"
     fi
     echo "You need to have the serial adapters you want to map to specific telnet ports available"

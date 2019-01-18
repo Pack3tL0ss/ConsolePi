@@ -77,7 +77,7 @@ do_unzip() {
 
 main() {
     clear
-    if ! $configure_wpa_supplicant && [[ ! -f "$(pwd)/wpa_supplicant.conf" ]]; then
+    if ! $configure_wpa_supplicant && [[ ! -f "$(pwd)/wpa_supplicant.conf" ]] && [[ ! -f "$(pwd)/ConsolePi_stage/wpa_supplicant.conf" ]]; then
         echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @"
         echo "top of this script *or* provide wpa_supplicant.conf in script directory."
     fi

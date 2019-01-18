@@ -195,7 +195,9 @@ main() {
     sudo touch /mnt/usb1/ssh && echo -e "SSh is now enabled\n" || echo 'Error enabling SSH... script will continue anyway'
     
     # move any overlay files to /boot/overlays (usb1/overlays)
-    [[ -f $(ls *.dtbo) ]] && cp *.dtbo /mnt/usb1/overlays && echo "found overlay files in $(pwd) moved to /boot/overlays dir"
+    [[ -f $(ls *.dtbo) ]] && sudo cp *.dtbo /mnt/usb1/overlays && echo "found overlay files in $(pwd) moved to /boot/overlays dir"
+	[[ -d ConsolePi_stage ]] && [[ -f $(ls ConsolePi_stage/*.dtbo) ]] && sudo cp ConsolePi_stage/*.dtbo /mnt/usb1/overlays && 
+	    echo "found overlay files in $(pwd)/ConsolePi_stage copied to /boot/overlays dir"
     
     # Done with boot partition unmount
     sudo umount /mnt/usb1
@@ -238,7 +240,8 @@ main() {
     [[ -f "${cur_dir}/ConsolePi.conf" ]] && cp "${cur_dir}/ConsolePi.conf" $pi_home  && echo "ConsolePi.conf found pre-staging on image"
     [[ -f "${cur_dir}/ConsolePi.ovpn" ]] && cp "${cur_dir}/ConsolePi.ovpn" $pi_home && echo "ConsolePi.ovpn found pre-staging on image"
     [[ -f "${cur_dir}/ovpn_credentials" ]] && cp "${cur_dir}/ovpn_credentials" $pi_home && echo "ovpn_credentials found pre-staging on image"
-    [[ -d "${cur_dir}/ConsolePi_stage" ]] && sudo mkdir $pi_home/staged && 
+	[[ -f "${cur_dir}/ConsolePi_init.sh" ]] && cp "${cur_dir}/ConsolePi_init.sh" $pi_home && echo "Custome Post install script found pre-staging on image"
+    [[ -d "${cur_dir}/ConsolePi_stage" ]] && sudo mkdir $pi_home/ConsolePi_stage && 
 	    sudo cp "${cur_dir}"/ConsolePi_stage/* $pi_home/ConsolePi_stage && echo "ConsolePi_stage dir found Pre-Staging all files"
     
     # if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.

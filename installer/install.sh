@@ -1099,6 +1099,18 @@ get_serial_udev() {
     logit "${process}" "${process} Complete"
 }
 
+# -- run custom post install script --
+custom_post_install_script() {
+	found_path=$(get_staged_file_path "ConsolePi_init.sh")
+	if [[ $found_path ]]; then
+		process="Run Custom Post-install script"
+		logit $process "Post install script $found_path found. Executing"
+		sudo $found_path || logit $process "Error Code returned Post Install script" "WARNING"
+	fi
+}
+
+
+
 post_install_msg() {
     echo
     echo "*********************************************** Installation Complete ***************************************************"
@@ -1186,6 +1198,7 @@ main() {
         get_known_ssids
         get_serial_udev
         move_log
+		custom_post_install_script
         post_install_msg
     else
       echo 'Script should be ran as root. exiting.'

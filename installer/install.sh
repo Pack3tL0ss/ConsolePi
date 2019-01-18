@@ -45,7 +45,7 @@ get_config() {
         echo "vpn_check_ip=\"10.0.150.1\"                    # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
         echo "net_check_ip=\"8.8.8.8\"                        # used to check internet connectivity" >> "${default_config}"
         echo "local_domain=\"arubalab.net\"                    # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
-        echo "wlan_ip=\"10.3.0.1\"                        # IP of consolePi when in hotspot mode" >> "${default_config}"
+        echo "wlan_ip=\"10.3.0.1\"                        # IP of ConsolePi when in hotspot mode" >> "${default_config}"
         echo "wlan_ssid=\"ConsolePi\"                        # SSID used in hotspot mode" >> "${default_config}"
         echo "wlan_psk=\"ChangeMe!!\"                        # psk used for hotspot SSID" >> "${default_config}"
         echo "wlan_country=\"US\"                        # regulatory domain for hotspot SSID" >> "${default_config}"
@@ -89,7 +89,7 @@ update_config() {
     echo "vpn_check_ip=\"${vpn_check_ip}\"            # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
     echo "net_check_ip=\"${net_check_ip}\"            # used to check internet connectivity" >> "${default_config}"
     echo "local_domain=\"${local_domain}\"            # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
-    echo "wlan_ip=\"${wlan_ip}\"                      # IP of consolePi when in hotspot mode" >> "${default_config}"
+    echo "wlan_ip=\"${wlan_ip}\"                      # IP of ConsolePi when in hotspot mode" >> "${default_config}"
     echo "wlan_ssid=\"${wlan_ssid}\"                  # SSID used in hotspot mode" >> "${default_config}"
     echo "wlan_psk=\"${wlan_psk}\"                    # psk used for hotspot SSID" >> "${default_config}"
     echo "wlan_country=\"${wlan_country}\"            # regulatory domain for hotspot SSID" >> "${default_config}"
@@ -197,10 +197,6 @@ user_input() {
 }
 
 collect() {
-    # if [ -f /etc/consolePi/config ] && [ ${#1} -eq 0 ]; then
-        # . /etc/consolePi/config
-    # else
-    # PushBullet
     header
     prompt="Configure ConsolePi to send notifications via PushBullet? (Y/N)"
     user_input $push "${prompt}"
@@ -1036,13 +1032,13 @@ get_serial_udev() {
     process="Predictable Console Ports"
     logit "${process}" "${process} Starting."
     header
-    if [[ -f 10-consolePi.rules ]]; then
+    if [[ -f 10-ConsolePi.rules ]]; then
         echo "udev rules file found in $(pwd) enabling provided udev rules"
-        sudo cp 10-consolePi.rules /etc/udev/rules.d
+        sudo cp 10-ConsolePi.rules /etc/udev/rules.d
         sudo udevadm control --reload-rules
-    elif [[ -f staged/10-consolePi.rules ]]; then
+    elif [[ -f staged/10-ConsolePi.rules ]]; then
         echo "udev rules file found in $(pwd)/staged enabling provided udev rules"
-        sudo cp staged/10-consolePi.rules /etc/udev/rules.d
+        sudo cp staged/10-ConsolePi.rules /etc/udev/rules.d
         sudo udevadm control --reload-rules
     fi
     echo
@@ -1055,9 +1051,9 @@ get_serial_udev() {
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
-    if [[ -f /etc/udev/rules.d/10-consolePi.rules ]]; then
+    if [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]]; then
         echo "------------ Existing rules file found with the following rules, adding ports will append to these rules ------------"
-        cat /etc/udev/rules.d/10-consolePi.rules
+        cat /etc/udev/rules.d/10-ConsolePi.rules
         echo "---------------------------------------------------------------------------------------------------------------------"
     fi
     echo "You need to have the serial adapters you want to map to specific telnet ports available"

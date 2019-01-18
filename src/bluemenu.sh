@@ -304,10 +304,10 @@ main() {
 	    ttyusb_connected=true
 	else
 	    echo -e "\n*******************************"
-		echo -e "\nNo USB to Serial adapters found"
-		echo -e "\nNo Need to display Console Menu"
-		echo -e "\n 'consolepi-menu' to re-launch "
-		echo -e "\n*******************************\n"
+		echo -e "No USB to Serial adapters found"
+		echo -e "No Need to display Console Menu"
+		echo -e " 'consolepi-menu' to re-launch "
+		echo -e "*******************************\n"
 		ttyusb_connected=false
 	fi
     [[ $(picocom --help 2>>/dev/null | head -1) ]] && dep_installed=true ||

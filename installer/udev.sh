@@ -3,27 +3,27 @@
 udev_init(){
     shopt -s nocasematch
     input="go"
-    rules_file='/etc/udev/rules.d/10-consolePi.rules'
+    rules_file='/etc/udev/rules.d/10-ConsolePi.rules'
     ser2net_conf='/etc/ser2net.conf'
     process="Predictable Console Ports"
     [[ ! -f "/tmp/consolepi_install.log" ]] && touch /tmp/consolepi_install.log
 }
 
 header() {
-clear
-echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m -------------------------------------------------"
-echo "* This script will automatically create udev rules and assign aliases for each USB to serial device (or pig-tail).      *"
-echo "* You should label the adapters.                                                                                        *"
-echo "*                                                                                                                       *"
-echo "* I've Found that some serial adapters in combination with some otg USB hubs may cause the Pi zero w to reboot when     *"
-echo "* plugged in.  If this occurs just run the /etc/ConsolePi/udev.sh script after the reboot completes starting with the   *"
-echo "* adapter that caused the reboot.  The config should retain any previously configured adapters and pick-up at the next  *"
-echo "* available port.  This is the last step in the installation script so there is no need to re-run the installer.        *"
-echo "-------------------------------------------------------------------------------------------------------------------------"
-echo
-echo "** Insert single port adapters 1 at a time"
-echo "** If you have a multi-port (pig-tail) adapter you can use this script to assign those ports, but you'll have to connect"
-echo "** to the ports after setup to determine which pigtail is assigned to each port - then label the pig-tails." 
+	clear
+	echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m -------------------------------------------------"
+	echo "* This script will automatically create udev rules and assign aliases for each USB to serial device (or pig-tail).      *"
+	echo "* You should label the adapters.                                                                                        *"
+	echo "*                                                                                                                       *"
+	echo "* I've Found that some serial adapters in combination with some otg USB hubs may cause the Pi zero w to reboot when     *"
+	echo "* plugged in.  If this occurs just run consolepi-addconsole after the reboot completes starting with the adapter that   *"
+	echo "* caused the reboot.  The config should retain any previously configured adapters and pick-up at the next available     *"
+	echo "* port.  This is the last step in the installation script so there is no need to re-run the installer.                  *"
+	echo "-------------------------------------------------------------------------------------------------------------------------"
+	echo
+	echo "** Insert single port adapters 1 at a time"
+	echo "** If you have a multi-port (pig-tail) adapter you can use this script to assign those ports, but you'll have to connect"
+	echo "** to the ports after setup to determine which pigtail is assigned to each port - then label the pig-tails." 
 }
 
 getdev() {
@@ -49,9 +49,16 @@ done
 udev_main() {
     udev_init
     header
+	
+	# -- if rules file already exist grab the port assigned to the last entry and start with the next port --
     if [ -f $rules_file ]; then
         port=`tail -1 $rules_file |grep SYMLINK |cut -d+ -f2|cut -d\" -f2 |cut -di -f2`
         ((port++))
+		echo -e '\n\n'
+        echo "->> Existing rules file found with the following rules, adding ports will append to these rules starting at port $port <<-"
+        cat $rules_file
+        echo "-------------------------------------------------------------------------------------------------------------------------"
+    fi
     else
         port=7001
     fi
@@ -64,12 +71,12 @@ udev_main() {
         read input
         [[ $input != "end" ]] && getdev 
     done
-    # mv /tmp/10-consolePi.rules /etc/udev/rules.d/10-consolePi.rules 
+
+	# -- Show the resulting rules when complete --
     echo "--------------------------------------->> The Following Rules have been created <<---------------------------------------"
     cat $rules_file
     echo "-------------------------------------------------------------------------------------------------------------------------"
     sudo udevadm control --reload-rules && udevadm trigger
-    # rm -f /tmp/10-consolePi.rules
     
 }
 

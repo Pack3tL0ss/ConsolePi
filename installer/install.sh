@@ -12,13 +12,15 @@
 
 # -- Installation Defaults --
 ver="1.1"
+iam=$(who am i | awk '{print $1}')
 consolepi_dir="/etc/ConsolePi"
 src_dir="${consolepi_dir}/src"
 orig_dir="${consolepi_dir}/originals"
+stage_dir="/home/${iam}/ConsolePi_stage"
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
-iam=$(who am i | awk '{print $1}')
+
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
 [[ -f /etc/ConsolePi/installer/install.log ]] && upgrade=true || upgrade=false
 touch $tmp_log
@@ -28,15 +30,27 @@ logline="-----------------------------------------------------------------------
 ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download"
 consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
+# -- Find path for any files pre-staged in user home or ConsolePi_stage subdir --
+get_staged_file_path() {
+    [[ -z $1 ]] && logit $process "FATAL Error find_path function passed NUL value" "CRITICAL"
+    if [[ -f $1 ]]; then
+        found_path="/home/${iam}/${1}"
+    elif [[ -f ConsolePi_stage/$1 ]]; then
+        found_path="/home/${iam}/ConsolePi_stage/${1}"
+    else
+		found_path=
+    fi
+    echo $found_path
+}
+
 # -- Build Config File and Directory Structure - Read defaults from config
 get_config() {
     process="get config"
     bypass_verify=false
     logit "${process}" "Starting get/build Configuration"
-    if [[ ! -f "${default_config}" ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]]; then
+    if [[ ! -f $default_config ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]] && [[ ! -f $stag_dir/ConsolePi.conf ]]; then
         logit "${process}" "No Existing Config found - building default"
         # This indicates it's the first time the script has ran
-        # [ ! -d "$consolepi_dir" ] && mkdir /etc/ConsolePi
         echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
         echo "push_all=true                                # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
         echo "push_api_key=\"PutYourPBAPIKeyHereChangeMe:\"    # PushBullet API key" >> "${default_config}"
@@ -50,8 +64,8 @@ get_config() {
         echo "wlan_psk=\"ChangeMe!!\"                        # psk used for hotspot SSID" >> "${default_config}"
         echo "wlan_country=\"US\"                        # regulatory domain for hotspot SSID" >> "${default_config}"
         header
-        echo "Configuration File Created with default values. Enter Y to continue in Interactive Mode"
-        echo "which will prompt you for each value. Enter N to exit the script, so you can modify the"
+        echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
+        echo "which will prompt you for each value. Enter n to exit the script, so you can modify the"
         echo "defaults directly then re-run the script."
         echo
         prompt="Continue in Interactive mode? (Y/N)"
@@ -68,10 +82,11 @@ get_config() {
             move_log
             exit 0
         fi
-    elif [[ -f "/home/${iam}/ConsolePi.conf" ]]; then
-        logit "${process}" "using config found in ${iam} home directory"
-        sudo mv "/home/${iam}/ConsolePi.conf" "$default_config" ||
-            logit "${process}" "Error Copying Config found in user home directory" "WARNING"
+    elif [[ -f "/home/${iam}/ConsolePi.conf" ]] || [[ -f $stag_dir/ConsolePi.conf ]]; then
+		found_path=$(get_staged_file_path "ConsolePi.conf")
+        logit "${process}" "using provided config: ${found_path}"
+        sudo mv $found_path "$default_config" ||
+            logit "${process}" "Error Moving provided config: ${found_path}" "WARNING"
     elif [[ -f "${default_config}" ]]; then
         logit "${process}" "Using existing Config found in ${consolepi_dir}"
     fi
@@ -557,11 +572,11 @@ dhcp_run_hook() {
         is_there=`cat /etc/dhcpcd.exit-hook |grep -c /etc/ConsolePi/ConsolePi.sh`      # find out if it's already pointing to ConsolePi script
         lines=$(wc -l < "/etc/dhcpcd.exit-hook")                                       # find out if there are other lines in addition to ConsolePi in script
         if [[ $is_there > 0 ]] && [[ $lines > 1 ]]; then                                 # This scenario we just create a new script
-            [[ ! -d "/etc/ConsolePi/originals" ]] && mkdir /etc/ConsolePi/originals 
-            mv /etc/dhcpcd.exit-hook /etc/ConsolePi/originals/dhcpcd.exit-hook && 
+            [[ ! -d $orig_dir ]] && sudo mkdir $orig_dir
+            mv /etc/dhcpcd.exit-hook $orig_dir && 
               logit "${process}" "existing exit-hook backed up to originals folder" || logit "${process}" "Failed backup existing exit-hook file" "WARNING"
             echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "${process}" "Failed to create exit-hook script" "ERROR"
-        elif [[ $is_there == 0 ]]; then                                                # exit-hook exist but ConsolePi line does not append to file
+        elif [[ $is_there == 0 ]]; then                                                # exit-hook exist but ConsolePi line does not - append to file
             echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" >> "/etc/dhcpcd.exit-hook" || logit "${process}" "Failed to append ConsolePi pointer to exit-hook script" "ERROR"
         else
             logit "${process}" "exit-hook already configured [${is_there} ${lines}]"  #exit-hook exists and line is already there
@@ -606,23 +621,25 @@ install_ovpn() {
         logit "${process}" "OpenVPN ${ovpn_ver} Already Installed/Current"
     fi
     
-    if [[ ! -f "/home/${iam}/ConsolePi.ovpn" ]]; then 
-        [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client" ||
-            logit "${process}" "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
-    else
-        mv "/home/${iam}/ConsolePi.ovpn" "/etc/openvpn/client" &&
+	found_path=$(get_staged_file_path "ConsolePi.ovpn")
+    if [[ $found_path ]]; then 
+        mv $found_path "/etc/openvpn/client" &&
             logit "${process}" "Found ConsolePi.ovpn in /home/${iam}.  Moving to /etc/openvpn/client" &&
             logit "${process}" "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in /etc/ConsolePi/src" "WARNING" ||
             logit "${process}" "Error occurred moving your ovpn config" "WARNING"
+	else
+        [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && sudo cp "${src_dir}/ConsolePi.ovpn.example" "/etc/openvpn/client" ||
+            logit "${process}" "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
     fi
     
-    if [[ ! -f "/home/${iam}/ovpn_credentials" ]]; then 
+	found_path=$(get_staged_file_path "ovpn_credentials")
+	if [[ $found_path ]]; then 
+		mv "/home/${iam}/ovpn_credentials" "/etc/openvpn/client" &&
+		logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving to /etc/openvpn/client"  ||
+		logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
+	else
         [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}/ovpn_credentials" "/etc/openvpn/client" ||
             logit "${process}" "Retaining existing ovpn_credentials file. See src dir for original example file."
-    else
-        mv "/home/${iam}/ovpn_credentials" "/etc/openvpn/client" &&
-            logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving to /etc/openvpn/client"  ||
-            logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
     fi
             
     sudo chmod 600 /etc/openvpn/client/* 1>/dev/null 2>> $tmp_log || logit "${process}" "Failed chmod 600 openvpn client files" "WARNING"
@@ -808,8 +825,8 @@ gen_dnsmasq_conf () {
 dhcpcd_conf () {
     process="dhcpcd.conf"
     logit "${process}" "configure dhcp client and static fallback"
-    [[ -f /etc/dhcpcd.conf ]] && mv /etc/dhcpcd.conf /etc/ConsolePi/originals
-    cp /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf 1>/dev/null 2>> $tmp_log
+    [[ -f /etc/dhcpcd.conf ]] && sudo mv /etc/dhcpcd.conf $orig_dir
+    sudo cp /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf 1>/dev/null 2>> $tmp_log
     res=$?
     if [[ $res == 0 ]]; then
         echo "" >> "/etc/dhcpcd.conf"
@@ -873,18 +890,7 @@ EOF
     # start the rfcomm service
     sudo systemctl stop rfcomm 1>/dev/null 2>> $tmp_log 
     sudo systemctl start rfcomm 1>/dev/null 2>> $tmp_log 
-    
-    #create rfcomm device if not already there
-    rfdev=$( rfdev=(/dev/rfcomm*) && echo ${rfdev##*/} )
-    [[ $rfdev =~ '*' ]] && rfdev=
-    # This should be the bluetooth MAC of the PC ConsolePi is paired with
-    # if [[ -z $rfdev ]]; then
-        # bt_mac=$(sudo hciconfig |grep "BD Address" |awk '{print $3}')
-        # sudo rfcomm bind 0 ${bt_mac} && logit "${process}" "bluetooth device now assigned to ${rfdev}" || logit "${process}" "Failed to assign bluetooth device to ${rfdev}"
-    # else
-        # logit "${process}" "bluetooth device ${rfdev} exists"
-    # fi
-    
+       
     # add blue user and set to launch menu on login
     if [[ ! $(cat /etc/passwd | grep -o blue | sort -u) ]]; then
         echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue 1>/dev/null 2>> $tmp_log && 
@@ -944,7 +950,33 @@ get_known_ssids() {
         cat $wpa_supplicant_file
         echo "----------------------------------------------------------------------------------------------"
         word=" additional"
-    fi
+    else
+		# if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.
+		# if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
+		#   certs should be in user home dir, 'cert' subdir, 'ConsolePi_stage/cert, subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
+		found_path=$(get_staged_file_path "wpa_supplicant.conf")
+		if [[ -f $found_path ]]; then
+			logit $process "Found stage file ${found_path} Applying"
+			[[ -f $wpa_supplicant_file ]] && sudo cp $wpa_supplicant_file $orig_dir
+			sudo mv $found_path $wpa_supplicant_file
+			client_cert=$(grep client_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
+			if [[ ! -z $client_cert ]]; then
+				cert_path=${client_cert%/*}
+				ca_cert=$(grep ca_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
+				private_key=$(grep private_key= $found_path | cut -d'"' -f2| cut -d'"' -f1)
+				if [[ -d /home/${iam}/cert ]]; then
+					cd /home/$iam/cert     # if user home contains cert subdir look there for certs - otherwise look in stage subdir
+				elif [[ -d $stage_dir/cert ]]; then
+					cd $stage_dir/cert
+				fi
+					
+				[[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...
+				[[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
+				[[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
+				[[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
+				cd "${cur_dir}"
+			fi
+		fi  
 
     echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
     prompt="Do You want to configure${word} SSIDs? (Y/N)"
@@ -956,7 +988,7 @@ get_known_ssids() {
             . $consolepi_dir/installer/ssids.sh
             known_ssid_init
             known_ssid_main
-            mv "$wpa_supplicant_file" "/etc/ConsolePi/originals" 1>/dev/null 2>> $tmp_log ||
+            mv $wpa_supplicant_file $orig_dir 1>/dev/null 2>> $tmp_log ||
                 logit "${process}" "Failed to backup existing file to originals dir" "WARNING"
             mv "$wpa_temp_file" "$wpa_supplicant_file" 1>/dev/null 2>> $tmp_log ||
                 logit "${process}" "Failed to move collected ssids to wpa_supplicant.conf Verify Manually" "WARNING"
@@ -1032,15 +1064,16 @@ get_serial_udev() {
     process="Predictable Console Ports"
     logit "${process}" "${process} Starting."
     header
-    if [[ -f 10-ConsolePi.rules ]]; then
-        echo "udev rules file found in $(pwd) enabling provided udev rules"
-        sudo cp 10-ConsolePi.rules /etc/udev/rules.d
+	
+	# -- if pre-stage file provided enable it --
+	found_path=$(get_staged_file_path "10-consolePi.rules")
+	if [[ $found_path ]]; then
+		[[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] && cp [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] $orig_dir
+        echo "udev rules file found ${found_path} enabling provided udev rules"
+        sudo mv $found_path /etc/udev/rules.d
         sudo udevadm control --reload-rules
-    elif [[ -f staged/10-ConsolePi.rules ]]; then
-        echo "udev rules file found in $(pwd)/staged enabling provided udev rules"
-        sudo cp staged/10-ConsolePi.rules /etc/udev/rules.d
-        sudo udevadm control --reload-rules
-    fi
+	fi
+	
     echo
     echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
     echo "-                                                                                                                   -"
@@ -1051,11 +1084,6 @@ get_serial_udev() {
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
-    if [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]]; then
-        echo "------------ Existing rules file found with the following rules, adding ports will append to these rules ------------"
-        cat /etc/udev/rules.d/10-ConsolePi.rules
-        echo "---------------------------------------------------------------------------------------------------------------------"
-    fi
     echo "You need to have the serial adapters you want to map to specific telnet ports available"
     prompt="Would you like to configure predictable serial ports now (Y/N)"
     user_input true "${prompt}"

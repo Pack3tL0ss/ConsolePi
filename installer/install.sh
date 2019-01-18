@@ -1035,6 +1035,15 @@ get_serial_udev() {
     process="Predictable Console Ports"
     logit "${process}" "${process} Starting."
     header
+	if [[ -f 10-consolePi.rules ]]; then
+		echo "udev rules file found in $(pwd) enabling provided udev rules"
+		sudo cp 10-consolePi.rules /etc/udev/rules.d
+		sudo udevadm control --reload-rules
+	elif [[ -f staged/10-consolePi.rules ]]; then
+		echo "udev rules file found in $(pwd)/staged enabling provided udev rules"
+		sudo cp staged/10-consolePi.rules /etc/udev/rules.d
+		sudo udevadm control --reload-rules
+	fi
     echo
     echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
     echo "-                                                                                                                   -"
@@ -1045,6 +1054,11 @@ get_serial_udev() {
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
+	if [[ -f /etc/udev/rules.d/10-consolePi.rules ]]; then
+		echo "------------ Existing rules file found with the following rules, adding ports will append to these rules ------------"
+		cat /etc/udev/rule.d/10-ConsolePi.rules
+		echo "---------------------------------------------------------------------------------------------------------------------"
+	fi
     echo "You need to have the serial adapters you want to map to specific telnet ports available"
     prompt="Would you like to configure predictable serial ports now (Y/N)"
     user_input true "${prompt}"

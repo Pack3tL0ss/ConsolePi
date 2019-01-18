@@ -302,11 +302,20 @@ main_menu() {
 
 main() {
 	get_tty_devices
-    [[ $tty_list ]] && ttyusb_connected=true ||
-	    echo -e "\n*******************************\nNo USB to Serial adapters found\nNo Need to display Console Menu\n  'consolepi-menu' to re-launch\n*******************************\n" && 
+	echo $tty_list
+    if [[ $tty_list ]]; then
+	    ttyusb_connected=true
+	else
+	    echo -e "\n*******************************"
+		echo -e "\nNo USB to Serial adapters found"
+		echo -e "\nNo Need to display Console Menu"
+		echo -e "\n 'consolepi-menu' to re-launch "
+		echo -e "\n*******************************\n"
 		ttyusb_connected=false
+	fi
     [[ $(picocom --help 2>>/dev/null | head -1) ]] && dep_installed=true ||
 	    echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && dep_installed=false
+	echo $ttyusb_connected $dep_installed
     $ttyusb_connected && $dep_installed && main_menu
 }
 

@@ -46,25 +46,26 @@ get_input() {
     valid_input=false
     read -p "${prompt}" input
     while ! $valid_input; do
-    if [[ ! -z $input ]]; then 
-        case ${input,,} in
-            'y'|'yes')
-            input=true
-            valid_input=true
-            ;;
-            'n'|'no')
-            input=false
-            valid_input=true
-            ;;
-            'exit')
-            echo 'Exiting Script based on user input'
-            exit 1
-            ;;
-            *)
-            valid_input=false
-            echo -e '\n\n!!! Invalid Input !!!\n\n'
-            ;;
-        esac
+		if [[ ! -z $input ]]; then 
+			case ${input,,} in
+				'y'|'yes')
+				input=true
+				valid_input=true
+				;;
+				'n'|'no')
+				input=false
+				valid_input=true
+				;;
+				'exit')
+				echo 'Exiting Script based on user input'
+				exit 1
+				;;
+				*)
+				valid_input=false
+				echo -e '\n\n!!! Invalid Input !!!\n\n'
+				;;
+			esac
+		fi
     done
 }
 

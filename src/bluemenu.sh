@@ -11,33 +11,33 @@ parity="n"
 dbits=8
 
 do_get_tty_name() {
-        tty_name=$(ls -l /dev |grep lrwx.*${this_tty##*/}.* |cut -d: -f2|awk '{print $2}')
-        [[ -z tty_name ]] && tty_name=${this_tty##*/}
+    tty_name=$(ls -l /dev |grep lrwx.*${this_tty##*/}.* |cut -d: -f2|awk '{print $2}')
+    [[ -z tty_name ]] && tty_name=${this_tty##*/}
 }
 
 do_flow_pretty() {
-        case $flow in
-            "x")
-             flow_pretty="Xon/Xoff"
-             ;;
-             "h")
-             flow_pretty="RTS/CTS"
-             ;;
-             "n")
-             flow_pretty="None"
-             ;;
-             *)
-             flow_pretty="Undefined"
-             ;;
-         esac
+    case $flow in
+        "x")
+         flow_pretty="Xon/Xoff"
+         ;;
+         "h")
+         flow_pretty="RTS/CTS"
+         ;;
+         "n")
+         flow_pretty="None"
+         ;;
+         *)
+         flow_pretty="Undefined"
+         ;;
+     esac
 }
 
 
 flow_menu() {
     do_flow_pretty
-	valid_selection=false
-        while ! $valid_selection; do
-	valid_selection=true        
+    valid_selection=false
+    while ! $valid_selection; do
+        valid_selection=true        
         echo '###################################'
         echo '##  Select desired flow control  ##'
         echo '###################################'
@@ -68,30 +68,30 @@ flow_menu() {
 }
 
 do_parity_pretty() {
-        case $parity in
-            "o")
-             parity_pretty="odd"
-             parity_up="O"
-             ;;
-             "e")
-             parity_pretty="even"
-             parity_up="E"
-             ;;
-             "n")
-             parity_pretty="none"
-             parity_up="N"
-             ;;
-             *)
-             parity_pretty="Undefined"
-             parity_up="ERR"
-             ;;
-         esac
+    case $parity in
+        "o")
+         parity_pretty="odd"
+         parity_up="O"
+         ;;
+         "e")
+         parity_pretty="even"
+         parity_up="E"
+         ;;
+         "n")
+         parity_pretty="none"
+         parity_up="N"
+         ;;
+         *)
+         parity_pretty="Undefined"
+         parity_up="ERR"
+         ;;
+     esac
 }
 
 parity_menu() {
-	do_parity_pretty
-        valid_input=false
-        while ! $valid_input; do
+    do_parity_pretty
+    valid_input=false
+    while ! $valid_input; do
         valid_input=true
         echo '##############################'
         echo '##  Select desired parity   ##'
@@ -122,51 +122,51 @@ parity_menu() {
 }
 
 databits_menu() {
-        echo '#################################'
-        echo '##  Select desired data bits   ##'
-        echo '#################################'
-        echo ''
-        echo 'Enter the number of data bits'
-        echo 'Default 8, Valid range 5-8'
-        echo ''
-        echo "x. exit - data bits will remain: ${dbits}"
-        echo ''
-	valid_input=false
-	while ! $valid_input; do
-            read -p "Enter number of data bits: " selection
-            if [[ $selection > 4 ]] && [[ $selection < 9 ]]; then
-                dbits=$selection
-                valid_input=true
-            elif [[ ${selection,,} == "x" ]]; then
-                valid_input=true                
-            else
-                echo -e  '\n!!Invalid Selection!!\n'
-            fi
-        done
+    echo '#################################'
+    echo '##  Select desired data bits   ##'
+    echo '#################################'
+    echo ''
+    echo 'Enter the number of data bits'
+    echo 'Default 8, Valid range 5-8'
+    echo ''
+    echo "x. exit - data bits will remain: ${dbits}"
+    echo ''
+    valid_input=false
+    while ! $valid_input; do
+        read -p "Enter number of data bits: " selection
+        if [[ $selection > 4 ]] && [[ $selection < 9 ]]; then
+            dbits=$selection
+            valid_input=true
+        elif [[ ${selection,,} == "x" ]]; then
+            valid_input=true                
+        else
+            echo -e  '\n!!Invalid Selection!!\n'
+        fi
+    done
 }
     
 baud_menu() {
-        echo '#################################'
-        echo '##  Select desired baud rate.  ##'
-        echo '#################################'
-        echo ''
-        echo '1. 300'
-        echo '2. 1200'
-        echo '3. 9600 (default)'
-        echo '4. 19200'
-        echo '5. 57600'            
-        echo '6. 115200'
-        echo '7. custom'
-        echo "x. exit - baud will remain ${baud}"
-        echo ''
-        read -p "Select menu item: " selection
+    echo '#################################'
+    echo '##  Select desired baud rate.  ##'
+    echo '#################################'
+    echo ''
+    echo '1. 300'
+    echo '2. 1200'
+    echo '3. 9600 (default)'
+    echo '4. 19200'
+    echo '5. 57600'            
+    echo '6. 115200'
+    echo '7. custom'
+    echo "x. exit - baud will remain ${baud}"
+    echo ''
+    read -p "Select menu item: " selection
 }
 
 port_config_menu() {
-valid_input_pcm=false
-while ! $valid_input_pcm; do
-do_parity_pretty
-do_flow_pretty
+    valid_input_pcm=false
+    while ! $valid_input_pcm; do
+        do_parity_pretty
+        do_flow_pretty
         echo '#################################'
         echo '##  Serial Port Configuration  ##'
         echo '#################################'
@@ -175,123 +175,123 @@ do_flow_pretty
         echo "2. Change Data Bits (${dbits})"
         echo "3. Change Parity (${parity_pretty})"
         echo "4. Change Flow Control (${flow_pretty})"
-	[[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
-        echo "x. exit [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
-        echo ''
-        read -p "Select menu item: " selection
+        [[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
+            echo "x. exit [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
+            echo ''
+            read -p "Select menu item: " selection
 
-# Re-Print menu until exit
-case $selection in
-    "1")
-     do_change_baud
-     ;;
-     "2")
-     databits_menu
-     ;;
-     "3")
-     parity_menu
-     ;;
-     "4")
-     flow_menu
-     ;;
-     "x")
-     valid_input_pcm=true
-     ;;
-     *)
-      echo -e  '\n!!Invalid Selection!!\n'
-     ;;
-esac
-done
+        # Re-Print menu until exit
+        case $selection in
+            "1")
+             do_change_baud
+             ;;
+             "2")
+             databits_menu
+             ;;
+             "3")
+             parity_menu
+             ;;
+             "4")
+             flow_menu
+             ;;
+             "x")
+             valid_input_pcm=true
+             ;;
+             *)
+              echo -e  '\n!!Invalid Selection!!\n'
+             ;;
+        esac
+    done
 }
 
 do_change_baud() {
-	baud_valid=false
-	baud_list=(300 1200 9600 19200 57600 115200 0)
-	while ! $baud_valid; do
-		baud_menu
-		if (( ! $selection == "x" )) && (( $selection > 0 )) && (( $selection < 7 )); then
-			baud=${baud_list[ (($selection-1)) ]}
-			baud_valid=true
-		elif (( $selection == 7 )); then
-			read -p "Input baud rate" baud
-			baud_valid=true
-		elif (( $selection == "x" )); then
-			baud_valid=true
-		else
-			echo -e "\nInvalid Selection Try Again\n\n"
-		fi
-	done
+    baud_valid=false
+    baud_list=(300 1200 9600 19200 57600 115200 0)
+    while ! $baud_valid; do
+        baud_menu
+        if (( ! $selection == "x" )) && (( $selection > 0 )) && (( $selection < 7 )); then
+            baud=${baud_list[ (($selection-1)) ]}
+            baud_valid=true
+        elif (( $selection == 7 )); then
+            read -p "Input baud rate" baud
+            baud_valid=true
+        elif (( $selection == "x" )); then
+            baud_valid=true
+        else
+            echo -e "\nInvalid Selection Try Again\n\n"
+        fi
+    done
 }
-	
+    
 
 main_menu() {
     clear
     valid_selection=false
     while ! $valid_selection; do
-
-    do_flow_pretty
-    do_parity_pretty
-	echo '########################################################################'
-	echo '##                    ConsolePi Connection MENU                       ##'
-	echo ''
-	echo ' This program will launch serial session via picocom'
-	echo ' Be Aware of The following command sequences:'
-	echo ''
-	echo '   ctrl+a followed by ctrl+x Exit session - reset the port'
-	echo '   ctrl+a followed by ctrl+q Exit session - without resetting the port'
-	echo '   ctrl+a followed by ctrl+u increase baud'
-	echo '   ctrl+a followed by ctrl+d decrease baud'
-	echo '   ctrl+a followed by ctrl+f cycle through flow control options'
-	echo '   ctrl+a followed by ctrl+y cycle through parity options'
-	echo '   ctrl+a followed by ctrl+b cycle through data bits'
-	echo '   ctrl+a followed by ctrl+v Show configured port options'
-	echo '   ctrl+a followed by ctrl+c toggle local echo'
-	echo ''
-	echo " Use command 'consolepi-menu' to display this menu after exit"
-	echo ''
-	echo '##                                                                    ##'
+        do_flow_pretty
+        do_parity_pretty
+        echo '########################################################################'
+        echo '##                    ConsolePi Connection MENU                       ##'
+        echo ''
+        echo ' This program will launch serial session via picocom'
+        echo ' Be Aware of The following command sequences:'
+        echo ''
+        echo '   ctrl+a followed by ctrl+x Exit session - reset the port'
+        echo '   ctrl+a followed by ctrl+q Exit session - without resetting the port'
+        echo '   ctrl+a followed by ctrl+u increase baud'
+        echo '   ctrl+a followed by ctrl+d decrease baud'
+        echo '   ctrl+a followed by ctrl+f cycle through flow control options'
+        echo '   ctrl+a followed by ctrl+y cycle through parity options'
+        echo '   ctrl+a followed by ctrl+b cycle through data bits'
+        echo '   ctrl+a followed by ctrl+v Show configured port options'
+        echo '   ctrl+a followed by ctrl+c toggle local echo'
+        echo ''
+        echo " Use command 'consolepi-menu' to display this menu after exit"
+        echo ''
+        echo '##                                                                    ##'
         echo '########################################################################'
         echo ''
-		item=1
-		for this_tty in ${tty_list[@]}; do 
-        do_get_tty_name    
-        echo "${item}. Connect to ${tty_name} Using default settings"
-		((item++))
-		done
-	[[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
-
+        # Loop through Connected USB-Serial adapters creating menu option for each found
+        item=1
+        for this_tty in ${tty_list[@]}; do 
+            do_get_tty_name    # checks for alias created via udev rules and uses alias as a descriptor if exists
+            echo "${item}. Connect to ${tty_name} Using default settings"
+            ((item++))
+        done
+        [[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
         echo "c. Change Connection Settings [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
         echo 'x. exit to shell'
         echo ''
         read -p "Select menu item: " selection
 
-    #if selection not defined or selection is non-printable cntrl char set to zero to fail through without error
-    ( [[ -z $selection ]] || [[ $selection =~ [[:cntrl:]] ]] ) && selection=0
-    if (( $selection > 0 )) && (( $selection < $((${#tty_list[@]}+1)) )); then
-	this_tty="${tty_list[$((selection - 1))]}"
-        do_get_tty_name
-	# screen "/dev/${tty_list[$((selection - 1))]##*/}" $baud
-	# Always use native dev (ttyUSB#)
-        picocom "/dev/${tty_list[$((selection - 1))]##*/}" -b $baud -f $flow -d $dbits -p $parity
-        # Use predefined aliases if defined
-        # picocom "/dev/${tty_name}" -b $baud -f $flow -d $dbits -p $parity
-    elif [[ ${selection,,} == "c" ]]; then
-	port_config_menu
-        valid_selection=false # force re-print of menu
-    elif [[ ${selection,,} == "x" ]]; then
-        valid_selection=true
-        exit 0
-    else
-        valid_selection=false
-        echo -e "\nInvalid Selection Try Again\n\n"
-    fi
-done
+        #if selection not defined or selection is non-printable cntrl char set to zero to fail through without error
+        ( [[ -z $selection ]] || [[ $selection =~ [[:cntrl:]] ]] ) && selection=0
+        if (( $selection > 0 )) && (( $selection < $((${#tty_list[@]}+1)) )); then
+            this_tty="${tty_list[$((selection - 1))]}"
+            do_get_tty_name
+            # depricated screen in favor of picocom
+            ## screen "/dev/${tty_list[$((selection - 1))]##*/}" $baud
+            # Always use native dev (ttyUSB#) 
+            picocom "/dev/${tty_list[$((selection - 1))]##*/}" -b $baud -f $flow -d $dbits -p $parity
+            # Use predefined aliases if defined
+            # picocom "/dev/${tty_name}" -b $baud -f $flow -d $dbits -p $parity
+        elif [[ ${selection,,} == "c" ]]; then
+        port_config_menu
+            valid_selection=false # force re-print of menu
+        elif [[ ${selection,,} == "x" ]]; then
+            valid_selection=true
+            exit 0
+        else
+            valid_selection=false
+            echo -e "\nInvalid Selection Try Again\n\n"
+        fi
+    done
 }
 
 main() {
-	[[ -z $tty_list ]] && echo "No USB to Serial adapters found... exiting" && exit 1
-	[[ -z $(picocom --help 2>>/dev/null | head -1) ]] && echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && exit 1
-        main_menu
+    [[ -z $tty_list ]] && echo "No USB to Serial adapters found... exiting" && exit 1
+    [[ -z $(picocom --help 2>>/dev/null | head -1) ]] && echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && exit 1
+    main_menu
 }
 
 main

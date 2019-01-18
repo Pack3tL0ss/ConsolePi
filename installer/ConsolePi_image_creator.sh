@@ -76,16 +76,18 @@ do_unzip() {
 main() {
     clear
     ! $configure_wpa_supplicant && [[ ! -f "${pwd}/wpa_supplicant.conf" ]] && 
-        echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ top of this script"
+        echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ \
+		    top of this script or provide wpa_supplicant.conf in script directory."
         
     my_usb=$(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/')
-    [[ ! -z $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
+    [[ $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
     [[ $boot_list =~ $my_usb ]] && my_usb=    # if usb device found make sure it's not marked as bootable if so reset my_usb so we can check for sd card adapter
     [[ -z $my_usb ]] && my_usb=$( sudo fdisk -l | grep 'Disk /dev/mmcblk' | awk '{print $2}' | cut -d: -f1 | cut -d'/' -f3)
-    ####[[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
-
+	####[[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
+	
     echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n\n"
-    echo -e "Script has discovered USB flash device @ \033[1;32m ${my_usb} $*\033[m\n'exit' will abort script\n"
+    [[ $my_usb ]] && echo -e "Script has discovered removable flash device @ \033[1;32m ${my_usb} $*\033[m\n'exit' will abort script\n" ||
+		echo -e "Script failed to detect removable flash device, you will need to specify the device"
     prompt="Do you want to see fdisk details for all disks to verify? (y/n): "
     get_input
 
@@ -98,7 +100,7 @@ main() {
     
     # Give user chance to change target drive
     echo -e "\n\nPress enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
-    read -p "Device to flash with image [\033[1;32m${my_usb}$*\033[m]:" drive
+    read -p "Device to flash with image [${my_usb}]:" drive
     [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
     [[ ! -z $drive ]] && my_usb=$drive
     [[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1

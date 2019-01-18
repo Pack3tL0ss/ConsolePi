@@ -156,7 +156,7 @@ main() {
         curl -JLO https://downloads.raspberrypi.org/raspbian_lite_latest
         do_unzip "${cur_rel}.zip"
         ((retry++))
-    fi
+    done
             
     ### Old Download function replaced by above
     # retry=0

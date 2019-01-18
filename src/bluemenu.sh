@@ -240,8 +240,7 @@ main_menu() {
     while ! $valid_selection; do
         do_flow_pretty
         do_parity_pretty
-        echo '########################################################################'
-        echo '##                    ConsolePi Connection MENU                       ##'
+        echo '##################### ConsolePi Connection MENU ########################'
         echo ''
         echo ' This program will launch serial session via picocom'
         echo ' Be Aware of The following command sequences:'
@@ -256,9 +255,8 @@ main_menu() {
         echo '   ctrl+a followed by ctrl+v Show configured port options'
         echo '   ctrl+a followed by ctrl+c toggle local echo'
         echo ''
-        echo " Use command 'consolepi-menu' to display this menu after exit"
+        echo " This menu can be launched from shell with 'consolepi-menu' command."
         echo ''
-        echo '##                                                                    ##'
         echo '########################################################################'
         echo ''
         # Loop through Connected USB-Serial adapters creating menu option for each found

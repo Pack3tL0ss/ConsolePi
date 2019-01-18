@@ -77,9 +77,10 @@ do_unzip() {
 
 main() {
     clear
-    ! $configure_wpa_supplicant && [[ ! -f "${pwd}/wpa_supplicant.conf" ]] && 
-        echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ \
-            top of this script or provide wpa_supplicant.conf in script directory."
+    if ! $configure_wpa_supplicant && [[ ! -f "$(pwd)/wpa_supplicant.conf" ]]; then
+        echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @"
+        echo "top of this script *or* provide wpa_supplicant.conf in script directory."
+    fi
         
     my_usb=$(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/')
     [[ $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
@@ -105,15 +106,15 @@ main() {
     read -p "Device to flash with image [${my_usb}]:" drive
     [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
     
-	if [[ $drive ]]; then
+    if [[ $drive ]]; then
         [[ $boot_list =~ $drive ]] && prompt="The selected drive contains a bootable partition, are you sure about this? (y/n):" && get_input
         ! $input && echo "Exiting based on user input" && exit 1
         drive_list=( $(sudo fdisk -l | grep 'Disk /dev/' | awk '{print $2}' | cut -d'/' -f3 | cut -d':' -f1) )
         [[ $drive_list =~ $drive ]] && echo "${my_usb} not found on system. Exiting..." && exit 1
         my_usb=$drive
-	fi
-	
-	[[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
+    fi
+    
+    [[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
 
     # umount device if currently mounted
     go_umount=true

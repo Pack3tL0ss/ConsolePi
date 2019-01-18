@@ -181,12 +181,12 @@ main() {
     sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo -e "\n\n\033[1;32mImage written to flash - no Errors$*\033[m\n\n" || 
         ( echo "\n\n\033[1;32mError occurred burning image $*\033[m\n\n" && exit 1 )
 
-    echo "Mounting boot partition to enable ssh"
     # Create some mount-points if they don't exist already.  Script will remove them if it has to create them, they will remain if they were already there
     [[ ! -d /mnt/usb1 ]] && sudo mkdir /mnt/usb1 && usb1_existed=false || usb1_existed=true
     [[ ! -d /mnt/usb2 ]] && sudo mkdir /mnt/usb2 && usb2_existed=false || usb2_existed=true
 
     # Mount boot partition
+	echo "Mounting boot partition to enable ssh"
     ( [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 /mnt/usb1 ) || sudo mount /dev/${my_usb}1 /mnt/usb1
     [[ $? > 0 ]] && echo 'Error mounting boot partition' && exit 1
     
@@ -195,14 +195,13 @@ main() {
     sudo touch /mnt/usb1/ssh && echo -e "SSh is now enabled\n" || echo 'Error enabling SSH... script will continue anyway'
     
     # move any overlay files to /boot/overlays (usb1/overlays)
-    [[ -f $(ls *.dtbo) ]] && cp *.dtbo /mnt/usb1/overlays && echo "found overlay files in script dir moved to /boot/overlays dir"
+    [[ -f $(ls *.dtbo) ]] && cp *.dtbo /mnt/usb1/overlays && echo "found overlay files in $(pwd) moved to /boot/overlays dir"
     
     # Done with boot partition unmount
     sudo umount /mnt/usb1
 
     echo -e "\n\nMounting System partition to Configure ConsolePi auto-install and copy over any pre-config files found in script dir"
-    [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 /mnt/usb2 ||
-      sudo mount /dev/${my_usb}2 /mnt/usb2
+    [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p2 /mnt/usb2 || sudo mount /dev/${my_usb}2 /mnt/usb2
     [[ $? > 0 ]] && echo 'Error mounting system partition' && exit 1
     
     #Configure simple psk SSID based on params in this script

@@ -104,13 +104,16 @@ main() {
     echo -e "\n\nPress enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
     read -p "Device to flash with image [${my_usb}]:" drive
     [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
-    if [[ $drive ]]; then
+    
+	if [[ $drive ]]; then
         [[ $boot_list =~ $drive ]] && prompt="The selected drive contains a bootable partition, are you sure about this? (y/n):" && get_input
         ! $input && echo "Exiting based on user input" && exit 1
         drive_list=( $(sudo fdisk -l | grep 'Disk /dev/' | awk '{print $2}' | cut -d'/' -f3 | cut -d':' -f1) )
         [[ $drive_list =~ $drive ]] && echo "${my_usb} not found on system. Exiting..." && exit 1
         my_usb=$drive
-    [[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
+	fi
+	
+	[[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
 
     # umount device if currently mounted
     go_umount=true

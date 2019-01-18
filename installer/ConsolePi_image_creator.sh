@@ -69,6 +69,7 @@ get_input() {
 }
 
 do_unzip() {
+	echo "Extracting image from ${1}"
     unzip $1
     img_file=$(ls -lc "${1%zip}.img" 2>>/dev/null | awk '{print $9}')
     [[ -z $img_file ]] && echo 'Something went wrong img file not found after unzip... exiting' && exit 1
@@ -114,7 +115,7 @@ main() {
     done
 
     # get raspbian-lite image if not in script dir
-    echo "getting raspbian-lite image"
+    echo "Getting raspbian-lite image"
     
     # Find out what current raspbian release is
     cur_rel=$(curl -sIL https://downloads.raspberrypi.org/raspbian_lite_latest | 
@@ -134,6 +135,7 @@ main() {
             get_input
             $input || img_file=$found_img_file
         else
+			echo "Using image ${found_img_file%.img}, found in $(pwd). It is the current release"
             img_file=$found_img_file
         fi
     elif [[ $found_img_zip ]]; then
@@ -143,6 +145,7 @@ main() {
             get_input
             $input || do_unzip $found_img_zip #img_file assigned in do_unzip
         else
+			echo "Using ${found_img_zip} found in $(pwd). It is the current release"
             do_unzip $found_img_zip
             #img_file assigned in do_unzip
         fi

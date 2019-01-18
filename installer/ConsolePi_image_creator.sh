@@ -103,7 +103,7 @@ main() {
     
     # Give user chance to change target drive
     echo -e "\n\nPress enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
-    read -p "Device to flash with image [${my_usb}|exit]:" drive
+    read -p "Device to flash with image [${my_usb}]:" drive
     [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
     
     if [[ $drive ]]; then

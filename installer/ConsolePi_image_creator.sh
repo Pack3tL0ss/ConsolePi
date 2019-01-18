@@ -178,7 +178,7 @@ main() {
     
     # Create empty file ssh in boot partition
     echo "Enabling ssh on image"
-    sudo touch /mnt/usb1/ssh || && echo -e "SSh is now enabled\n" || echo 'Error enabling SSH... script will continue anyway'
+    sudo touch /mnt/usb1/ssh && echo -e "SSh is now enabled\n" || echo 'Error enabling SSH... script will continue anyway'
     
     # move any overlay files to /boot/overlays (usb1/overlays)
     [[ -f $(ls *.dtbo) ]] && cp *.dtbo /mnt/usb1/overlays && echo "found overlay files in script dir moved to /boot/overlays dir"

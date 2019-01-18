@@ -16,7 +16,7 @@ get_tty_devices() {
 }
 
 # -- If ttyUSB device has defined alias, Display the alias in menu --
-do_get_tty_name() {
+get_tty_name() {
     tty_name=$(ls -l /dev |grep lrwx.*${this_tty##*/}.* |cut -d: -f2|awk '{print $2}')
     [[ -z tty_name ]] && tty_name=${this_tty##*/}
 }
@@ -262,9 +262,10 @@ main_menu() {
         echo '########################################################################'
         echo ''
         # Loop through Connected USB-Serial adapters creating menu option for each found
+		get_tty_devices
         item=1
         for this_tty in ${tty_list[@]}; do 
-            do_get_tty_name    # checks for alias created via udev rules and uses alias as a descriptor if exists
+            get_tty_name    # checks for alias created via udev rules and uses alias as a descriptor if exists
             echo "${item}. Connect to ${tty_name} Using default settings"
             ((item++))
         done

@@ -187,7 +187,7 @@ main() {
 
     # Mount boot partition
     echo "Mounting boot partition to enable ssh"
-    ( [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 /mnt/usb1 ) || sudo mount /dev/${my_usb}1 /mnt/usb1
+    [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p1 /mnt/usb1 || sudo mount /dev/${my_usb}1 /mnt/usb1
     [[ $? > 0 ]] && echo 'Error mounting boot partition' && exit 1
     
     # Create empty file ssh in boot partition

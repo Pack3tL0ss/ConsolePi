@@ -65,11 +65,11 @@ get_input() {
         ;;
     esac
     done
-	prompt=
+    prompt=
 }
 
 do_unzip() {
-	echo "Extracting image from ${1}"
+    echo "Extracting image from ${1}"
     unzip $1
     img_file=$(ls -lc "${1%zip}.img" 2>>/dev/null | awk '{print $9}')
     [[ -z $img_file ]] && echo 'Something went wrong img file not found after unzip... exiting' && exit 1
@@ -79,17 +79,17 @@ main() {
     clear
     ! $configure_wpa_supplicant && [[ ! -f "${pwd}/wpa_supplicant.conf" ]] && 
         echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @ \
-		    top of this script or provide wpa_supplicant.conf in script directory."
+            top of this script or provide wpa_supplicant.conf in script directory."
         
     my_usb=$(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/')
     [[ $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
     [[ $boot_list =~ $my_usb ]] && my_usb=    # if usb device found make sure it's not marked as bootable if so reset my_usb so we can check for sd card adapter
     [[ -z $my_usb ]] && my_usb=$( sudo fdisk -l | grep 'Disk /dev/mmcblk' | awk '{print $2}' | cut -d: -f1 | cut -d'/' -f3)
-	####[[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
-	
+    ####[[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
+    
     echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n\n"
     [[ $my_usb ]] && echo -e "Script has discovered removable flash device @ \033[1;32m ${my_usb} $*\033[m\n'exit' will abort script\n" ||
-		echo -e "Script failed to detect removable flash device, you will need to specify the device"
+        echo -e "Script failed to detect removable flash device, you will need to specify the device"
     prompt="Do you want to see fdisk details for all disks to verify? (y/n): "
     get_input
 
@@ -104,7 +104,12 @@ main() {
     echo -e "\n\nPress enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
     read -p "Device to flash with image [${my_usb}]:" drive
     [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
-    [[ ! -z $drive ]] && my_usb=$drive
+    if [[ $drive ]]; then
+        [[ $boot_list =~ $drive ]] && prompt="The selected drive contains a bootable partition, are you sure about this? (y/n):" && get_input
+        ! $input && echo "Exiting based on user input" && exit 1
+        drive_list=( $(sudo fdisk -l | grep 'Disk /dev/' | awk '{print $2}' | cut -d'/' -f3 | cut -d':' -f1) )
+        [[ $drive_list =~ $drive ]] && echo "${my_usb} not found on system. Exiting..." && exit 1
+        my_usb=$drive
     [[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
 
     # umount device if currently mounted
@@ -135,7 +140,7 @@ main() {
             get_input
             $input || img_file=$found_img_file
         else
-			echo "Using image ${found_img_file%.img}, found in $(pwd). It is the current release"
+            echo "Using image ${found_img_file%.img}, found in $(pwd). It is the current release"
             img_file=$found_img_file
         fi
     elif [[ $found_img_zip ]]; then
@@ -145,7 +150,7 @@ main() {
             get_input
             $input || do_unzip $found_img_zip #img_file assigned in do_unzip
         else
-			echo "Using ${found_img_zip} found in $(pwd). It is the current release"
+            echo "Using ${found_img_zip} found in $(pwd). It is the current release"
             do_unzip $found_img_zip
             #img_file assigned in do_unzip
         fi

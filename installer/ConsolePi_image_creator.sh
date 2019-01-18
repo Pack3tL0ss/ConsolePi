@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # --                                               ConsolePi Image Creation Script - Use at own Risk                                                         
-# --  Wade Wells - Jan, 8 2019                                                                                                                     
+# --  Wade Wells - Jan, 17 2019                                                                                                                     
 # --    !!! USE @ own risk - This could bork your system !!!                                                                                           
 # --                                                                                                                                             
 # --  This is a script I used to expedite testing.  It looks for a raspbian-lite image file in whatever directory you run the script from, if it doesn't find one

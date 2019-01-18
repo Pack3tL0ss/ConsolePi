@@ -29,8 +29,10 @@
 # --  This script should be ran on a Linux system, tested on raspbian (a different Raspberry pi), and Linux mint, should work for most debian/ubuntu variants
 # --  To use this script enter command: (this is not pulled by git, this script needs to be pulled manually for updates just check the date on top)
 # --    'curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/ConsolePi_image_creator.sh  && sudo chmod +x ConsolePi_image_creator.sh'
-# --  Enter a micro-sd card using a usb to micro-sd card adapter (script only works with usb to micro-sd adapters)
-# --  'sudo ./ConsolePi_image_creator.sh' When you are ready to flash the image
+# --  Enter a micro-sd card using a usb to micro-sd card adapter or sd to miro-sd card adapter.  The script only looks for sd card adapter if no usb devices are
+# --    found so if using an sd-card adapter either do so without any USB drives connected, or understand you *will* need to override the selection the script 
+# --    makes by default.
+# --  'sudo ./ConsolePi_image_creator.sh' When you are ready to flash the image'
 
 # WLAN Pre-Configuration - change fist parameter to true and configure valid parameters for the remainder to pre-configure an SSID on the image
 configure_wpa_supplicant=false

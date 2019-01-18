@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 
-ver="1.0"
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script                                                               -- #
 # --  Wade Wells - Dec, 2018  v1.0                                                                                                               -- #
-# --    eMail Wade with any bugs or suggestions, if you don't know Wade's eMail, then don't eMail Wade :)                                        -- #
+# --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
 # --  For manual setup instructions and more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                -- #
@@ -12,6 +11,7 @@ ver="1.0"
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 # -- Installation Defaults --
+ver="1.1"
 consolepi_dir="/etc/ConsolePi"
 src_dir="${consolepi_dir}/src"
 orig_dir="${consolepi_dir}/originals"
@@ -20,6 +20,7 @@ wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
 iam=$(who am i | awk '{print $1}')
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
+[[ -f /etc/ConsolePi/installer/install.log ]] && upgrade=true || upgrade=false
 touch $tmp_log
 logline="----------------------------------------------------------------------------------------------------------------"
 
@@ -925,7 +926,7 @@ EOF
 	
     # Install picocom
     if [[ $(picocom --help 2>/dev/null | head -1) ]]; then 
-        logit "${process}" "picocom $(picocom --help 2>/dev/null | head -1) is already installed"
+        logit "${process}" "$(picocom --help 2>/dev/null | head -1) is already installed"
     else
         logit "${process}" "Installing picocom"
         sudo apt-get -y install picocom 1>/dev/null 2>> $tmp_log && logit "${process}" "Install picocom Success" || 
@@ -1056,7 +1057,7 @@ get_serial_udev() {
     echo
 	if [[ -f /etc/udev/rules.d/10-consolePi.rules ]]; then
 		echo "------------ Existing rules file found with the following rules, adding ports will append to these rules ------------"
-		cat /etc/udev/rule.d/10-ConsolePi.rules
+		cat /etc/udev/rules.d/10-ConsolePi.rules
 		echo "---------------------------------------------------------------------------------------------------------------------"
 	fi
     echo "You need to have the serial adapters you want to map to specific telnet ports available"
@@ -1092,6 +1093,13 @@ post_install_msg() {
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
     echo "*                                                                                                                       *"
+	echo -e "* \033[1;32mBlueTooth:$*\033[m                                                                                                            *"
+	echo "*   ConsolePi should be discoverable (after reboot if this is the initial installation).                                *"
+	echo "*   - Configure bluetooth serial on your device and pair with ConsolePi                                                 *"
+	echo "*   - On client device attach to the com port created after the step above was completed                                *"
+	echo "*   - Once Connected the Console Menu will automatically launch allowing you to connect to any serial devices found     *"
+	echo "*   NOTE: The Console Menu is available from any shell session (bluetooth or SSH) via the consolepi-menu command        *"
+	echo "*                                                                                                                       *"
     echo -e "* \033[1;32mLogging:$*\033[m                                                                                                              *"
     echo "*   The bulk is sent to syslog. the tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest.      *"
     echo "*   - openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn   *"
@@ -1103,14 +1111,20 @@ post_install_msg() {
     echo "*   - consolepi-addssids: Add additional known ssids. same as doing sudo /etc/ConsolePi/ssids.sh                        *"
     echo "*   - consolepi-addconsole: Configure serial adapter to telnet port rules. same as doing sudo /etc/ConsolePi/udev.sh    *"
     echo "*   - consolepi-autohotspot: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found  *"
+	echo "*   - consolepi-menu: Launch Console Menu which will provide connection options for connected serial adapters           *"
+	echo "*   - consolepi-killvpn: Gracefully terminate openvpn tunnel if one is established                                      *"
     echo "*       then fall-back to HotSpot mode if not found or unable to connect.                                               *"
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
     echo -e "\n\n"
-    #Press a key to reboot
-    prompt="A reboot is required, do you want to reboot now"
-    go_reboot=$(user_input_bool)
-    $go_reboot && sudo reboot || echo "ConsolePi Install script Complete, Reboot is required"
+    # Script Complete Prompt for reboot if first install
+	if $upgrade; then
+		echo "ConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade"
+	else
+		prompt="A reboot is required, do you want to reboot now"
+		go_reboot=$(user_input_bool)
+		$go_reboot && sudo reboot || echo "ConsolePi Install script Complete, Reboot is required"
+	fi
 }
 
 main() {

@@ -262,7 +262,6 @@ main_menu() {
         echo '########################################################################'
         echo ''
         # Loop through Connected USB-Serial adapters creating menu option for each found
-		get_tty_devices
         item=1
         for this_tty in ${tty_list[@]}; do 
             get_tty_name    # checks for alias created via udev rules and uses alias as a descriptor if exists
@@ -271,6 +270,7 @@ main_menu() {
         done
         [[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
         echo "c. Change Connection Settings [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
+		echo 'r. refresh - detect connected serial adapters'
         echo 'x. exit to shell'
         echo ''
         read -p "Select menu item: " selection
@@ -282,26 +282,28 @@ main_menu() {
             do_get_tty_name
             # depricated screen in favor of picocom
             ## screen "/dev/${tty_list[$((selection - 1))]##*/}" $baud
-            # Always use native dev (ttyUSB#) 
+            # -- Always use native dev (ttyUSB#) --
             picocom "/dev/${tty_list[$((selection - 1))]##*/}" -b $baud -f $flow -d $dbits -p $parity
-            # Use predefined aliases if defined
+            # -- Use predefined aliases if defined --
             # picocom "/dev/${tty_name}" -b $baud -f $flow -d $dbits -p $parity
         elif [[ ${selection,,} == "c" ]]; then
-        port_config_menu
+			port_config_menu
             valid_selection=false # force re-print of menu
+        elif [[ ${selection,,} == "r" ]]; then
+            get_tty_devices
         elif [[ ${selection,,} == "x" ]]; then
             valid_selection=true
             exit 0
         else
-            valid_selection=false
             echo -e "\nInvalid Selection Try Again\n\n"
         fi
     done
 }
 
 main() {
+	get_tty_devices
     [[ $tty_list ]] && ttyusb_connected=true ||
-	    echo -e "\n*******************************\nNo USB to Serial adapters found\nNo Need to display Console Menu\n*******************************" && ttyusb_connected=false
+	    echo -e "\n*******************************\nNo USB to Serial adapters found\nNo Need to display Console Menu\n*******************************\n" && ttyusb_connected=false
     [[ $(picocom --help 2>>/dev/null | head -1) ]] && dep_installed=true ||
 	    echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && dep_installed=false
     $ttyusb_connected && $dep_installed && main_menu

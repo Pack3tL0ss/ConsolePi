@@ -45,25 +45,25 @@ auto_install=true
 get_input() {
     valid_input=false
     while ! $valid_input; do
-		read -p "${prompt}" input 
-		case ${input,,} in
-			'y'|'yes')
-			input=true
-			valid_input=true
-			;;
-			'n'|'no')
-			input=false
-			valid_input=true
-			;;
-			'exit')
-			echo 'Exiting Script based on user input'
-			exit 1
-			;;
-			*)
-			valid_input=false
-			echo -e '\n\n!!! Invalid Input !!!\n\n'
-			;;
-		esac
+    read -p "${prompt}" input 
+    case ${input,,} in
+        'y'|'yes')
+        input=true
+        valid_input=true
+        ;;
+        'n'|'no')
+        input=false
+        valid_input=true
+        ;;
+        'exit')
+        echo 'Exiting Script based on user input'
+        exit 1
+        ;;
+        *)
+        valid_input=false
+        echo -e '\n\n!!! Invalid Input !!!\n\n'
+        ;;
+    esac
     done
 }
 

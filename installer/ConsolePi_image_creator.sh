@@ -65,6 +65,7 @@ get_input() {
         ;;
     esac
     done
+	prompt=
 }
 
 do_unzip() {
@@ -161,7 +162,7 @@ main() {
    
     # Burn Raspian image to device (micro-sd)
     echo -e "\n\n!!! Last chance to abort !!!"
-    echo "About to burn ${img_file} to ${my_usb}, Continue (y/n):" 
+    prompt="About to burn '${img_file}' to ${my_usb}, Continue (y/n):" 
     get_input
     ! $input && echo 'Exiting Script based on user input' && exit 1
     echo -e "\nNow Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"

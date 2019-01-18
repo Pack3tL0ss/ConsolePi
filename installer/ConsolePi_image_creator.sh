@@ -45,7 +45,7 @@ auto_install=true
 get_input() {
     valid_input=false
     while ! $valid_input; do
-    read -p "${prompt}" input 
+    read -p "${prompt} (y/n|exit): " input 
     case ${input,,} in
         'y'|'yes')
         input=true
@@ -88,10 +88,10 @@ main() {
     [[ -z $my_usb ]] && my_usb=$( sudo fdisk -l | grep 'Disk /dev/mmcblk' | awk '{print $2}' | cut -d: -f1 | cut -d'/' -f3)
     ####[[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
     
-    echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n\n"
-    [[ $my_usb ]] && echo -e "Script has discovered removable flash device @ \033[1;32m ${my_usb} $*\033[m\n'exit' will abort script\n" ||
+    echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n'exit' (which will terminate the script) is valid at all prompts\n"
+    [[ $my_usb ]] && echo -e "Script has discovered removable flash device @ \033[1;32m ${my_usb} $*\033[m" ||
         echo -e "Script failed to detect removable flash device, you will need to specify the device"
-    prompt="Do you want to see fdisk details for all disks to verify? (y/n): "
+    prompt="Do you want to see fdisk details for all disks to verify?"
     get_input
 
     # Display fdisk -l output if user wants to verify the correct drive is selected
@@ -103,11 +103,11 @@ main() {
     
     # Give user chance to change target drive
     echo -e "\n\nPress enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
-    read -p "Device to flash with image [${my_usb}]:" drive
+    read -p "Device to flash with image [${my_usb}|exit]:" drive
     [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
     
     if [[ $drive ]]; then
-        [[ $boot_list =~ $drive ]] && prompt="The selected drive contains a bootable partition, are you sure about this? (y/n):" && get_input
+        [[ $boot_list =~ $drive ]] && prompt="The selected drive contains a bootable partition, are you sure about this?" && get_input
         ! $input && echo "Exiting based on user input" && exit 1
         drive_list=( $(sudo fdisk -l | grep 'Disk /dev/' | awk '{print $2}' | cut -d'/' -f3 | cut -d':' -f1) )
         [[ $drive_list =~ $drive ]] && echo "${my_usb} not found on system. Exiting..." && exit 1
@@ -140,7 +140,7 @@ main() {
     if [[ $found_img_file ]]; then
         if [[ ! ${found_img_file%.img} == $cur_rel ]]; then
             echo "${found_img_file%.img} found, but the latest available release is ${cur_rel}"
-            prompt="Would you like to download and use the latest release? (${cur_rel}) (y/n):"
+            prompt="Would you like to download and use the latest release? (${cur_rel}):"
             get_input
             $input || img_file=$found_img_file
         else
@@ -150,7 +150,7 @@ main() {
     elif [[ $found_img_zip ]]; then
         if [[ ! ${found_img_zip%.zip} == $cur_rel ]]; then
             echo "${found_img_zip%.zip} found, but the latest available release is ${cur_rel}"
-            prompt="Would you like to download and use the latest release? (${cur_rel}) (y/n):"
+            prompt="Would you like to download and use the latest release? (${cur_rel}):"
             get_input
             $input || do_unzip $found_img_zip #img_file assigned in do_unzip
         else
@@ -174,7 +174,7 @@ main() {
    
     # Burn Raspian image to device (micro-sd)
     echo -e "\n\n!!! Last chance to abort !!!"
-    prompt="About to burn '${img_file}' to ${my_usb}, Continue (y/n):" 
+    prompt="About to burn '${img_file}' to ${my_usb}, Continue?" 
     get_input
     ! $input && echo 'Exiting Script based on user input' && exit 1
     echo -e "\nNow Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"

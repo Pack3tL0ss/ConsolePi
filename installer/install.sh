@@ -35,7 +35,7 @@ get_staged_file_path() {
     [[ -z $1 ]] && logit $process "FATAL Error find_path function passed NUL value" "CRITICAL"
     if [[ -f $1 ]]; then
         found_path="/home/${iam}/${1}"
-    elif [[ -f ConsolePi_stage/$1 ]]; then
+    elif [[ -f ${stage_dir}$1 ]]; then
         found_path="/home/${iam}/ConsolePi_stage/${1}"
     else
         found_path=
@@ -84,9 +84,13 @@ get_config() {
         fi
     elif [[ -f "/home/${iam}/ConsolePi.conf" ]] || [[ -f ${stage_dir}ConsolePi.conf ]]; then
         found_path=$(get_staged_file_path "ConsolePi.conf")
-        logit "${process}" "using provided config: ${found_path}"
-        sudo mv $found_path "$default_config" ||
-            logit "${process}" "Error Moving provided config: ${found_path}" "WARNING"
+        if [[ $found_path ]]; then
+            logit "${process}" "using provided config: ${found_path}"
+            sudo mv $found_path $default_config ||
+                logit "${process}" "Error Moving provided config: ${found_path}" "WARNING"
+        else
+            logit "${process}" "NUL Return from found_path: ${found_path}" "ERROR"
+        fi
     elif [[ -f "${default_config}" ]]; then
         logit "${process}" "Using existing Config found in ${consolepi_dir}"
     fi

@@ -501,6 +501,7 @@ gitConsolePi () {
         git pull "${consolepi_source}" 1>/dev/null 2>> $tmp_log && 
             logit "${process}" "ConsolePi update/pull Success" || logit "${process}" "Failed to update/pull ConsolePi" "WARNING"
     fi
+	[[ ! -d $orig_dir ]] && sudo mkdir $orig_dir
 }
 
 install_ser2net () {
@@ -577,7 +578,6 @@ dhcp_run_hook() {
         is_there=`cat /etc/dhcpcd.exit-hook |grep -c /etc/ConsolePi/ConsolePi.sh`      # find out if it's already pointing to ConsolePi script
         lines=$(wc -l < "/etc/dhcpcd.exit-hook")                                       # find out if there are other lines in addition to ConsolePi in script
         if [[ $is_there > 0 ]] && [[ $lines > 1 ]]; then                                 # This scenario we just create a new script
-            [[ ! -d $orig_dir ]] && sudo mkdir $orig_dir
             mv /etc/dhcpcd.exit-hook $orig_dir && 
               logit "${process}" "existing exit-hook backed up to originals folder" || logit "${process}" "Failed backup existing exit-hook file" "WARNING"
             echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "${process}" "Failed to create exit-hook script" "ERROR"

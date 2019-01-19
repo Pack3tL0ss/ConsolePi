@@ -245,33 +245,39 @@ main() {
     # Look for pre-configuration files in script dir.  Also if ConsolePi_stage subdir is found in script dir cp the dir to the ConsolePi image
     cur_dir=$(pwd)
     pi_home="/mnt/usb2/home/pi"
-    [[ -f "${cur_dir}/ConsolePi.conf" ]] && cp "${cur_dir}/ConsolePi.conf" $pi_home  && echo "ConsolePi.conf found pre-staging on image"
-    [[ -f "${cur_dir}/ConsolePi.ovpn" ]] && cp "${cur_dir}/ConsolePi.ovpn" $pi_home && echo "ConsolePi.ovpn found pre-staging on image"
-    [[ -f "${cur_dir}/ovpn_credentials" ]] && cp "${cur_dir}/ovpn_credentials" $pi_home && echo "ovpn_credentials found pre-staging on image"
-    [[ -f "${cur_dir}/ConsolePi_init.sh" ]] && cp "${cur_dir}/ConsolePi_init.sh" $pi_home && echo "Custome Post install script found pre-staging on image"
-    [[ -d "${cur_dir}/ConsolePi_stage" ]] && sudo mkdir $pi_home/ConsolePi_stage && 
-        sudo cp -r "${cur_dir}"/ConsolePi_stage/* $pi_home/ConsolePi_stage && echo "ConsolePi_stage dir found Pre-Staging all files"
+    [[ -f ConsolePi.conf ]] && cp ConsolePi.conf $pi_home  && echo "ConsolePi.conf found pre-staging on image"
+    [[ -f ConsolePi.ovpn ]] && cp ConsolePi.ovpn $pi_home && echo "ConsolePi.ovpn found pre-staging on image"
+    [[ -f ovpn_credentials ]] && cp ovpn_credentials $pi_home && echo "ovpn_credentials found pre-staging on image"
+    [[ -f ConsolePi_init.sh ]] && cp ConsolePi_init.sh $pi_home && echo "Custome Post install script found pre-staging on image"
+    [[ -d ConsolePi_stage ]] && sudo mkdir $pi_home/ConsolePi_stage && 
+        sudo cp -r "${cur_dir}"/ConsolePi_stage/* $pi_home/ConsolePi_stage/ && echo "ConsolePi_stage dir found Pre-Staging all files"
     
     # if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.
     # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
     #   certs should be in script dir or 'cert' subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
-    if [[ -f "${cur_dir}/wpa_supplicant.conf" ]]; then
+	[[ -f wpa_supplicant.conf ]] && found_path="${cur_dir}/wpa_supplicant.conf" || found_path=
+	[[ -d ConsolePi_stage ]] && [[ -f ConsolePi_stage/wpa_supplicant.conf ]] && found_path="${cur_dir}/ConsolePi_stage/wpa_supplicant.conf" || found_path=
+    if [[ $found_path ]]; then
         echo "wpa_supplicant.conf found pre-staging on image"
-        sudo cp "${cur_dir}/wpa_supplicant.conf" /mnt/usb2/etc/wpa_supplicant
+        sudo cp $found_path /mnt/usb2/etc/wpa_supplicant
         sudo chown root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf
         sudo chgrp root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf
         sudo chmod 644 /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf 
-        client_cert=$(grep client_cert= wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
+        client_cert=$(grep client_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
         if [[ ! -z $client_cert ]]; then
             cert_path="/mnt/usb2"${client_cert%/*}
-            ca_cert=$(grep ca_cert= wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
-            private_key=$(grep private_key= wpa_supplicant.conf | cut -d'"' -f2| cut -d'"' -f1)
-            [[ -d cert ]] && cd cert    # if script dir contains cert subdir look there for certs - otherwise look in script dir
-            [[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...
+            ca_cert=$(grep ca_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
+            private_key=$(grep private_key= $found_path | cut -d'"' -f2| cut -d'"' -f1)
+            if [[ -d cert/ ]]; then
+				cd cert
+			elif [[ -d ConsolePi_stage/cert/ ]]
+				cd ConsolePi_stage/cert/
+			fi
+            [[ ! -d $cert_path ]] && sudo mkdir $cert_path # Will only work if all but the final folder already exists - I don't need more so...
             [[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
             [[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
             [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
-            cd "${cur_dir}"
+            cd $cur_dir
         fi
     fi    
 

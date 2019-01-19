@@ -14,9 +14,10 @@
 ver="1.1"
 iam=$(who am i | awk '{print $1}')
 consolepi_dir="/etc/ConsolePi/"
-src_dir="${consolepi_dir}/src/"
-orig_dir="${consolepi_dir}/originals/"
-stage_dir="/home/${iam}/ConsolePi_stage/"
+src_dir="${consolepi_dir}src/"
+orig_dir="${consolepi_dir}originals/"
+home_dir="/home/${iam}/"
+stage_dir="${home_dir}ConsolePi_stage/"
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
@@ -1109,8 +1110,8 @@ custom_post_install_script() {
     found_path=$(get_staged_file_path "ConsolePi_init.sh")
     if [[ $found_path ]]; then
         process="Run Custom Post-install script"
-        logit $process "Post install script $found_path found. Executing"
-        sudo $found_path || logit $process "Error Code returned Post Install script" "WARNING"
+        logit "${process}" "Post install script $found_path found. Executing"
+        sudo $found_path || logit "${process}" "Error Code returned Post Install script" "WARNING"
     fi
 }
 

@@ -7,6 +7,9 @@
 # --  This is a script I used to expedite testing.  It looks for a raspbian-lite image file in whatever directory you run the script from, if it doesn't find one
 # --  it downloads the latest image.  It will guesses what drive is the micro-sd card (looks for usb to micro-sd adapter then sd to micro-sd) then flashes 
 # --  the raspbian-lite image to the micro-sd.
+# --
+# --  This script is an optional tool, provided just because I had it/used it for testing.  It simply automates the burning of the image to the sd-card and provides 
+# --    a mechanism to pre-configure a number of items and place whatever additional files you might want on the image.
 # --  
 # --  You do get the opportunity to review fdisk -l to ensure it's the correct drive, and you can override the drive the script selects.  Obviously if you
 # --  were to select the wrong drive, you would wipe out anything on that drive.  So don't do that.  I did add a validation check which detect if the drive contains
@@ -14,12 +17,13 @@
 # --
 # --  To further expedite testing this script will look for a ConsolePi_stage subdir and if found it will copy the entire directory and any subdirs to /home/pi/ConsolePi_stage
 # --  This script also searches the script dir (the dir this script is ran from) for the following which are copied to the /home/pi directory on the ConsolePi image if found.
-# --    ConsolePi.conf, ConsolePi.ovpn, ovpn_credentials
+# --    ConsolePi.conf, ConsolePi.ovpn, ovpn_credentials *.dtbo
 # --    
 # --    The install script (not this one this is the image creator) looks for these files in the home dir of whatever user your logged in with and in 'ConsolePi_stage' subdir. 
 # --      If found it will pull them in.  If the installer finds ConsolePi.conf it uses those values as the defaults allowing you to bypass the data entry (after confirmation). 
 # --    The OpenVPN related files are moved (by the installer) to the openvpn/client folder.
 # --      The installer only provides example ovpn files as the specifics would be dependent on how your openvpn server is configured
+# --    any dtbo are copied this script to /boot/overlays on the ConsolePi image
 # --  
 # --  To aid in headless installation this script will enable SSH and can configure a wlan_ssid.  With those options on first boot the raspberry pi will connect to
 # --  the SSID, so all you need to do is determine the IP address assigned and initiate an SSH session.

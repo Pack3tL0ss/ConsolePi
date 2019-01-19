@@ -1072,7 +1072,7 @@ get_serial_udev() {
     header
     
     # -- if pre-stage file provided enable it --
-    found_path=$(get_staged_file_path "10-consolePi.rules")
+    found_path=$(get_staged_file_path "10-ConsolePi.rules")
     if [[ $found_path ]]; then
         [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] && cp [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] $orig_dir
         echo "udev rules file found ${found_path} enabling provided udev rules"

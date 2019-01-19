@@ -58,7 +58,6 @@ udev_main() {
         echo "->> Existing rules file found with the following rules, adding ports will append to these rules starting at port $port <<-"
         cat $rules_file
         echo "-------------------------------------------------------------------------------------------------------------------------"
-    fi
     else
         port=7001
     fi
@@ -74,7 +73,7 @@ udev_main() {
 
 	# -- Show the resulting rules when complete --
     echo "--------------------------------------->> The Following Rules have been created <<---------------------------------------"
-    cat $rules_file
+    cat $rules_file 2>/dev/null || echo " No Rules Created."
     echo "-------------------------------------------------------------------------------------------------------------------------"
     sudo udevadm control --reload-rules && udevadm trigger
     

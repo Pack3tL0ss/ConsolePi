@@ -5,14 +5,16 @@
 # --    !!! USE @ own risk - This could bork your system !!!                                                                                           
 # --                                                                                                                                             
 # --  This is a script I used to expedite testing.  It looks for a raspbian-lite image file in whatever directory you run the script from, if it doesn't find one
-# --  it downloads the latest image.  It will guesses what drive is the micro-sd card (the last USB device as I was using a USB to micro-sd adapter) then flashes 
+# --  it downloads the latest image.  It will guesses what drive is the micro-sd card (looks for usb to micro-sd adapter then sd to micro-sd) then flashes 
 # --  the raspbian-lite image to the micro-sd.
 # --  
 # --  You do get the opportunity to review fdisk -l to ensure it's the correct drive, and you can override the drive the script selects.  Obviously if you
-# --  were to select the wrong drive, you would wipe out anything on that drive.  So don't do that.
-# --  
-# --  To further expedite testing the script will look for the following and move them to the /home/pi directory
-# --    ConsolePi.conf, ConsolePi.ovpn, ovpn_credentials
+# --  were to select the wrong drive, you would wipe out anything on that drive.  So don't do that.  I did add a validation check which detect if the drive contains
+# --  a partition with the boot flag in fdisk
+# --
+# --  To further expedite testing the script will look for the following in the script dir and in 'ConsolePi_stage' subdir and move anything found to the micro-sd
+# --    The files are either placed in /home/pi on the ConsolePi image or /home/pi/ConsolePi_stage depending on where they were found.  Either
+# --    ConsolePi.conf, ConsolePi.ovpn, ovpn_credentials 
 # --    
 # --    The install script looks for these files in the home dir of whatever user your logged in with, and will pull them in.  So in the case of ConsolePi.conf it 
 # --    will pre-configure the Configuration with your real values allowing you to bypass the data entry.  In the case of the openvpn files it moves them to the
@@ -26,8 +28,8 @@
 # --  Lastly this script also configures one of the consolepi quick commands: 'consolepi-install'. This command
 # --  is the same as the single command install command on the github.  btw that command is changed to 'consolepi-upgrade' during the install.
 # --  
-# --  This script should be ran on a Linux system, tested on raspbian (a different Raspberry pi), and Linux mint, should work for most debian/ubuntu variants
-# --  To use this script enter command: (this is not pulled by git, this script needs to be pulled manually for updates just check the date on top)
+# --  This script should be ran on a Linux system, tested on raspbian (a different Raspberry pi), and Linux mint, should work on most Linux distros certailny Debain/Ubuntu based
+# --  To use this script enter command:
 # --    'curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/ConsolePi_image_creator.sh  && sudo chmod +x ConsolePi_image_creator.sh'
 # --  Enter a micro-sd card using a usb to micro-sd card adapter (script only works with usb to micro-sd adapters)
 # --  'sudo ./ConsolePi_image_creator.sh' When you are ready to flash the image
@@ -201,7 +203,7 @@ main() {
     [[ $this =~ '*' ]] && this=
     if [[ $this ]]; then
         for overlay_file in ${this[@]}; do
-            [[ -f $(ls *.dtbo) ]] && sudo cp $overlay_file /mnt/usb1/overlays/ && echo "found overlay file ${overlay_file} copied to /boot/overlays/"
+            sudo cp $overlay_file /mnt/usb1/overlays/ && echo "found overlay file ${overlay_file} copied to /boot/overlays/"
         done
     fi
     
@@ -222,7 +224,7 @@ main() {
         [[ $priority > 0 ]] && sudo echo "        priority=${priority}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
     else
-        echo 'Script Option to pre-config psk ssid not enabled'
+        echo '  Script Option to pre-config psk ssid not enabled'
     fi
    
     # Configure pi user to auto-launch ConsolePi installer on first-login

@@ -1111,7 +1111,7 @@ custom_post_install_script() {
     if [[ $found_path ]]; then
         process="Run Custom Post-install script"
         logit "${process}" "Post install script $found_path found. Executing"
-        sudo $found_path || logit "${process}" "Error Code returned Post Install script" "WARNING"
+        sudo $found_path || logit "${process}" "Error Code returned by Post Install script" "WARNING"
     fi
 }
 

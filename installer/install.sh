@@ -38,7 +38,7 @@ get_staged_file_path() {
     elif [[ -f ConsolePi_stage/$1 ]]; then
         found_path="/home/${iam}/ConsolePi_stage/${1}"
     else
-		found_path=
+        found_path=
     fi
     echo $found_path
 }
@@ -83,7 +83,7 @@ get_config() {
             exit 0
         fi
     elif [[ -f "/home/${iam}/ConsolePi.conf" ]] || [[ -f ${stage_dir}ConsolePi.conf ]]; then
-		found_path=$(get_staged_file_path "ConsolePi.conf")
+        found_path=$(get_staged_file_path "ConsolePi.conf")
         logit "${process}" "using provided config: ${found_path}"
         sudo mv $found_path "$default_config" ||
             logit "${process}" "Error Moving provided config: ${found_path}" "WARNING"
@@ -621,23 +621,23 @@ install_ovpn() {
         logit "${process}" "OpenVPN ${ovpn_ver} Already Installed/Current"
     fi
     
-	found_path=$(get_staged_file_path "ConsolePi.ovpn")
+    found_path=$(get_staged_file_path "ConsolePi.ovpn")
     if [[ $found_path ]]; then 
         mv $found_path "/etc/openvpn/client" &&
             logit "${process}" "Found ConsolePi.ovpn in /home/${iam}.  Moving to /etc/openvpn/client" &&
             logit "${process}" "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in /etc/ConsolePi/src" "WARNING" ||
             logit "${process}" "Error occurred moving your ovpn config" "WARNING"
-	else
+    else
         [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && sudo cp "${src_dir}ConsolePi.ovpn.example" "/etc/openvpn/client" ||
             logit "${process}" "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
     fi
     
-	found_path=$(get_staged_file_path "ovpn_credentials")
-	if [[ $found_path ]]; then 
-		mv "/home/${iam}/ovpn_credentials" "/etc/openvpn/client" &&
-		logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving to /etc/openvpn/client"  ||
-		logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
-	else
+    found_path=$(get_staged_file_path "ovpn_credentials")
+    if [[ $found_path ]]; then 
+        mv "/home/${iam}/ovpn_credentials" "/etc/openvpn/client" &&
+        logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving to /etc/openvpn/client"  ||
+        logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
+    else
         [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}ovpn_credentials" "/etc/openvpn/client" ||
             logit "${process}" "Retaining existing ovpn_credentials file. See src dir for original example file."
     fi
@@ -717,7 +717,7 @@ install_autohotspotn () {
 
     logit "${process}" "Create/Configure hostapd.conf"
     [[ -f "/etc/hostapd/hostapd.conf" ]] && sudo mv "/etc/hostapd/hostapd.conf" "${orig_dir}" && 
-	    logit "${process}" "existing hostapd.conf found, backed up to originals folder"
+        logit "${process}" "existing hostapd.conf found, backed up to originals folder"
     echo "driver=nl80211" > "/tmp/hostapd.conf"
     echo "ctrl_interface=/var/run/hostapd" >> "/tmp/hostapd.conf"
     echo "ctrl_interface_group=0" >> "/tmp/hostapd.conf"
@@ -952,32 +952,33 @@ get_known_ssids() {
         echo "----------------------------------------------------------------------------------------------"
         word=" additional"
     else
-		# if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.
-		# if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
-		#   certs should be in user home dir, 'cert' subdir, 'ConsolePi_stage/cert, subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
-		found_path=$(get_staged_file_path "wpa_supplicant.conf")
-		if [[ -f $found_path ]]; then
-			logit $process "Found stage file ${found_path} Applying"
-			[[ -f $wpa_supplicant_file ]] && sudo cp $wpa_supplicant_file $orig_dir
-			sudo mv $found_path $wpa_supplicant_file
-			client_cert=$(grep client_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
-			if [[ ! -z $client_cert ]]; then
-				cert_path=${client_cert%/*}
-				ca_cert=$(grep ca_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
-				private_key=$(grep private_key= $found_path | cut -d'"' -f2| cut -d'"' -f1)
-				if [[ -d /home/${iam}/cert ]]; then
-					cd /home/$iam/cert     # if user home contains cert subdir look there for certs - otherwise look in stage subdir
-				elif [[ -d ${stage_dir}cert ]]; then
-					cd ${stage_dir}cert
-				fi
-					
-				[[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...
-				[[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
-				[[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
-				[[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
-				cd "${cur_dir}"
-			fi
-		fi  
+        # if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.
+        # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
+        #   certs should be in user home dir, 'cert' subdir, 'ConsolePi_stage/cert, subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
+        found_path=$(get_staged_file_path "wpa_supplicant.conf")
+        if [[ -f $found_path ]]; then
+            logit $process "Found stage file ${found_path} Applying"
+            [[ -f $wpa_supplicant_file ]] && sudo cp $wpa_supplicant_file $orig_dir
+            sudo mv $found_path $wpa_supplicant_file
+            client_cert=$(grep client_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
+            if [[ ! -z $client_cert ]]; then
+                cert_path=${client_cert%/*}
+                ca_cert=$(grep ca_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
+                private_key=$(grep private_key= $found_path | cut -d'"' -f2| cut -d'"' -f1)
+                if [[ -d /home/${iam}/cert ]]; then
+                    cd /home/$iam/cert     # if user home contains cert subdir look there for certs - otherwise look in stage subdir
+                elif [[ -d ${stage_dir}cert ]]; then
+                    cd ${stage_dir}cert
+                fi
+                    
+                [[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...
+                [[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
+                [[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
+                [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
+                cd "${cur_dir}"
+            fi
+        fi
+    fi
 
     echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
     prompt="Do You want to configure${word} SSIDs? (Y/N)"
@@ -1065,16 +1066,16 @@ get_serial_udev() {
     process="Predictable Console Ports"
     logit "${process}" "${process} Starting."
     header
-	
-	# -- if pre-stage file provided enable it --
-	found_path=$(get_staged_file_path "10-consolePi.rules")
-	if [[ $found_path ]]; then
-		[[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] && cp [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] $orig_dir
+    
+    # -- if pre-stage file provided enable it --
+    found_path=$(get_staged_file_path "10-consolePi.rules")
+    if [[ $found_path ]]; then
+        [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] && cp [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] $orig_dir
         echo "udev rules file found ${found_path} enabling provided udev rules"
         sudo mv $found_path /etc/udev/rules.d
         sudo udevadm control --reload-rules
-	fi
-	
+    fi
+    
     echo
     echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
     echo "-                                                                                                                   -"
@@ -1101,12 +1102,12 @@ get_serial_udev() {
 
 # -- run custom post install script --
 custom_post_install_script() {
-	found_path=$(get_staged_file_path "ConsolePi_init.sh")
-	if [[ $found_path ]]; then
-		process="Run Custom Post-install script"
-		logit $process "Post install script $found_path found. Executing"
-		sudo $found_path || logit $process "Error Code returned Post Install script" "WARNING"
-	fi
+    found_path=$(get_staged_file_path "ConsolePi_init.sh")
+    if [[ $found_path ]]; then
+        process="Run Custom Post-install script"
+        logit $process "Post install script $found_path found. Executing"
+        sudo $found_path || logit $process "Error Code returned Post Install script" "WARNING"
+    fi
 }
 
 
@@ -1198,7 +1199,7 @@ main() {
         get_known_ssids
         get_serial_udev
         move_log
-		custom_post_install_script
+        custom_post_install_script
         post_install_msg
     else
       echo 'Script should be ran as root. exiting.'

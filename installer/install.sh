@@ -638,8 +638,8 @@ install_ovpn() {
     
     found_path=$(get_staged_file_path "ovpn_credentials")
     if [[ $found_path ]]; then 
-        mv "/home/${iam}/ovpn_credentials" "/etc/openvpn/client" &&
-        logit "${process}" "Found ovpn_credentials in /home/${iam}. Moving to /etc/openvpn/client"  ||
+        mv $found_path "/etc/openvpn/client" &&
+        logit "${process}" "Found ovpn_credentials ${found_path}. Moving to /etc/openvpn/client"  ||
         logit "${process}" "Error occurred moving your ovpn_credentials file" "WARNING"
     else
         [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}ovpn_credentials" "/etc/openvpn/client" ||

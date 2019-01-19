@@ -1,6 +1,6 @@
 # ConsolePi
 
-Automated Raspberry Pi Serial Console Server, with PushBullet Notification of IP changes, Automatic VPN termination...
+Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to ConsolePi via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).  Multiple Connectivity options, wired, WLAN (ConsolePi as client or ConsolePi as hotspot), and bluetooth.
 
 *TL;DR:*
 Single Command Install Script. Run from a RaspberryPi running raspbian (that has internet access):
@@ -8,22 +8,20 @@ Single Command Install Script. Run from a RaspberryPi running raspbian (that has
 
 ------
 # Contents
- - [What Does it Do](#what-does-it-do)
+ - [Features](#features)
  - [Installation](#installation)
  - [ConsolePi Usage](#consolepi-usage)
  - [Tested Hardware](#tested-hardware)
  - [Credits](#credits)
 ------
 
-## What Does it Do
-
-Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet to gain Console Access to devices connected to ConsolePi via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port)
+## Features
 
 **AutoHotSpot**
 
 Script runs at boot (can be made to check on interval via Cron if desired).  Looks for pre-defined SSIDs, if those SSIDs are not available then it automatically goes into hotspot mode and broadcasts its own SSID.  In HotSpot mode user traffic is NAT'd to the wired interface if the wired interface is up.
 
-When ConsolePi enters hotspot mode, it first determines if the wired port is up and has an IP.  If the wired port is *not* connected, then the hotspot distributes DHCP, but does not provide a "Default Gateway" to clients.  This allows a user to dual connect without having to remove a route to a gateway that can't get anywhere.  I commonly use a second USB NIC to connect to ConsolePi, while remaining connected to the internet via a different SSID on my primary NIC.
+When ConsolePi enters hotspot mode, it first determines if the wired port is up and has an IP.  If the wired port is *not* connected, then the hotspot distributes DHCP, but does not provide a "Default Gateway" to clients.  This allows a user to dual connect without having to remove a route to a gateway that can't get anywhere.  I commonly use a second USB WLAN adapter to connect to ConsolePi, while remaining connected to the internet via a different SSID on my primary adapter.
 
 If ConsolePi determines there is a wired connection when the hotspot is enabled it forwards (NATs) traffic from clients connected to the hotspot to the wired interface.
 
@@ -38,15 +36,15 @@ When an interface recieves an IP address ConsolePi will Automatically connect to
 
 *(Requires a PushBullet Account, API key, and the app for mobile devices.)*
 
-When ConsolePi receives a dynamic IP address.  A message is sent to your phone via PushBullet API with the IP so you know can connect.
+When ConsolePi receives a dynamic IP address.  A message is sent via PushBullet API with the IP so you know how to reach ConsolePi.
 
 ![Push Bullet Notification image](readme_content/ConsolePiPB1.png)
 
-When the Automatic VPN function successfully terminates the configured tunnel, the Tunnel IP is sent via PushBullet API
+An additional message is sent once a tunnel is established if the Automatic OpenVPN feature is enabled.
 
 ![Push Bullet Notification image](readme_content/ConsolePiPB2.png)
 
-Each Time a Notification is triggered all interface IPs are sent in the message along with the ConsolePi's default gateway
+Each Time a Notification is triggered all interface IPs are sent in the message along with the ConsolePi's default gateway(s).
 
 ## Installation
 
@@ -54,7 +52,7 @@ If you have a Linux system available you can use the Automated FlashCard imaging
 
 **The Following Applies to All Automated Installation methods**
 
-ConsolePi will optionally use pre-configured settings for the following if they are placed in the logged in users home-dir when the installer starts (i.e. /home/pi).  This is optional, the installer will prompt for the information if not pre-configured.
+ConsolePi will **optionally** use pre-configured settings for the following if they are placed in the logged in users home-dir when the installer starts (i.e. /home/pi) or in a 'ConsolePi_stage' subdir (i.e. /home/pi/ConsolePi_stage).  This is optional, the installer will prompt for the information if not pre-configured.  It will prompt you to verify either way.
 
 - ConsolePi.conf: This is the main configuration file where all ConsolePi.conf configurable settings are defined.  If provided in the users home dir the installer will ask for verification then create the working config /etc/ConsolePi/ConsolePi.conf
 
@@ -62,7 +60,21 @@ ConsolePi will optionally use pre-configured settings for the following if they 
 
 - ovpn_credentials: Credentials file for OpenVPN.  Will be placed in the appropriate OpenVPN dir during the install.  This is a simple text file with the openvpn username on the first line and the password on the second line.
 
-*The script will chmod 600 everything in the /etc/openvpn/client directory for security so the files will only be accessible via sudo (root).*
+  *The script will chmod 600 everything in the /etc/openvpn/client directory for security so the files will only be accessible via sudo (root).*
+
+- 10-ConsolePi.rules: udev rules file used to automatically map specific adapters to specific telnet ports.  So every time you plug in that specific adapter it will be reachable on the same telnet port even if other adapters are also plugged in.  Pre-Configuring this is only useful if you are doing a rebuild and already have a rules file defined, it allows you to skip the step in the install where the rules are created by plugging adapters in 1 at a time.
+
+- wpa_supplicant.conf:  If found during install this file will be copied to /etc/wpa_supplicant.  The file is parsed to determine if any EAP-TLS SSIDs are configured, and if so the associated certificate files are also copied to the directory specified in the wpa_supplicant.conf file.  
+
+  The script will look for certs in the following directories (using pi as an example will look in user home dir for any user):
+
+  1.  /home/pi
+  2. /home/pi/cert
+  3. /home/pi/ConsolePi_stage/cert
+
+- ConsolePi_init.sh: Custom post install script.  This custom script is triggered after all install steps are complete.  It runs just before the post-install message is displayed.
+
+
 
 **1. Automatic Installation**
 
@@ -104,27 +116,34 @@ sudo ./install.sh
 
 **3. Automated Flash Card Imaging with AutoInstall on boot**
 
-**Script only supports USB/microSD adapters currently as that's what I used.  I disabled other adapter types as I didn't test them.**
+**Script has been tested and works with USB to micro-sd adapter and sd to micro-sd adapters.**
 
-*This is a script I used during testing to expedite the process Use at your own risk it does flash a drive so it could do harm*
+*This is a script I used during testing to expedite the process Use at your own risk it does flash a drive so it could do harm!*
+
 Using a Linux System (Most distros should work ... tested on Raspbian and Mint) enter the following command:
 `curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/ConsolePi_image_creator.sh  && sudo chmod +x ConsolePi_image_creator.sh`
 
 That will download the image creator and make it executable.
-Then I would suggest `head -40 ConsolePi_image_creator.sh`, Which will print the top of the file where everything is explained in more detail.  
+Then I would suggest `head -48 ConsolePi_image_creator.sh`, Which will print the top of the file where everything is explained in more detail.  
 
 **ConsolePi_image_creator brief summary:**
+
+*The "Stage dir" referenced below is a sub directory found in the script dir (the directory you run the script from).  The script looks for the Stage dir which needs to be named 'ConsolePi_stage' and moves the entire directory to the pi users home directory.*
+
+The Pre-staging described below is optional, this script can be used without any pre-staging files, it will simply burn the Raspbian-lite image to the micro-sd and set the installer to run automatically on boot (unless you set auto_install to false in the script.  It's true by default)
+
 - automatically pull the most recent raspbian-lite image if one doesn't exist in the script-dir (whatever dir you run it from)
 - Make an attempt to determine the correct drive to be flashed, allow user to verify/confirm (given option to display fdisk -l output)
 - Flash image to micro-sd card
 - PreConfigure ConsolePi with parameters normally entered during the initial install.  So you bypass data entry and just get a verification screen.
+- The entire stage dir (ConsolePi_stage) is moved to the micro-sd if found in the script dir.  This can be used to pre-stage a number of config files the script will detect and use, along with anything else you'd like on the ConsolePi image.
 - Pre-Configure a psk or open WLAN via parameters in script, and Enable SSH.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP.
-- You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the script dir.  This method supports EAP-TLS pre-config.  Just place the cert files referenced in the provided wpa_supplicant.conf file in either the script dir, or a 'cert' sub-folder.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ).
-- Use real ovpn installation.  The installer puts an example in, but as the config is specific to your ovpn server, the installer doesn't put a working config in.
+- You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the script dir (or stage dir).  This method supports EAP-TLS with certificates.  Just place the cert files referenced in the provided wpa_supplicant.conf file in either the script dir, or a 'cert' sub-folder or in a cert folder inside the stage dir.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ).
+- PreStage all OpenVPN related files (ConsolePi.ovpn and ovpn_credentials) by placing them on the ConsolePi image.  The script will detect them if found in script dir or stage dir.  The installer will then detect them and place them in the /etc/openvpn/client directory.  By default the installer places example files in for OpenVPN (as the specifics depend on your server config).
 - create a quick command 'consolepi-install' to simplify the long command string to pull the installer from this repo and launch.
-- The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.
+- The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled by setting auto_install to false in this script.
 
-Once Complete you place the newley blessed micro-sd in your raspberryPi and boot.  Login then `consolepi-install`
+Once Complete you place the newley blessed micro-sd in your raspberryPi and boot.  The installer will automatically start unless you've disabled it.  In which case the `consolepi-install` will launch the installer.
 
 **4. Manual Installation**
 
@@ -156,11 +175,16 @@ There are a few convenience commands created for ConsolePi during the automated 
 - consolepi-addssids:  runs the /etc/ConsolePi/installer/ssids.sh script.  This script automates the creation of additional SSIDs which ConsolePi will attempt to connect to on boot.  Currently only supports psk and open SSIDs, but may eventually be improved to automate creation of other SSID types.
 - consolepi-addconsole: runs the /etc/ConsolePi/installer/udev.sh  This script automates the process of detecting USB to serial adapters and mapping them to specific telnet ports.  It does this by collecting the data required to create a udev rule.  It then creates the udev rule starting with the next available port (if rules already exist).
 - consolepi-autohotspot: runs /usr/bin/autohotspotN script  This script re-runs the autohotspot script which runs at boot (or periodically via cron although the installer currently doens't configure that).  If the wlan adapter is already connected to an SSID it doesn't do anything.  If it's acting as a hotspot or not connected, it will scan for known SSIDs and attempt to connect, then fallback to a hotspot if it's unable to find/connect to a known SSID. 
+- consolepi-killvpn: gracefully terminates the OpenVPN tunnel if established.
+- consolepi-menu: Launches ConsolePi Console Menu, which will have menu items for any serial adapters that are plugged in.  This allows you to connect to those serial adapters.  This menu is launched automatically when connecting to ConsolePi via BlueTooth, but can also be invoked from any shell session (i.e. SSH)
 
 
 ## Tested Hardware
 
-ConsolePi has been tested on the following:
+ConsolePi Should work on all variants of the RaspberryPi, but it has been tested on the following: 
+
+​	*If you find a variant of the Rpi that does not work, post a comment to the discussion board*
+
 - RaspberryPi 3 Model B+
   - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery), all worked fine *other than the known over-current errors on the original PoE Hat - still wored on my PoE switch*
 - RaspberryPi zero w
@@ -192,11 +216,4 @@ ConsolePi utilizes a couple of other projects so Some Credit
 
    *The ser2net available from apt works and has been tested, the installation script pulls the far more current version from sourceforge and compiles/installs it and builds the config*
 
-3. -- Not Currently Packaged -- **RaspAp** ([billz](https://github.com/billz))
-
-   A simple, responsive web interface to control wifi and hostapd on the Raspberry Pi
-
-   https://github.com/billz/raspap-webgui
-
-   *RaspAP was tested initially with my first ConsolePi, but is not currently built into the ConsolePi Project.  Some of the changes RaspAP makes possible via the web-interface would likely be in conflict with some of the automated scripts.  It's possible but not high priority that it be integrated (as an option) into ConsolePi.*
 

@@ -72,7 +72,7 @@ udev_main() {
     done
 
 	# -- Show the resulting rules when complete --
-    echo "--------------------------------------->> The Following Rules have been created <<---------------------------------------"
+    echo "------------------------------------------>> The Following Rules are Active <<-------------------------------------------"
     cat $rules_file 2>/dev/null || echo " No Rules Created."
     echo "-------------------------------------------------------------------------------------------------------------------------"
     sudo udevadm control --reload-rules && udevadm trigger

@@ -12,21 +12,30 @@
 # --  were to select the wrong drive, you would wipe out anything on that drive.  So don't do that.  I did add a validation check which detect if the drive contains
 # --  a partition with the boot flag in fdisk
 # --
-# --  To further expedite testing the script will look for the following in the script dir and in 'ConsolePi_stage' subdir and move anything found to the micro-sd
-# --    The files are either placed in /home/pi on the ConsolePi image or /home/pi/ConsolePi_stage depending on where they were found.  Either
-# --    ConsolePi.conf, ConsolePi.ovpn, ovpn_credentials 
+# --  To further expedite testing this script will look for a ConsolePi_stage subdir and if found it will copy the entire directory and any subdirs to /home/pi/ConsolePi_stage
+# --  This script also searches the script dir (the dir this script is ran from) for the following which are copied to the /home/pi directory on the ConsolePi image if found.
+# --    ConsolePi.conf, ConsolePi.ovpn, ovpn_credentials
 # --    
-# --    The install script looks for these files in the home dir of whatever user your logged in with, and will pull them in.  So in the case of ConsolePi.conf it 
-# --    will pre-configure the Configuration with your real values allowing you to bypass the data entry.  In the case of the openvpn files it moves them to the
-# --    openvpn/client folder once it's installed.  The script only provides example ovpn files as the specifics would be dependent on how your openvpn server is 
-# --    configured.
+# --    The install script (not this one this is the image creator) looks for these files in the home dir of whatever user your logged in with and in 'ConsolePi_stage' subdir. 
+# --      If found it will pull them in.  If the installer finds ConsolePi.conf it uses those values as the defaults allowing you to bypass the data entry (after confirmation). 
+# --    The OpenVPN related files are moved (by the installer) to the openvpn/client folder.
+# --      The installer only provides example ovpn files as the specifics would be dependent on how your openvpn server is configured
 # --  
-# --  To aid in headless installation the script will enable SSH and can configure a wlan_ssid.  With those options on first boot the raspberry pi will connect to
+# --  To aid in headless installation this script will enable SSH and can configure a wlan_ssid.  With those options on first boot the raspberry pi will connect to
 # --  the SSID, so all you need to do is determine the IP address assigned and initiate an SSH session.
-# --    To enable the pre-configuration of an SSID, configure the parameters below with values appropriate for your system
+# --    To enable the pre-configuration of an SSID, either configure the parameters below with values appropriate for your system *or* provide a valid wpa_supplicant.conf
+# --    file in either the script dir or ConsolePi_stage subdir.  EAP-TLS can also be pre-configured, just define it in wpa_supplicant.conf and provide the certs
+# --    referenced in the wpa_supplicant.conf in the script dir a 'cert' subdir or 'ConsolePi_stage/cert' subdir.
+# --    This script will copy wpa_supplicant.conf and any certs if defined and found to the appropriate dirs so ConsolePi can use those settings on first boot.
 # --  
+# --  The install script (again not this script) also handles a few other files, they just need to be provided in the ConsolePi_stage subdir
+# --    This includes: 
+# --      - 10-ConsolePi.rules: udev rules file mapping specific serial adapters to specific telnet ports
+# --      - ConsolePi_init.sh: Custom post-install script, the installer will run this script at the end of the process, it can be used to automate any additional tweaks 
+# --          you might want to make.  i.e. copy additional custom scripts you like to have on hand from the ConsolePi_stage dir to wherever you want them.
+# --
 # --  Lastly this script also configures one of the consolepi quick commands: 'consolepi-install'. This command
-# --  is the same as the single command install command on the github.  btw that command is changed to 'consolepi-upgrade' during the install.
+# --  is the same as the single command install command on the github.  btw the 'consolepi-install' command is changed to 'consolepi-upgrade' during the install.
 # --  
 # --  This script should be ran on a Linux system, tested on raspbian (a different Raspberry pi), and Linux mint, should work on most Linux distros certailny Debain/Ubuntu based
 # --  To use this script enter command:

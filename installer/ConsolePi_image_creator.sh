@@ -270,7 +270,7 @@ main() {
             private_key=$(grep private_key= $found_path | cut -d'"' -f2| cut -d'"' -f1)
             if [[ -d cert/ ]]; then
 				cd cert
-			elif [[ -d ConsolePi_stage/cert/ ]]
+			elif [[ -d ConsolePi_stage/cert/ ]]; then
 				cd ConsolePi_stage/cert/
 			fi
             [[ ! -d $cert_path ]] && sudo mkdir $cert_path # Will only work if all but the final folder already exists - I don't need more so...

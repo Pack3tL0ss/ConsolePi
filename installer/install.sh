@@ -12,6 +12,7 @@
 
 # -- Installation Defaults --
 ver="1.2"
+cur_dir=$(pwd)
 iam=$(who am i | awk '{print $1}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"
@@ -542,6 +543,7 @@ install_ser2net () {
         make clean 1>/dev/null 2>> $tmp_log &&
             logit "${process}" "ser2net make clean Success" ||
             logit "${process}" "ser2net make clean Failed" "WARNING"
+		cd $cur_dir
         
         logit "${process}" "Building init & ConsolePi Config for ser2net"
         cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $tmp_log || 

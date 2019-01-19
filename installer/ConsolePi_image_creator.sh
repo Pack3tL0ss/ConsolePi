@@ -201,8 +201,10 @@ main() {
 	[[ $this =~ '*' ]] && this=
 	if [[ $this ]]; then
 		for overlay_file in ${this[@]}; do
-    [[ -f $(ls *.dtbo) ]] && sudo cp $overlay_file /mnt/usb1/overlays/ && echo "found overlay file ${overlay_file} copied to /boot/overlays/"
-    
+			[[ -f $(ls *.dtbo) ]] && sudo cp $overlay_file /mnt/usb1/overlays/ && echo "found overlay file ${overlay_file} copied to /boot/overlays/"
+		done
+    fi
+	
     # Done with boot partition unmount
     sudo umount /mnt/usb1
 

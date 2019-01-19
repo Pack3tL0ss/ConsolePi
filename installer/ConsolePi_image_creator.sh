@@ -255,8 +255,8 @@ main() {
     # if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.
     # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
     #   certs should be in script dir or 'cert' subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
-	[[ -f wpa_supplicant.conf ]] && found_path="${cur_dir}/wpa_supplicant.conf" || found_path=
-	[[ -d ConsolePi_stage ]] && [[ -f ConsolePi_stage/wpa_supplicant.conf ]] && found_path="${cur_dir}/ConsolePi_stage/wpa_supplicant.conf" || found_path=
+    [[ -f wpa_supplicant.conf ]] && found_path="${cur_dir}/wpa_supplicant.conf" || found_path=
+    [[ -d ConsolePi_stage ]] && [[ -f ConsolePi_stage/wpa_supplicant.conf ]] && found_path="${cur_dir}/ConsolePi_stage/wpa_supplicant.conf" || found_path=
     if [[ $found_path ]]; then
         echo "wpa_supplicant.conf found pre-staging on image"
         sudo cp $found_path /mnt/usb2/etc/wpa_supplicant
@@ -269,10 +269,10 @@ main() {
             ca_cert=$(grep ca_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
             private_key=$(grep private_key= $found_path | cut -d'"' -f2| cut -d'"' -f1)
             if [[ -d cert/ ]]; then
-				cd cert
-			elif [[ -d ConsolePi_stage/cert/ ]]; then
-				cd ConsolePi_stage/cert/
-			fi
+                cd cert
+            elif [[ -d ConsolePi_stage/cert/ ]]; then
+                cd ConsolePi_stage/cert/
+            fi
             [[ ! -d $cert_path ]] && sudo mkdir $cert_path # Will only work if all but the final folder already exists - I don't need more so...
             [[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
             [[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"

@@ -1017,21 +1017,31 @@ update_consolepi_command() {
         sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
             logit "${process}" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
     fi
+	
+	# consolepi-upgrade
     [[ ! -f "/usr/local/bin/consolepi-upgrade" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-upgrade &&
         echo -e 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' \
             >> /usr/local/bin/consolepi-upgrade
+			
+	# consolepi-addssids
     [[ ! -f "/usr/local/bin/consolepi-addssids" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addssids &&
         echo -e 'sudo /etc/ConsolePi/installer/ssids.sh' >> /usr/local/bin/consolepi-addssids || 
         logit "${process}" "consolepi-addssids already exists"
+		
+	# consolepi-addconsole
     [[ ! -f "/usr/local/bin/consolepi-addconsole" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
         echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole || 
         logit "${process}" "consolepi-addconsole already exists"
+	
+	# consolepi-autohotspot
     [[ ! -f "/usr/local/bin/consolepi-autohotspot" ]] && 
-    echo -e '#!/usr/bin/env bash\nsudo /usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot || 
+        echo -e '#!/usr/bin/env bash\nsudo /usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot || 
         logit "${process}" "consolepi-autohotspot already exists"
+		
+	# consolepi-killvpn
     if [[ ! -f /usr/local/bin/consolepi-killvpn ]]; then
         echo '#!/usr/bin/env bash' > /usr/local/bin/consolepi-killvpn
         echo '' >> /usr/local/bin/consolepi-killvpn
@@ -1056,9 +1066,27 @@ update_consolepi_command() {
     else
         logit "${process}" "consolepi-menu already exists"
     fi
-        
+    
+	# consolepi-btpairon
+    if [[ ! -f /usr/local/bin/consolepi-btpairon ]]; then
+        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-btpairon
+        echo -e "echo -e 'discoverable on\npairable on\nquit\n' | sudo bluetoothctl" >> /usr/local/bin/consolepi-btpairon
+	else
+        logit "${process}" "consolepi-btpairon already exists"
+    fi
+	
+	# consolepi-btpairoff
+    if [[ ! -f /usr/local/bin/consolepi-btpairoff ]]; then
+        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-btpairoff
+        echo -e "echo -e 'discoverable off\npairable off\nquit\n' | sudo bluetoothctl" >> /usr/local/bin/consolepi-btpairoff
+	else
+        logit "${process}" "consolepi-btpairoff already exists"
+    fi
+	
+	# make consolepi commands executable
     sudo chmod +x /usr/local/bin/consolepi-* ||
         logit "${process}" "Failed to chmod consolepi quick commands" "WARNING"
+
     logit "${process}" "${process} - Complete"
 }
 

@@ -277,7 +277,7 @@ main_menu() {
         ( [[ -z $selection ]] || [[ $selection =~ [[:cntrl:]] ]] ) && selection=0
         if (( $selection > 0 )) && (( $selection < $((${#tty_list[@]}+1)) )); then
             this_tty="${tty_list[$((selection - 1))]}"
-            do_get_tty_name
+            get_tty_name
             # depricated screen in favor of picocom
             ## screen "/dev/${tty_list[$((selection - 1))]##*/}" $baud
             # -- Always use native dev (ttyUSB#) --

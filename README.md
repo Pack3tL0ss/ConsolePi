@@ -1,5 +1,20 @@
 # ConsolePi
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! READ ME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Problems have been reported with the installer on full raspbian (I did all the testing on raspbian-light (no desktop env)).  The problem is related to ser2net being built from source.  I haven't investigated the issue yet so it's not clear if a change was made to ser2net source... which would indicate the problem would present itself on both the normal and light version of raspbian, or if the issue is specific to the full version.
+
+To work around the issue simply install ser2net via apt.  It won't be as current as the version the installer gets from source, but for the purposes of ConsolePi it has everything we need.
+
+Work-Around Steps
+1. sudo apt-get update && sudo apt-get install ser2net
+2. sudo mv /etc/ser2net.conf /etc/ser2net.bak
+3. Copy contents of src/ser2net.conf in this repo and past into a new /etc/ser2net.conf file
+4. sudo nano /etc/ser2net.conf (should be a new file at this point)... Paste in contents of src/ser2net.conf from this repo
+
+Now you can run the installer script below, it will skip over the ser2net config as it's already installed.
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to ConsolePi via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).  Multiple Connectivity options, wired, WLAN (ConsolePi as client or ConsolePi as hotspot), and bluetooth.
 
 *TL;DR:*

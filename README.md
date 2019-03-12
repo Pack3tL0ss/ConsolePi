@@ -1,6 +1,7 @@
 # ConsolePi
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! READ ME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 Problems have been reported with the installer on full raspbian (I did all the testing on raspbian-light (no desktop env)).  The problem is related to ser2net being built from source.  I haven't investigated the issue yet so it's not clear if a change was made to ser2net source... which would indicate the problem would present itself on both the normal and light version of raspbian, or if the issue is specific to the full version.
 
 To work around the issue simply install ser2net via apt.  It won't be as current as the version the installer gets from source, but for the purposes of ConsolePi it has everything we need.

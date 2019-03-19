@@ -1068,20 +1068,20 @@ update_consolepi_command() {
         logit "${process}" "consolepi-menu already exists"
     fi
     
-	# consolepi-btpairon
-    if [[ ! -f /usr/local/bin/consolepi-btpairon ]]; then
-        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-btpairon
-        echo -e "echo -e 'discoverable on\npairable on\nquit\n' | sudo bluetoothctl" >> /usr/local/bin/consolepi-btpairon
+	# consolepi-bton
+    if [[ ! -f /usr/local/bin/consolepi-bton ]]; then
+        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-bton
+        echo -e "echo -e 'discoverable on\npairable on\nquit\n' | sudo bluetoothctl" >> /usr/local/bin/consolepi-bton
 	else
-        logit "${process}" "consolepi-btpairon already exists"
+        logit "${process}" "consolepi-bton already exists"
     fi
 	
-	# consolepi-btpairoff
-    if [[ ! -f /usr/local/bin/consolepi-btpairoff ]]; then
-        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-btpairoff
-        echo -e "echo -e 'discoverable off\npairable off\nquit\n' | sudo bluetoothctl" >> /usr/local/bin/consolepi-btpairoff
+	# consolepi-btoff
+    if [[ ! -f /usr/local/bin/consolepi-btoff ]]; then
+        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-btoff
+        echo -e "echo -e 'discoverable off\npairable on\nquit\n' | sudo bluetoothctl" >> /usr/local/bin/consolepi-btoff
 	else
-        logit "${process}" "consolepi-btpairoff already exists"
+        logit "${process}" "consolepi-btoff already exists"
     fi
 	
 	# make consolepi commands executable
@@ -1187,6 +1187,9 @@ post_install_msg() {
     echo "*   - consolepi-killvpn: Gracefully terminate openvpn tunnel if one is established                                      *"
     echo "*   - consolepi-autohotspot: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found  *"
     echo "*       then fall-back to HotSpot mode if not found or unable to connect.                                               *"
+    echo "*   - consolepi-bton: Make BlueTooth Discoverable and Pairable - this is the default behavior on boot.                  *"
+    echo "*   - consolepi-btoff: Disable BlueTooth Discovery (stop advertising to other devices).  ConsolePi will remain Pairable *"
+    echo "*       for devices previously paired.                                                                                  *"
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
     echo -e "\n\n"

@@ -1,26 +1,13 @@
 # ConsolePi
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! READ ME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-Problems have been reported with the installer on full raspbian (I did all the testing on raspbian-light (no desktop env)).  The problem is related to ser2net being built from source.  I haven't investigated the issue yet so it's not clear if a change was made to ser2net source... which would indicate the problem would present itself on both the normal and light version of raspbian, or if the issue is specific to the full version.
-
-To work around the issue simply install ser2net via apt.  It won't be as current as the version the installer gets from source, but for the purposes of ConsolePi it has everything we need.
-
-Work-Around Steps
-1. sudo apt-get update && sudo apt-get install ser2net
-2. sudo mv /etc/ser2net.conf /etc/ser2net.bak
-3. Copy contents of src/ser2net.conf in this repo and past into a new /etc/ser2net.conf file
-4. sudo nano /etc/ser2net.conf (should be a new file at this point)... Paste in contents of src/ser2net.conf from this repo
-
-Now you can run the installer script below, it will skip over the ser2net config as it's already installed.
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to ConsolePi via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).  Multiple Connectivity options, wired, WLAN (ConsolePi as client or ConsolePi as hotspot), and bluetooth.
 
 *TL;DR:*
 Single Command Install Script. Run from a RaspberryPi running raspbian (that has internet access):
-`sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi`
+```
+sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
+```
 
 ------
 # Contents
@@ -43,7 +30,7 @@ If ConsolePi determines there is a wired connection when the hotspot is enabled 
 
 **Automatic OpenVPN Tunnel**
 
-When an interface recieves an IP address ConsolePi will Automatically connect to an OpenVPN server under the following conditions:
+When an interface receives an IP address ConsolePi will Automatically connect to an OpenVPN server under the following conditions:
 - It's configured to use the OpenVPN feature, and the ConsolePi.ovpn file exists (an example is provided during install)
 - ConsolePi is not on the users home network (determined by the 'domain' handed out by DHCP)
 - The internet is reachable.  (Checked by pinging a configurable common internet reachable destination)
@@ -136,6 +123,8 @@ sudo ./install.sh
 
 *This is a script I used during testing to expedite the process Use at your own risk it does flash a drive so it could do harm!*
 
+*NOTE: USB adapters seemed to have more consistency than sd/micro-sd adapters, the latter would occasionally not mount until after the adapter was removed and re-inserted*
+
 Using a Linux System (Most distros should work ... tested on Raspbian and Mint) enter the following command:
 `curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/ConsolePi_image_creator.sh  && sudo chmod +x ConsolePi_image_creator.sh`
 
@@ -148,7 +137,7 @@ Then I would suggest `head -48 ConsolePi_image_creator.sh`, Which will print the
 
 The Pre-staging described below is optional, this script can be used without any pre-staging files, it will simply burn the Raspbian-lite image to the micro-sd and set the installer to run automatically on boot (unless you set auto_install to false in the script.  It's true by default)
 
-- automatically pull the most recent raspbian-lite image if one doesn't exist in the script-dir (whatever dir you run it from)
+- automatically pull the most recent raspbian-lite image if one is not found in the script-dir (whatever dir you run it from)
 - Make an attempt to determine the correct drive to be flashed, allow user to verify/confirm (given option to display fdisk -l output)
 - Flash image to micro-sd card
 - PreConfigure ConsolePi with parameters normally entered during the initial install.  So you bypass data entry and just get a verification screen.
@@ -159,7 +148,7 @@ The Pre-staging described below is optional, this script can be used without any
 - create a quick command 'consolepi-install' to simplify the long command string to pull the installer from this repo and launch.
 - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled by setting auto_install to false in this script.
 
-Once Complete you place the newley blessed micro-sd in your raspberryPi and boot.  The installer will automatically start unless you've disabled it.  In which case the `consolepi-install` will launch the installer.
+Once Complete you place the newly blessed micro-sd in your raspberryPi and boot.  The installer will automatically start unless you've disabled it.  In which case the `consolepi-install` will launch the installer.
 
 **4. Manual Installation**
 
@@ -176,11 +165,11 @@ The Configuration file is validated and created during the install.  Settings ca
 **Console Server:**
 
 - Serial/Console adapters are reachable starting with telnet port 8001 +1 for each subsequent adapter plugged in (8002, 8003...).  If you are using a multi-port pigtail adapter or have multiple adapters plugged in @ boot, then it's a crap shoot which will be assigned to each telnet port.  Hence the next step.
-- The install script automates the mapping of specific adapters to specific ports.  The defined predictable adapters start with 7001 +1 for each adapter you define.  The reasoning behind this is so you can label the adapters and always know what port you would reach them on.  Key if you are using a  multi-port pig-tail adapter, or if this is going to be stationary and occasionally boot up with multiple adapter plugged in.  
+- The install script automates the mapping of specific adapters to specific ports.  The defined predictable adapters start with 7001 +1 for each adapter you define.  The reasoning behind this is so you can label the adapters and always know what port you would reach them on.  Key if you are using a  multi-port pig-tail adapter, or if this is going to be stationary and occasionally boot up with multiple adapter plugged in.  The `consolepi-addconsole` command below can be ran at anytime to automate the mapping for new Console Adapters if the desire is to map them to predictable ports.   
 
 Note: the 8000 range always valid even if you are using an adapter specifically mapped to a port in the 7000 range.  So if you plug in an adapter pre-mapped to port 7005, and it's the only adapter plugged in, it would also be available onport 8001
 
-- Port monitoring/and control is available on telnet port 7000.  This allows you to change the baud rate of the port on the fly without changing the config permanantly.  The installer configures all ports to 9600 8N1. 
+- Port monitoring/and control is available on telnet port 7000.  This allows you to change the baud rate of the port on the fly without changing the config permanently.  The installer configures all ports to 9600 8N1. 
 - Serial Port configuration options can be modified after the install in /etc/ser2net.conf 
 
 **Convenience Commands:**
@@ -193,6 +182,8 @@ There are a few convenience commands created for ConsolePi during the automated 
 - consolepi-autohotspot: runs /usr/bin/autohotspotN script  This script re-runs the autohotspot script which runs at boot (or periodically via cron although the installer currently doens't configure that).  If the wlan adapter is already connected to an SSID it doesn't do anything.  If it's acting as a hotspot or not connected, it will scan for known SSIDs and attempt to connect, then fallback to a hotspot if it's unable to find/connect to a known SSID. 
 - consolepi-killvpn: gracefully terminates the OpenVPN tunnel if established.
 - consolepi-menu: Launches ConsolePi Console Menu, which will have menu items for any serial adapters that are plugged in.  This allows you to connect to those serial adapters.  This menu is launched automatically when connecting to ConsolePi via BlueTooth, but can also be invoked from any shell session (i.e. SSH)
+- consolepi-bton: Make ConsolePi Discoverable via BlueTooth (Default Behavior on boot)
+- consolepi-btoff: Stop advertising via BlueTooth.  Previously paired devices will still be able to Pair.
 
 
 ## Tested Hardware
@@ -202,7 +193,7 @@ ConsolePi Should work on all variants of the RaspberryPi, but it has been tested
 ​	*If you find a variant of the Rpi that does not work, post a comment to the discussion board*
 
 - RaspberryPi 3 Model B+
-  - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery), all worked fine *other than the known over-current errors on the original PoE Hat - still wored on my PoE switch*
+  - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery), all worked fine *other than the known over-current errors on the original PoE Hat - still worked on my PoE switch*
 - RaspberryPi zero w
   - With both single port micro-usb otg USB adapter and multi-port otg usb-hub
   *I did notice with some serial adapters the RaspberryPi zero w Would reboot when it was plugged in, this is with a RaspberryPi power-supply.  They work fine, it just caused it to reboot when initially plugged-in*

@@ -718,6 +718,7 @@ install_autohotspotn () {
         logit "${process}" "dnsmasq install Failed" "WARNING"
     
     logit "${process}" "disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)."
+	sudo systemctl unmask hostapd.service 1>/dev/null 2>> $tmp_log && logit ${process} "hostapd system service unmasked" || logit ${process} "failed to unmask" "WARNING"
     sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $tmp_log && res=$?
     sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $tmp_log && ((res=$?+$res))
     [[ $res == 0 ]] && logit "${process}" "hostapd and dnsmasq autostart disabled Successfully" ||

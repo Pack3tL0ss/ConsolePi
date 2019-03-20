@@ -1063,7 +1063,7 @@ update_consolepi_command() {
     
     # consolepi-menu
     if [[ ! -f /usr/local/bin/consolepi-menu ]]; then
-        sudo ln -s /etc/ConsolePi/src/bluemenu.sh /usr/local/bin/consolepi-menu && logit "${process}" "consolepi-menu command created Successfully" || 
+        sudo ln -s /etc/ConsolePi/src/consolepi-menu /usr/local/bin/consolepi-menu && logit "${process}" "consolepi-menu command created Successfully" || 
         logit "${process}" "FAILED to consolepi-menu command" "WARNING"
     else
         logit "${process}" "consolepi-menu already exists"

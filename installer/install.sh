@@ -1009,13 +1009,23 @@ get_known_ssids() {
                     cd ${stage_dir}cert
                 fi
                     
-                [[ ! -d $cert_path ]] && sudo mkdir "${cert_path}" # Will only work if all but the final folder already exists - I don't need more so...
+                [[ ! -d $cert_path ]] && sudo mkdir -p "${cert_path}"
                 [[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
                 [[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
                 [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
                 cd "${cur_dir}"
             fi
         fi
+    fi
+    
+    if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
+        echo
+        echo "----------------------------------------------------------------------------------------------"
+        echo "wpa_supplicant.conf was imported with the following configuration"
+        echo "----------------------------------------------------------------------------------------------"
+        cat $wpa_supplicant_file
+        echo "----------------------------------------------------------------------------------------------"
+        word=" additional"
     fi
 
     echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
@@ -1261,7 +1271,7 @@ main() {
             set_hostname
             set_timezone
         fi
-		disable_ipv6
+        disable_ipv6
         install_ser2net
         dhcp_run_hook
         ConsolePi_cleanup

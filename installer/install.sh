@@ -9,6 +9,9 @@
 # --  For manual setup instructions and more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                -- #
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
+# To Do accomodate rename of bluemenu.sh to consolepi-menu
+#    if bluemenu.sh exists delete it before git pull
+#    if consolepi-menu symlink exists and is pointed to bluemenu unlink, and re-link to consolepi-menu
 
 # -- Installation Defaults --
 ver="1.2"
@@ -459,6 +462,32 @@ set_timezone() {
     fi
 }
 
+disable_ipv6()  {
+    process="Disable ipv6"
+        prompt="Do you want to disable ipv6"
+        dis_ipv6=$(user_input_bool)
+
+        if $dis_ipv6; then
+            if sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
+                    logit "${process}" "ipv6 aleady disabled"
+                else
+sudo cat << EOF | sudo tee -a /etc/sysctl.conf  > /dev/null
+
+# Disable ipv6
+net.ipv6.conf.all.disable_ipv6 = 1 
+net.ipv6.conf.default.disable_ipv6 = 1
+net.ipv6.conf.lo.disable_ipv6 = 1
+EOF
+            if sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
+                        logit "${process}" "Disable ipv6 Success"
+                        else
+                            logit "${process}" "FAILED to disable ipv6" "WARNING"
+                        fi
+                fi
+        fi
+
+}
+
 remove_first_boot() {
     #IF first boot was enabled by image creator script - remove it
     sudo sed -i "s#consolepi-install##g" /home/pi/.bashrc
@@ -503,7 +532,7 @@ gitConsolePi () {
         git pull "${consolepi_source}" 1>/dev/null 2>> $tmp_log && 
             logit "${process}" "ConsolePi update/pull Success" || logit "${process}" "Failed to update/pull ConsolePi" "WARNING"
     fi
-	[[ ! -d $orig_dir ]] && sudo mkdir $orig_dir
+    [[ ! -d $orig_dir ]] && sudo mkdir $orig_dir
 }
 
 install_ser2net () {
@@ -544,7 +573,7 @@ install_ser2net () {
         make clean 1>/dev/null 2>> $tmp_log &&
             logit "${process}" "ser2net make clean Success" ||
             logit "${process}" "ser2net make clean Failed" "WARNING"
-		cd $cur_dir
+        cd $cur_dir
         
         logit "${process}" "Building init & ConsolePi Config for ser2net"
         cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $tmp_log || 
@@ -1019,31 +1048,39 @@ update_consolepi_command() {
         sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
             logit "${process}" "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
     fi
-	
-	# consolepi-upgrade
+    
+    # consolepi-upgrade
     [[ ! -f "/usr/local/bin/consolepi-upgrade" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-upgrade &&
         echo -e 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' \
             >> /usr/local/bin/consolepi-upgrade
-			
-	# consolepi-addssids
+            
+    # consolepi-addssids
     [[ ! -f "/usr/local/bin/consolepi-addssids" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addssids &&
         echo -e 'sudo /etc/ConsolePi/installer/ssids.sh' >> /usr/local/bin/consolepi-addssids || 
         logit "${process}" "consolepi-addssids already exists"
-		
-	# consolepi-addconsole
+        
+    # consolepi-addconsole
     [[ ! -f "/usr/local/bin/consolepi-addconsole" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
         echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole || 
         logit "${process}" "consolepi-addconsole already exists"
-	
-	# consolepi-autohotspot
+    
+    # consolepi-autohotspot
     [[ ! -f "/usr/local/bin/consolepi-autohotspot" ]] && 
         echo -e '#!/usr/bin/env bash\nsudo /usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot || 
         logit "${process}" "consolepi-autohotspot already exists"
-		
-	# consolepi-killvpn
+    
+    # consolepi-testhotspot
+    if [[ ! -f /usr/local/bin/consolepi-testhotspot ]]; then
+        sudo ln -s /etc/ConsolePi/src/consolepi-testhotspot /usr/local/bin/consolepi-testhotspot && logit "${process}" "consolepi-testhotspot command created Successfully" || 
+        logit "${process}" "FAILED to create consolepi-testhotspot command" "WARNING"
+    else
+        logit "${process}" "consolepi-testhotspot already exists"
+    fi
+        
+    # consolepi-killvpn
     if [[ ! -f /usr/local/bin/consolepi-killvpn ]]; then
         echo '#!/usr/bin/env bash' > /usr/local/bin/consolepi-killvpn
         echo '' >> /usr/local/bin/consolepi-killvpn
@@ -1069,23 +1106,23 @@ update_consolepi_command() {
         logit "${process}" "consolepi-menu already exists"
     fi
     
-	# consolepi-bton
+    # consolepi-bton
     if [[ ! -f /usr/local/bin/consolepi-bton ]]; then
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-bton
         echo -e "echo -e 'discoverable on\npairable on\nquit\n' | sudo bluetoothctl" >> /usr/local/bin/consolepi-bton
-	else
+    else
         logit "${process}" "consolepi-bton already exists"
     fi
-	
-	# consolepi-btoff
+    
+    # consolepi-btoff
     if [[ ! -f /usr/local/bin/consolepi-btoff ]]; then
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-btoff
         echo -e "echo -e 'discoverable off\npairable on\nquit\n' | sudo bluetoothctl" >> /usr/local/bin/consolepi-btoff
-	else
+    else
         logit "${process}" "consolepi-btoff already exists"
     fi
-	
-	# make consolepi commands executable
+    
+    # make consolepi commands executable
     sudo chmod +x /usr/local/bin/consolepi-* ||
         logit "${process}" "Failed to chmod consolepi quick commands" "WARNING"
 
@@ -1144,7 +1181,7 @@ custom_post_install_script() {
         process="Run Custom Post-install script"
         logit "${process}" "Post install script $found_path found. Executing"
         sudo $found_path && logit "${process}" "Post Install script Complete No Errors" || 
-		    logit "${process}" "Error Code returned by Post Install script" "WARNING"
+            logit "${process}" "Error Code returned by Post Install script" "WARNING"
     fi
 }
 
@@ -1188,6 +1225,8 @@ post_install_msg() {
     echo "*   - consolepi-killvpn: Gracefully terminate openvpn tunnel if one is established                                      *"
     echo "*   - consolepi-autohotspot: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found  *"
     echo "*       then fall-back to HotSpot mode if not found or unable to connect.                                               *"
+    echo "*   - consolepi-testhotspot: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot.     *"
+    echo "*       Used to test hotspot function.  Script Toggles state if enabled it will disable and visa versa.                 *"
     echo "*   - consolepi-bton: Make BlueTooth Discoverable and Pairable - this is the default behavior on boot.                  *"
     echo "*   - consolepi-btoff: Disable BlueTooth Discovery (stop advertising to other devices).  ConsolePi will remain Pairable *"
     echo "*       for devices previously paired.                                                                                  *"
@@ -1222,6 +1261,7 @@ main() {
             set_hostname
             set_timezone
         fi
+		disable_ipv6
         install_ser2net
         dhcp_run_hook
         ConsolePi_cleanup

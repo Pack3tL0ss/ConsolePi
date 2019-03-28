@@ -247,12 +247,17 @@ def del_row(dev_name):
 
 def get_if_ips():
     if_list = ni.interfaces()
+    log.debug('interface list: {}'.format(if_list))
     ip_list={}
     pos = 0
     for _if in if_list:
-        ip_list[if_list[pos]] = ni.ifaddresses(_if)[ni.AF_INET][0]['addr']
+        if _if != 'lo':
+            try:
+                ip_list[if_list[pos]] = ni.ifaddresses(_if)[ni.AF_INET][0]['addr']
+            except KeyError:
+                log.info('No IP Found for {} skipping'.format(_if))
         pos += 1
-    ip_list.pop('lo')
+    # ip_list.pop('lo')
     return ip_list
 
 

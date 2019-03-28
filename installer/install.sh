@@ -1053,17 +1053,19 @@ get_known_ssids() {
                 [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
                 cd "${cur_dir}"
             fi
-        fi
-    fi
+#        fi
+#    fi
     
-    if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
-        echo
-        echo "----------------------------------------------------------------------------------------------"
-        echo "wpa_supplicant.conf was imported with the following configuration"
-        echo "----------------------------------------------------------------------------------------------"
-        cat $wpa_supplicant_file
-        echo "----------------------------------------------------------------------------------------------"
-        word=" additional"
+            if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
+                echo
+                echo "----------------------------------------------------------------------------------------------"
+                echo "wpa_supplicant.conf was imported with the following configuration"
+                echo "----------------------------------------------------------------------------------------------"
+                cat $wpa_supplicant_file
+                echo "----------------------------------------------------------------------------------------------"
+                word=" additional"
+            fi
+        fi
     fi
 
     echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"

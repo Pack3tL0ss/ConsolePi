@@ -2,6 +2,7 @@
 /readme_content/*.jpg
 /originals
 ConsolePi.conf
+ConsolePi.cloud
 /installer/install.log*
 /installer/ConsolePi_image_creator.sh
 /cloud/*/.credentials

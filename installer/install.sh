@@ -2,19 +2,16 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script                                                               -- #
-# --  Wade Wells - Dec, 2018  v1.0                                                                                                               -- #
+# --  Wade Wells - Mar, 2019                                                                                                                     -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
 # --  For manual setup instructions and more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                -- #
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
-# To Do accomodate rename of bluemenu.sh to consolepi-menu
-#    if bluemenu.sh exists delete it before git pull
-#    if consolepi-menu symlink exists and is pointed to bluemenu unlink, and re-link to consolepi-menu
 
 # -- Installation Defaults --
-ver="1.2"
+ver="1.4"
 cur_dir=$(pwd)
 iam=$(who am i | awk '{print $1}')
 consolepi_dir="/etc/ConsolePi/"
@@ -58,17 +55,20 @@ get_config() {
         logit "${process}" "No Existing Config found - building default"
         # This indicates it's the first time the script has ran
         echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
-        echo "push_all=true                                # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
+        echo "push_all=true                                    # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
         echo "push_api_key=\"PutYourPBAPIKeyHereChangeMe:\"    # PushBullet API key" >> "${default_config}"
         echo "push_iden=\"putyourPBidenHere\"                    # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
-        echo "ovpn_enable=true                             # if enabled will establish VPN connection" >> "${default_config}"
-        echo "vpn_check_ip=\"10.0.150.1\"                    # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
-        echo "net_check_ip=\"8.8.8.8\"                        # used to check internet connectivity" >> "${default_config}"
-        echo "local_domain=\"arubalab.net\"                    # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
+        echo "ovpn_enable=true                                    # if enabled will establish VPN connection" >> "${default_config}"
+        echo "vpn_check_ip=\"10.0.150.1\"                        # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
+        echo "net_check_ip=\"8.8.8.8\"                               # used to check internet connectivity" >> "${default_config}"
+        echo "local_domain=\"arubalab.net\"                        # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
         echo "wlan_ip=\"10.3.0.1\"                        # IP of ConsolePi when in hotspot mode" >> "${default_config}"
         echo "wlan_ssid=\"ConsolePi\"                        # SSID used in hotspot mode" >> "${default_config}"
         echo "wlan_psk=\"ChangeMe!!\"                        # psk used for hotspot SSID" >> "${default_config}"
         echo "wlan_country=\"US\"                        # regulatory domain for hotspot SSID" >> "${default_config}"
+        echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
+        echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
+        echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
         header
         echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
         echo "which will prompt you for each value. Enter n to exit the script, so you can modify the"
@@ -99,6 +99,14 @@ get_config() {
         fi
     elif [[ -f "${default_config}" ]]; then
         logit "${process}" "Using existing Config found in ${consolepi_dir}"
+        process="config-upgrade"
+        [ -z $cloud ] && cloud=false &&
+            echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> /etc/ConsolePi.conf &&
+                logit $process "Updated Existing Config to support new Cloud Features.  Refer to gitHub for instructions on setup"
+        [ -z $cloud_svc ] && cloud_svc="gdrive" &&
+            echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> /etc/ConsolePi.conf
+        [ -z $debug ] && debug=false &&
+            echo "debug=false                                                   # turns on additional debugging" >> /etc/ConsolePi.conf
     fi
     . "$default_config" || 
         logit "${process}" "Error Loading Configuration defaults"
@@ -309,7 +317,24 @@ collect() {
     prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
     user_input "US" "${prompt}"
     wlan_country=$result
-    # fi
+
+    # -- cloud --
+    header
+    prompt='Do you want to enable ConsolePi Cloud/Cluster Function'
+    user_input $cloud "${prompt}"
+    cloud=$result
+
+    # Future gdrive google sheets is only one supported currently
+    # -- cloud-svc --
+    # header
+    # prompt="What Cloud Service will you use"
+    # cloud_svc_menu $cloud_svc "${prompt}"
+    # cloud_svc=$result
+    cloud_svc="gdrive"
+
+    # -- debug --
+    debug=false
+
 }
 
 verify() {
@@ -337,6 +362,8 @@ verify() {
     echo " ConsolePi Hot Spot SSID:                                 $wlan_ssid"
     echo " ConsolePi Hot Spot psk:                                  $wlan_psk"
     echo " ConsolePi Hot Spot regulatory domain:                    $wlan_country"
+    echo " ConsolePi Cloud Support:                                 $cloud"
+    $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
     echo
     echo "----------------------------------------------------------------------------------------------------------------"
     echo
@@ -520,6 +547,15 @@ updatepi () {
     logit "${process}" "Process Complete"
 }
 
+upgrade_prep() {
+    process="ConsolePi-Upgrade-Prep"
+    [[ -f /etc/src/bluemenu.sh ]] && rm /etc/src/bluemenu.sh &&
+        logit "${process}" "Removed old menu script will be replaced during pull"
+    # Remove old symlink if it exists
+    [[ -L /usr/local/bin/consolepi-menu ]] && unlink /usr/local/bin/consolepi-menu &&
+        logit "${process}" "Removed old consolepi-menu symlink will replace during upgade"
+}
+
 gitConsolePi () {
     process="git Clone/Update ConsolePi"
     cd "/etc"
@@ -527,6 +563,7 @@ gitConsolePi () {
         logit "${process}" "Clean Install git clone ConsolePi"
         git clone "${consolepi_source}" 1>/dev/null 2>> $tmp_log && logit "${process}" "ConsolePi clone Success" || logit "${process}" "Failed to Clone ConsolePi" "ERROR"
     else
+        upgrade_prep
         cd $consolepi_dir
         logit "${process}" "Directory exists Updating ConsolePi via git"
         git pull "${consolepi_source}" 1>/dev/null 2>> $tmp_log && 
@@ -713,6 +750,7 @@ ovpn_logging() {
     # Create logrotate file for logs
     echo "/var/log/ConsolePi/ovpn.log" > "/etc/logrotate.d/ConsolePi"
     echo "/var/log/ConsolePi/push_response.log" >> "/etc/logrotate.d/ConsolePi"
+    $cloud && echo "/var/log/ConsolePi/cloud.log" >> "/etc/logrotate.d/ConsolePi"    
     echo "{" >> "/etc/logrotate.d/ConsolePi"
     echo "        rotate 4" >> "/etc/logrotate.d/ConsolePi"
     echo "        weekly" >> "/etc/logrotate.d/ConsolePi"
@@ -1195,6 +1233,10 @@ custom_post_install_script() {
     fi
 }
 
+get_cloud() {
+    continue
+}
+
 post_install_msg() {
     echo
     echo "*********************************************** Installation Complete ***************************************************"
@@ -1287,8 +1329,8 @@ main() {
         misc_stuff
         get_known_ssids
         get_serial_udev
-        move_log
         custom_post_install_script
+        move_log
         post_install_msg
     else
       echo 'Script should be ran as root. exiting.'

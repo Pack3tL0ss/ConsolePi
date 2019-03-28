@@ -9,6 +9,8 @@ flow="n"
 parity="n"
 dbits=8
 
+WORD="default"
+
 # -- Get List of all ttyUSB_ devices currently connected --
 get_tty_devices() {
 	tty_list=(/sys/bus/usb-serial/devices/*)
@@ -21,6 +23,24 @@ get_tty_name() {
     [[ -z $tty_name ]] && tty_name=${this_tty##*/} ||
         tty_name="${tty_name} (${this_tty##*/})"
 
+}
+
+get_remote_devices() {
+    file="/etc/ConsolePi/ConsolePi.cloud"
+    if [[ -f $file ]]; then
+        prev_host="init"
+        while IFS=, read rem_host rem_ip rem_user rem_dev rem_port 
+        do
+            if [ ! $rem_host == '' ]; then 
+                [[ ! $prev_host == $rem_host ]] && echo " -- REMOTE CONNECTIONS (${rem_host}) --"
+                echo "${item}. Connect to ${rem_dev##*/} on ${rem_host} Using $WORD settings"
+                rem_cmd_list+=("ssh -t ${rem_user}@${rem_ip} picocom '${rem_dev}'")
+                prev_host=$rem_host
+                ((item++))
+            fi
+        done <"$file"
+        echo " -- "
+    fi
 }
 
 # -- Pretty Display text for flow control selection --
@@ -234,6 +254,15 @@ port_config_menu() {
         esac
     done
 }
+
+# -- Extract remote variables from line --
+get_rem_vars() {
+    rem_host=`echo $this_rem_tty | awk -F' ' '{print $1}'`
+    rem_ip=`echo $this_rem_tty | awk -F' ' '{print $2}'`
+    rem_user=`echo $this_rem_tty | awk -F' ' '{print $3}'`
+    rem_alias=`echo $this_rem_tty | awk -F' ' '{print $4}'`
+    # rem_port=`echo $this_rem_tty | awk -F' ' '{print $5}'`
+}
     
 # -- ConsolePi Main Menu --
 main_menu() {
@@ -260,17 +289,22 @@ main_menu() {
         echo " This menu can be launched from shell with 'consolepi-menu' command."
         echo ''
         echo '########################################################################'
-        echo ''
+        [[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
+        echo " CURRENT CONNECTION SETTINGS: [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
+        echo '########################################################################'
         # Loop through Connected USB-Serial adapters creating menu option for each found
         item=1
+        echo " -- LOCAL CONNECTIONS --"
         for this_tty in ${tty_list[@]}; do 
             get_tty_name    # checks for alias created via udev rules and uses alias as a descriptor if exists
-            echo "${item}. Connect to ${tty_name} Using default settings"
+            echo "${item}. Connect to ${tty_name} Using $WORD settings"
             ((item++))
         done
-        [[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
+        # Build Menu items for remote devices updated from GDrive
+        get_remote_devices
         echo "c. Change Connection Settings [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
-		echo 'r. refresh - detect connected serial adapters'
+        echo 'r. refresh - detect connected serial adapters'
+        echo 'g. refresh - detect connected serial adapters + Update Connections to GDrive enabled ConsolePis'
         echo 'x. exit to shell'
         echo ''
         read -p "Select menu item: " selection
@@ -284,13 +318,18 @@ main_menu() {
             ## screen "/dev/${tty_list[$((selection - 1))]##*/}" $baud
             # -- Always use native dev (ttyUSB#) --
             picocom "/dev/${tty_list[$((selection - 1))]##*/}" -b $baud -f $flow -d $dbits -p $parity
-            # -- Use predefined aliases if defined --
-            # picocom "/dev/${tty_name}" -b $baud -f $flow -d $dbits -p $parity
+        elif (( $selection > 0 )) && (( $selection < $((${#tty_list[@]}+${#rem_cmd_list[@]}+1)) )); then
+            exec="${rem_cmd_list[$((selection-${#tty_list[@]}-1))]} -b $baud -f $flow -d $dbits -p $parity"
+            $exec
         elif [[ ${selection,,} == "c" ]]; then
-			port_config_menu
+            WORD="configured"
+            port_config_menu
             valid_selection=false # force re-print of menu
         elif [[ ${selection,,} == "r" ]]; then
             get_tty_devices
+        elif [[ ${selection,,} == "g" ]]; then
+            get_tty_devices
+            sudo /home/pi/ConsolePi_Cluster/consolepi_env/bin/python3 /home/pi/ConsolePi_Cluster/gdrive.py
         elif [[ ${selection,,} == "x" ]]; then
             valid_selection=true
             exit 0
@@ -301,8 +340,8 @@ main_menu() {
 }
 
 main() {
-	get_tty_devices
-    if [[ $tty_list ]]; then
+    get_tty_devices
+    if [[ $tty_list ]] || [ -f /etc/ConsolePi/ConsolePi.cloud ]; then
 	    ttyusb_connected=true
 	else
 	    echo -e "\n*******************************"

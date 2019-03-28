@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # Locally Defined Variables
-debug=false                                                         # For debugging only - additional logs sent to syslog
+## debug=false # Now in config                                                        # For debugging only - additional logs sent to syslog
 push_response_log="/var/log/ConsolePi/push_response.log"            # full path to send PushBullet API responses
 ovpn_log="/var/log/ConsolePi/ovpn.log"                              # full path to send openvpn logs
-ovpn_config="/etc/openvpn/client/ConsolePi.ovpn"	                # full path to openvpn configuration
-ovpn_creds="/etc/openvpn/client/ovpn_credentials"                        # full path to openvpn creds file with username password
+ovpn_config="/etc/openvpn/client/ConsolePi.ovpn"	            # full path to openvpn configuration
+ovpn_creds="/etc/openvpn/client/ovpn_credentials"                   # full path to openvpn creds file with username password
 ovpn_options="--persist-remote-ip --ping 15"                        # openvpn command line options 
 
 # Get Configuration from config file default if config file doesn't exist
 if [[ -f "/etc/ConsolePi/ConsolePi.conf" ]]; then
-	. "/etc/ConsolePi/ConsolePi.conf"
-	# Disable OpenVPN if ovpn config is not found
-	$ovpn_enable && [[ ! -f "${ovpn_config}" ]] && ovpn_enable=false && logger -t puship-ovpn ERROR: OpenVPN is enabled but ConsolePi.ovpn not found - disabling
+    . "/etc/ConsolePi/ConsolePi.conf"
+    # Disable OpenVPN if ovpn config is not found
+    $ovpn_enable && [[ ! -f "${ovpn_config}" ]] && ovpn_enable=false && logger -t puship-ovpn ERROR: OpenVPN is enabled but ConsolePi.ovpn not found - disabling
 else
 	push=false                                                          # PushBullet Notifications: true - enable, false - disable
 	ovpn_enable=false                                                   # if enabled will establish VPN connection
@@ -22,6 +22,8 @@ else
 	vpn_check_ip="10.0.150.1"                                           # used to check VPN (internal) connectivity should be ip only reachable via VPN
 	net_check_ip="8.8.8.8"                                              # used to check internet connectivity
 	local_domain="arubalab.net"                                         # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn
+        cloud=false                  # enable ConsolePi clustering / cloud config sync
+        debug=false                   # turns on additional logging data
 fi
 
 
@@ -196,6 +198,12 @@ Check_is_new_ip() {
     $is_new_ip && StashNewIP
 }
 
+update_cloud() {
+    /etc/ConsolePi/cloud/${cloud_svc}/${cloud_svc}.py && 
+        logger -t puship-${cloud_svc} Updated cloud Config ||
+        logger -t puship-${cloud_svc} Error returned while Updating cloud Config
+}
+
 run() {
     $debug && logger -t puship-DEBUG Enter run Function
     Check_is_new_ip
@@ -220,10 +228,12 @@ case "$reason" in
      StashNewIP
      BuildMsg "OVPN"
      $push && Push
+     $cloud && update_cloud
      exit 0
      ;;
   BOUND|REBIND)
      run
+     $cloud && update_cloud
      ;;
   STATIC)
     [ $interface = "eth0" ] && run || exit 0

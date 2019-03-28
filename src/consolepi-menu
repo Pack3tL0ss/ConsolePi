@@ -10,6 +10,7 @@ parity="n"
 dbits=8
 
 WORD="default"
+. /etc/ConsolePi/ConsolePi.conf
 
 # -- Get List of all ttyUSB_ devices currently connected --
 get_tty_devices() {
@@ -304,7 +305,7 @@ main_menu() {
         get_remote_devices
         echo "c. Change Connection Settings [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
         echo 'r. refresh - detect connected serial adapters'
-        echo 'g. refresh - detect connected serial adapters + Update Connections to GDrive enabled ConsolePis'
+        $cloud && echo 'g. refresh - detect connected serial adapters + Update Connections to GDrive enabled ConsolePis'
         echo 'x. exit to shell'
         echo ''
         read -p "Select menu item: " selection
@@ -327,9 +328,9 @@ main_menu() {
             valid_selection=false # force re-print of menu
         elif [[ ${selection,,} == "r" ]]; then
             get_tty_devices
-        elif [[ ${selection,,} == "g" ]]; then
+        elif $cloud && [[ ${selection,,} == "g" ]]; then
             get_tty_devices
-            sudo /home/pi/ConsolePi_Cluster/consolepi_env/bin/python3 /home/pi/ConsolePi_Cluster/gdrive.py
+            sudo /etc/ConsolePi/cloud/venv/bin/python3 /etc/ConsolePi/cloud/gdrive/gdrive.py
         elif [[ ${selection,,} == "x" ]]; then
             valid_selection=true
             exit 0

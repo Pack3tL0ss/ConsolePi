@@ -99,33 +99,66 @@ get_config() {
         fi
     elif [[ -f "${default_config}" ]]; then
         logit "${process}" "Using existing Config found in ${consolepi_dir}"
-        process="config-upgrade"
-        [ -z "$cloud" ] && cloud=false &&
-            echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> /etc/ConsolePi.conf &&
-                logit $process "Updated Existing Config to support new Cloud Features.  Refer to gitHub for instructions on setup"
-        [ -z "$cloud_svc" ] && cloud_svc="gdrive" &&
-            echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> /etc/ConsolePi.conf
-        [ -z "$debug" ] && debug=false &&
-            echo "debug=false                                                   # turns on additional debugging" >> /etc/ConsolePi.conf
     fi
     . "$default_config" || 
-        logit "${process}" "Error Loading Configuration defaults"
+        logit "${process}" "Error Loading Configuration defaults" "WARNING"
     hotspot_dhcp_range
 }
+ 
 
+# Process Changes that are required after the existing config is read in when doing upgrade
+upgrade_prep() {
+    # Update Config to include values for Cloud Config Function
+    if [[ -f "${default_config}" ]]; then
+        process="ConsolePi-Upgrade-Prep(Config Updates)"
+        [ -z "$cloud" ] && cloud=false &&
+            echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}" &&
+                logit $process "Updated Existing Config to support new Cloud Features.  Refer to gitHub for instructions on setup"
+        [ -z "$cloud_svc" ] && cloud_svc="gdrive" &&
+            echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
+        [ -z "$debug" ] && debug=false &&
+            echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
+    else
+        logit "${process}" "Error Configuration defaults not found. Unable to Upgrade to new version verify config includes cloud variables when complete"  
+    fi
+}
+
+
+# Process Changes that are required prior to git pull when doing upgrade
+pre_git_prep() {
+    if [[ -f "${default_config}" ]]; then
+        process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"
+        if [[ -f /etc/ConsolePi/src/bluemenu.sh ]]; then 
+            rm /etc/ConsolePi/src/bluemenu.sh &&
+                logit "${process}" "Removed old menu script will be replaced during pull" ||
+                    logit "${process}" "ERROR Found old menu script but unable to remove (/etc/ConsolePi/src/bluemenu.sh)" "WARNING"
+            # Remove old symlink if it exists
+            if [[ -L /usr/local/bin/consolepi-menu ]]; then
+                unlink /usr/local/bin/consolepi-menu &&
+                    logit "${process}" "Removed old consolepi-menu symlink will replace during upgade" ||
+                        logit "${process}" "ERROR Unable to remove old consolepi-menu symlink verify it should link to file in src dir" "WARNING"
+            fi
+        fi
+    fi
+}
+
+# Push Collected Values to Config File
 update_config() {
-    echo "push=${push}                                # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
-    echo "push_all=${push_all}                        # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
-    echo "push_api_key=\"${push_api_key}\"            # PushBullet API key" >> "${default_config}"
-    echo "push_iden=\"${push_iden}\"                  # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
-    echo "ovpn_enable=${ovpn_enable}                  # if enabled will establish VPN connection" >> "${default_config}"
-    echo "vpn_check_ip=\"${vpn_check_ip}\"            # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
-    echo "net_check_ip=\"${net_check_ip}\"            # used to check internet connectivity" >> "${default_config}"
-    echo "local_domain=\"${local_domain}\"            # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
-    echo "wlan_ip=\"${wlan_ip}\"                      # IP of ConsolePi when in hotspot mode" >> "${default_config}"
-    echo "wlan_ssid=\"${wlan_ssid}\"                  # SSID used in hotspot mode" >> "${default_config}"
-    echo "wlan_psk=\"${wlan_psk}\"                    # psk used for hotspot SSID" >> "${default_config}"
-    echo "wlan_country=\"${wlan_country}\"            # regulatory domain for hotspot SSID" >> "${default_config}"
+    echo "push=${push}                                                                   # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
+    echo "push_all=${push_all}                                                   # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
+    echo "push_api_key=\"${push_api_key}\"   # PushBullet API key" >> "${default_config}"
+    echo "push_iden=\"${push_iden}\"                                    # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
+    echo "ovpn_enable=${ovpn_enable}                                                # if enabled will establish VPN connection" >> "${default_config}"
+    echo "vpn_check_ip=\"${vpn_check_ip}\"                                       # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
+    echo "net_check_ip=\"${net_check_ip}\"                                          # used to check Internet connectivity" >> "${default_config}"
+    echo "local_domain=\"${local_domain}\"                                       # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
+    echo "wlan_ip=\"${wlan_ip}\"                                              # IP of ConsolePi when in hotspot mode" >> "${default_config}"
+    echo "wlan_ssid=\"${wlan_ssid}\"                                           # SSID used in hotspot mode" >> "${default_config}"
+    echo "wlan_psk=\"${wlan_psk}\"                                             # psk used for hotspot SSID" >> "${default_config}"
+    echo "wlan_country=\"${wlan_country}\"                                               # regulatory domain for hotspot SSID" >> "${default_config}"
+    echo "cloud=\"${cloud}\"                                                     # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
+    echo "cloud_svc=\"${cloud_svc}\"                                              # Future - only Google Drive / Google Sheets supported currently - must be \"gdrive\"" >> "${default_config}"
+    echo "debug=\"${debug}\"                                                  # turns on additional debugging" >> "${default_config}"
 }
 
 header() {
@@ -490,12 +523,13 @@ set_timezone() {
 }
 
 disable_ipv6()  {
-    process="Disable ipv6"
-        prompt="Do you want to disable ipv6"
-        dis_ipv6=$(user_input_bool)
+    if ! sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
+        process="Disable ipv6"
+            prompt="Do you want to disable ipv6"
+            dis_ipv6=$(user_input_bool)
 
-        if $dis_ipv6; then
-            if sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
+            if $dis_ipv6; then
+                if sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
                     logit "${process}" "ipv6 aleady disabled"
                 else
 sudo cat << EOF | sudo tee -a /etc/sysctl.conf  > /dev/null
@@ -505,14 +539,14 @@ net.ipv6.conf.all.disable_ipv6 = 1
 net.ipv6.conf.default.disable_ipv6 = 1
 net.ipv6.conf.lo.disable_ipv6 = 1
 EOF
-            if sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
+                    if sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
                         logit "${process}" "Disable ipv6 Success"
-                        else
-                            logit "${process}" "FAILED to disable ipv6" "WARNING"
-                        fi
+                    else
+                        logit "${process}" "FAILED to disable ipv6" "WARNING"
+                    fi
                 fi
-        fi
-
+            fi
+    fi
 }
 
 remove_first_boot() {
@@ -547,15 +581,6 @@ updatepi () {
     logit "${process}" "Process Complete"
 }
 
-upgrade_prep() {
-    process="ConsolePi-Upgrade-Prep"
-    [[ -f /etc/ConsolePi/src/bluemenu.sh ]] && rm /etc/src/bluemenu.sh &&
-        logit "${process}" "Removed old menu script will be replaced during pull"
-    # Remove old symlink if it exists
-    [[ -L /usr/local/bin/consolepi-menu ]] && unlink /usr/local/bin/consolepi-menu &&
-        logit "${process}" "Removed old consolepi-menu symlink will replace during upgade"
-}
-
 gitConsolePi () {
     process="git Clone/Update ConsolePi"
     cd "/etc"
@@ -563,7 +588,6 @@ gitConsolePi () {
         logit "${process}" "Clean Install git clone ConsolePi"
         git clone "${consolepi_source}" 1>/dev/null 2>> $tmp_log && logit "${process}" "ConsolePi clone Success" || logit "${process}" "Failed to Clone ConsolePi" "ERROR"
     else
-        upgrade_prep
         cd $consolepi_dir
         logit "${process}" "Directory exists Updating ConsolePi via git"
         git pull "${consolepi_source}" 1>/dev/null 2>> $tmp_log && 
@@ -762,7 +786,9 @@ ovpn_logging() {
     
     # Verify logrotate file was created correctly
     lines=$(wc -l < "/etc/logrotate.d/ConsolePi")
-    [[ $lines == 11 ]] && logit "${process}" "${process} Completed Successfully" || logit "${process}" "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
+    ( $cloud && [[ $lines == 11 ]] ) || ( ! $cloud && [[ $lines == 10 ]] ) && 
+        logit "${process}" "${process} Completed Successfully" || 
+        logit "${process}" "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
 }
 
 install_autohotspotn () {
@@ -1302,8 +1328,10 @@ main() {
     if [ "${script_iam}" = "root" ]; then 
         remove_first_boot
         updatepi
+        pre_git_prep
         gitConsolePi
         get_config
+        upgrade_prep
         ! $bypass_verify && verify
         while ! $input; do
             collect "fix"

@@ -111,7 +111,7 @@ known_ssid_main() {
                 bypass_prompt=true
             fi
         fi
-        match=`cat "${wpa_supplicant_file}" |grep -c "${ssid}"`
+        match=`cat "${wpa_supplicant_file}" | grep "ssid=" | grep -c "${ssid}"`
         if [[ $match > 0 ]]; then
             temp=" ${ssid} is already defined, please edit ${wpa_supplicant_file}\n manually or remove the ssid and run ssid.sh"
             bypass_prompt=true
@@ -170,11 +170,13 @@ known_ssid_main() {
             user_input true "${prompt}"
             accept=$result
         fi
+
         if $accept; then
             [[ $match == 0 ]] && echo -e "$temp" >> $wpa_temp_file
             prompt="Do You have additional SSIDs to define? (Y/N)"
             user_input false "${prompt}"
             continue=$result
+            psk_valid=false      # reset psk_valid
         else
             continue=true
             psk_valid=false

@@ -100,12 +100,12 @@ get_config() {
     elif [[ -f "${default_config}" ]]; then
         logit "${process}" "Using existing Config found in ${consolepi_dir}"
         process="config-upgrade"
-        [ -z $cloud ] && cloud=false &&
+        [ ! -z $cloud ] && cloud=false &&
             echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> /etc/ConsolePi.conf &&
                 logit $process "Updated Existing Config to support new Cloud Features.  Refer to gitHub for instructions on setup"
-        [ -z $cloud_svc ] && cloud_svc="gdrive" &&
+        [ ! -z $cloud_svc ] && cloud_svc="gdrive" &&
             echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> /etc/ConsolePi.conf
-        [ -z $debug ] && debug=false &&
+        [ ! -z $debug ] && debug=false &&
             echo "debug=false                                                   # turns on additional debugging" >> /etc/ConsolePi.conf
     fi
     . "$default_config" || 

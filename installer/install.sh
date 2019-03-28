@@ -762,7 +762,7 @@ ovpn_logging() {
     
     # Verify logrotate file was created correctly
     lines=$(wc -l < "/etc/logrotate.d/ConsolePi")
-    [[ $lines == 10 ]] && logit "${process}" "${process} Completed Successfully" || logit "${process}" "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
+    [[ $lines == 11 ]] && logit "${process}" "${process} Completed Successfully" || logit "${process}" "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
 }
 
 install_autohotspotn () {

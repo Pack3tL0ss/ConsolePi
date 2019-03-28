@@ -156,9 +156,9 @@ update_config() {
     echo "wlan_ssid=\"${wlan_ssid}\"                                           # SSID used in hotspot mode" >> "${default_config}"
     echo "wlan_psk=\"${wlan_psk}\"                                             # psk used for hotspot SSID" >> "${default_config}"
     echo "wlan_country=\"${wlan_country}\"                                               # regulatory domain for hotspot SSID" >> "${default_config}"
-    echo "cloud=\"${cloud}\"                                                     # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
+    echo "cloud=\"${cloud}\"                                                    # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
     echo "cloud_svc=\"${cloud_svc}\"                                              # Future - only Google Drive / Google Sheets supported currently - must be \"gdrive\"" >> "${default_config}"
-    echo "debug=\"${debug}\"                                                  # turns on additional debugging" >> "${default_config}"
+    echo "debug=\"${debug}\"                                                   # turns on additional debugging" >> "${default_config}"
 }
 
 header() {

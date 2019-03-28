@@ -9,6 +9,7 @@ flow="n"
 parity="n"
 dbits=8
 
+cloud_file="/etc/ConsolePi/ConsolePi.cloud"
 WORD="default"
 . /etc/ConsolePi/ConsolePi.conf
 
@@ -27,8 +28,8 @@ get_tty_name() {
 }
 
 get_remote_devices() {
-    file="/etc/ConsolePi/ConsolePi.cloud"
-    if [[ -f $file ]]; then
+    if [[ -f $cloud_file ]]; then
+        unset rem_cmd_list
         prev_host="init"
         while IFS=, read rem_host rem_ip rem_user rem_dev rem_port 
         do
@@ -39,7 +40,7 @@ get_remote_devices() {
                 prev_host=$rem_host
                 ((item++))
             fi
-        done <"$file"
+        done <"$cloud_file"
         echo " -- "
     fi
 }
@@ -301,8 +302,10 @@ main_menu() {
             echo "${item}. Connect to ${tty_name} Using $WORD settings"
             ((item++))
         done
+
         # Build Menu items for remote devices updated from GDrive
         get_remote_devices
+
         echo "c. Change Connection Settings [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
         echo 'r. refresh - detect connected serial adapters'
         $cloud && echo 'g. refresh - detect connected serial adapters + Update Connections to GDrive enabled ConsolePis'

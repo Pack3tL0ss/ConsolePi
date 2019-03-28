@@ -110,10 +110,10 @@ get_config() {
 upgrade_prep() {
     # Update Config to include values for Cloud Config Function
     if [[ -f "${default_config}" ]]; then
-        process="ConsolePi-Upgrade-Prep(Config Updates)"
+        process="ConsolePi-Upgrade-Prep (Config Updates)"
         [ -z "$cloud" ] && cloud=false &&
             echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}" &&
-                logit $process "Updated Existing Config to support new Cloud Features.  Refer to gitHub for instructions on setup"
+                logit "${process}" "Updated Existing Config to support new Cloud Features.  Refer to gitHub for instructions on setup"
         [ -z "$cloud_svc" ] && cloud_svc="gdrive" &&
             echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
         [ -z "$debug" ] && debug=false &&
@@ -590,6 +590,8 @@ gitConsolePi () {
     else
         cd $consolepi_dir
         logit "${process}" "Directory exists Updating ConsolePi via git"
+        git fetch "${consolepi_source}" 1>/dev/null 2>> $tmp_log && 
+            logit "${process}" "ConsolePi fetch Success" || logit "${process}" "Failed to fetch ConsolePi from github" "WARNING"
         git pull "${consolepi_source}" 1>/dev/null 2>> $tmp_log && 
             logit "${process}" "ConsolePi update/pull Success" || logit "${process}" "Failed to update/pull ConsolePi" "WARNING"
     fi

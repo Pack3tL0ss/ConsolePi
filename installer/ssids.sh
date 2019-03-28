@@ -104,7 +104,7 @@ known_ssid_main() {
         ssid=$result
         # -- Check if ssid input already defined --
         if [ -f "${wpa_temp_file}" ]; then
-            temp_match=`cat "${wpa_temp_file}" |grep -c "${ssid}"`
+            temp_match=`cat "${wpa_temp_file}" | grep "ssid=" | grep -c "${ssid}"`
             if [[ $temp_match > 0 ]]; then
                 init_wpa_temp_file
                 temp=" ${ssid} already added during this session, over-writing all previous entries. Start over\n Don't screw up this time!"

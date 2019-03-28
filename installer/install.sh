@@ -549,7 +549,7 @@ updatepi () {
 
 upgrade_prep() {
     process="ConsolePi-Upgrade-Prep"
-    [[ -f /etc/src/bluemenu.sh ]] && rm /etc/src/bluemenu.sh &&
+    [[ -f /etc/ConsolePi/src/bluemenu.sh ]] && rm /etc/src/bluemenu.sh &&
         logit "${process}" "Removed old menu script will be replaced during pull"
     # Remove old symlink if it exists
     [[ -L /usr/local/bin/consolepi-menu ]] && unlink /usr/local/bin/consolepi-menu &&

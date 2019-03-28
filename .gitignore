@@ -5,4 +5,4 @@ ConsolePi.conf
 ConsolePi.cloud
 /installer/install.log*
 /installer/ConsolePi_image_creator.sh
-/cloud/*/.credentials/*
+# /cloud/*/.credentials/*  # ignored via file in that dir

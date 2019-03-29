@@ -6,4 +6,5 @@ ConsolePi.cloud
 /installer/install.log*
 /installer/ConsolePi_image_creator.sh
 *__pycache__*
+.idea/*
 # /cloud/*/.credentials/*  # ignored via file in that dir

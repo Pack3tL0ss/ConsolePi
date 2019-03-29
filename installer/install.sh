@@ -263,13 +263,15 @@ user_input() {
 }
 
 collect() {
+    # -- PushBullet  --
     header
     prompt="Configure ConsolePi to send notifications via PushBullet? (Y/N)"
     user_input $push "${prompt}"
     push=$result
     if $push; then
-        header
+
         # -- PushBullet API Key --
+        header
         prompt="PushBullet API key"
         user_input $push_api_key "${prompt}"
         push_api_key=$result
@@ -317,6 +319,7 @@ collect() {
         user_input $net_check_ip "${prompt}"
         net_check_ip=$result
         
+        # -- Local Lab Domain --
         header
         echo "ConsolePi uses the domain provided by DHCP to determine if it's on your local network"
         echo "If you are connected locally (No VPN will be established)"
@@ -366,6 +369,7 @@ collect() {
     cloud_svc="gdrive"
 
     # -- debug --
+    # No user prompt for debug only enabled by manually changing entry in ConsolePi.conf
     debug=false
 
 }
@@ -1081,8 +1085,6 @@ get_known_ssids() {
                 [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
                 cd "${cur_dir}"
             fi
-#        fi
-#    fi
     
             if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
                 echo

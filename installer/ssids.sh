@@ -6,7 +6,8 @@ known_ssid_init() {
     continue=true
     bypass_prompt=false
     psk_valid=false
-    wpa_temp_file="/tmp/wpa_temp"
+    wpa_temp_file="/tmp/wpa_temp"5[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[Y\
+    \]''''-VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV]HP4]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]
     wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
     header_txt="----------------->>Enter Known SSIDs - ConsolePi will attempt connect to these if available prior to switching to HotSpot mode<<-----------------\n"
     ( [[ -f "/etc/ConsolePi/ConsolePi.conf" ]] && . "/etc/ConsolePi/ConsolePi.conf" && country_txt="country=${wlan_country,,}" ) 
@@ -174,7 +175,7 @@ known_ssid_main() {
 
         if $accept; then
             [[ $match == 0 ]] && echo -e "$temp" >> $wpa_temp_file
-            prompt="Do You have additional SSIDs to define? (Y/N)"
+            prompt="Do You have additional SSIDs to define"
             user_input false "${prompt}"
             continue=$result
             psk_valid=false      # reset psk_valid
@@ -199,7 +200,7 @@ if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/ssids.sh"* ]] ; then
         cat $wpa_supplicant_file
         echo "----------------------------------------------------------------------------------------------"
         echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
-        prompt="Do You want to configure additional SSIDs? (Y/N)"
+        prompt="Do You want to configure additional SSIDs"
         user_input false "${prompt}"
         continue=$result
     else

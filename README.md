@@ -1,7 +1,12 @@
 # ConsolePi
 
+###TEST BRANCH NEW CLUSTERING FEATURE###
 
-Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to ConsolePi via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).  Multiple Connectivity options, wired, WLAN (ConsolePi as client or ConsolePi as hotspot), and bluetooth.
+Clustering works but the documentation is still WiP
+
+Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to ConsolePi via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).  Multiple Connectivity options, wired, WLAN (as a client if it finds a configured SSID, falls back to hotspot mode), and bluetooth.
+
+*Check out the **NEW** ConsolePi Clustering Feature!!*
 
 *TL;DR:*
 Single Command Install Script. Run from a RaspberryPi running raspbian (that has internet access):
@@ -37,7 +42,7 @@ When an interface receives an IP address ConsolePi will Automatically connect to
 
  **Automatic PushBullet Notification:**  
 
-*(Requires a PushBullet Account, API key, and the app for mobile devices.)*
+*(Requires a PushBullet Account, API key, and the app / browser extension.)*
 
 When ConsolePi receives a dynamic IP address.  A message is sent via PushBullet API with the IP so you know how to reach ConsolePi.
 
@@ -48,6 +53,28 @@ An additional message is sent once a tunnel is established if the Automatic Open
 ![Push Bullet Notification image](readme_content/ConsolePiPB2.png)
 
 Each Time a Notification is triggered all interface IPs are sent in the message along with the ConsolePi's default gateway(s).
+
+**ConsolePi Cluster**
+
+The Cluster feature allows you to have multiple ConsolePis connected to the network, or to each other (i.e. first ConsolePi in hotspot mode, the others connected as clients to that hotspot).  A connection to any one of the ConsolePis in the Cluster will provide options to connect to any local serial adapters, as well as those connected to the other ConsolePis in the cluster.
+
+Currently supports Google Drive/Google Sheets
+
+*I plan to add simple network file share as an option.  i.e. NFS to a share on a Master ConsolePi where all other ConsolePis would update there config once connected.  This would allow the cluster feature to work without internet*
+
+How it works:  
+ - When a ConsolePi gets an IP address it will attempt to update a ConsolePi.csv on Google Drive.
+ - It will also grab the details for any other ConsolePis that have updated that sheet.
+ - Connectivity is verified to any other ConsolePis found then the data is used to populate the menu in ```consolepi-menu```
+ 
+    *Reachability is all that matters.  local, VPN, connected to another ConsolePi via hotspot, or any combination.*
+ - If it finds another ConsolePi in the cloud config that is not reachable it removes the stale entry.  *This may be changed to keep the entry and just ignore it for that session if unreachable*
+
+ Important Notes:
+ - Uses the hostname as a unique identifier.  If all of your ConsolePis have the same hostname they will each overwrite the data.  The Hostname is also used to identify the device in the menu.
+ - The ```consolepi-addconsole``` command now supports assingment of custom names to the aliases used to identify the serial adapters when using the predictable TELNET ports. (udev rules).  If configured these names are used in ```consolepi-menu```, the default device name is used if not (i.e. ttyUSB0), but that's less predictable.
+ - There is a refresh option in the menu.  The last ConsolePi to connect is the only one that will have items for all the ConsolePis in the menu.  Use the refresh option if connecting to one of the previous ConsolePis so it can fetch the data for ConsolePis that came online after it did.
+ - Read The cloud-setup.md for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
 
 ## Installation
 
@@ -91,7 +118,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
 
 **2. Semi-Automatic Install**
 
-Alternatively you can clone this repository, then run the install script.  The only real benefit here would be pre-configuring some of the parameters in the config file:
+Alternatively you can clone this repository to /etc manually, then run the install script.  The only real benefit here would be pre-configuring some of the parameters in the config file:
 
 ```
 cd /etc
@@ -152,7 +179,7 @@ Once Complete you place the newly blessed micro-sd in your raspberryPi and boot.
 
 **4. Manual Installation**
 
-Manual installation instructions are incomplete at the moment
+Manual installation instructions are incomplete at the moment and will probably remain that way.  Focus has been on automating the install.
 
 For the brave or curious... Instructions on how to manually install can be found [here](readme_content/ConsolePi - Manual Installation.md).
 
@@ -167,7 +194,7 @@ The Configuration file is validated and created during the install.  Settings ca
 - Serial/Console adapters are reachable starting with telnet port 8001 +1 for each subsequent adapter plugged in (8002, 8003...).  If you are using a multi-port pigtail adapter or have multiple adapters plugged in @ boot, then it's a crap shoot which will be assigned to each telnet port.  Hence the next step.
 - The install script automates the mapping of specific adapters to specific ports.  The defined predictable adapters start with 7001 +1 for each adapter you define.  The reasoning behind this is so you can label the adapters and always know what port you would reach them on.  Key if you are using a  multi-port pig-tail adapter, or if this is going to be stationary and occasionally boot up with multiple adapter plugged in.  The `consolepi-addconsole` command below can be ran at anytime to automate the mapping for new Console Adapters if the desire is to map them to predictable ports.   
 
-Note: the 8000 range always valid even if you are using an adapter specifically mapped to a port in the 7000 range.  So if you plug in an adapter pre-mapped to port 7005, and it's the only adapter plugged in, it would also be available onport 8001
+Note: the 8000 range is always valid even if you are using an adapter specifically mapped to a port in the 7000 range.  So if you plug in an adapter pre-mapped to port 7005, and it's the only adapter plugged in, it would also be available onport 8001
 
 - Port monitoring/and control is available on telnet port 7000.  This allows you to change the baud rate of the port on the fly without changing the config permanently.  The installer configures all ports to 9600 8N1. 
 - Serial Port configuration options can be modified after the install in /etc/ser2net.conf 
@@ -176,15 +203,15 @@ Note: the 8000 range always valid even if you are using an adapter specifically 
 
 There are a few convenience commands created for ConsolePi during the automated install
 
-- consolepi-upgrade:  Upgrades ConsolePi:  More useful in the future.  Currently bypasses upgrade of ser2net (it's compiled from source).  I'll eventually remove the bypass.  For now this is essentially the same as doing a 'sudo git pull' from /etc/ConsolePi and updating/upgrading the other packages via apt.  Note: in it's current form it may overwrite some custom changes.  It's only lightly been tested as an upgrade script.
-- consolepi-addssids:  runs the /etc/ConsolePi/installer/ssids.sh script.  This script automates the creation of additional SSIDs which ConsolePi will attempt to connect to on boot.  Currently only supports psk and open SSIDs, but may eventually be improved to automate creation of other SSID types.
-- consolepi-addconsole: runs the /etc/ConsolePi/installer/udev.sh  This script automates the process of detecting USB to serial adapters and mapping them to specific telnet ports.  It does this by collecting the data required to create a udev rule.  It then creates the udev rule starting with the next available port (if rules already exist).
-- consolepi-autohotspot: runs /usr/bin/autohotspotN script  This script re-runs the autohotspot script which runs at boot (or periodically via cron although the installer currently doesn't configure that).  If the wlan adapter is already connected to an SSID it doesn't do anything.  If it's acting as a hotspot or not connected, it will scan for known SSIDs and attempt to connect, then fallback to a hotspot if it's unable to find/connect to a known SSID. 
-- consolepi-testhotspot: Toggles (Disables/Enables) the SSIDs ConsolePi is configured to connect to as a client before falling back to hotspot mode.  This is done to aid in testing hotspot mode.  After toggling the SSIDs run consolepi-autohotspot to trigger a change in state.
-- consolepi-killvpn: gracefully terminates the OpenVPN tunnel if established.
-- consolepi-menu: Launches ConsolePi Console Menu, which will have menu items for any serial adapters that are plugged in.  This allows you to connect to those serial adapters.  This menu is launched automatically when connecting to ConsolePi via BlueTooth, but can also be invoked from any shell session (i.e. SSH)
-- consolepi-bton: Make ConsolePi Discoverable via BlueTooth (Default Behavior on boot)
-- consolepi-btoff: Stop advertising via BlueTooth.  Previously paired devices will still be able to Pair.
+- **consolepi-upgrade**:  Upgrades ConsolePi:  More useful in the future.  Currently bypasses upgrade of ser2net (it's compiled from source).  I'll eventually remove the bypass.  For now this is essentially the same as doing a 'sudo git pull' from /etc/ConsolePi and updating/upgrading the other packages via apt.  Note: in it's current form it may overwrite some custom changes.  It's only lightly been tested as an upgrade script.
+- **consolepi-addssids**:  runs the /etc/ConsolePi/installer/ssids.sh script.  This script automates the creation of additional SSIDs which ConsolePi will attempt to connect to on boot.  Currently only supports psk and open SSIDs, but may eventually be improved to automate creation of other SSID types.
+- **consolepi-addconsole**: runs the /etc/ConsolePi/installer/udev.sh  This script automates the process of detecting USB to serial adapters and mapping them to specific telnet ports.  It does this by collecting the data required to create a udev rule.  It then creates the udev rule starting with the next available port (if rules already exist).
+- **consolepi-autohotspot**: runs /usr/bin/autohotspotN script  This script re-runs the autohotspot script which runs at boot (or periodically via cron although the installer currently doesn't configure that).  If the wlan adapter is already connected to an SSID it doesn't do anything.  If it's acting as a hotspot or not connected, it will scan for known SSIDs and attempt to connect, then fallback to a hotspot if it's unable to find/connect to a known SSID. 
+- **consolepi-testhotspot**: Toggles (Disables/Enables) the SSIDs ConsolePi is configured to connect to as a client before falling back to hotspot mode.  This is done to aid in testing hotspot mode.  After toggling the SSIDs run consolepi-autohotspot to trigger a change in state.
+- **consolepi-killvpn**: gracefully terminates the OpenVPN tunnel if established.
+- **consolepi-menu**: Launches ConsolePi Console Menu, which will have menu items for any serial adapters that are plugged in.  This allows you to connect to those serial adapters.  This menu is launched automatically when connecting to ConsolePi via BlueTooth, but can also be invoked from any shell session (i.e. SSH)
+- **consolepi-bton**: Make ConsolePi Discoverable via BlueTooth (Default Behavior on boot)
+- **consolepi-btoff**: Stop advertising via BlueTooth.  Previously paired devices will still be able to Pair.
 
 
 ## Tested Hardware

@@ -8,3 +8,4 @@ ConsolePi.cloud
 *__pycache__*
 .idea/*
 # /cloud/*/.credentials/*  # ignored via file in that dir
+.vscode/*

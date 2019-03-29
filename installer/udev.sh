@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 udev_init(){
+    error_file="/var/log/ConsolePi/consolepi-addudev.error"
     shopt -s nocasematch
     input="go"
     rules_file='/etc/udev/rules.d/10-ConsolePi.rules'

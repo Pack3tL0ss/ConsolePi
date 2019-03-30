@@ -1,0 +1,34 @@
+##### ConsolePi - Off Pi Google Sheets Authorization script for Windows ####
+
+This executable is designed for users that want to deploy the ConsolePi cloud 
+function using Google Sheets on a Raspberry Pi that has no desktop environment
+
+A web browser is required to grant ConsolePi permissions.  This exe will allow
+you to do that on a separate Windows system, then move the resulting files to 
+your ConsolePis.  This step is only required if you deployed ConsolePi using 
+without a desktop environment (raspbian-lite) as I do.  If you have a desktop 
+environment you can authorize directly on the Raspberry pi from the desktop.  
+To do so you would launch a terminal in the desktop environment and enter 
+consolepi-menu then select the option to refresh cloud data.  A browser should launch.
+
+# Pre-Requisites:
+ - Follow instructions on the github to create a "ConsolePi" project @ https://console.developers.google.com
+ - After creating the Oath2 client in the developer console download the client_secret_....json 
+ - rename the file credentials.json and place it in the same directory as this executable
+ 
+# Usage:
+  - Place The exe on a Windows system (created and tested on Win10).
+  - ensure credentials.json is in the same folder as this exe
+  - double-click/execute the exe
+ 
+Once Complete you should have the credentials.json and a token.pickle file in the folder
+#--> Those 2 files need to be moved to the ConsolePi(s) in /etc/ConsolePi/cloud/gdrive/.credentials <--#
+
+# -- ??What's in the exe?? --
+It's the get_credentials function from the gdrive.py script.
+A venv was created on a Windows system, dependencies were installed then a single file exe
+ was created on/for Windows using pyinstaller
+
+This makes it easy and portable, but if there is concern over using an exe from the wild you could do this different ways.
+this is just the easiest.
+       

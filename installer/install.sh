@@ -13,14 +13,8 @@
 branch="Clustering"
 
 get_common() {
-    consolepi_dir="/etc/ConsolePi/"
-    if [ -f ${consolepi_dir}installer/common.sh ]; then
-        . ${consolepi_dir}installer/common.sh
-    else
-        wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
+    wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
         . /tmp/common.sh
-    fi
-    [ -f /tmp/common.sh ] && rm /tmp/common.sh
     header || echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
 }
 

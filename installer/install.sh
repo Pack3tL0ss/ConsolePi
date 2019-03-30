@@ -70,7 +70,7 @@ pre_git_prep() {
     fi
 }
 
-gitConsolePi () {
+git_ConsolePi () {
     process="git Clone/Update ConsolePi"
     cd "/etc"
     if [ ! -d $consolepi_dir ]; then 
@@ -79,8 +79,6 @@ gitConsolePi () {
     else
         cd $consolepi_dir
         logit "Directory exists Updating ConsolePi via git"
-        git fetch "${consolepi_source}" 1>/dev/null 2>> $log_file && 
-            logit "ConsolePi fetch Success" || logit "Failed to fetch ConsolePi from github" "WARNING"
         git pull "${consolepi_source}" 1>/dev/null 2>> $log_file && 
             logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "WARNING"
     fi
@@ -147,7 +145,7 @@ main() {
         remove_first_boot       # if autolaunch install is configured remove
         do_apt_update           # apt-get update the pi
         pre_git_prep            # process upgrade tasks required prior to git pull
-        gitConsolePi            # git ConsolePi
+        git_ConsolePi            # git ConsolePi
         do_logging              # Configure logging and rotation
         get_install2            # get and import install2 functions
         install2_main           # Kick off install2 functions

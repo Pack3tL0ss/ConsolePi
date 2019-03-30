@@ -333,7 +333,7 @@ main_menu() {
             get_tty_devices
         elif $cloud && [[ ${selection,,} == "g" ]]; then
             get_tty_devices
-            sudo /etc/ConsolePi/cloud/venv/bin/python3 /etc/ConsolePi/cloud/gdrive/gdrive.py
+            sudo /etc/ConsolePi/cloud/gdrive/gdrive.py
         elif [[ ${selection,,} == "x" ]]; then
             valid_selection=true
             exit 0

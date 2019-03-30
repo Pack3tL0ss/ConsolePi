@@ -1,3 +1,4 @@
+# Do Not Delete this line. ConsolePi Configuration File ver 3
 push=true							# PushBullet Notifications: true - enable, false - disable
 push_all=true							# PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden
 push_api_key="PutYourPBAPIKeyHereChangeMe:"			# PushBullet API key
@@ -10,3 +11,7 @@ local_domain="arubalab.net"					# used to bypass VPN. evals domain sent via dhcp
 wlan_ip="10.3.0.1"						# IP of consolePi when in hotspot mode
 wlan_ssid="ConsolePi"						# SSID used in hotspot mode
 wlan_psk="ChangeMe!!"						# psk used for hotspot SSID
+wlan_country="US"                                               # regulatory domain for hotspot SSID
+cloud="true"                                                    # enable ConsolePi clustering / cloud config sync - see github for instructions
+cloud_svc="gdrive"                                              # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"
+debug="false"                                                   # turns on additional debugging

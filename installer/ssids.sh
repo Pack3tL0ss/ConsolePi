@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-echo $0
 # -- init some vars --
 known_ssid_init() {
     continue=true
@@ -11,77 +10,6 @@ known_ssid_init() {
     header_txt="----------------->>Enter Known SSIDs - ConsolePi will attempt connect to these if available prior to switching to HotSpot mode<<-----------------\n"
     ( [[ -f "/etc/ConsolePi/ConsolePi.conf" ]] && . "/etc/ConsolePi/ConsolePi.conf" && country_txt="country=${wlan_country,,}" ) 
 }
-
-# defining header and user-input again here so the script can be ran directly until I re-factor so this is less lame
-# header() {
-#     clear
-#     echo "                                                                                                                                                ";
-#     echo "                                                                                                                                                ";
-#     echo "        CCCCCCCCCCCCC                                                                     lllllll                   PPPPPPPPPPPPPPPPP     iiii  ";
-#     echo "     CCC::::::::::::C                                                                     l:::::l                   P::::::::::::::::P   i::::i ";
-#     echo "   CC:::::::::::::::C                                                                     l:::::l                   P::::::PPPPPP:::::P   iiii  ";
-#     echo "  C:::::CCCCCCCC::::C                                                                     l:::::l                   PP:::::P     P:::::P        ";
-#     echo " C:::::C       CCCCCC   ooooooooooo   nnnn  nnnnnnnn        ssssssssss      ooooooooooo    l::::l     eeeeeeeeeeee    P::::P     P:::::Piiiiiii ";
-#     echo "C:::::C               oo:::::::::::oo n:::nn::::::::nn    ss::::::::::s   oo:::::::::::oo  l::::l   ee::::::::::::ee  P::::P     P:::::Pi:::::i ";
-#     echo "C:::::C              o:::::::::::::::on::::::::::::::nn ss:::::::::::::s o:::::::::::::::o l::::l  e::::::eeeee:::::eeP::::PPPPPP:::::P  i::::i ";
-#     echo "C:::::C              o:::::ooooo:::::onn:::::::::::::::ns::::::ssss:::::so:::::ooooo:::::o l::::l e::::::e     e:::::eP:::::::::::::PP   i::::i ";
-#     echo "C:::::C              o::::o     o::::o  n:::::nnnn:::::n s:::::s  ssssss o::::o     o::::o l::::l e:::::::eeeee::::::eP::::PPPPPPPPP     i::::i ";
-#     echo "C:::::C              o::::o     o::::o  n::::n    n::::n   s::::::s      o::::o     o::::o l::::l e:::::::::::::::::e P::::P             i::::i ";
-#     echo "C:::::C              o::::o     o::::o  n::::n    n::::n      s::::::s   o::::o     o::::o l::::l e::::::eeeeeeeeeee  P::::P             i::::i ";
-#     echo " C:::::C       CCCCCCo::::o     o::::o  n::::n    n::::nssssss   s:::::s o::::o     o::::o l::::l e:::::::e           P::::P             i::::i ";
-#     echo "  C:::::CCCCCCCC::::Co:::::ooooo:::::o  n::::n    n::::ns:::::ssss::::::so:::::ooooo:::::ol::::::le::::::::e        PP::::::PP          i::::::i";
-#     echo "   CC:::::::::::::::Co:::::::::::::::o  n::::n    n::::ns::::::::::::::s o:::::::::::::::ol::::::l e::::::::eeeeeeeeP::::::::P          i::::::i";
-#     echo "     CCC::::::::::::C oo:::::::::::oo   n::::n    n::::n s:::::::::::ss   oo:::::::::::oo l::::::l  ee:::::::::::::eP::::::::P          i::::::i";
-#     echo "        CCCCCCCCCCCCC   ooooooooooo     nnnnnn    nnnnnn  sssssssssss       ooooooooooo   llllllll    eeeeeeeeeeeeeePPPPPPPPPP          iiiiiiii";
-#     echo "                                                                                                                                                ";
-#     echo "                                                                                                                                                ";
-# }
-
-# user_input() {
-#     [ ! -z "$1" ] && [[ ! "$1" == "NUL" ]] && default="$1"
-#     [ ! -z "$2" ] && prompt="$2"
-    
-#     case $1 in
-#         true|false)
-#             bool=true
-#         ;;
-#         *)
-#             bool=false
-#         ;;
-#     esac
-
-#     if [ ! -z $default ]; then
-#         if $bool; then
-#             $default && prompt+=" [Y]: " || prompt+=" [N]: "
-#         else
-#             prompt+=" [${default}]: "
-#         fi
-#     else
-#         prompt+=": "
-#     fi
-    
-#     # printf "%s" "${prompt}"
-#     read -p "${prompt}" input
-#     if $bool; then
-#         if [ ${#input} -gt 0 ] && ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ] || [ ${input,,} == 'true' ]); then 
-#             result=true
-#         elif [ ${#input} -gt 0 ] && ([ ${input,,} == 'n' ] || [ ${input,,} == 'no' ] || [ ${input,,} == 'false' ]); then 
-#             result=false
-#         elif ! [ -z $default ]; then
-#             result=$default
-#         else 
-#             result=false
-#         fi
-#     else
-#         if [ ${#input} -gt 0 ]; then
-#             result=$input
-#         elif [ ${#default} -gt 0 ]; then
-#             result=$default
-#         else
-#             result="Invalid"
-#         fi
-#     fi
-# }
 
 init_wpa_temp_file() {
     ( [[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" && cp "${wpa_supplicant_file}" "/etc/ConsolePi/originals" ) ||

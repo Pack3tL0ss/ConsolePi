@@ -152,7 +152,7 @@ user_input() {
 user_input_bool() {
     valid_response=false
     while ! $valid_response; do
-        read -p "${prompt}? (y/n): " response
+        read -p "${prompt}? (Y/N): " response
         response=${response,,}    # tolower
         if [[ "$response" =~ ^(yes|y)$ ]]; then
             response=true && valid_response=true

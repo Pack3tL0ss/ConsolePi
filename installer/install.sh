@@ -29,26 +29,26 @@ remove_first_boot() {
 do_apt_update () {
     header
     process="Update/Upgrade ConsolePi (apt)"
-    logit "${process}" "Update Sources"
+    logit "Update Sources"
     # Only update if initial install (no install.log) or if last update was not today
     if [[ ! -f "${consolepi_dir}installer/install.log" ]] || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
-        sudo apt-get update 1>/dev/null 2>> $log_file && logit "${process}" "Update Successful" || logit "${process}" "FAILED to Update" "ERROR"
+        sudo apt-get update 1>/dev/null 2>> $log_file && logit "Update Successful" || logit "FAILED to Update" "ERROR"
     else
-        logit "${process}" "Skipping Source Update - Already Updated today"
+        logit "Skipping Source Update - Already Updated today"
     fi
     
-    logit "${process}" "Upgrading ConsolePi via apt. This may take a while"
-    sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "${process}" "Upgrade Successful" || logit "${process}" "FAILED to Upgrade" "ERROR"
+    logit "Upgrading ConsolePi via apt. This may take a while"
+    sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
     
-    logit "${process}" "Performing dist-upgrade"
-    sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "${process}" "dist-upgrade Successful" || logit "${process}" "FAILED dist-upgrade" "WARNING"
+    logit "Performing dist-upgrade"
+    sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
 
-    logit "${process}" "Tidying up (autoremove)"
-    apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "${process}" "Everything is tidy now" || logit "${process}" "apt-get autoremove FAILED" "WARNING"
+    logit "Tidying up (autoremove)"
+    apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
         
-    logit "${process}" "Installing git via apt"
-    apt-get -y install git 1>/dev/null 2>> $log_file && logit "${process}" "git install Successful" || logit "${process}" "git install FAILED to install" "ERROR"
-    logit "${process}" "Process Complete"
+    logit "Installing git via apt"
+    apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install Successful" || logit "git install FAILED to install" "ERROR"
+    logit "Process Complete"
 }
 
 # Process Changes that are required prior to git pull when doing upgrade
@@ -57,13 +57,13 @@ pre_git_prep() {
         process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"
         if [[ -f /etc/ConsolePi/src/bluemenu.sh ]]; then 
             rm /etc/ConsolePi/src/bluemenu.sh &&
-                logit "${process}" "Removed old menu script will be replaced during pull" ||
-                    logit "${process}" "ERROR Found old menu script but unable to remove (/etc/ConsolePi/src/bluemenu.sh)" "WARNING"
+                logit "Removed old menu script will be replaced during pull" ||
+                    logit "ERROR Found old menu script but unable to remove (/etc/ConsolePi/src/bluemenu.sh)" "WARNING"
             # Remove old symlink if it exists
             if [[ -L /usr/local/bin/consolepi-menu ]]; then
                 unlink /usr/local/bin/consolepi-menu &&
-                    logit "${process}" "Removed old consolepi-menu symlink will replace during upgade" ||
-                        logit "${process}" "ERROR Unable to remove old consolepi-menu symlink verify it should link to file in src dir" "WARNING"
+                    logit "Removed old consolepi-menu symlink will replace during upgade" ||
+                        logit "ERROR Unable to remove old consolepi-menu symlink verify it should link to file in src dir" "WARNING"
             fi
         fi
     fi
@@ -73,15 +73,15 @@ gitConsolePi () {
     process="git Clone/Update ConsolePi"
     cd "/etc"
     if [ ! -d $consolepi_dir ]; then 
-        logit "${process}" "Clean Install git clone ConsolePi"
-        git clone "${consolepi_source}" 1>/dev/null 2>> $log_file && logit "${process}" "ConsolePi clone Success" || logit "${process}" "Failed to Clone ConsolePi" "ERROR"
+        logit "Clean Install git clone ConsolePi"
+        git clone "${consolepi_source}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
     else
         cd $consolepi_dir
-        logit "${process}" "Directory exists Updating ConsolePi via git"
+        logit "Directory exists Updating ConsolePi via git"
         git fetch "${consolepi_source}" 1>/dev/null 2>> $log_file && 
-            logit "${process}" "ConsolePi fetch Success" || logit "${process}" "Failed to fetch ConsolePi from github" "WARNING"
+            logit "ConsolePi fetch Success" || logit "Failed to fetch ConsolePi from github" "WARNING"
         git pull "${consolepi_source}" 1>/dev/null 2>> $log_file && 
-            logit "${process}" "ConsolePi update/pull Success" || logit "${process}" "Failed to update/pull ConsolePi" "WARNING"
+            logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "WARNING"
     fi
     [[ ! -d $orig_dir ]] && sudo mkdir $orig_dir
 }
@@ -89,11 +89,11 @@ gitConsolePi () {
 # Configure ConsolePi logging directory and logrotate
 do_logging() {
     process="Configure Logging"
-    logit "${process}" "Configure Logging in /var/log/ConsolePi - Other ConsolePi functions log to syslog"
+    logit "Configure Logging in /var/log/ConsolePi - Other ConsolePi functions log to syslog"
     
     # Create /var/log/ConsolePi dir if it doesn't exist
     if [[ ! -d "/var/log/ConsolePi" ]]; then
-        sudo mkdir /var/log/ConsolePi 1>/dev/null 2>> $log_file || logit "${process}" "Failed to create Log Directory"
+        sudo mkdir /var/log/ConsolePi 1>/dev/null 2>> $log_file || logit "Failed to create Log Directory"
     fi
 
     # move installer log from temp to it's final location
@@ -106,8 +106,8 @@ do_logging() {
     fi
 
     # Create Log Files
-    touch /var/log/ConsolePi/ovpn.log || logit "${process}" "Failed to create OpenVPN log file" "WARNING"
-    touch /var/log/ConsolePi/push_response.log || logit "${process}" "Failed to create PushBullet log file" "WARNING"
+    touch /var/log/ConsolePi/ovpn.log || logit "Failed to create OpenVPN log file" "WARNING"
+    touch /var/log/ConsolePi/push_response.log || logit "Failed to create PushBullet log file" "WARNING"
     
     # Create logrotate file for logs
     echo "/var/log/ConsolePi/ovpn.log" > "/etc/logrotate.d/ConsolePi"
@@ -126,8 +126,8 @@ do_logging() {
     # Verify logrotate file was created correctly
     lines=$(wc -l < "/etc/logrotate.d/ConsolePi")
     ( $cloud && [[ $lines == 12 ]] ) || ( ! $cloud && [[ $lines == 11 ]] ) && 
-        logit "${process}" "${process} Completed Successfully" || 
-        logit "${process}" "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
+        logit "${process} Completed Successfully" || 
+        logit "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
 }
 
 get_install2() {

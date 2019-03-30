@@ -1,4 +1,4 @@
-#!/etc/ConsolePi/cloud/venv/bin/python3
+#!/etc/ConsolePi/venv/bin/python3
 
 import os
 import logging

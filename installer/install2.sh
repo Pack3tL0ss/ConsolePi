@@ -1082,7 +1082,7 @@ get_serial_udev() {
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
     echo "You need to have the serial adapters you want to map to specific telnet ports available"
-    prompt="Would you like to configure predictable serial ports now (Y/N)"
+    prompt="Would you like to configure predictable serial ports now"
     user_input true "${prompt}"
     if $result ; then
         if [ -f ${consolepi_dir}installer/udev.sh ]; then

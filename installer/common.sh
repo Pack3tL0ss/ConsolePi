@@ -18,8 +18,8 @@ default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log" 
 final_log="/var/log/ConsolePi/install.log"
-pi@ConsolePi:~$ boldon="\033[1;32m"
-pi@ConsolePi:~$ boldoff="$*\033[m"
+boldon="\033[1;32m"
+boldoff="$*\033[m"
 
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
 [[ -f $final_log ]] && upgrade=true || upgrade=false

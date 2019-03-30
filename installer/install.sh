@@ -15,7 +15,7 @@ branch="Clustering"
 get_common() {
     wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
         . /tmp/common.sh
-    header || echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
+    header || ( echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1 )
 }
 
 remove_first_boot() {

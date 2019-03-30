@@ -16,7 +16,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from include.utils import get_config
 
-### GLOBALS ###
+# -- GLOBALS --
 DEBUG = get_config('debug')  
 CLOUD_SVC = get_config('cloud_svc')
 
@@ -37,6 +37,7 @@ TIMEOUT = 3   # socket timeout in seconds (for clustered/cloud setup)
 # Change current working directory
 # os.chdir('/home/pi/ConsolePi_Cluster/')
 os.chdir('/etc/ConsolePi/cloud/gdrive/')
+
 
 # Google sheets API credentials - used to update config on Google Drive
 def get_credentials():
@@ -143,7 +144,8 @@ def update_files(data):
                 else:
                     remote_consoles[row[0]] = json.loads(row[1])
                 x += 1
-            log.debug('remote_ConsolePis Discovered from sheet: {0}, Count: {1}'.format( json.dumps(remote_consoles) if len(remote_consoles) > 0 else 'None', str(len(remote_consoles)) ))
+            log.debug('remote_ConsolePis Discovered from sheet: {0}, Count: {1}'.format(
+                json.dumps(remote_consoles) if len(remote_consoles) > 0 else 'None', str(len(remote_consoles))))
         range_ = 'a' + str(cnt) + ':b' + str(cnt)
 
         if found:

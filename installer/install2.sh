@@ -935,7 +935,7 @@ get_known_ssids() {
     fi
 
     echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
-    prompt="Do You want to configure${word} SSIDs? (Y/N)"
+    prompt="Do You want to configure${word} SSIDs"
     user_input false "${prompt}"
     continue=$result
 

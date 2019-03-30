@@ -17,7 +17,7 @@ from google.auth.transport.requests import Request
 from include.utils import get_config
 
 # -- GLOBALS --
-DEBUG = get_config('debug')  
+DEBUG = get_config('debug')
 CLOUD_SVC = get_config('cloud_svc')
 
 # Logging
@@ -195,20 +195,20 @@ def resize_cols(service, spreadsheet_id):
         body=body).execute()
     # print(response)
 
+
 # if the device has a row in the cloud config, but it is not reachable delete that row
 def del_row(dev_name):
-    ## TODO add log print function
     log.debug('{0} found in Drive Config, but not reachable... Deleting from Cloud Config'.format(dev_name))
     print('{0} found in Drive Config, but not reachable... Deleting from Cloud Config'.format(dev_name))
     found = False
     # find out if this ConsolePi already has a row use that row in range
-    ## TODO call get_credentials once and pass result to other functions
+    # -- TODO call get_credentials once and pass result to other functions
     credentials = get_credentials()
     service = discovery.build('sheets', 'v4', credentials=credentials)
     spreadsheet_id = get_file_id(credentials)
     result = service.spreadsheets().values().get(
         spreadsheetId=spreadsheet_id, range='A:A').execute()
-    # print(result)
+    log.debug(result)
     if result.get('values') is not None:
         x = 0
         for row in result.get('values'):
@@ -250,7 +250,7 @@ def del_row(dev_name):
 def get_if_ips():
     if_list = ni.interfaces()
     log.debug('interface list: {}'.format(if_list))
-    ip_list={}
+    ip_list = {}
     pos = 0
     for _if in if_list:
         if _if != 'lo':
@@ -265,16 +265,16 @@ def get_if_ips():
 
 def get_serial_ports():
     this = serial.tools.list_ports.grep('.*ttyUSB[0-9]*', include_links=True)
-    tty_list={}
-    tty_alias_list={}
+    tty_list = {}
+    tty_alias_list = {}
     for x in this:
         _device_path = x.device_path.split('/')
-        if x.device.replace('/dev/','') != _device_path[len(_device_path)-1]:
+        if x.device.replace('/dev/', '') != _device_path[len(_device_path)-1]:
             tty_alias_list[x.device_path] = x.device
         else:
             tty_list[x.device_path] = x.device
 
-    final_tty_list=[]
+    final_tty_list = []
     for k in tty_list:
         if k in tty_alias_list:
             final_tty_list.append(tty_alias_list[k])
@@ -283,7 +283,7 @@ def get_serial_ports():
 
     # get telnet port deffinitions from ser2net.conf
     # and build adapters dict
-    serial_list=[]
+    serial_list = []
     if os.path.isfile('/etc/ser2net.conf'):
         for tty_dev in final_tty_list:
             with open('/etc/ser2net.conf', 'r') as cfg:
@@ -299,7 +299,6 @@ def get_serial_ports():
             if tty_port == 7000:
                 log.error('No ser2net.conf deffinition found for {}'.format(tty_dev))
                 print('No ser2net.conf deffinition found for {}'.format(tty_dev))
-                
     else:
         log.error('No ser2net.conf file found unable to extract port deffinitions')
         print('No ser2net.conf file found unable to extract port deffinitions')
@@ -334,8 +333,9 @@ if __name__ == '__main__':
                 with open(local_cloud_file, 'a') as cloud_file:
                     x = 0
                     for adapter in remote_consoles[remote_dev]['adapters']:
-                        cloud_file.write('{0},{1},{2},{3},{4}\n'.format(remote_dev, ip, remote_consoles[remote_dev]['user'], adapter['dev'], adapter['port']))
-                        log.info('{0} is reachable. Adding {1} as remote connection option to local consolepi-menu'.format(remote_dev, adapter['dev']))
+                        cloud_file.write('{0},{1},{2},{3},{4}\n'.format(remote_dev, ip, remote_consoles[remote_dev]['user'],
+                                                                        adapter['dev'], adapter['port']))
+                        log.info('{0} is reachable. Adding {1} as remote connection option to local consolepi-menu'.format(
+                            remote_dev, adapter['dev']))
             else:
                 del_row(remote_dev)
-

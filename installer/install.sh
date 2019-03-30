@@ -29,7 +29,7 @@ remove_first_boot() {
     [[ $count > 0 ]] && logit "Remove exec on first-boot" "Failed to remove first-boot verify /etc/rc.local" "WARNING"
 }
 
-updatepi () {
+do_apt_update () {
     header
     process="Update/Upgrade ConsolePi (apt)"
     logit "${process}" "Update Sources"
@@ -147,7 +147,7 @@ main() {
     if [ "${script_iam}" = "root" ]; then
         get_common              # get and import common function script
         remove_first_boot       # if autolaunch install is configured remove
-        updatepi                # apt-get update the pi
+        do_apt_update           # apt-get update the pi
         pre_git_prep            # process upgrade tasks required prior to git pull
         gitConsolePi            # git ConsolePi
         do_logging              # Configure logging and rotation

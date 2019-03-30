@@ -7,11 +7,13 @@ udev_init(){
     rules_file='/etc/udev/rules.d/10-ConsolePi.rules'
     ser2net_conf='/etc/ser2net.conf'
     process="Predictable Console Ports"
-    [[ ! -f "/tmp/consolepi_install.log" ]] && touch /tmp/consolepi_install.log
+    #[[ ! -f "/tmp/consolepi_install.log" ]] && touch /tmp/consolepi_install.log
     auto_name=false
+    # [ -f /etc/ConsolePi/installer/common.sh ] && . /etc/ConsolePi/installer/common.sh ||
+    #     echo "ERROR Failed to import common functions"
 }
 
-header() {
+udev_header() {
 	clear
 	echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m -------------------------------------------------"
 	echo "* This script will automatically create udev rules and assign aliases for each USB to serial device (or pig-tail).      *"
@@ -70,7 +72,7 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep ttyUSB); do
         fi
         [ -f $ser2net_conf ] && echo "${port}:telnet:0:/dev/${alias}_${port}:9600 8DATABITS NONE 1STOPBIT banner" >> $ser2net_conf
         echo "${process}" "${ID_MODEL_FROM_DATABASE} idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port} alias: ${alias}_${port}" \
-            >> /tmp/consolepi_install.log
+            >> /var/log/ConsolePi/install.log
         ((port++))
     fi
 done
@@ -78,7 +80,7 @@ done
 
 udev_main() {
     udev_init
-    header
+    udev_header
 	
     # -- if rules file already exist grab the port assigned to the last entry and start with the next port --
     if [ -f $rules_file ]; then
@@ -115,7 +117,7 @@ if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/udev.sh"* ]] ; then
     iam=`whoami`
     if [ "${iam}" = "root" ]; then
         echo "...script ran from CLI..."
-        [[ -f /tmp/consolepi_install.log ]] && sudo mv /tmp/consolepi_install.log /etc/ConsolePi/installer/install.log
+        # [[ -f /tmp/consolepi_install.log ]] && cat /tmp/consolepi_install.log /var/log/ConsolePi/install.log
         udev_main
     else
         echo 'Script should be ran as root. exiting.'

@@ -102,7 +102,7 @@ do_logging() {
         rm $tmp_log
         log_file=$final_log
     else
-        [ -f $tmp_log ] && echo "ERROR: tmp log found when it should not have existed" tee -a $final_log
+        [ -f $tmp_log ] && echo "ERROR: tmp log found when it should not have existed" | tee -a $final_log
     fi
 
     # Create Log Files

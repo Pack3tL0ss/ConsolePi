@@ -145,7 +145,7 @@ get_install2() {
 main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
-        get_common              # get and import common function script
+        get_common              # get and import common functions script
         remove_first_boot       # if autolaunch install is configured remove
         do_apt_update           # apt-get update the pi
         pre_git_prep            # process upgrade tasks required prior to git pull

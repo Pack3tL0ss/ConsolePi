@@ -4,6 +4,37 @@
 # Author: Wade Wells
 # Last Update: March 29 2019
 
+# -- Installation Defaults --
+INSTALLER_VER=21
+CFG_FILE_VER=3
+cur_dir=$(pwd)
+iam=$(who am i | awk '{print $1}')
+consolepi_dir="/etc/ConsolePi/"
+src_dir="${consolepi_dir}src/"
+orig_dir="${consolepi_dir}originals/"
+home_dir="/home/${iam}/"
+stage_dir="${home_dir}ConsolePi_stage/"
+default_config="/etc/ConsolePi/ConsolePi.conf"
+wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
+tmp_log="/tmp/consolepi_install.log" 
+final_log="/var/log/ConsolePi/install.log"
+pi@ConsolePi:~$ boldon="\033[1;32m"
+pi@ConsolePi:~$ boldoff="$*\033[m"
+
+[[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
+[[ -f $final_log ]] && upgrade=true || upgrade=false
+
+# log file is referenced thoughout the script.  During install changes from tmp to final after final log
+# location is configured in install.sh do_logging
+$upgrade && log_file=$final_log || log_file=$tmp_log
+
+
+# -- External Sources --
+# ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download" ## now points to gensio not ser2net
+ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-3.5.1.tar.gz/download"
+consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
+
+
 header() {
     clear
     echo "                                                                                                                                                ";
@@ -28,7 +59,7 @@ header() {
     echo "                                                                                                                                                ";
 }
 
-# Logging function prints to terminal and log file
+# -- Logging function prints to terminal and log file assign value of process prior to calling logit --
 logit() {
     # Logging Function: logit <process|string> <message|string> [<status|string>]
     # usage:
@@ -45,23 +76,24 @@ logit() {
     fi
     
     # Log to stdout and log-file
-    echo "$(date +"%b %d %T") ${process} [${status}] ${message}" | tee -a $INSTALL_LOG
+    echo "$(date +"%b %d %T") ${process} [${status}] ${message}" | tee -a $log_file
     # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
         move_log
         echo "$(date +'%b %d %T') ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" && exit 1
     fi
-    unset process
 }
 
-# Collect User Input
+# -- Collect User Input --
+# arg 1 is required use NUL if you don't want a default value
+# prompt doesn't have to be defined as long as it's been set (bash is global)
 user_input() {
     # Get default value and prompt text from args
     # $1 = NUL = No default Value
     unset default
     pass=0
     [ ! -z "$1" ] && [[ ! "$1" == "NUL" ]] && default="$1"
-    [ ! -z "$2" ] && prompt="$2"
+    [ ! -z "$2" ] && prompt="$2" || prompt="ERROR: No Prompt was set"
     
     # Determine if bool (default value true|false)
     case $1 in
@@ -112,4 +144,23 @@ user_input() {
         fi
         ((pass++))
     done
+    unset prompt
+    # returns $result
+}
+
+# user input function that accepts y|yes|n|no (not case sensitive) and loops until a valid response is entered. No default
+user_input_bool() {
+    valid_response=false
+    while ! $valid_response; do
+        read -p "${prompt}? (y/n): " response
+        response=${response,,}    # tolower
+        if [[ "$response" =~ ^(yes|y)$ ]]; then
+            response=true && valid_response=true
+        elif [[ "$response" =~ ^(no|n)$ ]]; then
+            response=false && valid_response=true
+        else
+            valid_response=false
+        fi
+    done
+    echo $response
 }

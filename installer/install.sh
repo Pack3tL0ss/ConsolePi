@@ -157,3 +157,5 @@ main() {
       echo 'Script should be ran as root. exiting.'
     fi
 }
+
+main

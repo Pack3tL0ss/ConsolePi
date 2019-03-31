@@ -32,7 +32,7 @@ $upgrade && log_file=$final_log || log_file=$tmp_log
 # -- External Sources --
 # ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download" ## now points to gensio not ser2net
 ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-3.5.1.tar.gz/download"
-consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
+consolepi_source="--single-branch --branch Clustering https://github.com/Pack3tL0ss/ConsolePi.git"
 
 
 header() {

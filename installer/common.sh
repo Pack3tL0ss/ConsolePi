@@ -108,7 +108,7 @@ user_input() {
     # Format full prompt
     if [ ! -z $default ]; then
         if $bool; then
-            prompt+=" (y/n)?"
+            prompt+="? (Y/N)"
             $default && prompt+=" [Y]: " || prompt+=" [N]: "
         else
             prompt+=" [${default}]: "

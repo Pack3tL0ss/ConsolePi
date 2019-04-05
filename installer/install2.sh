@@ -52,7 +52,7 @@ get_config() {
         echo "which will prompt you for each value. Enter n to exit the script, so you can modify the"
         echo "defaults directly then re-run the script."
         echo
-        prompt="Continue in Interactive mode? (Y/N)"
+        prompt="Continue in Interactive mode"
         user_input true "${prompt}"
         continue=$result
         if $continue ; then

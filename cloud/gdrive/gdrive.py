@@ -68,10 +68,9 @@ def get_credentials():
 
 # Google Drive Get File ID from File Name
 def get_file_id(credentials):
-    """Shows basic usage of the Google Drive API.
-
-    Creates a Google Drive API service object and outputs the names and IDs
-    for up to 10 files.
+    """
+    Gets file id for ConsolePi.csv file on Google Drice
+    Params: credentials object
     """
     credentials = get_credentials()
     # http = credentials.authorize(httplib2.Http())

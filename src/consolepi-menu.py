@@ -131,7 +131,7 @@ def get_remote_ports():
         this = data[remotepi]
         for _iface in data[remotepi]['interfaces']:
             _ip = data[remotepi]['interfaces'][_iface]
-            if is_reachable(_ip, 22)
+            if is_reachable(_ip, 22):
                 this['rem_ip'] = _ip
                 for adapter in this['adapters']:
                     _dev = this['adapters'][adapter]

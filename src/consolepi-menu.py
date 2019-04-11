@@ -1,7 +1,7 @@
 #!./../venv/bin/python
 
 # import os
-# os.chdir('C:/Users/wellswa/Documents/bin/github/ConsolePi_Clustering_Branch/cloud/gdrive')
+# os.chdir('/etc/ConsolePi/cloud/gdrive')
 # Import the necessary packages
 import logging
 from consolemenu import *
@@ -13,9 +13,9 @@ import json
 # sys.path.insert(0, '../cloud/gdrive')
 # print(sys.path)
 # from include.utils import get_config
-config_file = 'C:/Users/wellswa/Documents/bin/github/ConsolePi_Clustering_Branch/ConsolePi.conf'
-log_file = 'C:/Users/wellswa/Documents/bin/github/cloud.log'
-local_cloud_file = 'C:/Users/wellswa/Documents/bin/github/ConsolePi_Clustering_Branch/ConsolePi.cloud.csv'
+config_file = '/etc/ConsolePi/ConsolePi.conf'
+log_file = '/var/log/ConsolePi/cloud.log'
+local_cloud_file = '/etc/ConsolePi/ConsolePi.cloud.csv'
 
 
 # Get Variables from Config
@@ -111,9 +111,9 @@ def get_remote_ports():
                 # user = row[2]
                 # device = row[3]
                 # port = row[4]
-                remote_cmd_list.append(f'ssh -t {row[2]}@{row[1]} picocom {row[3]}')
+                remote_cmd_list.append('ssh -t {0}@{1} picocom {2}'.format(row[2], row[1], row[3]))
             line_count += 1
-        print(f'Processed {line_count} lines.')
+        print('Processed {0} lines.'.format(line_count))
         return data
 
 
@@ -152,7 +152,7 @@ def create_menu(data):
     connection_menu = MenuItem("ConsolePi Connection Settings")
     submenu_item = SubmenuItem("Configure Connection Settings", connection_menu, menu)
     baud_menu = SubmenuItem("Baud", selection_menu, connection_menu)
-    connection_menu.append_item(baud_menu)
+    con_menu.append_item(baud_menu)
 
     # Once we're done creating them, we just add the items to the menu
     # menu.append_item(menu_item)

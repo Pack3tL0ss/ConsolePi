@@ -1,6 +1,6 @@
-#!./../venv/bin/python
+#!/etc/ConsolePi/venv/bin/python
 
-# import os
+import os
 # os.chdir('/etc/ConsolePi/cloud/gdrive')
 # Import the necessary packages
 import logging

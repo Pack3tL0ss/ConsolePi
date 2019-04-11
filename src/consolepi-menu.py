@@ -122,7 +122,7 @@ def get_remote_ports():
     data = {}
     if os.path.isfile(local_cloud_file):
         with open(local_cloud_file, mode='r') as cloud_file:
-            data = json.loads(cloud_file)
+            data = json.load(cloud_file)
     else:
         log.error('Unable to populate remote ConsolePis - file {0} not found'.format(local_cloud_file))
 

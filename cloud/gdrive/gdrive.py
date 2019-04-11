@@ -115,7 +115,8 @@ def update_files(data):
         log.debug('spreadsheet_id *existing* sheet: ' + spreadsheet_id)
 
     value_input_option = 'USER_ENTERED'
-
+    
+    # init remote_consoles dict, any entries in config not matching this ConsolePis hostname are added as remote ConsolePis
     remote_consoles = {}
     cnt = 1
     for k in data:
@@ -161,7 +162,7 @@ def update_files(data):
     return remote_consoles
 
 
-# check remote ConsolePi adapter is reachable
+# check remote ConsolePi is reachable
 def check_reachable(ip, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(TIMEOUT)
@@ -175,6 +176,7 @@ def check_reachable(ip, port):
     return reachable
 
 
+# Auto Resize gdrive columns to match content
 def resize_cols(service, spreadsheet_id):
     body = {"requests": [
         {
@@ -313,6 +315,7 @@ if __name__ == '__main__':
     data[hostname]['interfaces'] = if_ips
     log.info('Final Data set collected for {}: {}'.format(hostname, data))
     local_cloud_file = '/etc/ConsolePi/ConsolePi.cloud'
+    new_cloud_file = '/etc/ConsolePi/cloud.data'
     remote_consoles = update_files(data)
 
     # Remove local cloud file if it exists, re-create based on current data and reachability
@@ -321,7 +324,9 @@ if __name__ == '__main__':
     ip = None
     if len(remote_consoles) > 0:
         for remote_dev in remote_consoles:
-            is_reachable = False
+            
+            # -- Check each interface (ip) for remote_consoles, stop and write to local if reachable
+            is_reachable = False            
             for interface in remote_consoles[remote_dev]['interfaces']:
                 ip = remote_consoles[remote_dev]['interfaces'][interface]
                 if ip not in if_ips.values():
@@ -338,3 +343,10 @@ if __name__ == '__main__':
                             remote_dev, adapter['dev']))
             else:
                 del_row(remote_dev)
+                remote_consoles.pop(remote_dev)
+        # Write All Remotes to local file
+        if os.path.isfile(new_cloud_file):
+            os.remove(new_cloud_file)
+        with open(new_cloud_file, 'a') as new_file:
+            new_file.write(json.dumps(remote_consoles))
+

@@ -15,7 +15,7 @@ import json
 # from include.utils import get_config
 config_file = '/etc/ConsolePi/ConsolePi.conf'
 log_file = '/var/log/ConsolePi/cloud.log'
-local_cloud_file = '/etc/ConsolePi/ConsolePi.cloud.csv'
+local_cloud_file = '/etc/ConsolePi/cloud.data'
 
 
 # Get Variables from Config
@@ -92,29 +92,53 @@ def get_serial_ports():
     return serial_list
 
 
+# def get_remote_ports():
+#     remote_cmd_list = []
+#     data = {}
+#     with open(local_cloud_file, mode='r') as csv_file:
+#         csv_reader = csv.reader(csv_file)
+#         line_count = 0
+#         for row in csv_reader:
+#             if len(row[0]) > 0:
+#                 hostname = row[0]
+#                 row.pop(0)
+#                 host_data = (', '.join(row))
+#                 data[hostname] = json.loads(host_data)
+#                 print(row[1])
+#                 print(type(row[1]))
+#                 # hostname = row[0]
+#                 # ip = row[1]
+#                 # user = row[2]
+#                 # device = row[3]
+#                 # port = row[4]
+#                 remote_cmd_list.append('ssh -t {0}@{1} picocom {2}'.format(row[2], row[1], row[3]))
+#             line_count += 1
+#         print('Processed {0} lines.'.format(line_count))
+#         return data
+
+
 def get_remote_ports():
     remote_cmd_list = []
     data = {}
-    with open(local_cloud_file, mode='r') as csv_file:
-        csv_reader = csv.reader(csv_file)
-        line_count = 0
-        for row in csv_reader:
-            if len(row[0]) > 0:
-                hostname = row[0]
-                row.pop(0)
-                host_data = (', '.join(row))
-                data[hostname] = json.loads(host_data)
-                print(row[1])
-                print(type(row[1]))
-                # hostname = row[0]
-                # ip = row[1]
-                # user = row[2]
-                # device = row[3]
-                # port = row[4]
-                remote_cmd_list.append('ssh -t {0}@{1} picocom {2}'.format(row[2], row[1], row[3]))
-            line_count += 1
-        print('Processed {0} lines.'.format(line_count))
-        return data
+    if os.path.isfile(local_cloud_file):
+        with open(local_cloud_file, mode='r') as cloud_file:
+            data = json.loads(cloud_file)
+    else:
+        log.error('Unable to populate remote ConsolePis - file {0} not found'.format(local_cloud_file))
+
+    # Add remote commands to remote_consoles dict for each adapter 
+    for remotepi in data:
+        this = data[remotepi]
+        for _iface in data[remotepi]['interfaces']:
+            _ip = data[remotepi]['interfaces'][_iface]
+            if is_reachable(_ip, 22)
+                this['rem_ip'] = _ip
+                for adapter in this['adapters']:
+                    _dev = this['adapters'][adapter]
+                    _dev['rem_cmd'] = \
+                        'ssh -t {0}@{1} picocom {2}'.format(this['user'], _ip, _dev)
+                break  # Stop Looping through interfaces we found a reachable one
+    return data
 
 
 def create_menu(data):
@@ -129,11 +153,16 @@ def create_menu(data):
     # A FunctionItem runs a Python function when selected
     for host in data:
         cnt = 0
-        for adapter in data[host]['adapters']:
+        for _dev in data[host]['adapters']:
             rem_console_item = CommandItem('Connect to {0} on {1}'.format(
                 data[host]['adapters'][cnt]['dev'].replace('/dev/', ''), host),
                 'ssh -t {0}@{1} picocom {2}'.format(
-                    data[host]['user'], data[host]['interfaces']['wlan0'], data[host]['adapters'][cnt]['dev']))
+                    data[host]['user'], data[host]['rem_ip'], data[host]['adapters'][cnt]['dev']))
+        # for adapter in data[host]['adapters']:
+        #     rem_console_item = CommandItem('Connect to {0} on {1}'.format(
+        #         data[host]['adapters'][cnt]['dev'].replace('/dev/', ''), host),
+        #         'ssh -t {0}@{1} picocom {2}'.format(
+        #             data[host]['user'], data[host]['interfaces']['wlan0'], data[host]['adapters'][cnt]['dev']))
             # rem_console_item = CommandItem('Connect to {0} on {1}'.format(
             #     data[host]['adapters'][cnt]['dev'].replace('/dev/', ''), host),
             #     'echo "ssh -t {0}@{1} picocom {2}" >> c:/users/wellswa/cloud.log'.format(

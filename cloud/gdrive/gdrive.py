@@ -4,8 +4,8 @@ import os
 import logging
 import json
 import socket
-import getpass
-import configparser
+# import getpass
+# import configparser
 import netifaces as ni
 import serial.tools.list_ports
 
@@ -36,7 +36,7 @@ TIMEOUT = 3   # socket timeout in seconds (for clustered/cloud setup)
 
 # Change current working directory
 # os.chdir('/home/pi/ConsolePi_Cluster/')
-os.chdir('/etc/ConsolePi/cloud/gdrive/')
+os.chdir('/etc/ConsolePi/cloud/{}}/'.format(CLOUD_SVC))
 
 
 # Google sheets API credentials - used to update config on Google Drive
@@ -115,7 +115,7 @@ def update_files(data):
         log.debug('spreadsheet_id *existing* sheet: ' + spreadsheet_id)
 
     value_input_option = 'USER_ENTERED'
-    
+
     # init remote_consoles dict, any entries in config not matching this ConsolePis hostname are added as remote ConsolePis
     remote_consoles = {}
     cnt = 1
@@ -194,6 +194,7 @@ def resize_cols(service, spreadsheet_id):
     response = service.spreadsheets().batchUpdate(
         spreadsheetId=spreadsheet_id,
         body=body).execute()
+    log.debug('resize_cols response: {}'.format(response))
     # print(response)
 
 
@@ -225,7 +226,7 @@ def del_row(dev_name):
                                              includeGridData=False)
         response = request.execute()
         # print(response)
-        sheet_id = response['sheets'][0]['properties']['sheetId']
+        # sheet_id = response['sheets'][0]['properties']['sheetId']
         # print('sheet_id: {}'.format(sheet_id))
         requests = [{
                 "deleteDimension": {
@@ -245,6 +246,7 @@ def del_row(dev_name):
         response = service.spreadsheets().batchUpdate(
             spreadsheetId=spreadsheet_id,
             body=body).execute()
+        log.debug('del_row response: {}'.format(response))
         # print(response)
 
 
@@ -260,7 +262,6 @@ def get_if_ips():
             except KeyError:
                 log.info('No IP Found for {} skipping'.format(_if))
         pos += 1
-    # ip_list.pop('lo')
     return ip_list
 
 
@@ -306,7 +307,8 @@ def get_serial_ports():
 
     return serial_list
 
-if __name__ == '__main__':
+
+def main():
     hostname = socket.gethostname()
     if_ips = get_if_ips()
     tty_list = get_serial_ports()
@@ -324,9 +326,9 @@ if __name__ == '__main__':
     ip = None
     if len(remote_consoles) > 0:
         for remote_dev in remote_consoles:
-            
+
             # -- Check each interface (ip) for remote_consoles, stop and write to local if reachable
-            is_reachable = False            
+            is_reachable = False
             for interface in remote_consoles[remote_dev]['interfaces']:
                 ip = remote_consoles[remote_dev]['interfaces'][interface]
                 if ip not in if_ips.values():
@@ -335,7 +337,6 @@ if __name__ == '__main__':
                         break
             if is_reachable:
                 with open(local_cloud_file, 'a') as cloud_file:
-                    x = 0
                     for adapter in remote_consoles[remote_dev]['adapters']:
                         cloud_file.write('{0},{1},{2},{3},{4}\n'.format(remote_dev, ip, remote_consoles[remote_dev]['user'],
                                                                         adapter['dev'], adapter['port']))
@@ -350,3 +351,6 @@ if __name__ == '__main__':
         with open(new_cloud_file, 'a') as new_file:
             new_file.write(json.dumps(remote_consoles))
 
+
+if __name__ == '__main__':
+    main()

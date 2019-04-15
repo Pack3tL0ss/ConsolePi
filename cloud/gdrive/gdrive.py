@@ -41,7 +41,7 @@ TIMEOUT = 3   # socket timeout in seconds (for clustered/cloud setup)
 
 # Change current working directory
 # os.chdir('/home/pi/ConsolePi_Cluster/')
-os.chdir('/etc/ConsolePi/cloud/{}}/'.format(CLOUD_SVC))
+os.chdir('/etc/ConsolePi/cloud/{}/'.format(CLOUD_SVC))
 
 
 # Google sheets API credentials - used to update config on Google Drive

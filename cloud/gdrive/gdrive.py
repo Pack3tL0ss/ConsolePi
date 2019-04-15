@@ -1,7 +1,8 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import os
-import logging
+import sys
+# import logging
 import json
 import socket
 # import getpass
@@ -14,21 +15,25 @@ import pickle
 import os.path
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from include.utils import get_config
+
+sys.path.insert(0, '/etc/ConsolePi/')
+from cloud.gdrive.include.utils import get_config
+from cloud.gdrive.include.utils import set_logging
 
 # -- GLOBALS --
 DEBUG = get_config('debug')
 CLOUD_SVC = get_config('cloud_svc')
 
 # Logging
-LOG_FILE = '/var/log/ConsolePi/cloud.log'
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO if not DEBUG else logging.DEBUG)
-handler = logging.FileHandler(LOG_FILE)
-handler.setLevel(logging.INFO if not DEBUG else logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
-handler.setFormatter(formatter)
-log.addHandler(handler)
+log = set_logging('/var/log/ConsolePi/cloud.log', DEBUG)
+# LOG_FILE = '/var/log/ConsolePi/cloud.log'
+# log = logging.getLogger(__name__)
+# log.setLevel(logging.INFO if not DEBUG else logging.DEBUG)
+# handler = logging.FileHandler(LOG_FILE)
+# handler.setLevel(logging.INFO if not DEBUG else logging.DEBUG)
+# formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+# handler.setFormatter(formatter)
+# log.addHandler(handler)
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive.metadata']
 APPLICATION_NAME = 'ConsolePi'

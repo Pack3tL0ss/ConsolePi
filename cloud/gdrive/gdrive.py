@@ -311,6 +311,7 @@ def get_serial_ports():
 def main():
     hostname = socket.gethostname()
     if_ips = get_if_ips()
+    print('  Detecting Local Adapters')
     tty_list = get_serial_ports()
     data = {hostname: {'user': 'pi'}}
     data[hostname]['adapters'] = tty_list
@@ -318,6 +319,7 @@ def main():
     log.info('Final Data set collected for {}: {}'.format(hostname, data))
     local_cloud_file = '/etc/ConsolePi/ConsolePi.cloud'
     new_cloud_file = '/etc/ConsolePi/cloud.data'
+    print('  Updating Local Adapters and Retrieving Remote Adapters from Cloud Config')
     remote_consoles = update_files(data)
 
     # Remove local cloud file if it exists, re-create based on current data and reachability

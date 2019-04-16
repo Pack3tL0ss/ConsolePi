@@ -34,6 +34,7 @@ fi
 [ -z $reason ] && reason="OVPN_CONNECTED"
 
 ## set variables if script called from shell for testing ##
+## Usage for test scriptname test [<domain>]  domain is optional used to specify local_domain to test local connection (otherwise script will determine remote and attempt ovpn if enabled) 
 #if [ -z $1 ] && [ $0 != "/lib/dhcpcd/dhcpcd-run-hooks" ]; then
 if [[ $1 == "test" ]]; then
   logger -t puship-DEBUG Setting random test Variables script ran from shell
@@ -42,7 +43,7 @@ if [[ $1 == "test" ]]; then
   reason=BOUND
   interface=eth0
   new_ip_address="10.1.$rand1.$rand2"
-  new_domain_name=""
+  [ ! -z $2 ] && new_domain="$2" || new_domain_name=""
 fi
 
 # >> Debug Messages <<
@@ -137,33 +138,6 @@ Check_VPN() {
     fi      
 }
 
-# >> Build/Populate Msg Variables <<
-OldBuildMsg() {
-    $debug && logger -t puship-DEBUG Enter BuildMsg Function
-    GetCurrentIP
-    if [ "$1" = "bound" ]; then
-        pushTitle="ConsolePi $new_ip_address"
-        pushMsg="ConsolePi IP Update"
-    else
-        pushTitle="ConsolePi VPN Established: ${new_ip_address}"
-        pushMsg="VPN Connection success on ${interface}"
-    fi
-
-    logMsg="PushBullet Notification Sent. "
-    if [ ${#eth0_ip} -gt 6 ]; then
-        pushMsg="$pushMsg %0A eth0: ${eth0_ip}"
-        logMsg="$logMsg eth0: $eth0_ip"
-    fi
-    if [ ${#wlan0_ip} -gt 6 ]; then
-        pushMsg="$pushMsg %0A wlan0:${wlan0_ip}"
-        logMsg="$logMsg | wlan0: $wlan0_ip"                
-    fi
-    if [ ${#tun0_ip} -gt 6 ]; then
-        pushMsg="$pushMsg %0A tun0: ${tun0_ip}"
-        logMsg="$logMsg | tun0: $tun0_ip"                
-    fi
-    pushMsg="$pushMsg %0A GW: $xgw"
-}    
 
 BuildMsg() {
     $debug && logger -t puship-DEBUG Enter BuildMsg Function
@@ -199,7 +173,7 @@ Check_is_new_ip() {
 }
 
 update_cloud() {
-    /etc/ConsolePi/cloud/${cloud_svc}/${cloud_svc}.py && 
+    /etc/ConsolePi/cloud/${cloud_svc}/cloud.py && 
         logger -t puship-${cloud_svc} Updated cloud Config ||
         logger -t puship-${cloud_svc} Error returned while Updating cloud Config
 }

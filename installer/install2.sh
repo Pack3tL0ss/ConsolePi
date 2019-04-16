@@ -961,7 +961,7 @@ get_known_ssids() {
     unset process
 }
 
-update_consolepi_command() {
+do_consolepi_commands() {
     process="Create/Update consolepi- quick commands"
     logit "${process} - Starting"
     if [[ -f "/usr/local/bin/consolepi-install" ]]; then
@@ -1018,13 +1018,19 @@ update_consolepi_command() {
         logit "consolepi-killvpn already exists"
     fi
     
+    # # consolepi-menu
+    # if [[ ! -f /usr/local/bin/consolepi-menu ]]; then
+    #     sudo ln -s /etc/ConsolePi/src/consolepi-menu /usr/local/bin/consolepi-menu && logit "consolepi-menu command created Successfully" || 
+    #     logit "FAILED to consolepi-menu command" "WARNING"
+    # else
+    #     logit "consolepi-menu already exists"
+    # fi
+
     # consolepi-menu
-    if [[ ! -f /usr/local/bin/consolepi-menu ]]; then
-        sudo ln -s /etc/ConsolePi/src/consolepi-menu /usr/local/bin/consolepi-menu && logit "consolepi-menu command created Successfully" || 
-        logit "FAILED to consolepi-menu command" "WARNING"
-    else
-        logit "consolepi-menu already exists"
-    fi
+    [[ ! -f "/usr/local/bin/consolepi-menu" ]] && 
+        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
+        echo -e 'sudo /etc/ConsolePi/src/consolepi-menu.py' >> /usr/local/bin/consolepi-addconsole || 
+        logit "consolepi-addconsole already exists"
     
     # consolepi-bton
     if [[ ! -f /usr/local/bin/consolepi-bton ]]; then
@@ -1151,6 +1157,7 @@ post_install_msg() {
     echo "*   - consolepi-addssids: Add additional known ssids. same as doing sudo /etc/ConsolePi/ssids.sh                        *"
     echo "*   - consolepi-addconsole: Configure serial adapter to telnet port rules. same as doing sudo /etc/ConsolePi/udev.sh    *"
     echo "*   - consolepi-menu: Launch Console Menu which will provide connection options for connected serial adapters           *"
+    echo "*       if cloud config feature is enabled menu will also show adapters on reachable remote ConsolePis                  *"
     echo "*   - consolepi-killvpn: Gracefully terminate openvpn tunnel if one is established                                      *"
     echo "*   - consolepi-autohotspot: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found  *"
     echo "*       then fall-back to HotSpot mode if not found or unable to connect.                                               *"
@@ -1202,7 +1209,7 @@ install2_main() {
     dhcpcd_conf
     update_banner
     do_blue_config
-    update_consolepi_command
+    do_consolepi_commands
     misc_stuff
     get_known_ssids
     get_serial_udev

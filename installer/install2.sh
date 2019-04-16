@@ -1164,8 +1164,7 @@ post_install_msg() {
     echo "*   - consolepi-testhotspot: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot.     *"
     echo "*       Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa.                 *"
     echo "*   - consolepi-bton: Make BlueTooth Discoverable and Pairable - this is the default behavior on boot.                  *"
-    echo "*   - consolepi-btoff: Disable BlueTooth Discovery (stop advertising to other devices).  ConsolePi will remain Pairable *"
-    echo "*       for devices previously paired.                                                                                  *"
+ing
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
     echo -e "\n\n"

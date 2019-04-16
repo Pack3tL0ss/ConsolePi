@@ -1,10 +1,6 @@
 #!/etc/ConsolePi/venv/bin/python
 
 import os
-# os.chdir('/etc/ConsolePi/cloud/gdrive')
-# Import the necessary packages
-import logging
-import sys
 import json
 import socket
 import subprocess
@@ -12,65 +8,46 @@ import shlex
 import serial.tools.list_ports
 from collections import OrderedDict as od
 
-# sys.path.insert(0, '../cloud/gdrive')
-# print(sys.path)
-# from include.utils import get_config
-config_file = '/etc/ConsolePi/ConsolePi.conf'
-log_file = '/var/log/ConsolePi/cloud.log'
-local_cloud_file = '/etc/ConsolePi/cloud.data'
-
-
-# Get Variables from Config
-def get_config(var):
-    with open(config_file, 'r') as cfg:
-        var_out = None
-        for line in cfg:
-            if var in line:
-                var_out = line.replace('{0}='.format(var), '')
-                var_out = var_out.replace('"'.format(var), '', 1)
-                var_out = var_out.split('"')
-                var_out = var_out[0]
-                break
-
-    if var_out == 'true' or var_out == 'false':
-        var_out = True if var_out == 'true' else False
-
-    return var_out
-
+# get ConsolePi imports
+from consolepi.common import get_config
+from consolepi.common import get_if_ips
+from consolepi.common import ConsolePi_Log
+from consolepi.gdrive import GoogleDrive
 
 # -- GLOBALS --
 DEBUG = get_config('debug')
-CLOUD_SVC = get_config('cloud_svc')
+CLOUD_SVC = get_config('cloud_svc').lower()
+LOG_FILE = '/var/log/ConsolePi/cloud.log'
+LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
 TIMEOUT = 2
-
-# Logging
-LOG_FILE = log_file
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO if not DEBUG else logging.DEBUG)
-handler = logging.FileHandler(LOG_FILE)
-handler.setLevel(logging.INFO if not DEBUG else logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
-handler.setFormatter(formatter)
-log.addHandler(handler)
 
 
 class ConsolePiMenu:
 
-    def __init__(self, DEBUG):
+    def __init__(self):
+        cpi_log = ConsolePi_Log(debug=DEBUG, log_file=LOG_FILE)
+        self.log = cpi_log.log
+        self.plog = cpi_log.log_print
+        self.go = True
         self.baud = 9600
         self.data_bits = 8
         self.parity = 'n'
         self.parity_pretty = {'o': 'Odd', 'e': 'Even', 'n': 'No'}
         self.flow = 'n'
         self.flow_pretty = {'x': 'Xon/Xoff', 'h': 'RTS/CTS', 'n': 'No'}
+        self.if_ips = get_if_ips(self.log)
         self.data = {'local': self.get_local(), 'remote': self.get_remote()}
         self.DEBUG = DEBUG
+        self.hostname = socket.gethostname()
         self.menu_actions = {
             'main_menu': self.main_menu,
             'c': self.con_menu,
             'h': self.picocom_help,
+            'r': self.refresh,
             'x': self.exit
         }
+        if CLOUD_SVC == 'gdrive':
+            self.cloud = GoogleDrive(self.log)
 
     # check remote ConsolePi is reachable
     def check_reachable(self, ip, port):
@@ -86,7 +63,9 @@ class ConsolePiMenu:
         return reachable
 
     def get_local(self):
-        print('Detecting Locally Attached Serial Adapters')
+        log = self.log
+        plog = self.plog
+        plog('Detecting Locally Attached Serial Adapters')
         this = serial.tools.list_ports.grep('.*ttyUSB[0-9]*', include_links=True)
         tty_list = {}
         tty_alias_list = {}
@@ -114,10 +93,10 @@ class ConsolePiMenu:
                         if tty_dev in line:
                             tty_port = line.split(':')
                             tty_port = tty_port[0]
-                            log.info('get_serial_ports: found {} {}'.format(tty_dev, tty_port))
+                            log.info('get_local: found dev: {} TELNET port: {}'.format(tty_dev, tty_port))
                             break
                         else:
-                            tty_port = 7000
+                            tty_port = 7000  # this is error - placeholder value Telnet port is not currently used
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
                 if tty_port == 7000:
                     log.error('No ser2net.conf deffinition found for {}'.format(tty_dev))
@@ -128,14 +107,17 @@ class ConsolePiMenu:
 
         return serial_list
 
-    def get_remote(self):
-        print('Looking for Remote ConsolePis with attached Serial Adapters')
-        data = {}
-        if os.path.isfile(local_cloud_file):
-            with open(local_cloud_file, mode='r') as cloud_file:
-                data = json.load(cloud_file)
-        else:
-            log.error('Unable to populate remote ConsolePis - file {0} not found'.format(local_cloud_file))
+    # get remote consoles from local cache refresh function will check/update cloud file and update local cache
+    def get_remote(self, data=None):
+        log = self.log
+        self.plog('Fetching Remote ConsolePis with attached Serial Adapters from local cache')
+        if data is None:
+            data = {}
+            if os.path.isfile(LOCAL_CLOUD_FILE):
+                with open(LOCAL_CLOUD_FILE, mode='r') as cloud_file:
+                    data = json.load(cloud_file)
+            else:
+                log.error('Unable to populate remote ConsolePis - file {0} not found'.format(LOCAL_CLOUD_FILE))
 
         # Add remote commands to remote_consoles dict for each adapter
         for remotepi in data:
@@ -143,14 +125,35 @@ class ConsolePiMenu:
             print('  {} Found...  Checking reachability'.format(remotepi))
             for _iface in this['interfaces']:
                 _ip = this['interfaces'][_iface]
-                if self.check_reachable(_ip, 22):
-                    this['rem_ip'] = _ip
-                    for adapter in this['adapters']:
-                        _dev = adapter['dev']
-                        adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
-                            this['user'], _ip, _dev, self.baud, self.flow, self.data_bits, self.parity))
-                    break  # Stop Looping through interfaces we found a reachable one
+                if _ip not in self.if_ips.values():
+                    if self.check_reachable(_ip, 22):
+                        this['rem_ip'] = _ip
+                        log.info('get_remote: Found {0}, reachable via {1}'.format(remotepi, _ip))
+                        for adapter in this['adapters']:
+                            _dev = adapter['dev']
+                            adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
+                                this['user'], _ip, _dev, self.baud, self.flow, self.data_bits, self.parity))
+                        break  # Stop Looping through interfaces we found a reachable one
         return data
+
+    # Update ConsolePi.csv on Google Drive and pull any data for other ConsolePis
+    def refresh(self):
+        print('Updating to/from Cloud... Standby')
+        # Update Local Adapters
+        self.data['local'] = self.get_local()
+
+        # Format Local Data for update_sheet method
+        local_data = {self.hostname: {'user': 'pi'}}
+        local_data[self.hostname]['adapters'] = self.data['local']
+        local_data[self.hostname]['interfaces'] = self.if_ips
+        self.log.info('Final Data set collected for {}: {}'.format(self.hostname, local_data))
+
+        # Pass Local Data to update_sheet method get remotes found on sheet as return
+        # update sheets function updates local_cloud_file
+        remote_consoles = self.cloud.update_files(local_data)
+
+        # Update instance with remotes from local_cloud_file
+        self.data['remote'] = self.get_remote(data=remote_consoles)
 
     # =======================
     #     MENUS FUNCTIONS
@@ -160,8 +163,8 @@ class ConsolePiMenu:
         if section == 'header':
             if not self.DEBUG:
                 os.system('clear')
-            print('=' * 45)
-            a = 45 - len(text)
+            print('=' * 74)
+            a = 74 - len(text)
             b = int(a/2 - 2)
             if text is not None:
                 if isinstance(text, list):
@@ -169,7 +172,7 @@ class ConsolePiMenu:
                         print(' {0} {1} {0}'.format('-' * b, t))
                 else:
                     print(' {0} {1} {0}'.format('-' * b, text))
-            print('=' * 45 + '\n')
+            print('=' * 74 + '\n')
         elif section == 'footer':
             print('')
             if text is not None:
@@ -179,7 +182,9 @@ class ConsolePiMenu:
                 else:
                     print(text)
             print('x. exit\n')
-            print('=' * 45)
+            print('=' * 74)
+            print('* Remote Adapters based on local cahce only use refresh option to update *')
+            print('=' * 74)
 
     def picocom_help(self):
         print('##################### picocom Command Sequences ########################\n')
@@ -205,8 +210,8 @@ class ConsolePiMenu:
         if not self.DEBUG:
             os.system('clear')
         self.menu_formatting('header', text=' ConsolePi Serial Menu ')
-        print('   Connect to Local Devices')
-        print('   ' + '-' * 24)
+        print('   [LOCAL] Connect to Local Adapters')
+        print('   ' + '-' * 33)
 
         # Build menu items for each locally connected serial adapter
         for _dev in loc:
@@ -231,7 +236,8 @@ class ConsolePiMenu:
                 item += 1
 
         text = ['c. Change Serial Settings [{0} {1}{2}1 flow={3}] '.format(
-            self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), 'h. Display picocom help']
+            self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), 'h. Display picocom help',
+             'r. Refresh (Find new adapters on Local and Remote ConsolePis)']
         self.menu_formatting('footer', text=text)
         choice = input(" >>  ")
         self.exec_menu(choice)
@@ -419,7 +425,8 @@ class ConsolePiMenu:
 
     # Exit program
     def exit(self):
-        sys.exit(0)
+        self.go = False
+        # sys.exit(0)
 
 # =======================
 #      MAIN PROGRAM
@@ -429,6 +436,6 @@ class ConsolePiMenu:
 # Main Program
 if __name__ == "__main__":
     # Launch main menu
-    menu = ConsolePiMenu(DEBUG)
-    while True:
+    menu = ConsolePiMenu()
+    while menu.go:
         menu.main_menu()

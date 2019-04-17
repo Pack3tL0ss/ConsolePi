@@ -62,6 +62,7 @@ pre_git_prep() {
                     logit "ERROR Found old menu script but unable to remove (/etc/ConsolePi/src/bluemenu.sh)" "WARNING"
             # Remove old symlink if it exists
             if [[ -L /usr/local/bin/consolepi-menu ]]; then
+                process="ConsolePi-Upgrade-Prep (remove symlink consolepi-menu)"
                 unlink /usr/local/bin/consolepi-menu &&
                     logit "Removed old consolepi-menu symlink will replace during upgade" ||
                         logit "ERROR Unable to remove old consolepi-menu symlink verify it should link to file in src dir" "WARNING"

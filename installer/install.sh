@@ -55,18 +55,19 @@ do_apt_update () {
 # Process Changes that are required prior to git pull when doing upgrade
 pre_git_prep() {
     if $upgrade; then
+        # remove old bluemenu.sh script replaced with consolepi-menu.py
         process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"
         if [[ -f /etc/ConsolePi/src/bluemenu.sh ]]; then 
             rm /etc/ConsolePi/src/bluemenu.sh &&
                 logit "Removed old menu script will be replaced during pull" ||
                     logit "ERROR Found old menu script but unable to remove (/etc/ConsolePi/src/bluemenu.sh)" "WARNING"
-            # Remove old symlink if it exists
-            if [[ -L /usr/local/bin/consolepi-menu ]]; then
-                process="ConsolePi-Upgrade-Prep (remove symlink consolepi-menu)"
-                unlink /usr/local/bin/consolepi-menu &&
-                    logit "Removed old consolepi-menu symlink will replace during upgade" ||
-                        logit "ERROR Unable to remove old consolepi-menu symlink verify it should link to file in src dir" "WARNING"
-            fi
+        fi
+        # Remove old symlink if it exists
+        process="ConsolePi-Upgrade-Prep (remove symlink consolepi-menu)"
+        if [[ -L /usr/local/bin/consolepi-menu ]]; then
+            unlink /usr/local/bin/consolepi-menu &&
+                logit "Removed old consolepi-menu symlink will replace during upgade" ||
+                    logit "ERROR Unable to remove old consolepi-menu symlink verify it should link to file in src dir" "WARNING"
         fi
     fi
 }

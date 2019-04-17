@@ -11,6 +11,7 @@ from collections import OrderedDict as od
 # get ConsolePi imports
 from consolepi.common import get_config
 from consolepi.common import get_if_ips
+from consolepi.common import update_local_cloud_file
 from consolepi.common import ConsolePi_Log
 from consolepi.gdrive import GoogleDrive
 
@@ -151,6 +152,8 @@ class ConsolePiMenu:
         # Pass Local Data to update_sheet method get remotes found on sheet as return
         # update sheets function updates local_cloud_file
         remote_consoles = self.cloud.update_files(local_data)
+        if len(remote_consoles) > 0:
+            update_local_cloud_file(LOCAL_CLOUD_FILE, remote_consoles)
 
         # Update instance with remotes from local_cloud_file
         self.data['remote'] = self.get_remote(data=remote_consoles)

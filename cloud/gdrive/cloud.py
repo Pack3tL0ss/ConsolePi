@@ -1,11 +1,10 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-import os
-import json
 from socket import gethostname
 from consolepi.common import get_config
 from consolepi.common import get_if_ips
 from consolepi.common import get_local
+from consolepi.common import update_local_cloud_file
 from consolepi.common import ConsolePi_Log
 from consolepi.gdrive import GoogleDrive
 
@@ -32,10 +31,7 @@ def main():
 
     # NEW Python Menu: Write All Remotes to local file
     if len(remote_consoles) > 0:
-        if os.path.isfile(LOCAL_CLOUD_FILE):
-            os.remove(LOCAL_CLOUD_FILE)
-        with open(LOCAL_CLOUD_FILE, 'a') as new_file:
-            new_file.write(json.dumps(remote_consoles))
+        update_local_cloud_file(LOCAL_CLOUD_FILE, remote_consoles)
 
 
 if __name__ == '__main__':

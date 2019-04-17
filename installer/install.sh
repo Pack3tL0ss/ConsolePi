@@ -76,11 +76,11 @@ git_ConsolePi () {
     cd "/etc"
     if [ ! -d $consolepi_dir ]; then 
         logit "Clean Install git clone ConsolePi"
-        git clone "${consolepi_source}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
+        git clone "${consolepi_dir}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
     else
         cd $consolepi_dir
         logit "Directory exists Updating ConsolePi via git"
-        git pull "${consolepi_source}" 1>/dev/null 2>> $log_file && 
+        git pull "${consolepi_dir}" 1>/dev/null 2>> $log_file && 
             logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "ERROR"
     fi
     [[ ! -d $orig_dir ]] && sudo mkdir $orig_dir

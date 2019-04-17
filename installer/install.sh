@@ -81,7 +81,7 @@ git_ConsolePi () {
         cd $consolepi_dir
         logit "Directory exists Updating ConsolePi via git"
         git pull "${consolepi_source}" 1>/dev/null 2>> $log_file && 
-            logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "WARNING"
+            logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "ERROR"
     fi
     [[ ! -d $orig_dir ]] && sudo mkdir $orig_dir
 }

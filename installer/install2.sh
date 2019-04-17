@@ -984,17 +984,20 @@ do_consolepi_commands() {
     # consolepi-addconsole
     [[ ! -f "/usr/local/bin/consolepi-addconsole" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
-        echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole || 
+        echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole &&
+        logit "consolepi-addconsole created Successfully" ||
         logit "consolepi-addconsole already exists"
     
     # consolepi-autohotspot
     [[ ! -f "/usr/local/bin/consolepi-autohotspot" ]] && 
-        echo -e '#!/usr/bin/env bash\nsudo /usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot || 
+        echo -e '#!/usr/bin/env bash\nsudo /usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot && 
+        logit "consolepi-autohotspot created Successfully" ||
         logit "consolepi-autohotspot already exists"
     
     # consolepi-testhotspot
     if [[ ! -f /usr/local/bin/consolepi-testhotspot ]]; then
-        sudo ln -s /etc/ConsolePi/src/consolepi-testhotspot /usr/local/bin/consolepi-testhotspot && logit "consolepi-testhotspot command created Successfully" || 
+        sudo ln -s /etc/ConsolePi/src/consolepi-testhotspot /usr/local/bin/consolepi-testhotspot &&
+        logit "consolepi-testhotspot command created Successfully" ||
         logit "FAILED to create consolepi-testhotspot command" "WARNING"
     else
         logit "consolepi-testhotspot already exists"
@@ -1028,9 +1031,10 @@ do_consolepi_commands() {
 
     # consolepi-menu
     [[ ! -f "/usr/local/bin/consolepi-menu" ]] && 
-        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
-        echo -e 'sudo /etc/ConsolePi/src/consolepi-menu.py' >> /usr/local/bin/consolepi-addconsole || 
-        logit "consolepi-addconsole already exists"
+        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-menu &&
+        echo -e 'sudo /etc/ConsolePi/src/consolepi-menu.py' >> /usr/local/bin/consolepi-menu &&
+        logit "consolepi-menu command created Successfully" ||
+        logit "consolepi-menu already exists"
     
     # consolepi-bton
     if [[ ! -f /usr/local/bin/consolepi-bton ]]; then

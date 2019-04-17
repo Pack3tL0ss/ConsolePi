@@ -9,3 +9,4 @@ ConsolePi.cloud
 .idea/*
 # /cloud/*/.credentials/*  # ignored via file in that dir
 .vscode/*
+/cloud/gdrive/headless-auth/*

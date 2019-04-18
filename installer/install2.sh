@@ -634,20 +634,30 @@ install_autohotspotn () {
     process="AutoHotSpotN"
     logit "Install AutoHotSpotN"
     [[ -f "${src_dir}autohotspotN" ]] && cp "${src_dir}autohotspotN" /usr/bin 1>/dev/null 2>> $log_file
-    [[ $? == 0 ]] && logit "Create autohotspotN script Success" || logit "Failed to create autohotspotN script" "WARNING"
+    [[ $? == 0 ]] && logit "Create/Update autohotspotN script Success" || logit "Failed to create autohotspotN script" "WARNING"
         
     chmod +x /usr/bin/autohotspotN 1>/dev/null 2>> $log_file ||
         logit "Failed to chmod autohotspotN script" "WARNING"
         
     logit "Installing hostapd via apt."
-    apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
-        logit "hostapd install Success" ||
-        logit "hostapd install Failed" "WARNING"
+    hostapd_ver=$(hostapd -v 2>&1| head -1| awk '{print $2}')
+    if [ $? -gt 1 ]; then
+        apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
+            logit "hostapd install Success" ||
+            logit "hostapd install Failed" "WARNING"
+    else
+        logit "hostapd ${hostapd_ver} already installed"
+    fi
     
     logit "Installing dnsmasq via apt."
-    apt-get -y install dnsmasq 1>/dev/null 2>> $log_file &&
-        logit "dnsmasq install Success" ||
-        logit "dnsmasq install Failed" "WARNING"
+    dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
+    if [[ -z $dnsmasq_ver ]]; then
+        apt-get -y install dnsmasq 1>/dev/null 2>> $log_file &&
+            logit "dnsmasq install Success" ||
+            logit "dnsmasq install Failed" "WARNING"
+    else
+        logit "dnsmasq ${dnsmasq_ver} already installed"
+    fi
     
     logit "disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)."
     sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file && logit "hostapd.service unmasked" || logit "failed to unmask hostapd.service" "WARNING"

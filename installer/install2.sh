@@ -1125,7 +1125,7 @@ custom_post_install_script() {
         found_path=$(get_staged_file_path "ConsolePi_init.sh")
         if [[ $found_path ]]; then
             process="Run Custom Post-install script"
-            logit "Post Install Script $found_path Found. Executing"
+            logit "Post Install Script ${found_path} Found. Executing"
             sudo $found_path && logit "Post Install Script Complete No Errors" || 
                 logit "Error Code returned by Post Install Script" "WARNING"
             unset process

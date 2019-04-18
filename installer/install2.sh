@@ -16,7 +16,7 @@ get_staged_file_path() {
     if [[ -f "${home_dir}${1}" ]]; then
         found_path="${home_dir}${1}"
     elif [[ -f ${stage_dir}$1 ]]; then
-        found_path="${home_dir}/ConsolePi_stage/${1}"
+        found_path="${home_dir}ConsolePi_stage/${1}"
     else
         found_path=
     fi
@@ -656,7 +656,7 @@ install_autohotspotn () {
             logit "dnsmasq install Success" ||
             logit "dnsmasq install Failed" "WARNING"
     else
-        logit "dnsmasq ${dnsmasq_ver} already installed"
+        logit "dnsmasq v${dnsmasq_ver} already installed"
     fi
     
     logit "disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)."
@@ -1125,9 +1125,9 @@ custom_post_install_script() {
         found_path=$(get_staged_file_path "ConsolePi_init.sh")
         if [[ $found_path ]]; then
             process="Run Custom Post-install script"
-            logit "Post install script $found_path found. Executing"
-            sudo $found_path && logit "Post Install script Complete No Errors" || 
-                logit "Error Code returned by Post Install script" "WARNING"
+            logit "Post Install Script $found_path Found. Executing"
+            sudo $found_path && logit "Post Install Script Complete No Errors" || 
+                logit "Error Code returned by Post Install Script" "WARNING"
             unset process
         fi
     fi

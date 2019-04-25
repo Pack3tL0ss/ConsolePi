@@ -106,6 +106,7 @@ class ConsolePiMenu:
             log.error('No ser2net.conf file found unable to extract port deffinitions')
             print('No ser2net.conf file found unable to extract port deffinitions')
 
+        log.debug('final locally attached serial list: {}'.format(serial_list))
         return serial_list
 
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache

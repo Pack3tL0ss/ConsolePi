@@ -135,6 +135,9 @@ class ConsolePiMenu:
                             adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
                                 this['user'], _ip, _dev, self.baud, self.flow, self.data_bits, self.parity))
                         break  # Stop Looping through interfaces we found a reachable one
+                    else:
+                        this['rem_ip'] = None
+
         return data
 
     # Update ConsolePi.csv on Google Drive and pull any data for other ConsolePis
@@ -228,15 +231,16 @@ class ConsolePiMenu:
 
         # Build menu items for each serial adapter found on remote ConsolePis
         for host in rem:
-            header = '   [Remote] {} @ {}'.format(host, rem[host]['rem_ip'])
-            print('\n' + header + '\n   ' + '-' * (len(header) - 3))
-            for _dev in rem[host]['adapters']:
-                print('{0}. Connect to {1}'.format(item, _dev['dev'].replace('/dev/', '')))
-                # self.menu_actions[str(item)] = {'cmd': _dev['rem_cmd']}
-                _cmd = 'ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
-                            rem[host]['user'], rem[host]['rem_ip'], _dev['dev'], self.baud, self.flow, self.data_bits, self.parity)
-                self.menu_actions[str(item)] = {'cmd': _cmd}
-                item += 1
+            if rem[host]['rem_ip'] is not None:
+                header = '   [Remote] {} @ {}'.format(host, rem[host]['rem_ip'])
+                print('\n' + header + '\n   ' + '-' * (len(header) - 3))
+                for _dev in rem[host]['adapters']:
+                    print('{0}. Connect to {1}'.format(item, _dev['dev'].replace('/dev/', '')))
+                    # self.menu_actions[str(item)] = {'cmd': _dev['rem_cmd']}
+                    _cmd = 'ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
+                                rem[host]['user'], rem[host]['rem_ip'], _dev['dev'], self.baud, self.flow, self.data_bits, self.parity)
+                    self.menu_actions[str(item)] = {'cmd': _cmd}
+                    item += 1
 
         text = ['c. Change Serial Settings [{0} {1}{2}1 flow={3}] '.format(
             self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), 'h. Display picocom help',

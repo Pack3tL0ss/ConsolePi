@@ -300,6 +300,17 @@ collect() {
     user_input $cloud "${prompt}"
     cloud=$result
 
+    # -- pre staged cloud creds --
+    if $cloud && [[ -d ${stage_dir}.credentials ]]; then 
+        found_path=${stage_dir}.credentials
+        mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials/" &&
+        logit "Found ${cloud_svc} credentials ${found_path}. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
+        logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
+    else
+        logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
+        logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
+    fi
+
     # Future gdrive google sheets is only one supported currently
     # -- cloud-svc --
     # header
@@ -591,10 +602,11 @@ install_ovpn() {
     
     found_path=$(get_staged_file_path "ConsolePi.ovpn")
     if [[ $found_path ]]; then 
-        mv $found_path "/etc/openvpn/client" &&
-            logit "Found ConsolePi.ovpn in /home/${iam}.  Moving to /etc/openvpn/client" &&
+        cp $found_path "/etc/openvpn/client" &&
+            logit "Found ConsolePi.ovpn in /home/${iam}.  Copying to /etc/openvpn/client" &&
             logit "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in /etc/ConsolePi/src" "WARNING" ||
-            logit "Error occurred moving your ovpn config" "WARNING"
+            logit "Error occurred Copying your ovpn config" "WARNING"
+        # TODO # check for and append if not found the script lines specific to ConsolePi
     else
         [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && sudo cp "${src_dir}ConsolePi.ovpn.example" "/etc/openvpn/client" ||
             logit "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."

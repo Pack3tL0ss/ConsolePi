@@ -416,7 +416,7 @@ set_hostname() {
 set_timezone() {
     process="Configure ConsolePi TimeZone"
     cur_tz=$(date +"%Z")
-    if [[ $cur_tz == "GMT" ]]; then
+    if [ $cur_tz == "GMT" ] || [ $cur_tz == "BST" ]; then
         header
 
         prompt="Current TimeZone $cur_tz. Do you want to configure the timezone"

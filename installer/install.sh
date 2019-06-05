@@ -55,6 +55,7 @@ do_apt_update () {
 
 # Process Changes that are required prior to git pull when doing upgrade
 pre_git_prep() {
+    [ -d /var/log/ConsolePi/ ] && upgrade=true || upgrade=false
     if $upgrade; then
         # remove old bluemenu.sh script replaced with consolepi-menu.py
         process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"

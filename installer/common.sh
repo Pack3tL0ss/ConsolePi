@@ -2,10 +2,10 @@
 
 # Common functions used by ConsolePi's various scripts
 # Author: Wade Wells
-# Last Update: March 29 2019
+# Last Update: June 4 2019
 
 # -- Installation Defaults --
-INSTALLER_VER=21
+INSTALLER_VER=23
 CFG_FILE_VER=3
 cur_dir=$(pwd)
 iam=$(who am i | awk '{print $1}')

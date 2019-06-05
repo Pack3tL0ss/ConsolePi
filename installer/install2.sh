@@ -1179,7 +1179,7 @@ post_install_msg() {
     echo "*       Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa.                 *"
     echo "*   - consolepi-bton: Make BlueTooth Discoverable and Pairable - this is the default behavior on boot.                  *"
     echo "*                                                                                                                       *"
-    echo "**ConsolePi Installation Script v${ver}*************************************************************************************"
+    echo "**ConsolePi Installation Script v${INSTALLER_VER}**************************************************************************************"
     echo -e "\n\n"
     # Script Complete Prompt for reboot if first install
     if $upgrade; then

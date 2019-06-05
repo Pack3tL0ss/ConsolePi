@@ -980,9 +980,19 @@ do_consolepi_commands() {
     fi
     
     # consolepi-upgrade
+    [ $(wc -l /usr/local/bin/consolepi-upgrade | awk '{print $1}') -lt 11 ] && ( sudo rm -f /usr/local/bin/consolepi-upgrade ||
+      logit "consolepi-upgrade command doesn't appear to be current... script failed to remove the old version" "WARNING" )
     [[ ! -f "/usr/local/bin/consolepi-upgrade" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-upgrade &&
-        echo -e 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' \
+        echo -e "if [ -d /etc/ConsolePi ]; then" > /usr/local/bin/consolepi-upgrade &&
+        echo -e "    cd /etc/ConsolePi" > /usr/local/bin/consolepi-upgrade &&
+        echo -e "    git_status=$(sudo git status  2>/dev/null | sed -n '2,2p;2q')" > /usr/local/bin/consolepi-upgrade &&
+        echo -e "    local_branch=$(echo $git_status|awk -F"'" '{print $2}'|sed 's/origin\///g')" > /usr/local/bin/consolepi-upgrade &&
+        echo -e "    cd - 1>/dev/null" > /usr/local/bin/consolepi-upgrade &&
+        echo -e "else" > /usr/local/bin/consolepi-upgrade &&
+        echo -e "    local_branch=master" > /usr/local/bin/consolepi-upgrade &&
+        echo -e "fi" > /usr/local/bin/consolepi-upgrade &&
+        echo -e "wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${local_branch}/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi" \
             >> /usr/local/bin/consolepi-upgrade
             
     # consolepi-addssids

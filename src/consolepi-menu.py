@@ -160,7 +160,7 @@ class ConsolePiMenu:
                         if rem_pass is None:
                             print('Please Enter Remote ConsolePi Password for access')
                             rem_pass = input(" >>  ")
-                        client.connect(rem_ip, timeout=5, auth_timeout=4)
+                        client.connect(rem_ip, username=rem_user, password=rem_pass, timeout=5, auth_timeout=4)
 
                         stdin, stdout, stderr = client.exec_command('consolepi-menu x')
 

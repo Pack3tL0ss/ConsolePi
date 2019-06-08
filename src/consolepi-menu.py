@@ -1,18 +1,22 @@
 #!/etc/ConsolePi/venv/bin/python
 
 import os
+import sys
 import json
 import socket
 import subprocess
 import shlex
 import serial.tools.list_ports
 from collections import OrderedDict as od
+import paramiko
+import ast
 
 # get ConsolePi imports
 from consolepi.common import get_config
 from consolepi.common import get_if_ips
 from consolepi.common import update_local_cloud_file
 from consolepi.common import ConsolePi_Log
+from consolepi.common import check_reachable
 from consolepi.gdrive import GoogleDrive
 
 # -- GLOBALS --
@@ -20,24 +24,33 @@ DEBUG = get_config('debug')
 CLOUD_SVC = get_config('cloud_svc').lower()
 LOG_FILE = '/var/log/ConsolePi/cloud.log'
 LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
-TIMEOUT = 2
+
+rem_user = 'pi'
+rem_pass = None
 
 
 class ConsolePiMenu:
 
-    def __init__(self):
-        cpi_log = ConsolePi_Log(debug=DEBUG, log_file=LOG_FILE)
+    def __init__(self, bypass_remote=False, do_print=True):
+        self.cloud = None  # Set in refresh method if reachable
+        cpi_log = ConsolePi_Log(debug=DEBUG, log_file=LOG_FILE, do_print=do_print)
         self.log = cpi_log.log
         self.plog = cpi_log.log_print
         self.go = True
         self.baud = 9600
         self.data_bits = 8
         self.parity = 'n'
-        self.parity_pretty = {'o': 'Odd', 'e': 'Even', 'n': 'No'}
         self.flow = 'n'
+        self.parity_pretty = {'o': 'Odd', 'e': 'Even', 'n': 'No'}
         self.flow_pretty = {'x': 'Xon/Xoff', 'h': 'RTS/CTS', 'n': 'No'}
         self.if_ips = get_if_ips(self.log)
-        self.data = {'local': self.get_local(), 'remote': self.get_remote()}
+        self.ip_list = []
+        for _iface in self.if_ips:
+            self.ip_list.append(self.if_ips[_iface]['ip'])
+        if not bypass_remote:
+            self.data = {'local': self.get_local(), 'remote': self.get_remote()}
+        else:
+            self.data = {'local': self.get_local()}
         self.DEBUG = DEBUG
         self.hostname = socket.gethostname()
         self.menu_actions = {
@@ -47,21 +60,25 @@ class ConsolePiMenu:
             'r': self.refresh,
             'x': self.exit
         }
+
         if CLOUD_SVC == 'gdrive':
-            self.cloud = GoogleDrive(self.log)
+            if check_reachable('www.googleapis.com', 443):
+                self.local_only = False
+            else:
+                self.plog('failed to connect to {}, operating in local only mode'.format(CLOUD_SVC), level='warning')
+                self.local_only = True
 
     # check remote ConsolePi is reachable
-    def check_reachable(self, ip, port):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(TIMEOUT)
-        try:
-            sock.connect((ip, port))
-            reachable = True
-        except (socket.error, TimeoutError):
-            # print('ERROR: %s is not reachable' % hostname)
-            reachable = False
-        sock.close()
-        return reachable
+    # def check_reachable(self, ip, port):
+    #     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #     sock.settimeout(TIMEOUT)
+    #     try:
+    #         sock.connect((ip, port))
+    #         reachable = True
+    #     except (socket.error, TimeoutError):
+    #         reachable = False
+    #     sock.close()
+    #     return reachable
 
     def get_local(self):
         log = self.log
@@ -84,7 +101,7 @@ class ConsolePiMenu:
             else:
                 final_tty_list.append(tty_list[k])
 
-        # get telnet port deffinitions from ser2net.conf
+        # get telnet port definitions from ser2net.conf
         # and build adapters dict
         serial_list = []
         if os.path.isfile('/etc/ser2net.conf'):
@@ -100,19 +117,19 @@ class ConsolePiMenu:
                             tty_port = 7000  # this is error - placeholder value Telnet port is not currently used
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
                 if tty_port == 7000:
-                    log.error('No ser2net.conf deffinition found for {}'.format(tty_dev))
-                    print('No ser2net.conf deffinition found for {}'.format(tty_dev))
+                    plog('No ser2net.conf definition found for {}'.format(tty_dev), level='warning')
         else:
-            log.error('No ser2net.conf file found unable to extract port deffinitions')
-            print('No ser2net.conf file found unable to extract port deffinitions')
+            plog('No ser2net.conf file found unable to extract port definitions', level='warning')
 
         log.debug('final locally attached serial list: {}'.format(serial_list))
         return serial_list
 
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
-    def get_remote(self, data=None):
+    def get_remote(self, data=None, rem_pass=rem_pass):
+        reachable_list = []
         log = self.log
-        self.plog('Fetching Remote ConsolePis with attached Serial Adapters from local cache')
+        plog = self.plog
+        plog('Fetching Remote ConsolePis with attached Serial Adapters from local cache')
         if data is None:
             data = {}
             if os.path.isfile(LOCAL_CLOUD_FILE):
@@ -121,16 +138,64 @@ class ConsolePiMenu:
             else:
                 log.error('Unable to populate remote ConsolePis - file {0} not found'.format(LOCAL_CLOUD_FILE))
 
+        # check dhcp leases for ConsolePis (allows for Clustering with no network connection)
+        # TODO # Change this to see if data[rem_hostname] exists, then check it's adapters
+        self.rem_ip_list = []
+        for remotepi in data:
+            for adapter in data[remotepi]['interfaces']:
+                self.rem_ip_list.append(data[remotepi]['interfaces'][adapter]['ip'])
+
+        found = False
+        with open('/var/lib/misc/dnsmasq.leases', 'r') as leases:
+            for line in leases:
+                if 'b8:27:eb' in line or 'dc:a6:32' in line:
+                    line = line.split()
+                    rem_ip = line[2]
+                    rem_hostname = line[3]
+                    if rem_ip not in self.rem_ip_list and check_reachable(rem_ip, 22):
+                        plog('Collecting data from {0} @ {1} found in dhcp leases'.format(rem_hostname, rem_ip))
+                        client = paramiko.SSHClient()
+                        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                        # TODO # add funtion to stash the password for future use
+                        if rem_pass is None:
+                            print('Please Enter Remote ConsolePi Password for access')
+                            rem_pass = input(" >>  ")
+                        client.connect(rem_ip, timeout=5, auth_timeout=4)
+
+                        stdin, stdout, stderr = client.exec_command('consolepi-menu x')
+
+                        for line in stdout:
+                            if '/dev/' in line:
+                                rem_data = ast.literal_eval(line)
+                                found = True
+
+                        client.close()
+                        data[rem_hostname] = rem_data[rem_hostname]
+                        data[rem_hostname]['rem_ip'] = rem_ip
+                        reachable_list.append(rem_ip)
+                        log.info('Succesfully Found and added {} found via dhcp lease'.format(rem_hostname))
+
+        if found:
+            # print(found)
+            # if CLOUD_SVC == 'gdrive' and check_reachable('www.googleapis.com', 443):
+            #     if self.cloud is None:
+            #         self.cloud = GoogleDrive(self.log)
+            #     log.info('Updating Cloud File with data collected for {}'.format(rem_hostname))
+            #     self.cloud.update_files({rem_hostname: data[rem_hostname]})
+            update_local_cloud_file(LOCAL_CLOUD_FILE, data)
+        log.info('remote data: {}'.format(data))
+
         # Add remote commands to remote_consoles dict for each adapter
         for remotepi in data:
             this = data[remotepi]
-            print('  {} Found...  Checking reachability'.format(remotepi))
+            print('  {} Found...  Checking reachability'.format(remotepi), end='')
             for _iface in this['interfaces']:
-                _ip = this['interfaces'][_iface]
-                if _ip not in self.if_ips.values():
-                    if self.check_reachable(_ip, 22):
+                _ip = this['interfaces'][_iface]['ip']
+                if _ip not in self.ip_list:
+                    if _ip in reachable_list or check_reachable(_ip, 22):
                         this['rem_ip'] = _ip
-                        log.info('get_remote: Found {0}, reachable via {1}'.format(remotepi, _ip))
+                        print(': Success', end='\n')
+                        log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
                         for adapter in this['adapters']:
                             _dev = adapter['dev']
                             adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
@@ -139,28 +204,41 @@ class ConsolePiMenu:
                     else:
                         this['rem_ip'] = None
 
+            if this['rem_ip'] is None:
+                log.warning('get_remote: Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
+                print(': !!! UNREACHABLE !!!', end='\n')
+
         return data
 
     # Update ConsolePi.csv on Google Drive and pull any data for other ConsolePis
     def refresh(self):
         print('Updating to/from Cloud... Standby')
+
         # Update Local Adapters
         self.data['local'] = self.get_local()
 
-        # Format Local Data for update_sheet method
-        local_data = {self.hostname: {'user': 'pi'}}
-        local_data[self.hostname]['adapters'] = self.data['local']
-        local_data[self.hostname]['interfaces'] = self.if_ips
-        self.log.info('Final Data set collected for {}: {}'.format(self.hostname, local_data))
+        # Get details from Google Drive - once populated will skip
+        if not self.local_only and self.cloud is None:
+            if CLOUD_SVC == 'gdrive':
+                self.cloud = GoogleDrive(self.log)
 
-        # Pass Local Data to update_sheet method get remotes found on sheet as return
-        # update sheets function updates local_cloud_file
-        remote_consoles = self.cloud.update_files(local_data)
-        if len(remote_consoles) > 0:
-            update_local_cloud_file(LOCAL_CLOUD_FILE, remote_consoles)
+            # Format Local Data for update_sheet method
+            local_data = {self.hostname: {'user': 'pi'}}
+            local_data[self.hostname]['adapters'] = self.data['local']
+            local_data[self.hostname]['interfaces'] = self.if_ips
+            self.log.info('Final Data set collected for {}: {}'.format(self.hostname, local_data))
 
-        # Update instance with remotes from local_cloud_file
-        self.data['remote'] = self.get_remote(data=remote_consoles)
+            # Pass Local Data to update_sheet method get remotes found on sheet as return
+            # update sheets function updates local_cloud_file
+            remote_consoles = self.cloud.update_files(local_data)
+            if len(remote_consoles) > 0:
+                update_local_cloud_file(LOCAL_CLOUD_FILE, remote_consoles)
+
+            # Update instance with remotes from local_cloud_file
+            self.data['remote'] = self.get_remote(data=remote_consoles)
+        else:
+            print('Not Updating from {} due to connection failure'.format(CLOUD_SVC))
+            print('Close and re-launch menu if network access has been restored restored')
 
     # =======================
     #     MENUS FUNCTIONS
@@ -190,7 +268,10 @@ class ConsolePiMenu:
                     print(text)
             print('x. exit\n')
             print('=' * 74)
-            print('* Remote Adapters based on local cahce only use refresh option to update *')
+            if self.local_only:
+                print('*                          !!!LOCAL ONLY MODE!!!                         *')
+            else:
+                print('* Remote Adapters based on local cahce only use refresh option to update *')
             print('=' * 74)
 
     def picocom_help(self):
@@ -245,7 +326,9 @@ class ConsolePiMenu:
 
         text = ['c. Change Serial Settings [{0} {1}{2}1 flow={3}] '.format(
             self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), 'h. Display picocom help',
-             'r. Refresh (Find new adapters on Local and Remote ConsolePis)']
+             'r. Refresh (Find new adapters on Local and Remote ConsolePis)' if not self.local_only else
+             'r. Refresh (Find new Local adapters)']
+
         self.menu_formatting('footer', text=text)
         choice = input(" >>  ")
         self.exec_menu(choice)
@@ -443,7 +526,14 @@ class ConsolePiMenu:
 
 # Main Program
 if __name__ == "__main__":
-    # Launch main menu
-    menu = ConsolePiMenu()
-    while menu.go:
-        menu.main_menu()
+    # If script is called with an argument (any argument) simply prints details for this ConsolePi
+    # used if ConsolePi is detected as DHCP client on another ConsolePi (for non internet connected cluster)
+    if len(sys.argv) > 1:
+        menu = ConsolePiMenu(bypass_remote=True, do_print=False)
+        data = {menu.hostname: {'interfaces': menu.if_ips, 'adapters': menu.data['local'], 'user': 'pi'}}
+        print(data)
+    else:
+        # Launch main menu
+        menu = ConsolePiMenu()
+        while menu.go:
+            menu.main_menu()

@@ -9,7 +9,7 @@ flow="n"
 parity="n"
 dbits=8
 
-cloud_file="/etc/ConsolePi/ConsolePi.cloud"
+cloud_file="/etc/ConsolePi/cloud.data"
 WORD="default"
 . /etc/ConsolePi/ConsolePi.conf
 
@@ -345,7 +345,7 @@ main_menu() {
 
 main() {
     get_tty_devices
-    if [[ $tty_list ]] || [ -f /etc/ConsolePi/ConsolePi.cloud ]; then
+    if [[ $tty_list ]] || [ -f $cloud_file ]; then
 	    ttyusb_connected=true
 	else
 	    echo -e "\n*******************************"

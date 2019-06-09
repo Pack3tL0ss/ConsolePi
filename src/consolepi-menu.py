@@ -15,6 +15,7 @@ import getpass
 # get ConsolePi imports
 from consolepi.common import get_config
 from consolepi.common import get_if_ips
+from consolepi.common import get_local_cloud_file
 from consolepi.common import update_local_cloud_file
 from consolepi.common import ConsolePi_Log
 from consolepi.common import check_reachable
@@ -123,12 +124,7 @@ class ConsolePiMenu:
         plog = self.plog
         plog('Fetching Remote ConsolePis with attached Serial Adapters from local cache')
         if data is None:
-            data = {}
-            if os.path.isfile(LOCAL_CLOUD_FILE):
-                with open(LOCAL_CLOUD_FILE, mode='r') as cloud_file:
-                    data = json.load(cloud_file)
-            else:
-                log.error('Unable to populate remote ConsolePis - file {0} not found'.format(LOCAL_CLOUD_FILE))
+            data = get_local_cloud_file(LOCAL_CLOUD_FILE)
 
         # check dhcp leases for ConsolePis (allows for Clustering with no network connection)
         # TODO # Change this to see if data[rem_hostname] exists, then check it's adapters
@@ -183,10 +179,10 @@ class ConsolePiMenu:
                             reachable_list.append(rem_ip)
                             log.info('Succesfully Found and added {} found via dhcp lease'.format(rem_hostname))
 
-        # Update local cache file if data was retrieved from a ConsolePi found via DHCP leases
-        if found and connected:
-            update_local_cloud_file(LOCAL_CLOUD_FILE, data)
-            log.info('remote data: {}'.format(data))
+            # Update local cache file if data was retrieved from a ConsolePi found via DHCP leases
+            if found and connected:
+                update_local_cloud_file(LOCAL_CLOUD_FILE, data)
+                log.info('remote data: {}'.format(data))
 
         # Add remote commands to remote_consoles dict for each adapter
         for remotepi in data:
@@ -243,6 +239,13 @@ class ConsolePiMenu:
         else:
             print('Not Updating from {} due to connection failure'.format(CLOUD_SVC))
             print('Close and re-launch menu if network access has been restored restored')
+
+    def update_from_remote(self, rem_data):
+        self.log.info('Remote Update Received via ssh: {}'.format(rem_data))
+        cache_data = get_local_cloud_file(LOCAL_CLOUD_FILE)
+        for host in rem_data:
+            cache_data[host] = rem_data[host]
+        update_local_cloud_file(LOCAL_CLOUD_FILE, cache_data)
 
     # =======================
     #     MENUS FUNCTIONS
@@ -534,8 +537,9 @@ if __name__ == "__main__":
     # used if ConsolePi is detected as DHCP client on another ConsolePi (for non internet connected cluster)
     if len(sys.argv) > 1:
         menu = ConsolePiMenu(bypass_remote=True, do_print=False)
-        data = {menu.hostname: {'interfaces': menu.if_ips, 'adapters': menu.data['local'], 'user': 'pi'}}
-        print(data)
+        # data = {menu.hostname: {'interfaces': menu.if_ips, 'adapters': menu.data['local'][mw], 'user': 'pi'}}
+        menu.update_from_remote(sys.argv[1])
+        print(menu.data['local'])
     else:
         # Launch main menu
         menu = ConsolePiMenu()

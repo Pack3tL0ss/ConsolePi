@@ -110,11 +110,10 @@ class ConsolePiMenu:
         else:
             plog('No ser2net.conf file found unable to extract port definitions', level='warning')
 
-        log.debug('final locally attached serial list: {}'.format(serial_list))
-
         local_data = {self.hostname: {'user': 'pi'}}
         local_data[self.hostname]['adapters'] = serial_list
         local_data[self.hostname]['interfaces'] = self.if_ips
+        log.debug('final local data set: {}'.format(local_data))
         return local_data
 
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
@@ -164,8 +163,7 @@ class ConsolePiMenu:
 
                         if connected:
                             # send menu command with this hosts data (remote ConsolePi will update it's own cache file)
-                            stdin, stdout, stderr = client.exec_command('consolepi-menu {}'.format(self.data['local']))
-                            log.debug('From {0}[stdin]: {1}, [stdout]: {2}, [stderr]: {3}'.format(rem_hostname, stdin, stdout, stderr))
+                            stdin, stdout, stderr = client.exec_command('consolepi-menu \'{}\''.format(json.dumps(self.data['local'])))
 
                             for line in stdout:
                                 if '/dev/' in line:
@@ -174,15 +172,17 @@ class ConsolePiMenu:
 
                             client.close()
                             # update local cache data with data gathered from host found in dhcp leases
-                            data[rem_hostname] = rem_data[rem_hostname]
-                            data[rem_hostname]['rem_ip'] = rem_ip
-                            reachable_list.append(rem_ip)
-                            log.info('Succesfully Found and added {} found via dhcp lease'.format(rem_hostname))
-
-            # Update local cache file if data was retrieved from a ConsolePi found via DHCP leases
-            if found and connected:
-                update_local_cloud_file(LOCAL_CLOUD_FILE, data)
-                log.info('remote data: {}'.format(data))
+                            if found:
+                                data[rem_hostname] = rem_data[rem_hostname]
+                                data[rem_hostname]['rem_ip'] = rem_ip
+                                reachable_list.append(rem_ip)
+                                log.info('Succesfully Found and added {} found via dhcp lease'.format(rem_hostname))
+                                update_local_cloud_file(LOCAL_CLOUD_FILE, data)
+                                log.info('remote data: {}'.format(data))
+                            else:
+                                log.error('{} connected, but no Console Devices Found, stderr follows:'.format(rem_hostname))
+                                for line in stderr:
+                                    log.error(line)
 
         # Add remote commands to remote_consoles dict for each adapter
         for remotepi in data:
@@ -222,12 +222,6 @@ class ConsolePiMenu:
             if CLOUD_SVC == 'gdrive':
                 self.cloud = GoogleDrive(self.log)
 
-            # # Format Local Data for update_sheet method
-            # local_data = {self.hostname: {'user': 'pi'}}
-            # local_data[self.hostname]['adapters'] = self.data['local']
-            # local_data[self.hostname]['interfaces'] = self.if_ips
-            
-
             # Pass Local Data to update_sheet method get remotes found on sheet as return
             # update sheets function updates local_cloud_file
             remote_consoles = self.cloud.update_files(self.data['local'])
@@ -241,11 +235,15 @@ class ConsolePiMenu:
             print('Close and re-launch menu if network access has been restored restored')
 
     def update_from_remote(self, rem_data):
-        self.log.info('Remote Update Received via ssh: {}'.format(rem_data))
-        cache_data = get_local_cloud_file(LOCAL_CLOUD_FILE)
-        for host in rem_data:
-            cache_data[host] = rem_data[host]
-        update_local_cloud_file(LOCAL_CLOUD_FILE, cache_data)
+        self.log.info('debug type rem_data: {}'.format(type(rem_data)))
+        rem_data = ast.literal_eval(rem_data)
+        self.log.info('debug type rem_data: {}'.format(type(rem_data)))
+        if isinstance(rem_data, dict):
+            self.log.info('Remote Update Received via ssh: {}'.format(rem_data))
+            cache_data = get_local_cloud_file(LOCAL_CLOUD_FILE)
+            for host in rem_data:
+                cache_data[host] = rem_data[host]
+            update_local_cloud_file(LOCAL_CLOUD_FILE, cache_data)
 
     # =======================
     #     MENUS FUNCTIONS

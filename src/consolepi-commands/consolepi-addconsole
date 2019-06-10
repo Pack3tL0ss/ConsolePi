@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+sudo /etc/ConsolePi/installer/udev.sh

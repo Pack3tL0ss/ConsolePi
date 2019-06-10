@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+# Disables (appends DISABLED_)/Enables all ssid's in wpa_supplicant.conf forcing ConsolePi to revert to hotspot
+# The script will toggle whatever state is currently configured.  
+
+
+main() {
+    [[ $(grep  DISABLED_ -c /etc/wpa_supplicant/wpa_supplicant.conf) > 0 ]] && process="enable" || process="disable"
+    if [[ $process == "enable" ]]; then
+        echo Enabling Defined SSIDs
+        sudo sed -i -e 's/ssid="DISABLED_/ssid="/g' /etc/wpa_supplicant/wpa_supplicant.conf
+    elif [[ $process == "disable" ]]; then
+        echo Disabling defined SSIDs
+        sudo sed -i 's/\s*ssid="/&DISABLED_/' /etc/wpa_supplicant/wpa_supplicant.conf
+    else
+        echo Logic Error in script exiting.
+        exit 1
+    fi
+    
+    echo SSIDs have been ${process}d use consolepi-autohotspot to change state client/hotspot.
+}
+
+# __main__
+main

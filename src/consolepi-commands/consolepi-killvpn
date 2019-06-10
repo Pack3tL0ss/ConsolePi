@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+if [[ -f /var/run/ovpn.pid ]]; then
+    sudo pkill -SIGTERM -F /var/run/ovpn.pid
+    [[ $? == 0 ]] && PID=$(head -1 /var/run/ovpn.pid)
+    sudo rm /var/run/ovpn.pid 
+    [[ $? == 0 ]] && msg=", stale pid file removed"
+else
+    sudo pkill -f openvpn    
+fi
+
+[[ ! -z $PID ]] && echo killed OpenVPN process $PID || echo "No OpenVPN process found${msg}"

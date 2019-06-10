@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+echo -e 'discoverable on
+pairable on
+quit
+' | sudo bluetoothctl

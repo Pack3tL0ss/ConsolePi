@@ -1,14 +1,11 @@
 # ConsolePi
 
-###TEST BRANCH NEW CLUSTERING FEATURE###
-
 Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to local or remote ConsolePis via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).  Multiple Connectivity options, wired, WLAN (as a client if it finds a configured SSID, falls back to hotspot mode), and bluetooth.
 
 *Check out the **NEW** [ConsolePi Clustering Feature](#consolepi-cluster-/-cloud-config)!!*
 
 ***TL;DR:***
 Single Command Install Script. Run from a RaspberryPi running raspbian (that has internet access):
-*** Change the branch from 'master' to 'Clustering' if attempting to install this branch prior to merge. ***
 
 ```
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi

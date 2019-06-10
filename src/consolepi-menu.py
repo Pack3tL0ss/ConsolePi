@@ -39,6 +39,7 @@ class ConsolePiMenu:
         cpi_log = ConsolePi_Log(debug=DEBUG, log_file=LOG_FILE, do_print=do_print)
         self.log = cpi_log.log
         self.plog = cpi_log.log_print
+        self.error = None
 
         self.cloud = None  # Set in refresh method if reachable
         self.do_cloud = DO_CLOUD
@@ -48,6 +49,7 @@ class ConsolePiMenu:
                 if not os.path.isfile('/etc/ConsolePi/cloud/gdrive/.credentials/credentials.json'):
                     self.plog('Required {} credentials files are missing refer to GitHub for details'.format(CLOUD_SVC), level='warning')
                     self.plog('Disabling {} updates'.format(CLOUD_SVC), level='warning')
+                    self.error = ' {} credentials not found'.format(CLOUD_SVC)
                     self.do_cloud = False
             else:
                 self.plog('failed to connect to {}, operating in local only mode'.format(CLOUD_SVC), level='warning')
@@ -303,7 +305,10 @@ class ConsolePiMenu:
             print('x. exit\n')
             print('=' * 74)
             if not self.do_cloud:
-                print('*                          Cloud Function Disabled                       *')
+                if self.error is None:
+                    print('*                          Cloud Function Disabled                       *')
+                else:
+                    print('*        Cloud Function Disabled by script - no credentials found        *')
             elif self.local_only:
                 print('*                          !!!LOCAL ONLY MODE!!!                         *')
             else:

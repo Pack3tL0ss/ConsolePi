@@ -7,7 +7,6 @@ udev_init(){
     rules_file='/etc/udev/rules.d/10-ConsolePi.rules'
     ser2net_conf='/etc/ser2net.conf'
     process="Predictable Console Ports"
-    #[[ ! -f "/tmp/consolepi_install.log" ]] && touch /tmp/consolepi_install.log
     auto_name=false
     # [ -f /etc/ConsolePi/installer/common.sh ] && . /etc/ConsolePi/installer/common.sh ||
     #     echo "ERROR Failed to import common functions"
@@ -54,26 +53,34 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep ttyUSB); do
         echo
         echo "To aid in the manual process a full attribute-walk has been dumped to ${error_file}"
     else
-        echo "${ID_MODEL_FROM_DATABASE} Found, idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT} It Will be assigned to telnet port ${port}"
+        if [ $(grep -c -m 1 $ID_SERIAL_SHORT $rules_file) -eq 0 ]; then
+            echo -e "\033[1;32mDevice Found:$*\033[m ${ID_MODEL_FROM_DATABASE} "
+            echo "  idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT} It Will be assigned to telnet port ${port}"
 
-        if ! $auto_name; then
-            echo 
-            echo "Let's assign alias names for the adapters.  This is mainly useful for the menu display in consolepi-menu."
-            echo "Enter \"auto\" to let the script automatically assign names (you won't see this prompt again for this session)"
-            read -p 'What alias (descriptive name) do you want to use for this adapter?: ' alias
-        fi
-        [[ "${alias}" == "auto" ]] && auto_name=true && alias="ConsolePi"
+            if ! $auto_name; then
+                echo 
+                echo "Let's assign alias names for the adapters.  This is mainly useful for the menu display in consolepi-menu."
+                echo "Enter \"auto\" to let the script automatically assign names (you won't see this prompt again for this session)"
+                read -p 'What alias (descriptive name) do you want to use for this adapter?: ' alias
+                echo -e '\n'
+            fi
+            [[ "${alias}" == "auto" ]] && auto_name=true && alias="ConsolePi"
 
-        this_dev="SUBSYSTEM==\"tty\", ATTRS{idVendor}==\"${ID_VENDOR_ID}\", ATTRS{idProduct}==\"${ID_MODEL_ID}\", ATTRS{serial}==\"${ID_SERIAL_SHORT}\", SYMLINK+=\"${alias}_${port}\""
-        if [ -f $rules_file ]; then
-            echo $this_dev >> $rules_file
+            this_dev="SUBSYSTEM==\"tty\", ATTRS{idVendor}==\"${ID_VENDOR_ID}\", ATTRS{idProduct}==\"${ID_MODEL_ID}\", ATTRS{serial}==\"${ID_SERIAL_SHORT}\", SYMLINK+=\"${alias}_${port}\""
+            if [ -f $rules_file ]; then
+                echo $this_dev >> $rules_file
+            else
+                echo $this_dev > $rules_file
+            fi
+            [ -f $ser2net_conf ] && echo "${port}:telnet:0:/dev/${alias}_${port}:9600 8DATABITS NONE 1STOPBIT banner" >> $ser2net_conf
+            echo "${process}" "${ID_MODEL_FROM_DATABASE} idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port} alias: ${alias}_${port}" \
+                >> /var/log/ConsolePi/install.log
+            ((port++))
         else
-            echo $this_dev > $rules_file
+            echo -e " ---!! \033[1;32mDEVICE ALREADY EXISTS$*\033[m !!---"
+            echo "${ID_MODEL_FROM_DATABASE} Found, idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT}"
+            echo -e "This device already exists in ${rules_file}.  Ignoring\n"
         fi
-        [ -f $ser2net_conf ] && echo "${port}:telnet:0:/dev/${alias}_${port}:9600 8DATABITS NONE 1STOPBIT banner" >> $ser2net_conf
-        echo "${process}" "${ID_MODEL_FROM_DATABASE} idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port} alias: ${alias}_${port}" \
-            >> /var/log/ConsolePi/install.log
-        ((port++))
     fi
 done
 }
@@ -84,7 +91,6 @@ udev_main() {
 	
     # -- if rules file already exist grab the port assigned to the last entry and start with the next port --
     if [ -f $rules_file ]; then
-        # port=`tail -1 $rules_file |grep SYMLINK |cut -d+ -f2|cut -d\" -f2 |cut -d_ -f2`
         port=$(tail -1 $rules_file | awk '{ print $5 }') && port=${port: -5:4}
         ((port++))
 		echo -e '\n\n'
@@ -117,7 +123,6 @@ if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/udev.sh"* ]] ; then
     iam=`whoami`
     if [ "${iam}" = "root" ]; then
         echo "...script ran from CLI..."
-        # [[ -f /tmp/consolepi_install.log ]] && cat /tmp/consolepi_install.log /var/log/ConsolePi/install.log
         udev_main
     else
         echo 'Script should be ran as root. exiting.'

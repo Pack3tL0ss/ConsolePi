@@ -2,7 +2,7 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script Stage 1                                                       -- #
-# --  Wade Wells - Mar, 2019                                                                                                                     -- #
+# --  Wade Wells - Jun, 2019                                                                                                                     -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
@@ -112,7 +112,12 @@ do_logging() {
         rm $tmp_log
         log_file=$final_log
     else
-        [ -f $tmp_log ] && echo "ERROR: tmp log found when it should not have existed" | tee -a $final_log
+        if [ -f $tmp_log ]; then 
+            echo "ERROR: tmp log found when it should not have existed" | tee -a $final_log
+            echo "-------------------------------- contents of leftover tmp log --------------------------------" >> $final_log
+            cat $tmp_log >> $final_log
+            echo "------------------------------ end contents of leftover tmp log ------------------------------" >> $final_log
+        fi
     fi
 
     # Create Log Files

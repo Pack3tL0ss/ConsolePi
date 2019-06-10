@@ -243,17 +243,16 @@ main() {
     # Configure pi user to auto-launch ConsolePi installer on first-login
     if $auto_install; then
         echo 'auto-install enabled, configuring pi user to auto-launch ConsolePi installer on first-login'
+        echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install
+
+        echo 'branch=$(cd /etc/ConsolePi && sudo git status | head -1 | awk '{print $3}')' >> /mnt/usb2/usr/local/bin/consolepi-install
+        echo '[ ! "$branch" == "master" ] && echo -e "Script updating ${branch} branch.\n  You are on a development branch."' >> /mnt/usb2/usr/local/bin/consolepi-install
+        echo "sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/$branch/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi" >> /mnt/usb2/usr/local/bin/consolepi-install
         sudo echo "consolepi-install" >> /mnt/usb2/home/pi/.bashrc
+        
+        # make install command/script executable
+        sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install || echo 'ERROR making consolepi-install command/script executable'
     fi
-
-    # create auto install command/script
-    [[ ! -d /mnt/usb2/usr/local/bin ]] && sudo mkdir /mnt/usb2/usr/local/bin
-    sudo echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install
-    sudo echo "sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi" \
-          >> /mnt/usb2/usr/local/bin/consolepi-install
-
-    # make install command/script executable
-    sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install || echo 'ERROR making consolepi-install command/script executable'
 
     # Look for pre-configuration files in script dir.  Also if ConsolePi_stage subdir is found in script dir cp the dir to the ConsolePi image
     cur_dir=$(pwd)

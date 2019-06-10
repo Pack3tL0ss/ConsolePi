@@ -86,7 +86,7 @@ get_input() {
 do_unzip() {
     echo "Extracting image from ${1}"
     unzip $1
-    img_file=$(ls -lc "${1%zip}.img" 2>>/dev/null | awk '{print $9}')
+    img_file=$(ls -lc "${1%zip}img" 2>>/dev/null | awk '{print $9}')
     [[ -z $img_file ]] && echo 'Something went wrong img file not found after unzip... exiting' && exit 1
 }
 

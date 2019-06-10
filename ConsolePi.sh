@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # Locally Defined Variables
-debug=false                                                         # For debugging only - additional logs sent to syslog
+## debug=false # Now in config                                                        # For debugging only - additional logs sent to syslog
 push_response_log="/var/log/ConsolePi/push_response.log"            # full path to send PushBullet API responses
 ovpn_log="/var/log/ConsolePi/ovpn.log"                              # full path to send openvpn logs
-ovpn_config="/etc/openvpn/client/ConsolePi.ovpn"	                # full path to openvpn configuration
-ovpn_creds="/etc/openvpn/client/ovpn_credentials"                        # full path to openvpn creds file with username password
+ovpn_config="/etc/openvpn/client/ConsolePi.ovpn"	            # full path to openvpn configuration
+ovpn_creds="/etc/openvpn/client/ovpn_credentials"                   # full path to openvpn creds file with username password
 ovpn_options="--persist-remote-ip --ping 15"                        # openvpn command line options 
 
 # Get Configuration from config file default if config file doesn't exist
 if [[ -f "/etc/ConsolePi/ConsolePi.conf" ]]; then
-	. "/etc/ConsolePi/ConsolePi.conf"
-	# Disable OpenVPN if ovpn config is not found
-	$ovpn_enable && [[ ! -f "${ovpn_config}" ]] && ovpn_enable=false && logger -t puship-ovpn ERROR: OpenVPN is enabled but ConsolePi.ovpn not found - disabling
+    . "/etc/ConsolePi/ConsolePi.conf"
+    # Disable OpenVPN if ovpn config is not found
+    $ovpn_enable && [[ ! -f "${ovpn_config}" ]] && ovpn_enable=false && logger -t puship-ovpn ERROR: OpenVPN is enabled but ConsolePi.ovpn not found - disabling
 else
 	push=false                                                          # PushBullet Notifications: true - enable, false - disable
 	ovpn_enable=false                                                   # if enabled will establish VPN connection
@@ -22,6 +22,8 @@ else
 	vpn_check_ip="10.0.150.1"                                           # used to check VPN (internal) connectivity should be ip only reachable via VPN
 	net_check_ip="8.8.8.8"                                              # used to check internet connectivity
 	local_domain="arubalab.net"                                         # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn
+        cloud=false                  # enable ConsolePi clustering / cloud config sync
+        debug=false                   # turns on additional logging data
 fi
 
 
@@ -32,6 +34,7 @@ fi
 [ -z $reason ] && reason="OVPN_CONNECTED"
 
 ## set variables if script called from shell for testing ##
+## Usage for test scriptname test [<domain>]  domain is optional used to specify local_domain to test local connection (otherwise script will determine remote and attempt ovpn if enabled) 
 #if [ -z $1 ] && [ $0 != "/lib/dhcpcd/dhcpcd-run-hooks" ]; then
 if [[ $1 == "test" ]]; then
   logger -t puship-DEBUG Setting random test Variables script ran from shell
@@ -40,7 +43,7 @@ if [[ $1 == "test" ]]; then
   reason=BOUND
   interface=eth0
   new_ip_address="10.1.$rand1.$rand2"
-  new_domain_name=""
+  [ ! -z $2 ] && new_domain="$2" || new_domain_name=""
 fi
 
 # >> Debug Messages <<
@@ -135,33 +138,6 @@ Check_VPN() {
     fi      
 }
 
-# >> Build/Populate Msg Variables <<
-OldBuildMsg() {
-    $debug && logger -t puship-DEBUG Enter BuildMsg Function
-    GetCurrentIP
-    if [ "$1" = "bound" ]; then
-        pushTitle="ConsolePi $new_ip_address"
-        pushMsg="ConsolePi IP Update"
-    else
-        pushTitle="ConsolePi VPN Established: ${new_ip_address}"
-        pushMsg="VPN Connection success on ${interface}"
-    fi
-
-    logMsg="PushBullet Notification Sent. "
-    if [ ${#eth0_ip} -gt 6 ]; then
-        pushMsg="$pushMsg %0A eth0: ${eth0_ip}"
-        logMsg="$logMsg eth0: $eth0_ip"
-    fi
-    if [ ${#wlan0_ip} -gt 6 ]; then
-        pushMsg="$pushMsg %0A wlan0:${wlan0_ip}"
-        logMsg="$logMsg | wlan0: $wlan0_ip"                
-    fi
-    if [ ${#tun0_ip} -gt 6 ]; then
-        pushMsg="$pushMsg %0A tun0: ${tun0_ip}"
-        logMsg="$logMsg | tun0: $tun0_ip"                
-    fi
-    pushMsg="$pushMsg %0A GW: $xgw"
-}    
 
 BuildMsg() {
     $debug && logger -t puship-DEBUG Enter BuildMsg Function
@@ -196,6 +172,12 @@ Check_is_new_ip() {
     $is_new_ip && StashNewIP
 }
 
+update_cloud() {
+    /etc/ConsolePi/cloud/${cloud_svc}/cloud.py && 
+        logger -t puship-${cloud_svc} Updated cloud Config ||
+        logger -t puship-${cloud_svc} Error returned while Updating cloud Config
+}
+
 run() {
     $debug && logger -t puship-DEBUG Enter run Function
     Check_is_new_ip
@@ -220,10 +202,12 @@ case "$reason" in
      StashNewIP
      BuildMsg "OVPN"
      $push && Push
+     $cloud && update_cloud
      exit 0
      ;;
   BOUND|REBIND)
      run
+     $cloud && update_cloud
      ;;
   STATIC)
     [ $interface = "eth0" ] && run || exit 0

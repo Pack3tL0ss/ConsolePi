@@ -151,3 +151,5 @@ ChkWiredState()
 ```
 
 future: Change from swapping files to using SED to comment/uncomment gateway line in /etc/dnsmasq.conf  <-- this is a note to self.  Disregard if it makes no sense.
+
+Update... This change has been made, see AutoHotspotN script in src directory of repo.

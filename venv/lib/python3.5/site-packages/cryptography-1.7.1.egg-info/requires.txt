@@ -1,0 +1,22 @@
+
+[docstest]
+doc8
+pyenchant
+readme_renderer >= 16.0
+sphinx
+sphinx_rtd_theme
+sphinxcontrib-spelling
+
+[pep8test]
+flake8
+flake8-import-order
+pep8-naming
+
+[test]
+cryptography_vectors==1.7.1
+hypothesis>=1.11.4
+iso8601
+pretend
+pyasn1_modules
+pytest>=2.9.0
+pytz

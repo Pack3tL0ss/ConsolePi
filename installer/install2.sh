@@ -1064,7 +1064,7 @@ do_consolepi_commands() {
     # consolepi-menu
     [[ ! -f "/usr/local/bin/consolepi-menu" ]] && 
         echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-menu &&
-        echo -e 'sudo /etc/ConsolePi/src/consolepi-menu.py' >> /usr/local/bin/consolepi-menu &&
+        echo -e 'sudo /etc/ConsolePi/src/consolepi-menu.py "${@}"' >> /usr/local/bin/consolepi-menu &&
         logit "consolepi-menu command created Successfully" ||
         logit "consolepi-menu already exists"
     

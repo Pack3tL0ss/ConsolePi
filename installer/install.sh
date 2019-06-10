@@ -71,6 +71,13 @@ pre_git_prep() {
                 logit "Removed old consolepi-menu symlink will replace during upgade" ||
                     logit "ERROR Unable to remove old consolepi-menu symlink verify it should link to file in src dir" "WARNING"
         fi
+        # Remove old launch file if it exists
+        process="ConsolePi-Upgrade-Prep (remove consolepi-menu quick-launch file)"
+        if [[ -f /usr/local/bin/consolepi-menu ]]; then
+            rm /usr/local/bin/consolepi-menu &&
+                logit "Removed old consolepi-menu quick-launch file will replace during upgade" ||
+                    logit "ERROR Unable to remove old consolepi-menu quick-launch file" "WARNING"
+        fi
     fi
 }
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-cur_dir=$(pwd)
-branch=$(cd /etc/ConsolePi && sudo git status | head -1 | awk '{print $3}' && cd $pwd)
+branch=$(cd /etc/ConsolePi && sudo git status | head -1 | awk '{print $3}')
 [! "$branch" == "master" ] && echo -e "Script updating ${branch} branch.\n  You are on a development branch."
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/$branch/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi

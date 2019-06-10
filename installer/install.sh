@@ -117,6 +117,7 @@ do_logging() {
             echo "-------------------------------- contents of leftover tmp log --------------------------------" >> $final_log
             cat $tmp_log >> $final_log
             echo "------------------------------ end contents of leftover tmp log ------------------------------" >> $final_log
+            rm $tmp_log
         fi
     fi
 

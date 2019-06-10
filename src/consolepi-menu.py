@@ -41,9 +41,14 @@ class ConsolePiMenu:
         self.plog = cpi_log.log_print
 
         self.cloud = None  # Set in refresh method if reachable
-        if DO_CLOUD and CLOUD_SVC == 'gdrive':
+        self.do_cloud = DO_CLOUD
+        if self.do_cloud and CLOUD_SVC == 'gdrive':
             if check_reachable('www.googleapis.com', 443):
                 self.local_only = False
+                if not os.path.isfile('/etc/ConsolePi/cloud/gdrive/.credentials/credentials.json'):
+                    self.plog('Required {} credentials files are missing refer to GitHub for details'.format(CLOUD_SVC), level='warning')
+                    self.plog('Disabling {} updates'.format(CLOUD_SVC), level='warning')
+                    self.do_cloud = False
             else:
                 self.plog('failed to connect to {}, operating in local only mode'.format(CLOUD_SVC), level='warning')
                 self.local_only = True
@@ -129,7 +134,7 @@ class ConsolePiMenu:
         if data is None:
             data = get_local_cloud_file(LOCAL_CLOUD_FILE)
 
-        if refresh or not DO_CLOUD or self.local_only:
+        if refresh or not self.do_cloud or self.local_only:
             data = self.update_from_dhcp_leases(data)
 
         # Add remote commands to remote_consoles dict for each adapter
@@ -235,8 +240,8 @@ class ConsolePiMenu:
             self.log.info('Final Data set collected for {}: {}'.format(self.hostname, self.data['local']))
 
         # Get details from Google Drive - once populated will skip
-        if not self.local_only:
-            if DO_CLOUD and CLOUD_SVC == 'gdrive' and self.cloud is None:
+        if self.do_cloud and not self.local_only:
+            if CLOUD_SVC == 'gdrive' and self.cloud is None:
                 self.cloud = GoogleDrive(self.log, hostname=self.hostname)
 
             # Pass Local Data to update_sheet method get remotes found on sheet as return
@@ -249,7 +254,7 @@ class ConsolePiMenu:
             else:
                 self.plog('No Remote ConsolePis found on {}'.format(CLOUD_SVC))
         else:
-            if DO_CLOUD:
+            if self.do_cloud:
                 print('Not Updating from {} due to connection failure'.format(CLOUD_SVC))
                 print('Close and re-launch menu if network access has been restored')
 
@@ -297,8 +302,8 @@ class ConsolePiMenu:
                     print(text)
             print('x. exit\n')
             print('=' * 74)
-            if not DO_CLOUD:
-                print('*                   Cloud Function Disabled in Config                    *')
+            if not self.do_cloud:
+                print('*                          Cloud Function Disabled                       *')
             elif self.local_only:
                 print('*                          !!!LOCAL ONLY MODE!!!                         *')
             else:
@@ -385,7 +390,7 @@ class ConsolePiMenu:
             self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), 'h. Display picocom help']
         if remotes_connected:
             text.append('k. Distribute SSH Key to Remote Hosts')
-        r = 'r. Refresh (Find new adapters on Local and Remote ConsolePis)' if DO_CLOUD and not self.local_only else 'r. Refresh (Find new Local adapters)'
+        r = 'r. Refresh (Find new adapters on Local and Remote ConsolePis)' if self.do_cloud and not self.local_only else 'r. Refresh (Find new Local adapters)'
         text.append(r)
 
         self.menu_formatting('footer', text=text)

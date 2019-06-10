@@ -8,6 +8,7 @@ Acts as a serial Console Server, allowing you to remotely connect to ConsolePi v
 
 ***TL;DR:***
 Single Command Install Script. Run from a RaspberryPi running raspbian (that has internet access):
+*** Change the branch from 'master' to 'Clustering' if attempting to install this branch prior to merge. ***
 
 ```
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
@@ -57,7 +58,11 @@ Each Time a Notification is triggered all interface IPs are sent in the message 
 
 The Cluster feature allows you to have multiple ConsolePis connected to the network, or to each other (i.e. first ConsolePi in hotspot mode, the others connected as clients to that hotspot).  A connection to any one of the ConsolePis in the Cluster will provide options to connect to any local serial adapters, as well as those connected to the other ConsolePis in the cluster.
 
-**Currently supports Google Drive/Google Sheets**
+### Supported Sync Methods:
+
+ - Google Drive/Google Sheets is currently the only external method supported.  Given this gets the job done, it unlikely more external methods will be added.
+ - HotSpot Connected ConsolePi's are automatically discovered, this works even if ths Cloud function is disabled in the config.  If ConsolePiB is connected to ConsolePiA via HotSpot - when the menu is launched on ConsolePiA it will detect a RaspberryPi (ConsolePiB) was assigned an ip address and attempt to connect to it via ssh.  Once a connection is established ConsolePiA will send its details to ConsolePiB, ConsolePiB will respond with its details.  Assuming there are serial adapters attached to ConsolePiB, menu options will be created for those connections
+  - local cloud cache:  For both of the above methods, a local file is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.
 
 *Road Map: Add simple network file share as an option.  i.e. network share on a Master ConsolePi where all other ConsolePis would update there config once connected.  This would allow the cluster feature to work without internet*
 

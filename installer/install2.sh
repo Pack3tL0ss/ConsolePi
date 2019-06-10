@@ -2,7 +2,7 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script Stage 2                                                       -- #
-# --  Wade Wells - Mar, 30 2019                                                                                                                  -- #
+# --  Wade Wells - Jun 2019                                                                                                                      -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
@@ -156,52 +156,6 @@ hotspot_dhcp_range() {
     wlan_dhcp_end=$baseip".150"
 }
     
-# user_input() {
-#     case $1 in
-#         true|false)
-#             bool=true
-#         ;;
-#         *)
-#             bool=false
-#         ;;
-#     esac
-
-#     [ ! -z "$1" ] && default="$1" 
-#     [ ! -z "$2" ] && prompt="$2"
-
-#     if [ ! -z $default ]; then
-#         if $bool; then
-#             $default && prompt+=" [Y]: " || prompt+=" [N]: "
-#         else
-#             prompt+=" [${default}]: "
-#         fi
-#     else
-#         prompt+=" $prompt: "
-#     fi
-    
-#     printf "%s" "${prompt}"
-#     read input
-#     if $bool; then
-#         if [ ${#input} -gt 0 ] && ([ ${input,,} == 'y' ] || [ ${input,,} == 'yes' ] || [ ${input,,} == 'true' ]); then 
-#             result=true
-#         elif [ ${#input} -gt 0 ] && ([ ${input,,} == 'n' ] || [ ${input,,} == 'no' ] || [ ${input,,} == 'false' ]); then 
-#             result=false
-#         elif ! [ -z $default ]; then
-#             result=$default
-#         else 
-#             result=false
-#         fi
-#     else
-#         if [ ${#input} -gt 0 ]; then
-#             result=$input
-#         elif [ ${#default} -gt 0 ]; then
-#             result=$default
-#         else
-#             result="Invalid"
-#         fi
-#     fi
-# }
-
 collect() {
     # -- PushBullet  --
     header
@@ -322,7 +276,6 @@ collect() {
 
 verify() {
     header
-    # $first_run && header_txt=">>DEFAULT VALUES CHANGE THESE<<" || header_txt="--->>PLEASE VERIFY VALUES<<----"
     echo "-------------------------------------------->>PLEASE VERIFY VALUES<<--------------------------------------------"
     echo                                                                  
     echo     " Send Notifications via PushBullet?:                      $push"
@@ -984,111 +937,21 @@ get_known_ssids() {
 }
 
 do_consolepi_commands() {
-    process="Create/Update consolepi- quick commands"
+    process="Remove old consolepi-commands from /usr/local/bin"
     logit "${process} - Starting"
-    if [[ -f "/usr/local/bin/consolepi-install" ]]; then
-        sudo mv "/usr/local/bin/consolepi-install" "/usr/local/bin/consolepi-upgrade"  || 
-            logit "Failed to Change consolepi-install to consolepi-upgrade" "WARNING"
-    fi
-    
-    # consolepi-upgrade
-    # [ $(wc -l /usr/local/bin/consolepi-upgrade | awk '{print $1}') -lt 11 ] && ( sudo rm -f /usr/local/bin/consolepi-upgrade ||
-    #   logit "consolepi-upgrade command doesn't appear to be current... script failed to remove the old version" "WARNING" )
-    [[ ! -f "/usr/local/bin/consolepi-upgrade" ]] && 
-        echo -e '#!/usr/bin/env bash\n' > /usr/local/bin/consolepi-upgrade &&
-        # echo -e "if [ -d /etc/ConsolePi ]; then" >> /usr/local/bin/consolepi-upgrade &&
-        # echo -e "    cd /etc/ConsolePi" >> /usr/local/bin/consolepi-upgrade &&
-        # echo -e '    git_status=$(sudo git status  2>/dev/null | sed -n \'2,2p;2q\')' >> /usr/local/bin/consolepi-upgrade &&
-        # echo -e '    local_branch=$(echo $git_status|awk -F"'" '{print $2}'|sed 's/origin\///g')' >> /usr/local/bin/consolepi-upgrade &&
-        # echo -e "    cd - 1>/dev/null" >> /usr/local/bin/consolepi-upgrade &&
-        # echo -e "else" >> /usr/local/bin/consolepi-upgrade &&
-        # echo -e "    local_branch=master" >> /usr/local/bin/consolepi-upgrade &&
-        # echo -e "fi" >> /usr/local/bin/consolepi-upgrade &&
-        echo -e 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' \
-            >> /usr/local/bin/consolepi-upgrade
-            
-    # consolepi-addssids
-    [[ ! -f "/usr/local/bin/consolepi-addssids" ]] && 
-        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addssids &&
-        echo -e 'sudo /etc/ConsolePi/installer/ssids.sh' >> /usr/local/bin/consolepi-addssids || 
-        logit "consolepi-addssids already exists"
-        
-    # consolepi-addconsole
-    [[ ! -f "/usr/local/bin/consolepi-addconsole" ]] && 
-        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-addconsole &&
-        echo -e 'sudo /etc/ConsolePi/installer/udev.sh' >> /usr/local/bin/consolepi-addconsole &&
-        logit "consolepi-addconsole created Successfully" ||
-        logit "consolepi-addconsole already exists"
-    
-    # consolepi-autohotspot
-    [[ ! -f "/usr/local/bin/consolepi-autohotspot" ]] && 
-        echo -e '#!/usr/bin/env bash\nsudo /usr/bin/autohotspotN' > /usr/local/bin/consolepi-autohotspot && 
-        logit "consolepi-autohotspot created Successfully" ||
-        logit "consolepi-autohotspot already exists"
-    
-    # consolepi-testhotspot
-    if [[ ! -f /usr/local/bin/consolepi-testhotspot ]]; then
-        sudo ln -s /etc/ConsolePi/src/consolepi-testhotspot /usr/local/bin/consolepi-testhotspot &&
-        logit "consolepi-testhotspot command created Successfully" ||
-        logit "FAILED to create consolepi-testhotspot command" "WARNING"
+    if [ $(ls -l /usr/local/bin/consolepi* | wc -l) -ne 0 ]; then
+        sudo rm /usr/local/bin/consolepi-* > /dev/null 2>&1
+        sudo unlink /usr/local/bin/consolepi-* > /dev/null 2>&1
     else
-        logit "consolepi-testhotspot already exists"
+        logit "None Found, we're good."   
     fi
-        
-    # consolepi-killvpn
-    if [[ ! -f /usr/local/bin/consolepi-killvpn ]]; then
-        echo '#!/usr/bin/env bash' > /usr/local/bin/consolepi-killvpn
-        echo '' >> /usr/local/bin/consolepi-killvpn
-        echo 'if [[ -f /var/run/ovpn.pid ]]; then' >> /usr/local/bin/consolepi-killvpn
-        echo '    sudo pkill -SIGTERM -F /var/run/ovpn.pid' >> /usr/local/bin/consolepi-killvpn
-        echo '    [[ $? == 0 ]] && PID=$(head -1 /var/run/ovpn.pid)' >> /usr/local/bin/consolepi-killvpn
-        echo '    sudo rm /var/run/ovpn.pid ' >> /usr/local/bin/consolepi-killvpn
-        echo '    [[ $? == 0 ]] && msg=", stale pid file removed"' >> /usr/local/bin/consolepi-killvpn
-        echo 'else' >> /usr/local/bin/consolepi-killvpn
-        echo '    sudo pkill -f openvpn    ' >> /usr/local/bin/consolepi-killvpn
-        echo 'fi' >> /usr/local/bin/consolepi-killvpn
-        echo '' >> /usr/local/bin/consolepi-killvpn
-        echo '[[ ! -z $PID ]] && echo killed OpenVPN process $PID || echo "No OpenVPN process found${msg}"' >> /usr/local/bin/consolepi-killvpn
-    else
-        logit "consolepi-killvpn already exists"
-    fi
-    
-    # # consolepi-menu
-    # if [[ ! -f /usr/local/bin/consolepi-menu ]]; then
-    #     sudo ln -s /etc/ConsolePi/src/consolepi-menu /usr/local/bin/consolepi-menu && logit "consolepi-menu command created Successfully" || 
-    #     logit "FAILED to consolepi-menu command" "WARNING"
-    # else
-    #     logit "consolepi-menu already exists"
-    # fi
-
-    # consolepi-menu
-    [[ ! -f "/usr/local/bin/consolepi-menu" ]] && 
-        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-menu &&
-        echo -e 'sudo /etc/ConsolePi/src/consolepi-menu.py "${@}"' >> /usr/local/bin/consolepi-menu &&
-        logit "consolepi-menu command created Successfully" ||
-        logit "consolepi-menu already exists"
-    
-    # consolepi-bton
-    if [[ ! -f /usr/local/bin/consolepi-bton ]]; then
-        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-bton
-        echo -e "echo -e 'discoverable on\npairable on\nquit\n' | sudo bluetoothctl" >> /usr/local/bin/consolepi-bton
-    else
-        logit "consolepi-bton already exists"
-    fi
-    
-    # consolepi-btoff
-    if [[ ! -f /usr/local/bin/consolepi-btoff ]]; then
-        echo -e '#!/usr/bin/env bash' > /usr/local/bin/consolepi-btoff
-        echo -e "echo -e 'discoverable off\npairable on\nquit\n' | sudo bluetoothctl" >> /usr/local/bin/consolepi-btoff
-    else
-        logit "consolepi-btoff already exists"
-    fi
-    
-    # make consolepi commands executable
-    sudo chmod +x /usr/local/bin/consolepi-* ||
-        logit "Failed to chmod consolepi quick commands" "WARNING"
-
     logit "${process} - Complete"
+
+    process = "Update PATH for consolepi-commands"
+    [ $(grep -c "consolepi-commands" /etc/profile) -eq 0 ] && 
+        sudo echo 'export PATH="$PATH:/etc/ConsolePi/src/consolepi-commands"' >> /etc/profile &&
+        logit "PATH Updated" || logit "PATH contains consolepi-commands dir, No Need for update"
+
     unset process
 }
 
@@ -1230,8 +1093,8 @@ install2_main() {
         chg_password
         set_hostname
         set_timezone
+        disable_ipv6
     fi
-    disable_ipv6
     install_ser2net
     dhcp_run_hook
     ConsolePi_cleanup

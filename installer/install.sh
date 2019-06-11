@@ -108,9 +108,9 @@ do_logging() {
 
     # move installer log from temp to it's final location
     if ! $upgrade; then
+        log_file=$final_log
         cat $tmp_log >> $log_file
         rm $tmp_log
-        log_file=$final_log
     else
         if [ -f $tmp_log ]; then 
             echo "ERROR: tmp log found when it should not have existed" | tee -a $final_log

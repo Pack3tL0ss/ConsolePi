@@ -333,14 +333,10 @@ chg_password() {
                 ! $match && echo -e "ERROR: Passwords Do Not Match\n"
             done
             process="pi user password change"
-                echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" || 
             echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" || 
-                echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" || 
-            echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" || 
-                echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" || 
-                ( logit "Failed to Change Password for pi user" "WARNING" &&
-                echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
-                unset pass && unset pass2 && unset process
+            ( logit "Failed to Change Password for pi user" "WARNING" &&
+            echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
+            unset pass && unset pass2 && unset process
         fi
     fi
 }

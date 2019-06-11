@@ -183,7 +183,10 @@ class ConsolePiMenu:
                         line = line.split()
                         rem_ip = line[2]
                         rem_hostname = line[3]
-                        if rem_ip not in self.rem_ip_list and check_reachable(rem_ip, 22):
+                        rem_ip_reachable = check_reachable(rem_ip, 22)
+                        if not rem_ip_reachable:
+                            plog('{} @ {} found in dhcp leases file, but is Unreachable'.format(rem_hostname, rem_ip))
+                        if rem_ip not in self.rem_ip_list and rem_ip_reachable:
                             plog('Collecting data from {0} @ {1} found in dhcp leases'.format(rem_hostname, rem_ip))
                             client = paramiko.SSHClient()
                             client.load_system_host_keys()

@@ -53,15 +53,21 @@ Each Time a Notification is triggered all interface IPs are sent in the message 
 
 ## ConsolePi Cluster / Cloud Config
 
-The Cluster feature allows you to have multiple ConsolePis connected to the network, or to each other (i.e. first ConsolePi in hotspot mode, the others connected as clients to that hotspot).  A connection to any one of the ConsolePis in the Cluster will provide options to connect to any local serial adapters, as well as those connected to the other ConsolePis in the cluster.
+The Cluster feature allows you to have multiple ConsolePis connected to the network, or to each other (i.e. first ConsolePi in hotspot mode, the others connected as clients to that hotspot).  A connection to any one of the ConsolePis in the Cluster will provide options to connect to any local serial adapters, as well as those connected to the other ConsolePis in the cluster (via the consolepi-menu command).
+
+![consolepi-menu image](readme_content/menu.png)
+
+
 
 ### Supported Sync Methods:
 
  - Google Drive/Google Sheets is currently the only external method supported.  Given this gets the job done, it unlikely more external methods will be added.
- - HotSpot Connected ConsolePi's are automatically discovered, this works even if ths Cloud function is disabled in the config.  If ConsolePiB is connected to ConsolePiA via HotSpot - when the menu is launched on ConsolePiA it will detect a RaspberryPi (ConsolePiB) was assigned an ip address and attempt to connect to it via ssh.  Once a connection is established ConsolePiA will send its details to ConsolePiB, ConsolePiB will respond with its details.  Assuming there are serial adapters attached to ConsolePiB, menu options will be created for those connections
-  - local cloud cache:  For both of the above methods, a local file is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.
 
-*Road Map: Add simple network file share as an option.  i.e. network share on a Master ConsolePi where all other ConsolePis would update there config once connected.  This would allow the cluster feature to work without internet*
+   > Read The [Google Drive Setup](readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
+
+ - HotSpot Connected ConsolePi's are automatically discovered, this works even if the Cloud function is disabled in the config.  If ConsolePiB is connected to ConsolePiA via A's HotSpot - when the menu is launched on ConsolePiA it will detect a RaspberryPi (ConsolePiB) was assigned an ip address and attempt to connect to it via ssh.  Once a connection is established ConsolePiA will send its details to ConsolePiB, ConsolePiB will respond with its details.  Assuming there are serial adapters attached to ConsolePiB, menu options will be created for those connections.  
+
+  - local cloud cache:  For both of the above methods, a local file is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.
 
 ### How it works:  
 
@@ -73,9 +79,9 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 
     *Reachability is all that matters.  local, VPN, connected to another ConsolePi via hotspot, or any combination.*
 
- - Currently If it finds another ConsolePi in the cloud config that is not reachable it removes the stale entry.  *This may be changed to keep the entry and just ignore it for that session if unreachable*
+ - When you connect to a remote ConsolePi it establishes an SSH session to the remote ConsolePi using the 'pi' user (currently hard-coded to use that user).  There is also an option in the menu to distribute SSH keys to the remotes.  Doing so and leaving the passphrase blank allows for authenticated access to the remote without being prompted for user/pass.
 
- - When you connect to a remote ConsolePi it establishes an SSH session to the remote ConsolePi using the 'pi' user (currently hard-coded to use that user).
+ - HotSpot connected ConsolePis (a ConsolePi connected to the HotSpot of another ConsolePi) are automatically detected and provide updates to each other via SSH.  *This function works even with cloud=false in the config*
 
 ###  Important Notes:
 
@@ -86,6 +92,8 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
  - The ```consolepi-addconsole``` command now supports assingment of custom names to the aliases used to identify the serial adapters when using the predictable TELNET ports. (udev rules).  If configured these names are used in ```consolepi-menu```, the default device name is used if not (i.e. ttyUSB0), but that's less predictable.
 
  - The last ConsolePi to connect is the only one that will have menu-items for all the connected ConsolePis on the initial launch of ```consolepi-menu```.  Use the refresh option in ```consolepi-menu``` if connecting to one of the previous ConsolePis so it can fetch the data for ConsolePis that came online after it did.
+
+ - ConsolePi menu does not attempt to connect to the cloud on launch, it retrieves remote data from the local cache file only, verifies the devices are reachable, and if so adds them to the menu.  To trigger a cloud update use the refresh option.
 
  - Read The [Google Drive Setup](readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
 
@@ -195,12 +203,6 @@ The Pre-staging described below is optional, this script can be used without any
 - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled by setting auto_install to false in this script.
 
 Once Complete you place the newly blessed micro-sd in your raspberryPi and boot.  The installer will automatically start unless you've disabled it.  In which case the `consolepi-install` will launch the installer.
-
-## **4. Manual Installation**
-
-Manual installation instructions are incomplete and will probably remain that way.  Focus has been on automating the install as that should help with wider adoption, and hopefully more community involvement/improvements.  If you want to do the steps manually, you can accomplish by reverse engineering the install scripts and reviewing the incomplete manual installation instructions.
-
-For the brave or curious... Instructions on how to manually install can be found [here](readme_content/ConsolePi - Manual Installation.md).
 
 # ConsolePi Usage
 

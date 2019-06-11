@@ -174,7 +174,7 @@ class ConsolePiMenu:
         for remotepi in data:
             for adapter in data[remotepi]['interfaces']:
                 self.rem_ip_list.append(data[remotepi]['interfaces'][adapter]['ip'])
-                log.debug('rem_ip_list: {}'.format(self.rem_ip_list))
+            log.debug('rem_ip_list[{}]: {}'.format(remotepi, self.rem_ip_list))
 
         if os.path.isfile('/var/lib/misc/dnsmasq.leases'):
             with open('/var/lib/misc/dnsmasq.leases', 'r') as leases:

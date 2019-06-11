@@ -959,7 +959,7 @@ do_consolepi_commands() {
     fi
     logit "${process} - Complete"
 
-    process = "Update PATH for consolepi-commands"
+    process="Update PATH for consolepi-commands"
     [ $(grep -c "consolepi-commands" /etc/profile) -eq 0 ] && 
         sudo echo 'export PATH="$PATH:/etc/ConsolePi/src/consolepi-commands"' >> /etc/profile &&
         logit "PATH Updated" || logit "PATH contains consolepi-commands dir, No Need for update"

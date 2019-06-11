@@ -467,10 +467,25 @@ install_ser2net () {
             logit "ser2net make clean Failed" "WARNING"
         cd $cur_dir
         
-        logit "Building init & ConsolePi Config for ser2net"
-        cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $log_file || 
-            logit "ser2net Failed to copy config file from ConsolePi src" "ERROR"
+        do_ser2net=true
+        if ! upgrade; then
+            found_path=$(get_staged_file_path "ser2net.conf")
+            if [[ $found_path ]]; then 
+            cp $found_path "/etc" &&
+                logit "Found ser2net.conf in ${found_path}.  Copying to /etc" ||
+                logit "Error Copying your pre-staged ${found_path} file" "WARNING"
+                do_ser2net=false
+            fi
+        fi
+
+        if $do_ser2net; then
+            logit "Building ConsolePi Config for ser2net"
+            cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $log_file || 
+                logit "ser2net Failed to copy config file from ConsolePi src" "ERROR"
+        fi
+
         
+        logit "Building init for ser2net"
         cp /etc/ConsolePi/src/ser2net.init /etc/init.d/ser2net 2>> $log_file || 
             logit "ser2net Failed to copy init file from ConsolePi src" "ERROR"
             
@@ -606,6 +621,7 @@ install_autohotspotn () {
         
     logit "Installing hostapd via apt."
     hostapd_ver=$(hostapd -v 2>&1| head -1| awk '{print $2}')
+    hostapd -v > /dev/null 2>&1
     if [ $? -gt 1 ]; then
         apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
             logit "hostapd install Success" ||
@@ -1006,7 +1022,7 @@ get_serial_udev() {
 
 # -- run custom post install script --
 custom_post_install_script() {
-    if $upgrade; then
+    if ! $upgrade; then
         found_path=$(get_staged_file_path "ConsolePi_init.sh")
         if [[ $found_path ]]; then
             process="Run Custom Post-install script"

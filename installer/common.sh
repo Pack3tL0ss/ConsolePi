@@ -80,7 +80,7 @@ logit() {
     # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
         # move_log
-        echo "$(date +'%b %d %T') ${process} [${status}] Last Error is fatal, script exiting Please review log in /etc/ConsolePi/installer" && exit 1
+        echo "$(date +'%b %d %T') ${process} [${status}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
     fi
 }
 

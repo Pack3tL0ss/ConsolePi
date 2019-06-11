@@ -176,61 +176,62 @@ class ConsolePiMenu:
                 self.rem_ip_list.append(data[remotepi]['interfaces'][adapter]['ip'])
                 log.debug('rem_ip_list: {}'.format(self.rem_ip_list))
 
-        with open('/var/lib/misc/dnsmasq.leases', 'r') as leases:
-            for line in leases:
-                if 'b8:27:eb' in line or 'dc:a6:32' in line:
-                    line = line.split()
-                    rem_ip = line[2]
-                    rem_hostname = line[3]
-                    if rem_ip not in self.rem_ip_list and check_reachable(rem_ip, 22):
-                        plog('Collecting data from {0} @ {1} found in dhcp leases'.format(rem_hostname, rem_ip))
-                        client = paramiko.SSHClient()
-                        client.load_system_host_keys()
-                        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                        # Check for ssh rsa key, generate if missing, then copy to remote host
-                        gen_copy_key(rem_ip, rem_user=rem_user, hostname=self.hostname)
-                        try:
-                            plog('Initiating ssh session to {} to collect Console Data'.format(rem_ip))
-                            client.connect(rem_ip, username=rem_user, timeout=5, auth_timeout=4)
-                            connected = True
-                        except paramiko.ssh_exception.AuthenticationException:
-                            gen_copy_key(rem_ip, rem_user=rem_user, hostname=self.hostname, copy=True)
+        if os.path.isfile('/var/lib/misc/dnsmasq.leases'):
+            with open('/var/lib/misc/dnsmasq.leases', 'r') as leases:
+                for line in leases:
+                    if 'b8:27:eb' in line or 'dc:a6:32' in line:
+                        line = line.split()
+                        rem_ip = line[2]
+                        rem_hostname = line[3]
+                        if rem_ip not in self.rem_ip_list and check_reachable(rem_ip, 22):
+                            plog('Collecting data from {0} @ {1} found in dhcp leases'.format(rem_hostname, rem_ip))
+                            client = paramiko.SSHClient()
+                            client.load_system_host_keys()
+                            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                            # Check for ssh rsa key, generate if missing, then copy to remote host
+                            gen_copy_key(rem_ip, rem_user=rem_user, hostname=self.hostname)
                             try:
                                 plog('Initiating ssh session to {} to collect Console Data'.format(rem_ip))
                                 client.connect(rem_ip, username=rem_user, timeout=5, auth_timeout=4)
                                 connected = True
-                            except:
-                                print('Certificate Authentication Failed falling back to user/pass\n\n')
-                                rem_pass = getpass.getpass() if rem_pass is not None else rem_pass
+                            except paramiko.ssh_exception.AuthenticationException:
+                                gen_copy_key(rem_ip, rem_user=rem_user, hostname=self.hostname, copy=True)
                                 try:
-                                    plog('Initiating ssh session to {} to collect Console Data'.format(rem_hostname))
-                                    client.connect(rem_ip, username=rem_user,password=rem_pass, timeout=5, auth_timeout=4)
+                                    plog('Initiating ssh session to {} to collect Console Data'.format(rem_ip))
+                                    client.connect(rem_ip, username=rem_user, timeout=5, auth_timeout=4)
                                     connected = True
-                                except paramiko.ssh_exception.AuthenticationException:
-                                    plog('Unable to Connect to {} ignoring this host'.format(rem_hostname))
-                                    connected = False
+                                except:
+                                    print('Certificate Authentication Failed falling back to user/pass\n\n')
+                                    rem_pass = getpass.getpass() if rem_pass is not None else rem_pass
+                                    try:
+                                        plog('Initiating ssh session to {} to collect Console Data'.format(rem_hostname))
+                                        client.connect(rem_ip, username=rem_user,password=rem_pass, timeout=5, auth_timeout=4)
+                                        connected = True
+                                    except paramiko.ssh_exception.AuthenticationException:
+                                        plog('Unable to Connect to {} ignoring this host'.format(rem_hostname))
+                                        connected = False
 
-                        if connected:
-                            # send menu command with this hosts data (remote ConsolePi will update it's own cache file)
-                            stdin, stdout, stderr = client.exec_command('consolepi-menu \'{}\''.format(json.dumps(self.data['local'])))
+                            if connected:
+                                # send menu command with this hosts data (remote ConsolePi will update it's own cache file)
+                                stdin, stdout, stderr = client.exec_command('consolepi-menu \'{}\''.format(json.dumps(self.data['local'])))
 
-                            for line in stdout:
-                                if '/dev/' in line:
-                                    rem_data = ast.literal_eval(line)
-                                    found = True
+                                for line in stdout:
+                                    if '/dev/' in line:
+                                        rem_data = ast.literal_eval(line)
+                                        found = True
 
-                            client.close()
-                            # update local cache data with data gathered from host found in dhcp leases
-                            if found:
-                                data[rem_hostname] = rem_data[rem_hostname]
-                                data[rem_hostname]['rem_ip'] = rem_ip
-                                log.info('Succesfully Found and added {} found via dhcp lease'.format(rem_hostname))
-                                update_local_cloud_file(LOCAL_CLOUD_FILE, data)
-                                log.info('remote data: {}'.format(data))
-                            else:
-                                log.error('{} connected, but no Console Devices Found, stderr follows:'.format(rem_hostname))
-                                for line in stderr:
-                                    log.error(line)
+                                client.close()
+                                # update local cache data with data gathered from host found in dhcp leases
+                                if found:
+                                    data[rem_hostname] = rem_data[rem_hostname]
+                                    data[rem_hostname]['rem_ip'] = rem_ip
+                                    log.info('Succesfully Found and added {} found via dhcp lease'.format(rem_hostname))
+                                    update_local_cloud_file(LOCAL_CLOUD_FILE, data)
+                                    log.info('remote data: {}'.format(data))
+                                else:
+                                    log.error('{} connected, but no Console Devices Found, stderr follows:'.format(rem_hostname))
+                                    for line in stderr:
+                                        log.error(line)
         return data
 
     # Update ConsolePi.csv on Google Drive and pull any data for other ConsolePis

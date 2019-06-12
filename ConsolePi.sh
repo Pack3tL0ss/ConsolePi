@@ -143,11 +143,11 @@ BuildMsg() {
     $debug && logger -t puship-DEBUG Enter BuildMsg Function
     GetCurrentIP
     if [ "$1" = "bound" ]; then
-        pushTitle="ConsolePi $new_ip_address"
+        pushTitle="$HOSTNAME $new_ip_address"
         pushMsg="ConsolePi IP Update"
     else
-        pushTitle="ConsolePi VPN Established: ${new_ip_address}"
-        pushMsg="VPN Connection success on ${interface}"
+        pushTitle="$HOSTNAME VPN Established: ${new_ip_address}"
+        pushMsg="ConsolePi VPN Connection success on ${interface}"
     fi
     logMsg="PushBullet Notification Sent. "
 

@@ -8,7 +8,10 @@ from consolepi.common import ConsolePi_Log
 log = ConsolePi_Log().set_log()
 
 ip = sys.argv[3]
-vendor = os.environ['DNSMASQ_VENDOR_CLASS']
+try:
+    vendor = os.environ['DNSMASQ_VENDOR_CLASS']
+except KeyError:
+    vendor = None
 
 ssh = check_reachable(ip, 22)
 telnet = check_reachable(ip, 23)

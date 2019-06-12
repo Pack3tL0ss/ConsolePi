@@ -10,6 +10,7 @@ match = ['2530', '3810']
 
 log = ConsolePi_Log().set_log()
 
+mac = sys.argv[2]
 ip = sys.argv[3]
 try:
     vendor = os.environ['DNSMASQ_VENDOR_CLASS']

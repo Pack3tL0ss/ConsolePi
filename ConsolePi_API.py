@@ -31,4 +31,4 @@ def get_details():
     return jsonify({socket.gethostname(): {'adapters': get_local(cpi_log=CPI_LOG, do_print=False), 'interfaces': get_if_ips(log)}})
 
 if __name__ == '__main__':
-    serve(app, host='0.0.0.0', port=5000, debug=False)
+    serve(app, host='0.0.0.0', port=5000)

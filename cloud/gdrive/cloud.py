@@ -19,7 +19,7 @@ def main():
     log = cpi_log.log
     hostname = gethostname()
     if_ips = get_if_ips(log)
-    tty_list = get_local(log)
+    tty_list = get_local(cpi_log=cpi_log)
     data = {hostname: {'user': 'pi'}}
     data[hostname]['adapters'] = tty_list
     data[hostname]['interfaces'] = if_ips

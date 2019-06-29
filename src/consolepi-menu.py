@@ -22,6 +22,7 @@ from consolepi.common import ConsolePi_Log
 from consolepi.common import check_reachable
 from consolepi.common import gen_copy_key
 from consolepi.gdrive import GoogleDrive
+from consolepi.mdns_discovery import discover_remote_mdns
 
 # -- GLOBALS --
 DEBUG = get_config('debug')
@@ -29,6 +30,8 @@ DO_CLOUD = get_config('cloud')
 CLOUD_SVC = get_config('cloud_svc').lower()
 LOG_FILE = '/var/log/ConsolePi/cloud.log'
 LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
+# Can move this to config file
+DO_MDNS = True
 
 rem_user = 'pi'
 rem_pass = None
@@ -69,6 +72,7 @@ class ConsolePiMenu:
             self.ip_list.append(self.if_ips[_iface]['ip'])
         self.data = {'local': self.get_local()}        
         if not bypass_remote:
+            discover_remote_mdns()
             self.data['remote'] = self.get_remote()
         self.DEBUG = DEBUG
         self.menu_actions = {
@@ -137,6 +141,7 @@ class ConsolePiMenu:
             data = get_local_cloud_file(LOCAL_CLOUD_FILE)
 
         if refresh or not self.do_cloud or self.local_only:
+
             data = self.update_from_dhcp_leases(data)
 
         # Add remote commands to remote_consoles dict for each adapter
@@ -164,6 +169,9 @@ class ConsolePiMenu:
 
         return data
 
+    # Soon to be depricated - New method uses dhcp-trigger.py on ConsolePi acting as server
+    # triggered anytime a leases is handed out, quieries client ConsolePi API (thats new too)
+    # anytime a lease is handed out to a client with ConsolePi in the vendor class id
     def update_from_dhcp_leases(self, data, rem_pass=rem_pass):
         # check dhcp leases for ConsolePis (allows for Clustering with no network connection)
         plog = self.plog

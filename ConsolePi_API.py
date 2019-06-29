@@ -1,6 +1,7 @@
 #!venv/bin/python3
 
 import socket
+from waitress import serve
 from flask import Flask, jsonify
 from consolepi.common import ConsolePi_Log
 from consolepi.common import get_local
@@ -30,4 +31,4 @@ def get_details():
     return jsonify({socket.gethostname(): {'adapters': get_local(cpi_log=CPI_LOG, do_print=False), 'interfaces': get_if_ips(log)}})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    serve(app, host='0.0.0.0', port=5000, debug=False)

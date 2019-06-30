@@ -1,0 +1,13 @@
+[Unit]
+Description=ConsolePi API
+DefaultDependencies=no
+After=networking.service
+
+
+[Service]
+Type=oneshot
+ExecStart=/etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/ConsolePi_API.py
+
+
+[Install]
+WantedBy=network-online.target

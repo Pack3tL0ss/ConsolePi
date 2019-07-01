@@ -895,6 +895,46 @@ EOF
     unset process
 }
 
+# Create or Update ConsolePi API startup service (systemd)
+do_consolepi_api() {
+    process = "Configure/Enable ConsolePi API (systemd)"
+    if [[ -f /etc/ConsolePi/src/systemd/consolepi-api.service ]]; then 
+        sudo cp /etc/ConsolePi/src/systemd/consolepi-api.service /etc/systemd/system &&
+            logit "ConsolePi API systemd service created/updated" || 
+            logit "FAILED to create/update API systemd service" "WARNING"
+        sudo systemctl daemon-reload || logit "Failed to reload Daemons" "WARNING"
+        if [[ ! $(sudo systemctl list-unit-files consolepi-api.service | grep enabled) ]]; then
+            [[ -f /etc/systemd/system/consolepi-api.service ]] && sudo systemctl enable consolepi_api.service ||
+            logit "FAILED to enable API systemd service" "WARNING"
+        fi
+        [[ $(sudo systemctl list-unit-files consolepi-api.service | grep enabled) ]] &&
+            sudo systemctl restart consolpi-api.service || 
+            logit "FAILED to restart API systemd service" "WARNING"
+    else
+        logit "consolepi-api.service file not found in src directory.  git pull failed?" "WARNING"
+    fi
+}
+
+# Create or Update ConsolePi mdns startup service (systemd)
+do_consolepi_mdns() {
+    process = "Configure/Enable ConsolePi mDNS service (systemd)"
+    if [[ -f /etc/ConsolePi/src/systemd/consolepi-mdns.service ]]; then 
+        sudo cp /etc/ConsolePi/src/systemd/consolepi-mdns.service /etc/systemd/system &&
+            logit "ConsolePi mDNS systemd service created/updated" || 
+            logit "FAILED to create/update mDNS systemd service" "WARNING"
+        sudo systemctl daemon-reload || logit "Failed to reload Daemons" "WARNING"
+        if [[ ! $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]]; then
+            [[ -f /etc/systemd/system/consolepi-mdns.service ]] && sudo systemctl enable consolepi_mdns.service ||
+            logit "FAILED to enable mDNS systemd service" "WARNING"
+        fi
+        [[ $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]] &&
+            sudo systemctl restart consolpi-mdns.service || 
+            logit "FAILED to restart mDNS systemd service" "WARNING"
+    else
+        logit "consolepi-mdns.service file not found in src directory.  git pull failed?" "WARNING"
+    fi
+}
+
 # Configure ConsolePi with the SSIDs it will attempt to connect to as client prior to falling back to hotspot
 get_known_ssids() {
     process="Get Known SSIDs"

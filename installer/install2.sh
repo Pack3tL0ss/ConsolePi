@@ -544,7 +544,7 @@ ConsolePi_cleanup() {
     # address of an interface has changed (PB notifications only occur if there is a change). So notifications are always sent on reboot
     process="Deploy ConsolePi cleanup init Script"
     logit "${process} Starting"
-    cp "/etc/ConsolePi/src/ConsolePi_cleanup" "/etc/init.d" 1>/dev/null 2>> $log_file || 
+    cp "/etc/ConsolePi/src/systemd/ConsolePi_cleanup" "/etc/init.d" 1>/dev/null 2>> $log_file || 
         logit "Error Copying ConsolePi_cleanup init script." "WARNING"
     chmod +x /etc/init.d/ConsolePi_cleanup 1>/dev/null 2>> $log_file || 
         logit "Failed to make ConsolePi_cleanup init script executable." "WARNING"

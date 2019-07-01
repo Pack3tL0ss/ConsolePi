@@ -364,7 +364,7 @@ exit_script() {
     # echo ''
     echo -e "exiting to shell"
     echo ''
-    echo -e "The blue user used in this shill"
+    echo -e "The blue user used in this shell"
     echo -e "has limited permissions"
     echo ''
     echo -e "'su pi' to gain typical rights"

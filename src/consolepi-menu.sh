@@ -12,6 +12,9 @@ dbits=8
 cloud_file="/etc/ConsolePi/cloud.data"
 WORD="default"
 . /etc/ConsolePi/ConsolePi.conf
+# This menu is now only used for bluetooth connections and limited only to local connections
+# if connecting to ConsolePis using Clustering it's expected there would be a network to connect to
+cloud=false
 
 # -- Get List of all ttyUSB_ devices currently connected --
 get_tty_devices() {
@@ -265,38 +268,41 @@ get_rem_vars() {
     rem_alias=`echo $this_rem_tty | awk -F' ' '{print $4}'`
     # rem_port=`echo $this_rem_tty | awk -F' ' '{print $5}'`
 }
-    
+
+# -- picocom help --
+picocom_help() {
+    echo '##################### ConsolePi Connection MENU ########################'
+    echo ''
+    echo ' This program will launch serial session via picocom'
+    echo ' Be Aware of The following command sequences:'
+    echo ''
+    echo '   ctrl+a followed by ctrl+x Exit session - reset the port'
+    echo '   ctrl+a followed by ctrl+q Exit session - without resetting the port'
+    echo '   ctrl+a followed by ctrl+u increase baud'
+    echo '   ctrl+a followed by ctrl+d decrease baud'
+    echo '   ctrl+a followed by ctrl+f cycle through flow control options'
+    echo '   ctrl+a followed by ctrl+y cycle through parity options'
+    echo '   ctrl+a followed by ctrl+b cycle through data bits'
+    echo '   ctrl+a followed by ctrl+v Show configured port options'
+    echo '   ctrl+a followed by ctrl+c toggle local echo'
+    echo ''
+    echo '########################################################################'
+    echo ''
+    read -p "Press enter to Continue "
+    clear
+}
 # -- ConsolePi Main Menu --
 main_menu() {
-    clear
     valid_selection=false
     while ! $valid_selection; do
+        clear
         do_flow_pretty
         do_parity_pretty
-        echo '##################### ConsolePi Connection MENU ########################'
-        echo ''
-        echo ' This program will launch serial session via picocom'
-        echo ' Be Aware of The following command sequences:'
-        echo ''
-        echo '   ctrl+a followed by ctrl+x Exit session - reset the port'
-        echo '   ctrl+a followed by ctrl+q Exit session - without resetting the port'
-        echo '   ctrl+a followed by ctrl+u increase baud'
-        echo '   ctrl+a followed by ctrl+d decrease baud'
-        echo '   ctrl+a followed by ctrl+f cycle through flow control options'
-        echo '   ctrl+a followed by ctrl+y cycle through parity options'
-        echo '   ctrl+a followed by ctrl+b cycle through data bits'
-        echo '   ctrl+a followed by ctrl+v Show configured port options'
-        echo '   ctrl+a followed by ctrl+c toggle local echo'
-        echo ''
-        echo " This menu can be launched from shell with 'consolepi-menu' command."
-        echo ''
-        echo '########################################################################'
-        [[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
-        echo " CURRENT CONNECTION SETTINGS: [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
-        echo '########################################################################'
+        echo '############################  Picocom Help  ############################'
         # Loop through Connected USB-Serial adapters creating menu option for each found
         item=1
-        echo " -- LOCAL CONNECTIONS --"
+        # echo " -- LOCAL CONNECTIONS --"
+        echo ''
         for this_tty in ${tty_list[@]}; do 
             get_tty_name    # checks for alias created via udev rules and uses alias as a descriptor if exists
             echo "${item}. Connect to ${tty_name} Using $WORD settings"
@@ -304,14 +310,20 @@ main_menu() {
         done
 
         # Build Menu items for remote devices updated from GDrive
-        get_remote_devices
-
+        # get_remote_devices  # Disabled this is now only used for bluetooth user
+        echo ''
         echo "c. Change Connection Settings [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
         echo 'r. refresh - detect connected serial adapters'
         $cloud && echo 'g. refresh - detect connected serial adapters + Update Connections to GDrive enabled ConsolePis'
+        echo 'h. Display picocom help'
         echo 'x. exit to shell'
         echo ''
-        read -p "Select menu item: " selection
+                echo '########################################################################'
+        [[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
+        echo " CURRENT CONNECTION SETTINGS: [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
+        echo '########################################################################'
+        echo ''
+        read -p "Select menu item > " selection
 
         #if selection not defined or selection is non-printable cntrl char set to zero to fail through without error
         ( [[ -z $selection ]] || [[ $selection =~ [[:cntrl:]] ]] ) && selection=0
@@ -334,6 +346,8 @@ main_menu() {
         elif $cloud && [[ ${selection,,} == "g" ]]; then
             get_tty_devices
             sudo /etc/ConsolePi/cloud/gdrive/gdrive.py
+        elif [[ ${selection,,} == "h" ]]; then
+            picocom_help
         elif [[ ${selection,,} == "x" ]]; then
             valid_selection=true
             exit 0
@@ -345,19 +359,19 @@ main_menu() {
 
 main() {
     get_tty_devices
-    if [[ $tty_list ]] || [ -f $cloud_file ]; then
+    if [[ $tty_list ]]; then # || [ -f $cloud_file ]; # then (disabling cloud local only for blue user)
 	    ttyusb_connected=true
 	else
 	    echo -e "\n*******************************"
 		echo -e "No USB to Serial adapters found"
 		echo -e "No Need to display Console Menu"
-		echo -e " 'consolepi-menu' to re-launch "
+		# echo -e " 'consolepi-menu' to re-launch "
 		echo -e "*******************************\n"
 		ttyusb_connected=false
 	fi
     [[ $(picocom --help 2>>/dev/null | head -1) ]] && dep_installed=true ||
 	    ( echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && dep_installed=false )
-    $ttyusb_connected && $dep_installed && main_menu
+    $ttyusb_connected && $dep_installed && main_menu || exit
 }
 
 # __main__

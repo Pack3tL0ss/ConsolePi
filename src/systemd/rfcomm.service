@@ -1,0 +1,10 @@
+[Unit]
+Description=RFCOMM service
+After=bluetooth.service
+Requires=bluetooth.service
+
+[Service]
+ExecStart=/usr/bin/rfcomm watch hci0 1 getty rfcomm0 115200 vt100 -a blue
+
+[Install]
+WantedBy=multi-user.target

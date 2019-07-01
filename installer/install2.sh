@@ -897,7 +897,7 @@ EOF
 
 # Create or Update ConsolePi API startup service (systemd)
 do_consolepi_api() {
-    process = "Configure/Enable ConsolePi API (systemd)"
+    process="Configure/Enable ConsolePi API (systemd)"
     if [[ -f /etc/ConsolePi/src/systemd/consolepi-api.service ]]; then 
         sudo cp /etc/ConsolePi/src/systemd/consolepi-api.service /etc/systemd/system &&
             logit "ConsolePi API systemd service created/updated" || 
@@ -917,7 +917,7 @@ do_consolepi_api() {
 
 # Create or Update ConsolePi mdns startup service (systemd)
 do_consolepi_mdns() {
-    process = "Configure/Enable ConsolePi mDNS service (systemd)"
+    process="Configure/Enable ConsolePi mDNS service (systemd)"
     if [[ -f /etc/ConsolePi/src/systemd/consolepi-mdns.service ]]; then 
         sudo cp /etc/ConsolePi/src/systemd/consolepi-mdns.service /etc/systemd/system &&
             logit "ConsolePi mDNS systemd service created/updated" || 

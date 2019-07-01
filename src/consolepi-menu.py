@@ -239,7 +239,7 @@ class ConsolePiMenu:
 
                             if connected:
                                 # send menu command with this hosts data (remote ConsolePi will update it's own cache file)
-                                stdin, stdout, stderr = client.exec_command('consolepi-menu \'{}\''.format(json.dumps(self.data['local'])))
+                                stdin, stdout, stderr = client.exec_command('/etc/ConsolePi/src/consolepi-menu.py \'{}\''.format(json.dumps(self.data['local'])))
 
                                 for line in stdout:
                                     if '/dev/' in line:

@@ -1,6 +1,6 @@
 /readme_content/*.png
 /readme_content/*.jpg
-/originals
+/bak
 ConsolePi.conf
 ConsolePi.cloud
 cloud.data

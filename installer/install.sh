@@ -2,7 +2,7 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script Stage 1                                                       -- #
-# --  Wade Wells - Jun, 2019                                                                                                                     -- #
+# --  Wade Wells - Jul, 2019                                                                                                                     -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
@@ -78,6 +78,27 @@ pre_git_prep() {
                 logit "Removed old consolepi-menu quick-launch file will replace during upgade" ||
                     logit "ERROR Unable to remove old consolepi-menu quick-launch file" "WARNING"
         fi
+        process="ConsolePi-Upgrade-Prep (create consolepi group and add pi user to that group)"
+        if [[ ! $(groups pi) == *"consolepi"* ]]; then
+            [[ ! $(grep -c consolepi /etc/group) == 0 ]] && sudo groupadd consolepi && 
+                logit "Added consolepi group" || 
+                    logit "Error adding consolepi group" "WARNING"
+            sudo usermod -a -G consolepi pi && 
+                logit "Added pi user to consolepi group" || 
+                    logit "Error adding pi user to consolepi group" "WARNING"
+        fi
+        # Update original rfcomm service file with improved version
+        # -- Unecessary to do it this way given the script re-writes everytime for now --
+        # process="ConsolePi-Upgrade-Prep (Update rfcomm service file)"
+        # if [[ -f /etc/systemd/system/rfcomm.service ]]; then
+        #     rfcomm_update=true
+        #     sudo sed -i 's/.*\sgetty.*/ExecStart=\/usr\/bin\/rfcomm watch hci0 1 setsid \/sbin\/agetty -L rfcomm0 115200 vt100 -a blue/'  /etc/systemd/system/rfcomm.service &&
+        #         logit "rfcomm service file updated" || 
+        #             logit "Error Updating rfcomm service file replace /etc/systemd/system/rfcomm.service with the file in /etc/ConsolePi/src dir"
+        # fi
+        # $rfcomm_update && process="ConsolePi-Upgrade-Prep (reload daemon & restart rfcomm)"
+        # $rfcomm_update && sudo systemctl daemon-reload && sudo systemctl restart rfcomm.service ||
+        #     logit("An Error occured while trying to reload the rfcomm service")
     fi
 }
 
@@ -93,7 +114,7 @@ git_ConsolePi () {
         git pull 1>/dev/null 2>> $log_file && 
             logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "ERROR"
     fi
-    [[ ! -d $orig_dir ]] && sudo mkdir $orig_dir
+    [[ ! -d $bak_dir ]] && sudo mkdir $bak_dir
 }
 
 # Configure ConsolePi logging directory and logrotate

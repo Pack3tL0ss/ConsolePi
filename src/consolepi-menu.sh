@@ -350,11 +350,27 @@ main_menu() {
             picocom_help
         elif [[ ${selection,,} == "x" ]]; then
             valid_selection=true
-            exit 0
+            echo -e "\n*******************************"
+            echo ''
+            exit_script
         else
             echo -e "\nInvalid Selection Try Again\n\n"
         fi
     done
+}
+
+exit_script() {
+    # echo -e "\n*******************************"
+    # echo ''
+    echo -e "exiting to shell"
+    echo ''
+    echo -e "The blue user used in this shill"
+    echo -e "has limited permissions"
+    echo ''
+    echo -e '"su pi" to gain typical rights'
+    echo ''
+    echo -e "*******************************\n"
+    exit 0
 }
 
 main() {
@@ -362,16 +378,16 @@ main() {
     if [[ $tty_list ]]; then # || [ -f $cloud_file ]; # then (disabling cloud local only for blue user)
 	    ttyusb_connected=true
 	else
-	    echo -e "\n*******************************"
+	    echo -e "\n*******************************\n"
 		echo -e "No USB to Serial adapters found"
 		echo -e "No Need to display Console Menu"
 		# echo -e " 'consolepi-menu' to re-launch "
-		echo -e "*******************************\n"
+		# echo -e "*******************************\n"
 		ttyusb_connected=false
 	fi
     [[ $(picocom --help 2>>/dev/null | head -1) ]] && dep_installed=true ||
 	    ( echo "this program requires picocom, install picocom 'sudo apt-get install picocom' ... exiting" && dep_installed=false )
-    $ttyusb_connected && $dep_installed && main_menu || exit
+    $ttyusb_connected && $dep_installed && main_menu || exit_script
 }
 
 # __main__

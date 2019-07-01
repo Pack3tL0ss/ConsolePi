@@ -908,7 +908,7 @@ do_consolepi_api() {
             logit "FAILED to enable API systemd service" "WARNING"
         fi
         [[ $(sudo systemctl list-unit-files consolepi-api.service | grep enabled) ]] &&
-            sudo systemctl restart consolpi-api.service || 
+            sudo systemctl restart consolepi-api.service || 
             logit "FAILED to restart API systemd service" "WARNING"
     else
         logit "consolepi-api.service file not found in src directory.  git pull failed?" "WARNING"
@@ -928,7 +928,7 @@ do_consolepi_mdns() {
             logit "FAILED to enable mDNS systemd service" "WARNING"
         fi
         [[ $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]] &&
-            sudo systemctl restart consolpi-mdns.service || 
+            sudo systemctl restart consolepi-mdns.service || 
             logit "FAILED to restart mDNS systemd service" "WARNING"
     else
         logit "consolepi-mdns.service file not found in src directory.  git pull failed?" "WARNING"

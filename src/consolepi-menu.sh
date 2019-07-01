@@ -271,7 +271,7 @@ get_rem_vars() {
 
 # -- picocom help --
 picocom_help() {
-    echo '##################### ConsolePi Connection MENU ########################'
+    echo '############################  Picocom Help  ############################'
     echo ''
     echo ' This program will launch serial session via picocom'
     echo ' Be Aware of The following command sequences:'
@@ -298,7 +298,7 @@ main_menu() {
         clear
         do_flow_pretty
         do_parity_pretty
-        echo '############################  Picocom Help  ############################'
+        echo '##################### ConsolePi Connection MENU ########################'
         # Loop through Connected USB-Serial adapters creating menu option for each found
         item=1
         # echo " -- LOCAL CONNECTIONS --"

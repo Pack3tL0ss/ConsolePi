@@ -80,7 +80,7 @@ pre_git_prep() {
         fi
         process="ConsolePi-Upgrade-Prep (create consolepi group and add pi user to that group)"
         if [[ ! $(groups pi) == *"consolepi"* ]]; then
-            [[ ! $(grep -c consolepi /etc/group) == 0 ]] && sudo groupadd consolepi && 
+            [[ $(grep -c consolepi /etc/group) == 0 ]] && sudo groupadd consolepi && 
                 logit "Added consolepi group" || 
                     logit "Error adding consolepi group" "WARNING"
             sudo usermod -a -G consolepi pi && 

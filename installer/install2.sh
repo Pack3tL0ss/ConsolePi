@@ -2,7 +2,7 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script Stage 2                                                       -- #
-# --  Wade Wells - Jun 2019                                                                                                                      -- #
+# --  Wade Wells - Jul 2019                                                                                                                      -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
@@ -46,6 +46,7 @@ get_config() {
         echo "wlan_country=\"US\"                        # regulatory domain for hotspot SSID" >> "${default_config}"
         echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
         echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
+        # echo 'api=true                                                      # API used so ConsolePis can update other DHCP Discovery' >> "${default_config}"
         echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
         header
         echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
@@ -121,6 +122,7 @@ update_config() {
     echo "wlan_country=\"${wlan_country}\"                                               # regulatory domain for hotspot SSID" >> "${default_config}"
     echo "cloud=${cloud}                                                      # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
     echo "cloud_svc=\"${cloud_svc}\"                                              # Future - only Google Drive / Google Sheets supported currently - must be \"gdrive\"" >> "${default_config}"
+    # echo "api=${api}                                                           # API used so ConsolePis can update other DHCP Discovery" >> "${default_config}"
     echo "debug=${debug}                                                     # turns on additional debugging" >> "${default_config}"
 }
 
@@ -265,7 +267,22 @@ collect() {
         logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
     fi
 
-    # Future gdrive google sheets is only one supported currently
+    # TODO - FUTURE - Currently it's on, but not used
+    # -- api --
+    # header
+    # echo "ConsolePi has an API used for ConsolePis to exchange information"
+    # echo "This is used for the DHCP automated Discovery.  i.e.: "
+    # echo "    ConsolePiA acting as a hotspot"
+    # echo "    ConsolePiB Connects to ConsolePiA via Hotspot"
+    # echo "    ConsolePiA will automatically push/pull info to/from ConsolePiB via the API"
+    # echo "In this scenario you can connect to either ConsolePi and the consolepi-menu will display"
+    # echo "menu items for serial connections on both ConsolePi(s)"
+    # echo ''
+    # prompt="Do you want to enable ConsolePi API"
+    # user_input $api "${prompt}"
+    # api=$result
+
+    # Future gdrive google sheets is only one supported currently likely ever, no need as gdrive works
     # -- cloud-svc --
     # header
     # prompt="What Cloud Service will you use"
@@ -308,15 +325,6 @@ verify() {
     prompt="Are Values Correct"
     input=$(user_input_bool)
 }
-
-# move_log() {
-#     [[ -f "${consolepi_dir}installer/install.log.3" ]] && sudo mv "${consolepi_dir}installer/install.log.3" "${consolepi_dir}installer/install.log.4"
-#     [[ -f "${consolepi_dir}installer/install.log.2" ]] && sudo mv "${consolepi_dir}installer/install.log.2" "${consolepi_dir}installer/install.log.3"
-#     [[ -f "${consolepi_dir}installer/install.log.1" ]] && sudo mv "${consolepi_dir}installer/install.log.1" "${consolepi_dir}installer/install.log.2"
-#     [[ -f "${consolepi_dir}installer/install.log" ]] && sudo mv "${consolepi_dir}installer/install.log" "${consolepi_dir}installer/install.log.1"
-#     mv $tmp_log "${consolepi_dir}installer/install.log" || echo -e "\n!!!!\nFailed to move install.log from ${tmp_log}\n!!!!"
-# }
-
 
 chg_password() {
     if [[ $iam == "pi" ]]; then 
@@ -514,7 +522,7 @@ dhcp_run_hook() {
         is_there=`cat /etc/dhcpcd.exit-hook |grep -c /etc/ConsolePi/ConsolePi.sh`      # find out if it's already pointing to ConsolePi script
         lines=$(wc -l < "/etc/dhcpcd.exit-hook")                                       # find out if there are other lines in addition to ConsolePi in script
         if [[ $is_there > 0 ]] && [[ $lines > 1 ]]; then                                 # This scenario we just create a new script
-            mv /etc/dhcpcd.exit-hook $orig_dir && 
+            mv /etc/dhcpcd.exit-hook $bak_dir && 
               logit "existing exit-hook backed up to originals folder" || logit "Failed backup existing exit-hook file" "WARNING"
             echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "Failed to create exit-hook script" "ERROR"
         elif [[ $is_there == 0 ]]; then                                                # exit-hook exist but ConsolePi line does not - append to file
@@ -644,7 +652,7 @@ install_autohotspotn () {
         logit "An error occurred disabling hostapd and/or dnsmasq autostart" "WARNING"
 
     logit "Create/Configure hostapd.conf"
-    [[ -f "/etc/hostapd/hostapd.conf" ]] && sudo mv "/etc/hostapd/hostapd.conf" "${orig_dir}" && 
+    [[ -f "/etc/hostapd/hostapd.conf" ]] && sudo mv "/etc/hostapd/hostapd.conf" "${bak_dir}" && 
         logit "existing hostapd.conf found, backed up to originals folder"
     echo "driver=nl80211" > "/tmp/hostapd.conf"
     echo "ctrl_interface=/var/run/hostapd" >> "/tmp/hostapd.conf"
@@ -666,7 +674,7 @@ install_autohotspotn () {
         logit "hostapdapd.conf Failed to create config" "WARNING"
     
     logit "Making changes to /etc/hostapd/hostapd.conf"
-    [[ -f "/etc/default/hostapd" ]] && mv "/etc/default/hostapd" "${orig_dir}" 
+    [[ -f "/etc/default/hostapd" ]] && mv "/etc/default/hostapd" "${bak_dir}" 
     echo "# Defaults for hostapd initscript" > "/tmp/hostapd"
     echo "#" >> "/tmp/hostapd"
     echo "# See /usr/share/doc/hostapd/README.Debian for information about alternative" >> "/tmp/hostapd"
@@ -699,7 +707,7 @@ install_autohotspotn () {
         echo "# For static IP, consult /etc/dhcpcd.conf and 'man dhcpcd.conf'" >> "/tmp/interfaces"
         echo "# Include files from /etc/network/interfaces.d:" >> "/tmp/interfaces"
         echo "source-directory /etc/network/interfaces.d" >> "/tmp/interfaces"
-        mv /etc/network/interfaces "${orig_dir}" 1>/dev/null 2>> $log_file ||
+        mv /etc/network/interfaces "${bak_dir}" 1>/dev/null 2>> $log_file ||
             logit "Failed to backup original interfaces file" "WARNING"
         mv "/tmp/interfaces" "/etc/network/" 1>/dev/null 2>> $log_file ||
             logit "Failed to move interfaces file" "WARNING"
@@ -745,9 +753,10 @@ gen_dnsmasq_conf () {
     echo "# dnsmasq configuration created by ConsolePi installer" > /tmp/dnsmasq.conf
     echo "# modifications can be made but the 'dhcp-option-wlan0,3' line needs to exist" >> /tmp/dnsmasq.conf
     echo "# for the default-gateway on/off based on eth0 status function to work" >> /tmp/dnsmasq.conf
+    echo "dhcp-script=/etc/ConsolePi/src/dhcp-trigger.py" >> /tmp/dnsmasq.conf
     common_text="interface=wlan0\nbogus-priv\ndomain-needed\ndhcp-range=${wlan_dhcp_start},${wlan_dhcp_end},255.255.255.0,12h\ndhcp-option=wlan0,3\n"
     echo -e "$common_text" >> /tmp/dnsmasq.conf
-    [[ -f "/etc/dnsmasq.conf" ]] && mv "/etc/dnsmasq.conf" $orig_dir && logit "Existing dnsmasq.conf backed up to originals folder"
+    [[ -f "/etc/dnsmasq.conf" ]] && mv "/etc/dnsmasq.conf" $bak_dir && logit "Existing dnsmasq.conf backed up to originals folder"
     mv "/tmp/dnsmasq.conf" "/etc/dnsmasq.conf" 1>/dev/null 2>> $log_file ||
             logit "Failed to Deploy ConsolePi dnsmasq.conf configuration" "WARNING"
     unset process
@@ -756,7 +765,7 @@ gen_dnsmasq_conf () {
 dhcpcd_conf () {
     process="dhcpcd.conf"
     logit "configure dhcp client and static fallback"
-    [[ -f /etc/dhcpcd.conf ]] && sudo mv /etc/dhcpcd.conf $orig_dir
+    [[ -f /etc/dhcpcd.conf ]] && sudo mv /etc/dhcpcd.conf $bak_dir
     sudo cp /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf 1>/dev/null 2>> $log_file
     res=$?
     if [[ $res == 0 ]]; then
@@ -775,8 +784,12 @@ dhcpcd_conf () {
         echo "# Assign fallback to static profile on wlan0" >> "/etc/dhcpcd.conf"
         echo "interface wlan0" >> "/etc/dhcpcd.conf"
         echo "fallback static_wlan0" >> "/etc/dhcpcd.conf"
+        echo "# For ConsolePi Discovery via DHCP" >> "/etc/dhcpcd.conf"
+        echo 'vendorclassid "dhcpcd:ConsolePi"' >> "/etc/dhcpcd.conf"
         echo "interface eth0" >> "/etc/dhcpcd.conf"
         echo "# fallback static_eth0" >> "/etc/dhcpcd.conf"
+        echo "# For ConsolePi Discovery via DHCP" >> "/etc/dhcpcd.conf"
+        echo 'vendorclassid "dhcpcd:ConsolePi"' >> "/etc/dhcpcd.conf"
         echo "" >> "/etc/dhcpcd.conf"
         echo "#For AutoHotkeyN" >> "/etc/dhcpcd.conf"
         echo "nohook wpa_supplicant" >> "/etc/dhcpcd.conf"
@@ -809,7 +822,7 @@ After=bluetooth.service
 Requires=bluetooth.service
 
 [Service]
-ExecStart=/usr/bin/rfcomm watch hci0 1 getty rfcomm0 115200 vt100 -a blue
+ExecStart=/usr/bin/rfcomm watch hci0 1 setsid /sbin/agetty -L rfcomm0 115200 vt100 -a blue
 
 [Install]
 WantedBy=multi-user.target
@@ -839,15 +852,6 @@ EOF
     else
         logit "BlueTooth User already in dialout group" 
     fi
-    
-    # Configure blue user to auto-launch consolepi-menu on login (blue user is automatically logged in when connection via bluetooth is established)
-    if [[ ! $(sudo grep consolepi-menu /home/blue/.bashrc) ]]; then
-        sudo echo consolepi-menu | sudo tee -a /home/blue/.bashrc > /dev/null && 
-            logit "BlueTooth User Configured to launch menu on Login" || 
-            logit "FAILED to enable menu on login for BlueTooth User" "WARNING"
-    else
-        logit "blue user already configured to launch menu on Login"
-    fi
 
     # Configure blue user default tty cols/rows
     if [[ ! $(sudo grep stty /home/blue/.bashrc) ]]; then
@@ -856,6 +860,26 @@ EOF
             logit "FAILED to change default Bluetooth tty rows cols" "WARNING"
     else
         logit "blue user tty rows cols already configured"
+    fi
+
+    # Configure blue user to auto-launch consolepi-menu on login (blue user is automatically logged in when connection via bluetooth is established)
+    if [[ ! $(sudo grep consolepi-menu /home/blue/.bashrc) ]]; then
+        sudo echo /etc/ConsolePi/src/consolepi-menu.sh | sudo tee -a /home/blue/.bashrc > /dev/null && 
+            logit "BlueTooth User Configured to launch menu on Login" || 
+            logit "FAILED to enable menu on login for BlueTooth User" "WARNING"
+    else
+        sudo sed -i 's/^consolepi-menu/\/etc\/ConsolePi\/src\/consolepi-menu.sh/' /home/blue/.bashrc &&
+            logit "blue user configured to launch menu on Login" || 
+            logit "blue user autolaunch bashrc error" "WARNING"
+    fi
+    
+    # Configure blue user alias for consolepi-menu command (overriding the symlink to the full menu with cloud support)
+    if [[ ! $(sudo grep "alias consolepi-menu" /home/blue/.bashrc) ]]; then
+        sudo echo alias consolepi-menu=\"/etc/ConsolePi/src/consolepi-menu.sh\" | sudo tee -a /home/blue/.bashrc > /dev/null && 
+            logit "BlueTooth User Configured to launch menu on Login" || 
+            logit "FAILED to enable menu on login for BlueTooth User" "WARNING"
+    else
+        logit "blue user consolepi-menu alias already configured"
     fi
     
     # Install picocom
@@ -892,7 +916,7 @@ get_known_ssids() {
         if [[ -f $found_path ]]; then
             logit "Found stage file ${found_path} Applying"
             # To To compare the files ask user if they want to import if they dont match
-            [[ -f $wpa_supplicant_file ]] && sudo cp $wpa_supplicant_file $orig_dir
+            [[ -f $wpa_supplicant_file ]] && sudo cp $wpa_supplicant_file $bak_dir
             sudo mv $found_path $wpa_supplicant_file
             client_cert=$(grep client_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
             if [[ ! -z $client_cert ]]; then
@@ -930,19 +954,19 @@ get_known_ssids() {
     continue=$result
 
     if $continue; then
-        if [ -f ${consolepi_dir}installer/ssids.sh ]; then
-            . ${consolepi_dir}installer/ssids.sh
+        if [ -f ${consolepi_dir}src/consolepi-addssids.sh ]; then
+            . ${consolepi_dir}src/consolepi-addssids.sh
             known_ssid_init
             known_ssid_main
-            mv $wpa_supplicant_file $orig_dir 1>/dev/null 2>> $log_file ||
+            mv $wpa_supplicant_file $bak_dir 1>/dev/null 2>> $log_file ||
                 logit "Failed to backup existing file to originals dir" "WARNING"
             mv "$wpa_temp_file" "$wpa_supplicant_file" 1>/dev/null 2>> $log_file ||
                 logit "Failed to move collected ssids to wpa_supplicant.conf Verify Manually" "WARNING"
         else
-            logit "SSID collection script not found in ConsolePi install dir" "WARNING"
+            logit "SSID collection script not found in ConsolePi src dir" "WARNING"
         fi
     else
-        logit "User chose not to configure SSIDs via script.  You can run consolepi-addssid to invoke script after install"
+        logit "User chose not to configure SSIDs via script.  You can run consolepi-addssids to invoke script after install"
     fi
     logit "${process} Complete"
     unset process
@@ -984,8 +1008,8 @@ get_serial_udev() {
     if ! $upgrade; then
         found_path=$(get_staged_file_path "10-ConsolePi.rules")
         if [[ $found_path ]]; then
-            [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] && cp /etc/udev/rules.d/10-ConsolePi.rules $orig_dir
-            echo "udev rules file found ${found_path} enabling provided udev rules"
+            [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] && cp /etc/udev/rules.d/10-ConsolePi.rules $bak_dir
+            logit "udev rules file found ${found_path} enabling provided udev rules"
             sudo mv $found_path /etc/udev/rules.d
             sudo udevadm control --reload-rules
         fi
@@ -1005,11 +1029,11 @@ get_serial_udev() {
     prompt="Would you like to configure predictable serial ports now"
     user_input true "${prompt}"
     if $result ; then
-        if [ -f ${consolepi_dir}installer/udev.sh ]; then
-            . ${consolepi_dir}installer/udev.sh
+        if [ -f ${consolepi_dir}src/consolepi-addconsole.sh ]; then
+            . ${consolepi_dir}src/consolepi-addconsole.sh
             udev_main
         else
-            logit "ERROR udev.sh not available in installer directory" "WARNING"
+            logit "ERROR consolepi-addconsole.sh not available in src directory" "WARNING"
         fi
     fi
     logit "${process} Complete"
@@ -1075,6 +1099,7 @@ post_install_msg() {
     echo "*   - consolepi-testhotspot: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot.     *"
     echo "*       Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa.                 *"
     echo "*   - consolepi-bton: Make BlueTooth Discoverable and Pairable - this is the default behavior on boot.                  *"
+    echo "*   - consolepi-btoff: Disable BlueTooth Discoverability.  You can still connect if previously paired.                  *"
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${INSTALLER_VER}**************************************************************************************"
     echo -e "\n\n"
@@ -1118,6 +1143,8 @@ install2_main() {
     dhcpcd_conf
     update_banner
     do_blue_config
+    do_consolepi_api
+    do_consolepi_mdns
     do_consolepi_commands
     misc_stuff
     get_known_ssids

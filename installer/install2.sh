@@ -1015,7 +1015,7 @@ get_known_ssids() {
 do_consolepi_commands() {
     process="Remove old consolepi-commands from /usr/local/bin"
     logit "${process} - Starting"
-    if [ $(ls -l /usr/local/bin/consolepi* | wc -l) -ne 0 ]; then
+    if [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -ne 0 ]; then
         sudo rm /usr/local/bin/consolepi-* > /dev/null 2>&1
         sudo unlink /usr/local/bin/consolepi-* > /dev/null 2>&1
     else

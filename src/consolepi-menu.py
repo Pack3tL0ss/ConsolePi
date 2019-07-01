@@ -22,7 +22,6 @@ from consolepi.common import ConsolePi_Log
 from consolepi.common import check_reachable
 from consolepi.common import gen_copy_key
 from consolepi.gdrive import GoogleDrive
-from consolepi.mdns_discovery import discover_remote_mdns
 
 # -- GLOBALS --
 DEBUG = get_config('debug')
@@ -32,6 +31,9 @@ LOG_FILE = '/var/log/ConsolePi/cloud.log'
 LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
 # Can move this to config file
 DO_MDNS = True
+if DO_MDNS:
+    from consolepi.mdns_browse import MDNS_Browser
+    from time import sleep
 
 rem_user = 'pi'
 rem_pass = None
@@ -43,6 +45,9 @@ class ConsolePiMenu:
         self.log = cpi_log.log
         self.plog = cpi_log.log_print
         self.error = None
+        if DO_MDNS:
+            self.mdns = MDNS_Browser()
+            self.zcstop = threading.Thread(target=self.mdns.zc.close)
 
         self.cloud = None  # Set in refresh method if reachable
         self.do_cloud = DO_CLOUD
@@ -72,7 +77,6 @@ class ConsolePiMenu:
             self.ip_list.append(self.if_ips[_iface]['ip'])
         self.data = {'local': self.get_local()}        
         if not bypass_remote:
-            discover_remote_mdns()
             self.data['remote'] = self.get_remote()
         self.DEBUG = DEBUG
         self.menu_actions = {
@@ -84,6 +88,7 @@ class ConsolePiMenu:
             'r': self.refresh,
             'x': self.exit
         }
+
 
     def get_local(self):
         log = self.log
@@ -141,9 +146,19 @@ class ConsolePiMenu:
             data = get_local_cloud_file(LOCAL_CLOUD_FILE)
 
         if refresh or not self.do_cloud or self.local_only:
-
             data = self.update_from_dhcp_leases(data)
 
+        if DO_MDNS:
+            plog('Discovering Remotes via mdns')
+            m_data = self.mdns.mdata
+            if m_data is not None:
+                for _ in m_data:
+                    print('    {} Discovered via mdns'.format(_))
+                data = update_local_cloud_file(LOCAL_CLOUD_FILE, m_data)
+                            
+        if self.hostname in data:
+            data.pop(self.hostname)
+            log.warning('Local Cloud cache included entry for self - there is a logic error someplace')
         # Add remote commands to remote_consoles dict for each adapter
         for remotepi in data:
             this = data[remotepi]
@@ -602,6 +617,8 @@ class ConsolePiMenu:
 
     # Exit program
     def exit(self):
+        if DO_MDNS:
+            self.zcstop.start()
         self.go = False
         # sys.exit(0)
 

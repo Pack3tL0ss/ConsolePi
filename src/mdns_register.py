@@ -9,6 +9,7 @@ from time import sleep
 import json
 import socket
 import pyudev
+import threading
 
 
 DEBUG = get_config('debug')
@@ -58,8 +59,10 @@ def run():
     monitor.filter_by('usb-serial')    
     observer = pyudev.MonitorObserver(monitor, name='udev_monitor', callback=update_mdns)
     observer.start()
+    while True:
+        sleep(1)
 
-    return observer
+    # return observer
 
 if __name__ == '__main__':
 

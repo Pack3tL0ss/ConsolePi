@@ -1,11 +1,11 @@
 [Unit]
-Description=ConsolePi API
+Description=ConsolePi API: facilitates ConsolePis sharing info in Cluster
 DefaultDependencies=no
 After=networking.service
 
 
 [Service]
-Type=oneshot
+Type=simple
 ExecStart=/etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/ConsolePi_API.py
 
 

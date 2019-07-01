@@ -367,7 +367,7 @@ exit_script() {
     echo -e "The blue user used in this shill"
     echo -e "has limited permissions"
     echo ''
-    echo -e '"su pi" to gain typical rights'
+    echo -e "'su pi' to gain typical rights"
     echo ''
     echo -e "*******************************\n"
     exit 0
@@ -381,7 +381,7 @@ main() {
 	    echo -e "\n*******************************\n"
 		echo -e "No USB to Serial adapters found"
 		echo -e "No Need to display Console Menu"
-		# echo -e " 'consolepi-menu' to re-launch "
+		echo -e " 'consolepi-menu' to re-launch "
 		# echo -e "*******************************\n"
 		ttyusb_connected=false
 	fi

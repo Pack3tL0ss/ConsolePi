@@ -12,7 +12,7 @@ known_ssid_init() {
 }
 
 init_wpa_temp_file() {
-    ( [[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" && cp "${wpa_supplicant_file}" "/etc/ConsolePi/originals" ) ||
+    ( [[ -f "${wpa_supplicant_file}" ]] && cat "${wpa_supplicant_file}" > "${wpa_temp_file}" && cp "${wpa_supplicant_file}" "${bak_dir}" ) ||
         echo -e "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n${country_txt}\n" > "${wpa_temp_file}"
     # Set wifi country
     # [[ ! -z ${country_txt} ]] && wpa_cli -i wlan0 set country "${country_txt}" 1>/dev/null
@@ -115,7 +115,7 @@ known_ssid_main() {
 }
 
 #__main__
-if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/ssids.sh"* ]] ; then
+if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"src/consolepi-addssids.sh"* ]] ; then
     [ -f /etc/ConsolePi/installer/common.sh ] && . /etc/ConsolePi/installer/common.sh
     known_ssid_init
     header
@@ -128,14 +128,14 @@ if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/ssids.sh"* ]] ; then
         echo "----------------------------------------------------------------------------------------------"
         echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
         prompt="Do You want to configure additional SSIDs"
-        user_input false "${prompt}"
+        user_input true "${prompt}"
         continue=$result
     else
         continue=true
     fi
     if $continue; then
         known_ssid_main
-        mv "$wpa_supplicant_file" "/etc/ConsolePi/originals"
+        mv "$wpa_supplicant_file" "${bak_dir}"
         mv "$wpa_temp_file" "$wpa_supplicant_file"
     fi
 fi

@@ -145,9 +145,6 @@ class ConsolePiMenu:
         if data is None:
             data = get_local_cloud_file(LOCAL_CLOUD_FILE)
 
-        if refresh or not self.do_cloud or self.local_only:
-            data = self.update_from_dhcp_leases(data)
-
         if DO_MDNS:
             plog('Discovering Remotes via mdns')
             m_data = self.mdns.mdata
@@ -155,7 +152,10 @@ class ConsolePiMenu:
                 for _ in m_data:
                     print('    {} Discovered via mdns'.format(_))
                 data = update_local_cloud_file(LOCAL_CLOUD_FILE, m_data)
-                            
+
+        if refresh or not self.do_cloud or self.local_only:
+            data = self.update_from_dhcp_leases(data)
+
         if self.hostname in data:
             data.pop(self.hostname)
             log.warning('Local Cloud cache included entry for self - there is a logic error someplace')

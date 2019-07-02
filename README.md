@@ -10,12 +10,16 @@ Single Command Install Script. Run from a RaspberryPi running raspbian (that has
 ```
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
 ```
+***ConsolePi @ Work!***
+![ConsolePi in action](readme_content/ConsolePi.jpg)
+![ConsolePi in action](readme_content/ConsolePi0.jpg)
 
 ------
 # Contents
  - [Features](#features)
  - [Installation](#installation)
  - [ConsolePi Usage](#consolepi-usage)
+ - [Upgrading ConsolePi](##upgrading-consolepi)
  - [Tested Hardware](#tested-hardware)
  - [Credits](#credits)
 ------
@@ -27,8 +31,6 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
 Script runs at boot (can be made to check on interval via Cron if desired).  Looks for pre-defined SSIDs, if those SSIDs are not available then it automatically goes into hotspot mode and broadcasts its own SSID.  In HotSpot mode user traffic is NAT'd to the wired interface if the wired interface is up.
 
 When ConsolePi enters hotspot mode, it first determines if the wired port is up and has an IP.  If the wired port is *not* connected, then the hotspot distributes DHCP, but does not provide a "Default Gateway" to clients.  This allows a user to dual connect without having to remove a route to a gateway that can't get anywhere.  I commonly use a second USB WLAN adapter to connect to ConsolePi, while remaining connected to the internet via a different SSID on my primary adapter.
-
-If ConsolePi determines there is a wired connection when the hotspot is enabled it forwards (NATs) traffic from clients connected to the hotspot to the wired interface.
 
 ## Automatic OpenVPN Tunnel
 
@@ -59,15 +61,40 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 
 
 
-### Supported Sync Methods:
+### Supported Cluster Sync Methods:
 
+#### Google Drive:
+   > Read The [Google Drive Setup](readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
  - Google Drive/Google Sheets is currently the only external method supported.  Given this gets the job done, it unlikely more external methods will be added.
 
-   > Read The [Google Drive Setup](readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
+ - The ConsolePi will automatically exchange information with `ConsolePi.csv` in your gdrive under the following scenarios (*all assume the function is enabled in the config*):
+  1. When the ConsolePi receives an IP address, and can reach the google API endpoints.
 
- - HotSpot Connected ConsolePi's are automatically discovered, this works even if the Cloud function is disabled in the config.  If ConsolePiB is connected to ConsolePiA via A's HotSpot - when the menu is launched on ConsolePiA it will detect a RaspberryPi (ConsolePiB) was assigned an ip address and attempt to connect to it via ssh.  Once a connection is established ConsolePiA will send its details to ConsolePiB, ConsolePiB will respond with its details.  Assuming there are serial adapters attached to ConsolePiB, menu options will be created for those connections.  
+  2. When consolepi-menu is launched and the `'r'` (refresh) option is selected.
 
-  - local cloud cache:  For both of the above methods, a local file is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.
+  >In both of the above a local cloud cache is updated for the sake of persistence and speed.  The local cloud cache is what is referenced when the menu is initially launched
+
+#### DHCP based:
+
+*Consolepi Acting as a DHCP server for other ConsolePis (Typically via HotSpot)*
+ - HotSpot Connected ConsolePi's are automatically discovered, this works even if the Cloud function is disabled in the config.  If ConsolePiB is connected to ConsolePiA via A's HotSpot - when the menu is launched on ConsolePiA it will detect a RaspberryPi (ConsolePiB) was assigned an ip address and attempt to connect to it via ssh.  Once a connection is established ConsolePiA will send its details to ConsolePiB, ConsolePiB will respond with its details. 
+
+ > **This function is changing:** The repo already has the code for an improved method that will trigger automatically when a lease is handed out.  At this time it currently only logs, but the original method described above still works.  
+ >
+ >Along with this comes an API to speed up updates.  That API is now implemented and running... http (for now) port 5000 with the following URIs all start with /api/v1.0/ All current methods only support the GET method.  Post is coming.
+>
+ >* adapters: returns list of local adapters
+ >* remcache: returns the local cloud cache
+ >* ifaces: returns interface / IP details
+ >* details: full json representing all local details for the ConsolePi  
+
+#### mDNS **!!NEW!!**
+* ConsolePis now advertise themselves on the local network via mDNS (bonjour, avahi, ...)
+
+* When the menu is launched (and on refresh) it starts browsing mDNS for clients, verifies connectivity and updates the local cache.
+
+#### Local Cloud Cache
+  - local cloud cache:  For both of the above methods, a local file `/etc/ConsolePi/cloud.data` is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.  
 
 ### How it works:  
 
@@ -208,11 +235,13 @@ Once Complete you place the newly blessed micro-sd in your raspberryPi and boot.
 
 ## **Configuration:**
 
-The Configuration file is validated and created during the install.  Settings can be modified post-install via the configuration file /etc/ConsolePi.conf
+The Configuration file is validated and created during the install.  Settings can be modified post-install via the configuration file `/etc/ConsolePi.conf` (Some Changes will require consolepi-upgrade to be ran to take effect)
 
 ### **Console Server:**
 
 #### TELNET
+
+*Don't overlook consolepi-menu which supports remote ConsolePi discovery and provides a single launch point into any local and remote connections discovered*
 
 - Serial/Console adapters are reachable starting with telnet port 8001 +1 for each subsequent adapter plugged in (8002, 8003...).  If you are using a multi-port pigtail adapter or have multiple adapters plugged in @ boot, then it's a crap shoot which will be assigned to each telnet port.  Hence the next step.
 
@@ -228,6 +257,7 @@ Note: the 8000 range is always valid even if you are using an adapter specifical
 #### SSH / BlueTooth
 
 The ```consolepi-menu``` command can be used to display a menu providing options for any locally connected USB to Serial adapters.  In addition to any remotely connected USB to serial adapters connected to other ConsolePis if using the Clustering/cloud-config feature.  When connecting to ConsolePi via bluetooth this menu launches automatically.
+> Note that when using bluetooth the menu is limited to local adapters and remotes found in the local-cache file.  Connect via SSH for full remote functionality in the menu.
 
 ### **Convenience Commands:**
 
@@ -243,6 +273,11 @@ There are a few convenience commands created for ConsolePi during the automated 
 - **consolepi-bton**: Make ConsolePi Discoverable via BlueTooth (Default Behavior on boot)
 - **consolepi-btoff**: Stop advertising via BlueTooth.  Previously paired devices will still be able to Pair.
 
+## Upgrading ConsolePi
+
+Use ```consolepi-upgrade``` to upgrade ConsolePi.  Simply doing a git pull *may* occasionally work, but there are a lot of system files, etc. outside of the ConsolePi folder that are occasionally updated, those changes are made via the upgrade script.
+
+> Note manual changes to some system files may be overwritten during upgrade.  If that occurs, the original modified file is stashed in the `ConsolePi/bak` directory.
 
 # Tested Hardware
 

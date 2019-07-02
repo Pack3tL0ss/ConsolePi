@@ -918,20 +918,30 @@ do_consolepi_api() {
 # Create or Update ConsolePi mdns startup service (systemd)
 do_consolepi_mdns() {
     process="Configure/Enable ConsolePi mDNS service (systemd)"
-    if [[ -f /etc/ConsolePi/src/systemd/consolepi-mdns.service ]]; then 
-        sudo cp /etc/ConsolePi/src/systemd/consolepi-mdns.service /etc/systemd/system &&
-            logit "ConsolePi mDNS systemd service created/updated" || 
-            logit "FAILED to create/update mDNS systemd service" "WARNING"
-        sudo systemctl daemon-reload || logit "Failed to reload Daemons" "WARNING"
-        if [[ ! $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]]; then
-            [[ -f /etc/systemd/system/consolepi-mdns.service ]] && sudo systemctl enable consolepi_mdns.service ||
-            logit "FAILED to enable mDNS systemd service" "WARNING"
-        fi
-        [[ $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]] &&
-            sudo systemctl restart consolepi-mdns.service || 
-            logit "FAILED to restart mDNS systemd service" "WARNING"
+    # -- If both files exist check if they are different --
+    if [[ -f /etc/ConsolePi/src/systemd/consolepi-mdns.service ]] && [[ -f /etc/systemd/system/consolepi-mdns.service ]]; then
+        mdns_diff=$(diff -s /etc/ConsolePi/src/systemd/consolepi-mdns.service /etc/systemd/system/consolepi-mdns.service)
     else
-        logit "consolepi-mdns.service file not found in src directory.  git pull failed?" "WARNING"
+        mdns_diff="doit"
+    fi
+
+    # -- if systemd file doesn't exist or doesn't match copy and enable from the source directory
+    if [[ ! "$mdns_match" = *"identical"* ]] then
+        if [[ -f /etc/ConsolePi/src/systemd/consolepi-mdns.service ]]; then 
+            sudo cp /etc/ConsolePi/src/systemd/consolepi-mdns.service /etc/systemd/system &&
+                logit "ConsolePi mDNS systemd service created/updated" || 
+                logit "FAILED to create/update mDNS systemd service" "WARNING"
+            sudo systemctl daemon-reload || logit "Failed to reload Daemons" "WARNING"
+            if [[ ! $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]]; then
+                [[ -f /etc/systemd/system/consolepi-mdns.service ]] && sudo systemctl enable consolepi_mdns.service ||
+                logit "FAILED to enable mDNS systemd service" "WARNING"
+            fi
+            [[ $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]] &&
+                sudo systemctl restart consolepi-mdns.service || 
+                logit "FAILED to restart mDNS systemd service" "WARNING"
+        else
+            logit "consolepi-mdns.service file not found in src directory.  git pull failed?" "WARNING"
+        fi
     fi
 }
 

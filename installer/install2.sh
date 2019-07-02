@@ -926,7 +926,7 @@ do_consolepi_mdns() {
     fi
 
     # -- if systemd file doesn't exist or doesn't match copy and enable from the source directory
-    if [[ ! "$mdns_match" = *"identical"* ]] then
+    if [[ ! "$mdns_match" = *"identical"* ]]; then
         if [[ -f /etc/ConsolePi/src/systemd/consolepi-mdns.service ]]; then 
             sudo cp /etc/ConsolePi/src/systemd/consolepi-mdns.service /etc/systemd/system &&
                 logit "ConsolePi mDNS systemd service created/updated" || 

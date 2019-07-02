@@ -11,8 +11,9 @@ Single Command Install Script. Run from a RaspberryPi running raspbian (that has
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
 ```
 ***ConsolePi @ Work!***
-![ConsolePi in action](readme_content/ConsolePi.jpg)
-![ConsolePi in action](readme_content/ConsolePi0.jpg)
+
+  ![ConsolePi in action](readme_content/ConsolePi.jpg)
+  ![ConsolePi in action](readme_content/ConsolePi0.jpg)
 
 ------
 # Contents

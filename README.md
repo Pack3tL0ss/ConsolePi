@@ -2,7 +2,7 @@
 
 Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to local **or remote** ConsolePis via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).  
 
-*Check out the **NEW** [ConsolePi Clustering Feature](#consolepi-cluster-/-cloud-config)!!*
+*Check out the **NEW** [ConsolePi Clustering Feature](#consolepi-cluster--cloud-config)!!*
 
 ***TL;DR:***
 Single Command Install Script. Run from a RaspberryPi running raspbian (that has internet access):
@@ -15,7 +15,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
  - [Features](#features)
  - [Installation](#installation)
  - [ConsolePi Usage](#consolepi-usage)
- - [Upgrading ConsolePi](##upgrading-consolepi)
+ - [Upgrading ConsolePi](#upgrading-consolepi)
  - [Tested Hardware](#tested-hardware)
  - [ConsolePi @ Work! (Image Gallery)](#consolepi-@-work)
  - [Credits](#credits)

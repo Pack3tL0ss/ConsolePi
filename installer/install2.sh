@@ -934,8 +934,13 @@ do_consolepi_mdns() {
                 logit "FAILED to create/update mDNS systemd service" "WARNING"
             sudo systemctl daemon-reload || logit "Failed to reload Daemons" "WARNING"
             if [[ ! $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]]; then
-                [[ -f /etc/systemd/system/consolepi-mdns.service ]] && sudo systemctl enable consolepi_mdns.service ||
-                logit "FAILED to enable mDNS systemd service" "WARNING"
+                if [[ -f /etc/systemd/system/consolepi-mdns.service ]]; then
+                    sudo systemctl disable consolepi_mdns.service 
+                    sudo systemctl enable consolepi_mdns.service ||
+                        logit "FAILED to enable mDNS systemd service" "WARNING"
+                else
+                    logit "Failed file not found in systemd after move"
+                fi
             fi
             [[ $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]] &&
                 sudo systemctl restart consolepi-mdns.service || 

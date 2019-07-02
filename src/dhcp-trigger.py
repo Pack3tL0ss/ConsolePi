@@ -52,7 +52,7 @@ log.info('DHCP Client Connected ({}): iface: {}, mac: {}, ip: {}, vendor: {}'.fo
 
 if vendor is not None and 'ConsolePi' in vendor:
     log.info('ConsolePi Discovered via DHCP')
-    url = 'http://{}:5000/api/v1.0/details'.format(ip)
+    url = 'http:\/\/{}:5000/api/v1.0/details'.format(ip)
 
     headers = {
         'User-Agent': "ConsolePi/version",

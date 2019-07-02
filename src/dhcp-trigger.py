@@ -21,6 +21,7 @@ from consolepi.common import check_reachable
 import sys
 import os
 import json
+import requests
 from consolepi.common import ConsolePi_Log
 from consolepi.common import get_local
 
@@ -51,6 +52,21 @@ log.info('DHCP Client Connected ({}): iface: {}, mac: {}, ip: {}, vendor: {}'.fo
 
 if vendor is not None and 'ConsolePi' in vendor:
     log.info('ConsolePi Discovered via DHCP')
+    url = 'http://{}:5000/api/v1.0/details'.format(ip)
+
+    headers = {
+        'User-Agent': "ConsolePi/version",
+        'Accept': "*/*",
+        'Cache-Control': "no-cache",
+        'Host': "{}:5000".format(ip),
+        'accept-encoding': "gzip, deflate",
+        'Connection': "keep-alive",
+        'cache-control': "no-cache"
+        }
+
+    response = requests.request("GET", url, headers=headers)
+    log.info('Response from {}[{}]: \n{}'.format(ip, response.status_code, response.text)
+
     # TODO get/post info from/to ConsolePi that just connected via API
     # Update local cloud cache
 # oobm Discovery & ZTP trigger

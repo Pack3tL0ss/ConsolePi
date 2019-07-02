@@ -913,6 +913,7 @@ do_consolepi_api() {
     else
         logit "consolepi-api.service file not found in src directory.  git pull failed?" "WARNING"
     fi
+    unset process
 }
 
 # Create or Update ConsolePi mdns startup service (systemd)
@@ -943,6 +944,7 @@ do_consolepi_mdns() {
             logit "consolepi-mdns.service file not found in src directory.  git pull failed?" "WARNING"
         fi
     fi
+    unset process
 }
 
 # Configure ConsolePi with the SSIDs it will attempt to connect to as client prior to falling back to hotspot
@@ -1077,7 +1079,7 @@ get_serial_udev() {
     echo
     echo "You need to have the serial adapters you want to map to specific telnet ports available"
     prompt="Would you like to configure predictable serial ports now"
-    user_input true "${prompt}"
+    $upgrade && user_input false "${prompt}" || user_input true "${prompt}"
     if $result ; then
         if [ -f ${consolepi_dir}src/consolepi-addconsole.sh ]; then
             . ${consolepi_dir}src/consolepi-addconsole.sh

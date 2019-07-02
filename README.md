@@ -1,6 +1,6 @@
 # ConsolePi
 
-Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to local or remote ConsolePis via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).  Multiple Connectivity options, wired, WLAN (as a client if it finds a configured SSID, falls back to hotspot mode), and bluetooth.
+Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to local **or remote** ConsolePis via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).  
 
 *Check out the **NEW** [ConsolePi Clustering Feature](#consolepi-cluster-/-cloud-config)!!*
 
@@ -10,11 +10,6 @@ Single Command Install Script. Run from a RaspberryPi running raspbian (that has
 ```
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
 ```
-***ConsolePi @ Work!***
-
-  ![ConsolePi in action](readme_content/ConsolePi.jpg)
-  ![ConsolePi in action](readme_content/ConsolePi0.jpg)
-
 ------
 # Contents
  - [Features](#features)
@@ -22,6 +17,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
  - [ConsolePi Usage](#consolepi-usage)
  - [Upgrading ConsolePi](##upgrading-consolepi)
  - [Tested Hardware](#tested-hardware)
+ - [ConsolePi @ Work! (Image Gallery)](#consolepi-@-work)
  - [Credits](#credits)
 ------
 
@@ -121,7 +117,7 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 
  - The last ConsolePi to connect is the only one that will have menu-items for all the connected ConsolePis on the initial launch of ```consolepi-menu```.  Use the refresh option in ```consolepi-menu``` if connecting to one of the previous ConsolePis so it can fetch the data for ConsolePis that came online after it did.
 
- - ConsolePi menu does not attempt to connect to the cloud on launch, it retrieves remote data from the local cache file only, verifies the devices are reachable, and if so adds them to the menu.  To trigger a cloud update use the refresh option.
+ - `consolepi-menu` does not attempt to connect to the cloud on launch, it retrieves remote data from the local cache file only, verifies the devices are reachable, and if so adds them to the menu.  To trigger a cloud update use the refresh option.  *Note that ConsolePi will automatically update the local cache file when it gets an IP address, so the refresh should only be necessary if other ConsolePis have come online since the refresh.*
 
  - Read The [Google Drive Setup](readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
 
@@ -291,6 +287,13 @@ ConsolePi Should work on all variants of the RaspberryPi, but it has been tested
 - RaspberryPi zero w
   - With both single port micro-usb otg USB adapter and multi-port otg usb-hub
   *I did notice with some serial adapters the RaspberryPi zero w Would reboot when it was plugged in, this is with a RaspberryPi power-supply.  They work fine, it just caused it to reboot when initially plugged-in*
+
+# ConsolePi @ Work!
+
+Have some good pics of ConsolePi in action?  Let me know.
+
+  ![ConsolePi in action](readme_content/ConsolePi.jpg)
+  ![ConsolePi in action](readme_content/ConsolePi0.jpg)
 
 # CREDITS
 

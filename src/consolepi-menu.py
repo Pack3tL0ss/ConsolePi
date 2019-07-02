@@ -43,7 +43,7 @@ class ConsolePiMenu:
     def __init__(self, bypass_remote=False, do_print=True):
         cpi_log = ConsolePi_Log(debug=DEBUG, log_file=LOG_FILE, do_print=do_print)
         self.log = cpi_log.log
-        self.plog = cpi_log.log_print
+        self.plog = cpi_log.plog
         self.error = None
         if DO_MDNS:
             self.mdns = MDNS_Browser()
@@ -150,7 +150,7 @@ class ConsolePiMenu:
             m_data = self.mdns.mdata
             if m_data is not None:
                 for _ in m_data:
-                    print('    {} Discovered via mdns'.format(_))
+                    plog('    {} Discovered via mdns'.format(_))
                 data = update_local_cloud_file(LOCAL_CLOUD_FILE, m_data)
 
         if refresh or not self.do_cloud or self.local_only:

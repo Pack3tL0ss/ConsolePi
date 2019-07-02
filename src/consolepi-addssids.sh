@@ -65,7 +65,7 @@ known_ssid_main() {
                     fi
                 else
                     psk_valid=true
-                    temp=`echo -e "network={\n        ssid="${ssid}"\n        key_mgmt=NONE\n}"`
+                    temp=`echo -e "network={\n    ssid=\"${ssid}\"\n    key_mgmt=NONE\n}"`
                 fi
             done
             
@@ -81,7 +81,7 @@ known_ssid_main() {
             # -- append priority if not default to ssid definition --
             if [[ $priority > 0 ]]; then
                 temp=`echo "$temp" | cut -d"}" -f1`
-                temp+=`echo -e "\n        priority=${priority}\n}"`
+                temp+=`echo -e "\n    priority=${priority}\n}"`
             fi
         fi
         header && echo -e $header_txt

@@ -31,7 +31,8 @@ from consolepi.common import get_local
 # -- Some Testing Stuff - eventually move to ztp.conf or oobm.conf file --
 match = ['2530', '3810']
 
-log = ConsolePi_Log().set_log()
+cpi_log = ConsolePi_Log()
+log = cpi_log.log
 
 add_del = sys.argv[1]
 mac = sys.argv[2]

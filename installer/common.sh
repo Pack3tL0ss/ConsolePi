@@ -21,6 +21,8 @@ final_log="/var/log/ConsolePi/install.log"
 boldon="\033[1;32m"
 boldoff="$*\033[m"
 
+# vpn_dest=$(sudo grep -G "^remote\s.*" /etc/openvpn/client/ConsolePi.ovpn | awk '{print $2}')
+
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
 [[ -f $final_log ]] && upgrade=true || upgrade=false
 

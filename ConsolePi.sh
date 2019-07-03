@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# ConsolePi dhcpcd.exit-hook
+# System File @ /etc/dhcpcd.exit-hook symlinks to this file (makes updates via repo easier)
+#   File is triggered by dhcpcd anytime an interface has dhcp activity (i.e. gets a new lease)
+#   It triggers (based on settings in ConsolePi.conf):
+#     - PushBullet Notifications
+#     - Updates details to Cloud
+#     - Establishes OpenVPN connection
+
 # Locally Defined Variables
 ## debug=false # Now in config                                                        # For debugging only - additional logs sent to syslog
 push_response_log="/var/log/ConsolePi/push_response.log"            # full path to send PushBullet API responses
@@ -102,7 +110,6 @@ Ping_Check() {
 Connect_VPN() {
     $debug && logger -t puship-DEBUG Enter Connect_VPN Function
     openvpn --config ${ovpn_config} --auth-user-pass ${ovpn_creds} --log-append ${ovpn_log} ${ovpn_options} --writepid /var/run/ovpn.pid --daemon
-    # openvpn --config ${ovpn_config}
     logger -t puship-ovpn Starting OpenVPN client connection.
 }
 
@@ -121,6 +128,7 @@ Check_VPN() {
       Ping_Check "$net_check_ip"
       if $ping_ok; then
         [ "${new_domain_name}" = "${local_domain}" ] && remote=false || remote=true
+        # vpn_is_rfc1918=Check_RFC1918 (Future if new domain from eth0 trick doesn't work)
         $remote && Connect_VPN || logger -t puship-ovpn Not starting VPN - device connected to home lab
       else
           logger -t puship-ovpn OpenVPN start Bypassed due to failed network connectivity check.

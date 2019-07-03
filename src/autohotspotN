@@ -93,26 +93,43 @@ ChkWifiUp()
 
 ChkWiredState()
 {
-	eth0_ip=`ip addr show dev eth0 | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
-	eth0_state=`ip addr show dev eth0 | head -1 | sed -n -e 's/^.*state //p' | cut -d ' ' -f1 |awk '{ print $1 }'`
-	if [ ${eth0_state} == "UP" ] && [ ${#eth0_ip} -gt 6 ]; then    
-	   eth0_up=true
-	else
-	   eth0_up=false     
-	fi 
+       eth0_ip=`ip addr show dev eth0 | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
+       eth0_state=`ip addr show dev eth0 | head -1 | sed -n -e 's/^.*state //p' | cut -d ' ' -f1 |awk '{ print $1 }'`
+       if [ ${eth0_state} == "UP" ] && [ ${#eth0_ip} -gt 6 ]; then    
+              eth0_up=true
+       else
+              eth0_up=false     
+       fi
 
-	# sudo cp /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
-	if [ $eth0_up = false ]; then
-		#cp /etc/ConsolePi/dnsmasq.conf.noGW /etc/dnsmasq.conf
-		sed -i '/^#dhcp-option=wlan0,3/s/^#//g' /etc/dnsmasq.conf	#uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
-		# logger -t autohotspot Bringing up hotspot with no gateway due to no eth0 connection
-		echo Bringing up hotspot with no gateway due to no eth0 connection
-	else
-		# cp /etc/ConsolePi/dnsmasq.conf.withGW /etc/dnsmasq.conf
-		sed -i '/^dhcp-option=wlan0,3/s/^/#/g' /etc/dnsmasq.conf #comment out option 3 - default behavior assigns i/f address as def-gw
-		# logger -t autohotspot Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
-		echo Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
-	fi
+       # Find out if lease file exists for wire interface
+       [ -f /var/lib/dhcpcd*/dhcpcd-${ethdev}.lease ] && wired_lease=true || wired_lease=false   
+       # If ethdev is up and has a lease, pass the same domain to WLAN clients on the hotspot
+       if $eth0_up && $wired_lease; then 
+              eth0_dom=$(sed "$(expr $(grep -a -n "$HOSTNAME" /var/lib/dhcpcd*/dhcpcd-${ethdev}.lease | cut -f1 -d:) + 1)q;d" /var/lib/dhcpcd*/dhcpcd-${ethdev}.lease | cut -f1 -d\*)
+              [ ${#eth0_dom} -gt 3 ] && valid_dom=true || valid_dom=false 
+              if $valid_dom; then
+                     sed -i "/domain=/s/.*/domain=${eth0_dom}/" /etc/dnsmasq.conf &&
+                     echo Active Lease Found on $ethdev with domain $eth0_dom using same for HotSpot clients ||
+                     echo [ERROR AutoHotSpotN:ChkWiredState] Failed to Configure Domain $eth0_dom for HostSpot clients
+              else
+                     echo A lease was found for $ethdev but no Domain was provided Removing Domain for HotSpot clients
+                     sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf
+              fi
+       fi
+
+       if ! $eth0_up || ! $wired_lease; then
+              sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf &&
+              echo Removing Domain for HotSpot clients as there is no lease on $ethdev or $ethdev is down ||
+              echo [ERROR AutoHotSpotN:ChkWiredState] Failed to Remove Domain for HotSpot clients
+       fi
+
+       if $eth0_up; then
+              sed -i '/^dhcp-option=wlan0,3/s/^/#/g' /etc/dnsmasq.conf #comment out option 3 - default behavior assigns i/f address as def-gw
+              echo Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
+       else
+              sed -i '/^#dhcp-option=wlan0,3/s/^#//g' /etc/dnsmasq.conf	#uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
+              echo Bringing up hotspot with no gateway due to no eth0 connection
+       fi
 }
 
 FindSSID()

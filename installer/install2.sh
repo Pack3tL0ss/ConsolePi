@@ -514,27 +514,27 @@ install_ser2net () {
 
 dhcp_run_hook() {
     process="Configure dhcp.exit-hook"
-    error=0
-    # ToDo add error checking, Verify logic the first if seems wrong
+    hook_file="/etc/ConsolePi/src/dhcpcd.exit-hook"
     logit "${process} - Starting"
     [[ -f /etc/dhcpcd.exit-hook ]] && exists=true || exists=false                      # find out if exit-hook file already exists
     if $exists; then
-        is_there=`cat /etc/dhcpcd.exit-hook |grep -c /etc/ConsolePi/ConsolePi.sh`      # find out if it's already pointing to ConsolePi script
-        lines=$(wc -l < "/etc/dhcpcd.exit-hook")                                       # find out if there are other lines in addition to ConsolePi in script
-        if [[ $is_there > 0 ]] && [[ $lines > 1 ]]; then                                 # This scenario we just create a new script
-            mv /etc/dhcpcd.exit-hook $bak_dir && 
-              logit "existing exit-hook backed up to originals folder" || logit "Failed backup existing exit-hook file" "WARNING"
-            echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "Failed to create exit-hook script" "ERROR"
-        elif [[ $is_there == 0 ]]; then                                                # exit-hook exist but ConsolePi line does not - append to file
-            echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" >> "/etc/dhcpcd.exit-hook" || logit "Failed to append ConsolePi pointer to exit-hook script" "ERROR"
+        is_there=`grep -c $hook_file  /etc/dhcpcd.exit-hook`  # find out if it's already pointing to ConsolePi script
+        if [ $is_there -gt 0 ]; then
+            logit "exit-hook already configured [File Found and Pointer exists]"  #exit-hook exists and line is already there
         else
-            logit "exit-hook already configured [${is_there} ${lines}]"  #exit-hook exists and line is already there
+            sudo sed -i '/.*\/etc\/ConsolePi\/.*/c\\/etc\/ConsolePi\/src\/dhcpcd.exit-hook "$@"' /etc/dhcpcd.exit-hook &&
+            logit "Succesfully Updated exit-hook Pointer" || logit "Failed to update exit-hook pointer" "ERROR"
         fi
     else
-        echo "/etc/ConsolePi/ConsolePi.sh \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "Failed to create exit-hook script" "ERROR"
+        sudo echo "$hook_file \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "Failed to create exit-hook script" "ERROR"
     fi
-    
-    chmod +x /etc/dhcpcd.exit-hook 2>> $log_file || logit "Failed to make dhcpcd.exit-hook executable" "WARNING"
+
+    # -- Make Sure exit-hook is executable --
+    if [ -x /etc/dhcpcd.exit-hook ]; then
+        logit "check executable: exit-hook file already executable"
+    else
+        sudo chmod +x /etc/dhcpcd.exit-hook 2>> $log_file || logit "Failed to make dhcpcd.exit-hook executable" "ERROR"
+    fi
     logit "${process} - Complete"
     unset process
 }

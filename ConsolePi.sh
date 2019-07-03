@@ -43,6 +43,7 @@ fi
 
 ## set variables if script called from shell for testing ##
 ## Usage for test scriptname test [<domain>]  domain is optional used to specify local_domain to test local connection (otherwise script will determine remote and attempt ovpn if enabled) 
+## domain defaults to local_domain, specify anything else to test vpn
 #if [ -z $1 ] && [ $0 != "/lib/dhcpcd/dhcpcd-run-hooks" ]; then
 if [[ $1 == "test" ]]; then
   logger -t puship-DEBUG Setting random test Variables script ran from shell
@@ -51,7 +52,7 @@ if [[ $1 == "test" ]]; then
   reason=BOUND
   interface=eth0
   new_ip_address="10.1.$rand1.$rand2"
-  [ ! -z $2 ] && new_domain="$2" || new_domain_name=""
+  [ ! -z $2 ] && new_domain="$2" || new_domain_name="$local_domain"
 fi
 
 # >> Debug Messages <<
@@ -210,11 +211,14 @@ case "$reason" in
      BuildMsg "OVPN"
      $push && Push
      $cloud && update_cloud
+     $debug && logger -t puship-DEBUG Reached end of OVPN_CONNECTED flow
      exit 0
      ;;
   BOUND|REBIND)
      run
      $cloud && update_cloud
+     $debug && logger -t puship-DEBUG Reached end of New Lease flow
+     exit 0
      ;;
   STATIC)
     [ $interface = "eth0" ] && run || exit 0

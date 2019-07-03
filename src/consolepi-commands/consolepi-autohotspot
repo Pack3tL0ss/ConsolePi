@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-sudo /usr/bin/autohotspotN
+
+sudo /etc/ConsolePi/src/autohotspotN "$@"

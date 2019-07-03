@@ -128,7 +128,6 @@ Check_VPN() {
       Ping_Check "$net_check_ip"
       if $ping_ok; then
         [ "${new_domain_name}" = "${local_domain}" ] && remote=false || remote=true
-        # vpn_is_rfc1918=Check_RFC1918 (Future if new domain from eth0 trick doesn't work)
         $remote && Connect_VPN || logger -t puship-ovpn Not starting VPN - device connected to home lab
       else
           logger -t puship-ovpn OpenVPN start Bypassed due to failed network connectivity check.

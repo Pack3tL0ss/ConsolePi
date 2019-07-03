@@ -615,6 +615,7 @@ ovpn_graceful_shutdown() {
 }
 
 install_autohotspotn () {
+    # Can Remove portions of this and remove file in /usr/bin/ have pointed everything directly to the file in the repo
     process="AutoHotSpotN"
     logit "Install AutoHotSpotN"
     [[ -f "${src_dir}autohotspotN" ]] && cp "${src_dir}autohotspotN" /usr/bin 1>/dev/null 2>> $log_file

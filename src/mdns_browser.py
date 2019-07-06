@@ -41,7 +41,7 @@ class MDNS_Browser:
                         user = properties[b'user'].decode("utf-8")
                         interfaces = json.loads(properties[b'interfaces'].decode("utf-8"))
                         adapters = json.loads(properties[b'adapters'].decode("utf-8"))
-                        mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user}}
+                        mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user, 'source': 'mdns'}}
                         log.info('-mdns discovery- Final data set for {}:\n{}'.format(info.server.split('.')[0], mdns_data))
                         self.update(remote_consoles=mdns_data)
                         log.info('Local Cloud Cache Updated with {} data discovered via mdns'.format(info.server.split('.')[0]))

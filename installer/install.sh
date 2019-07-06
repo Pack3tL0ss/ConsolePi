@@ -93,18 +93,6 @@ pre_git_prep() {
         else
             logit "all good pi user already belongs to consolepi group"
         fi
-        # Update original rfcomm service file with improved version
-        # -- Unecessary to do it this way given the script re-writes everytime for now --
-        # process="ConsolePi-Upgrade-Prep (Update rfcomm service file)"
-        # if [[ -f /etc/systemd/system/rfcomm.service ]]; then
-        #     rfcomm_update=true
-        #     sudo sed -i 's/.*\sgetty.*/ExecStart=\/usr\/bin\/rfcomm watch hci0 1 setsid \/sbin\/agetty -L rfcomm0 115200 vt100 -a blue/'  /etc/systemd/system/rfcomm.service &&
-        #         logit "rfcomm service file updated" || 
-        #             logit "Error Updating rfcomm service file replace /etc/systemd/system/rfcomm.service with the file in /etc/ConsolePi/src dir"
-        # fi
-        # $rfcomm_update && process="ConsolePi-Upgrade-Prep (reload daemon & restart rfcomm)"
-        # $rfcomm_update && sudo systemctl daemon-reload && sudo systemctl restart rfcomm.service ||
-        #     logit("An Error occured while trying to reload the rfcomm service")
     fi
 }
 

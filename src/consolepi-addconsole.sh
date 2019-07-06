@@ -53,7 +53,7 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep ttyUSB); do
         echo
         echo "To aid in the manual process a full attribute-walk has been dumped to ${error_file}"
     else
-        if [ $(grep -c -m 1 $ID_SERIAL_SHORT $rules_file) -eq 0 ]; then
+        if [ ! -f $rules_file ] || [ $(grep -c -m 1 $ID_SERIAL_SHORT $rules_file) -eq 0 ]; then
             echo -e "\033[1;32mDevice Found:$*\033[m ${ID_MODEL_FROM_DATABASE} "
             echo "  idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT} It Will be assigned to telnet port ${port}"
 

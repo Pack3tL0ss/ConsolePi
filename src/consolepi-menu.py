@@ -1,5 +1,6 @@
 #!/etc/ConsolePi/venv/bin/python
 
+# TODO Check for unused imports #
 import os
 import sys
 import json
@@ -14,23 +15,20 @@ import getpass
 import threading
 
 # get ConsolePi imports
-from consolepi.common import get_config
-from consolepi.common import get_if_ips
-from consolepi.common import get_local_cloud_file
-from consolepi.common import update_local_cloud_file
-from consolepi.common import ConsolePi_Log
 from consolepi.common import check_reachable
 from consolepi.common import gen_copy_key
 from consolepi.gdrive import GoogleDrive
+from consolepi.common import ConsolePi_data
+
 
 # -- GLOBALS --
-DEBUG = get_config('debug')
-DO_CLOUD = get_config('cloud')
-CLOUD_SVC = get_config('cloud_svc').lower()
-LOG_FILE = '/var/log/ConsolePi/cloud.log'
-LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
-# Can move this to config file
-DO_MDNS = True
+# DO_DHCP=False   # DHCP update function now disabled, MDNS makes it unecessary
+# LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
+# LOG_FILE = '/var/log/ConsolePi/cloud.log'
+
+
+# Depricated - mdns is now automatically triggered via systemd file in background
+DO_MDNS = False
 if DO_MDNS:
     from consolepi.mdns_browse import MDNS_Browser
     from time import sleep
@@ -41,26 +39,25 @@ rem_pass = None
 class ConsolePiMenu:
 
     def __init__(self, bypass_remote=False, do_print=True):
-        cpi_log = ConsolePi_Log(debug=DEBUG, log_file=LOG_FILE, do_print=do_print)
-        self.log = cpi_log.log
-        self.plog = cpi_log.plog
+        config = ConsolePi_data()
+        self.config = config
         self.error = None
         if DO_MDNS:
-            self.mdns = MDNS_Browser()
+            self.mdns = MDNS_Browser(config.log)
             self.zcstop = threading.Thread(target=self.mdns.zc.close)
 
         self.cloud = None  # Set in refresh method if reachable
-        self.do_cloud = DO_CLOUD
-        if self.do_cloud and CLOUD_SVC == 'gdrive':
+        self.do_cloud = config.cloud
+        if self.do_cloud and config.cloud_svc == 'gdrive':
             if check_reachable('www.googleapis.com', 443):
                 self.local_only = False
                 if not os.path.isfile('/etc/ConsolePi/cloud/gdrive/.credentials/credentials.json'):
-                    self.plog('Required {} credentials files are missing refer to GitHub for details'.format(CLOUD_SVC), level='warning')
-                    self.plog('Disabling {} updates'.format(CLOUD_SVC), level='warning')
-                    self.error = ' {} credentials not found'.format(CLOUD_SVC)
+                    config.plog('Required {} credentials files are missing refer to GitHub for details'.format(config.cloud_svc), level='warning')
+                    config.plog('Disabling {} updates'.format(config.cloud_svc), level='warning')
+                    self.error = ' {} credentials not found'.format(config.cloud_svc)
                     self.do_cloud = False
             else:
-                self.plog('failed to connect to {}, operating in local only mode'.format(CLOUD_SVC), level='warning')
+                config.plog('failed to connect to {}, operating in local only mode'.format(config.cloud_svc), level='warning')
                 self.local_only = True
 
         self.go = True
@@ -70,15 +67,15 @@ class ConsolePiMenu:
         self.flow = 'n'
         self.parity_pretty = {'o': 'Odd', 'e': 'Even', 'n': 'No'}
         self.flow_pretty = {'x': 'Xon/Xoff', 'h': 'RTS/CTS', 'n': 'No'}
-        self.hostname = socket.gethostname()
-        self.if_ips = get_if_ips(self.log)
+        self.hostname = config.hostname
+        self.if_ips = config.interfaces
         self.ip_list = []
         for _iface in self.if_ips:
-            self.ip_list.append(self.if_ips[_iface]['ip'])
-        self.data = {'local': self.get_local()}        
+            self.ip_list.append(self.if_ips[_iface]['ip'])    
+        self.data = {'local': config.local}
         if not bypass_remote:
             self.data['remote'] = self.get_remote()
-        self.DEBUG = DEBUG
+        self.DEBUG = config.debug
         self.menu_actions = {
             'main_menu': self.main_menu,
             'key_menu': self.key_menu,
@@ -89,94 +86,68 @@ class ConsolePiMenu:
             'x': self.exit
         }
 
-
-    def get_local(self):
-        log = self.log
-        plog = self.plog
-        plog('Detecting Locally Attached Serial Adapters')
-        this = serial.tools.list_ports.grep('.*ttyUSB[0-9]*', include_links=True)
-        tty_list = {}
-        tty_alias_list = {}
-        for x in this:
-            _device_path = x.device_path.split('/')
-            if x.device.replace('/dev/', '') != _device_path[len(_device_path)-1]:
-                tty_alias_list[x.device_path] = x.device
-            else:
-                tty_list[x.device_path] = x.device
-
-        final_tty_list = []
-        for k in tty_list:
-            if k in tty_alias_list:
-                final_tty_list.append(tty_alias_list[k])
-            else:
-                final_tty_list.append(tty_list[k])
-
-        # get telnet port definitions from ser2net.conf
-        # and build adapters dict
-        serial_list = []
-        if os.path.isfile('/etc/ser2net.conf'):
-            for tty_dev in final_tty_list:
-                with open('/etc/ser2net.conf', 'r') as cfg:
-                    for line in cfg:
-                        if tty_dev in line:
-                            tty_port = line.split(':')
-                            tty_port = tty_port[0]
-                            log.info('get_local: found dev: {} TELNET port: {}'.format(tty_dev, tty_port))
-                            break
-                        else:
-                            tty_port = 7000  # this is error - placeholder value Telnet port is not currently used
-                serial_list.append({'dev': tty_dev, 'port': tty_port})
-                if tty_port == 7000:
-                    plog('No ser2net.conf definition found for {}'.format(tty_dev), level='warning')
-        else:
-            plog('No ser2net.conf file found unable to extract port definitions', level='warning')
-
-        local_data = {self.hostname: {'user': 'pi'}}
-        local_data[self.hostname]['adapters'] = serial_list
-        local_data[self.hostname]['interfaces'] = self.if_ips
-        log.debug('final local data set: {}'.format(local_data))
-        return local_data
-
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
     def get_remote(self, data=None, refresh=False):
-        log = self.log
-        plog = self.plog
+        config = self.config
+        log = config.log
+        plog = config.plog
         plog('Fetching Remote ConsolePis with attached Serial Adapters from local cache')
-        if data is None:
-            data = get_local_cloud_file(LOCAL_CLOUD_FILE)
 
+        if data is None:
+            data = config.get_local_cloud_file()
+
+        # Depricated now done in background systemd
         if DO_MDNS:
             plog('Discovering Remotes via mdns')
             m_data = self.mdns.mdata
             if m_data is not None:
                 for _ in m_data:
                     plog('    {} Discovered via mdns'.format(_))
-                data = update_local_cloud_file(LOCAL_CLOUD_FILE, m_data)
+                data = config.update_local_cloud_file(m_data)
 
-        if refresh or not self.do_cloud or self.local_only:
-            data = self.update_from_dhcp_leases(data)
+        # if DO_DHCP:
+        #     if refresh or not config.do_cloud or self.local_only:
+        #         data = self.update_from_dhcp_leases(data)
 
-        if self.hostname in data:
+        if config.hostname in data:
             data.pop(self.hostname)
-            log.warning('Local Cloud cache included entry for self - there is a logic error someplace')
+            config.log.warning('Local Cloud cache included entry for self - there is a logic error someplace')
+
+        def build_adapter_commands(data):
+            for adapter in data['adapters']:
+                _dev = adapter['dev']
+                adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
+                    data['user'], _ip, _dev, self.baud, self.flow, self.data_bits, self.parity))
+            return data['adapters']
+
         # Add remote commands to remote_consoles dict for each adapter
         for remotepi in data:
             this = data[remotepi]
             print('  {} Found...  Checking reachability'.format(remotepi), end='')
-            for _iface in this['interfaces']:
-                _ip = this['interfaces'][_iface]['ip']
-                if _ip not in self.ip_list:
-                    if check_reachable(_ip, 22):
-                        this['rem_ip'] = _ip
-                        print(': Success', end='\n')
-                        log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
-                        for adapter in this['adapters']:
-                            _dev = adapter['dev']
-                            adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
-                                this['user'], _ip, _dev, self.baud, self.flow, self.data_bits, self.parity))
-                        break  # Stop Looping through interfaces we found a reachable one
-                    else:
-                        this['rem_ip'] = None
+            if 'rem_ip' in this and check_reachable(this['rem_ip'], 22):
+                print(': Success', end='\n')
+                log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
+                this['adapters'] = build_adapter_commands(this)
+                # for adapter in this['adapters']:
+                #     _dev = adapter['dev']
+                #     adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
+                #         this['user'], _ip, _dev, self.baud, self.flow, self.data_bits, self.parity))
+            else:
+                for _iface in this['interfaces']:
+                    _ip = this['interfaces'][_iface]['ip']
+                    if _ip not in self.ip_list:
+                        if check_reachable(_ip, 22):
+                            this['rem_ip'] = _ip
+                            print(': Success', end='\n')
+                            log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
+                            this['adapters'] = build_adapter_commands(this)
+                            # for adapter in this['adapters']:
+                            #     _dev = adapter['dev']
+                            #     adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
+                            #         this['user'], _ip, _dev, self.baud, self.flow, self.data_bits, self.parity))
+                            break  # Stop Looping through interfaces we found a reachable one
+                        else:
+                            this['rem_ip'] = None
 
             if this['rem_ip'] is None:
                 log.warning('get_remote: Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
@@ -184,124 +155,49 @@ class ConsolePiMenu:
 
         return data
 
-    # Soon to be depricated - New method uses dhcp-trigger.py on ConsolePi acting as server
-    # triggered anytime a leases is handed out, quieries client ConsolePi API (thats new too)
-    # anytime a lease is handed out to a client with ConsolePi in the vendor class id
-    def update_from_dhcp_leases(self, data, rem_pass=rem_pass):
-        # check dhcp leases for ConsolePis (allows for Clustering with no network connection)
-        plog = self.plog
-        log = self.log
-        found = False
-
-        self.rem_ip_list = []
-        for remotepi in data:
-            for adapter in data[remotepi]['interfaces']:
-                self.rem_ip_list.append(data[remotepi]['interfaces'][adapter]['ip'])
-            log.debug('rem_ip_list[{}]: {}'.format(remotepi, self.rem_ip_list))
-
-        if os.path.isfile('/var/lib/misc/dnsmasq.leases'):
-            with open('/var/lib/misc/dnsmasq.leases', 'r') as leases:
-                for line in leases:
-                    if 'b8:27:eb' in line or 'dc:a6:32' in line:
-                        line = line.split()
-                        rem_ip = line[2]
-                        rem_hostname = line[3]
-                        rem_ip_reachable = check_reachable(rem_ip, 22)
-                        if not rem_ip_reachable:
-                            plog('{} @ {} found in dhcp leases file, but is Unreachable'.format(rem_hostname, rem_ip))
-                        if rem_ip not in self.rem_ip_list and rem_ip_reachable:
-                            plog('Collecting data from {0} @ {1} found in dhcp leases'.format(rem_hostname, rem_ip))
-                            client = paramiko.SSHClient()
-                            client.load_system_host_keys()
-                            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                            # Check for ssh rsa key, generate if missing, then copy to remote host
-                            gen_copy_key(rem_ip, rem_user=rem_user, hostname=self.hostname)
-                            try:
-                                plog('Initiating ssh session to {} to collect Console Data'.format(rem_ip))
-                                client.connect(rem_ip, username=rem_user, timeout=5, auth_timeout=4)
-                                connected = True
-                            except paramiko.ssh_exception.AuthenticationException:
-                                gen_copy_key(rem_ip, rem_user=rem_user, hostname=self.hostname, copy=True)
-                                try:
-                                    plog('Initiating ssh session to {} to collect Console Data'.format(rem_ip))
-                                    client.connect(rem_ip, username=rem_user, timeout=5, auth_timeout=4)
-                                    connected = True
-                                except:
-                                    print('Certificate Authentication Failed falling back to user/pass\n\n')
-                                    rem_pass = getpass.getpass() if rem_pass is not None else rem_pass
-                                    try:
-                                        plog('Initiating ssh session to {} to collect Console Data'.format(rem_hostname))
-                                        client.connect(rem_ip, username=rem_user,password=rem_pass, timeout=5, auth_timeout=4)
-                                        connected = True
-                                    except paramiko.ssh_exception.AuthenticationException:
-                                        plog('Unable to Connect to {} ignoring this host'.format(rem_hostname))
-                                        connected = False
-
-                            if connected:
-                                # send menu command with this hosts data (remote ConsolePi will update it's own cache file)
-                                #pylint: disable=unused-variable
-                                stdin, stdout, stderr = client.exec_command('/etc/ConsolePi/src/consolepi-commands/consolepi-menu \'{}\''.format(json.dumps(self.data['local'])))
-
-                                for line in stdout:
-                                    if '/dev/' in line:
-                                        rem_data = ast.literal_eval(line)
-                                        found = True
-
-                                client.close()
-                                # update local cache data with data gathered from host found in dhcp leases
-                                if found:
-                                    data[rem_hostname] = rem_data[rem_hostname]
-                                    data[rem_hostname]['rem_ip'] = rem_ip
-                                    log.info('Succesfully Found and added {} found via dhcp lease'.format(rem_hostname))
-                                    update_local_cloud_file(LOCAL_CLOUD_FILE, data)
-                                    log.info('remote data: {}'.format(data))
-                                else:
-                                    log.error('{} connected, but no Console Devices Found, stderr follows:'.format(rem_hostname))
-                                    for line in stderr:
-                                        log.error(line)
-        return data
-
     # Update ConsolePi.csv on Google Drive and pull any data for other ConsolePis
     def refresh(self, rem_update=False):
         remote_consoles = None
+        config = self.config
         # Update Local Adapters
         if not rem_update:
-            self.data['local'] = self.get_local()
-            self.log.info('Final Data set collected for {}: {}'.format(self.hostname, self.data['local']))
+            self.data['local'] = config.local
+            config.log.info('Final Data set collected for {}: {}'.format(self.hostname, self.data['local']))
 
         # Get details from Google Drive - once populated will skip
         if self.do_cloud and not self.local_only:
-            if CLOUD_SVC == 'gdrive' and self.cloud is None:
-                self.cloud = GoogleDrive(self.log, hostname=self.hostname)
+            if config.cloud_svc == 'gdrive' and self.cloud is None:
+                self.cloud = GoogleDrive(config.log, hostname=self.hostname)
 
             # Pass Local Data to update_sheet method get remotes found on sheet as return
             # update sheets function updates local_cloud_file
-            self.plog('Updating to/from {}'.format(CLOUD_SVC))
+            config.plog('Updating to/from {}'.format(config.cloud_svc))
             remote_consoles = self.cloud.update_files(self.data['local'])
             if len(remote_consoles) > 0:
-                self.plog('Updating Local Cache with data from {}'.format(CLOUD_SVC))
-                update_local_cloud_file(LOCAL_CLOUD_FILE, remote_consoles)
+                config.plog('Updating Local Cache with data from {}'.format(config.cloud_svc))
+                config.update_local_cloud_file(remote_consoles)
             else:
-                self.plog('No Remote ConsolePis found on {}'.format(CLOUD_SVC))
+                config.plog('No Remote ConsolePis found on {}'.format(config.cloud_svc))
         else:
             if self.do_cloud:
-                print('Not Updating from {} due to connection failure'.format(CLOUD_SVC))
+                print('Not Updating from {} due to connection failure'.format(config.cloud_svc))
                 print('Close and re-launch menu if network access has been restored')
 
         # Update Remote data with data from local_cloud cache (and dhcp leases)
         self.data['remote'] = self.get_remote(data=remote_consoles, refresh=True)
 
 
-
     def update_from_remote(self, rem_data):
+        config = self.config
+        log = config.log
         rem_data = ast.literal_eval(rem_data)
         if isinstance(rem_data, dict):
-            self.log.info('Remote Update Received via ssh: {}'.format(rem_data))
-            cache_data = get_local_cloud_file(LOCAL_CLOUD_FILE)
+            log.info('Remote Update Received via ssh: {}'.format(rem_data))
+            cache_data = config.get_local_cloud_file()
             for host in rem_data:
                 cache_data[host] = rem_data[host]
-            self.log.info('Updating Local Cloud Cache with data recieved from {}'.format(host))
-            update_local_cloud_file(LOCAL_CLOUD_FILE, cache_data)
+            log.info('Updating Local Cloud Cache with data recieved from {}'.format(host))
+            config.update_local_cloud_file(cache_data)
             self.refresh(rem_update=True)
 
     # =======================

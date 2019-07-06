@@ -5,7 +5,7 @@
 # Last Update: June 4 2019
 
 # -- Installation Defaults --
-INSTALLER_VER=28
+INSTALLER_VER=29
 CFG_FILE_VER=3
 cur_dir=$(pwd)
 iam=$(who am i | awk '{print $1}')
@@ -202,5 +202,28 @@ systemd_diff_update() {
         fi
     else
         logit "${1} systemd file is current"
+    fi
+}
+
+# arg1 = full path of src file arg2 = full path of file in final path
+file_diff_update() {
+    # -- If both files exist check if they are different --
+    if [[ -f ${1} ]] && [[ -f ${1} ]]; then
+        this_diff=$(diff -s ${1} ${1}) 
+    else
+        this_diff="doit"
+    fi
+
+    # -- if file on system doesn't exist or doesn't match src copy and enable from the source directory
+    if [[ ! "$this_diff" = *"identical"* ]]; then
+        if [[ -f ${1} ]]; then 
+            sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
+                logit "${1} created/updated" || 
+                logit "FAILED to create/update ${1}" "WARNING"
+        else
+            logit "${1} file not found in src directory.  git pull failed?" "WARNING"
+        fi
+    else
+        logit "${1} is current"
     fi
 }

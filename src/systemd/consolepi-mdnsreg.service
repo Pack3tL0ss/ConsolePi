@@ -1,0 +1,12 @@
+[Unit]
+Description=Advertise ConsolePi and local serial information via mdns
+DefaultDependencies=no
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/src/mdns_register.py
+
+[Install]
+WantedBy=multi-user.target

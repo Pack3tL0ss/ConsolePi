@@ -366,8 +366,10 @@ set_hostname() {
         if [[ "$response" =~ ^(yes|y)$ ]]; then
             #Ask for new hostname $newhost
             read -p "Enter new hostname: " newhost
+            # TODO # Verification would be good here
 
             #change hostname in /etc/hosts & /etc/hostname
+            sudo hostname "$newhost" 2>>/dev/null
             sudo sed -i "s/$hostn/$newhost/g" /etc/hosts
             sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
             sudo sed -i "s/$hostn/$newhost/g" /etc/hostname

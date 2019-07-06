@@ -578,16 +578,33 @@ install_ovpn() {
         logit "OpenVPN ${ovpn_ver} Already Installed/Current"
     fi
     
-    found_path=$(get_staged_file_path "ConsolePi.ovpn")
-    if [[ $found_path ]]; then 
-        cp $found_path "/etc/openvpn/client" &&
-            logit "Found ConsolePi.ovpn in /home/${iam}.  Copying to /etc/openvpn/client" &&
-            logit "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in /etc/ConsolePi/src" "WARNING" ||
-            logit "Error occurred Copying your ovpn config" "WARNING"
-        # TODO # check for and append if not found the script lines specific to ConsolePi
+    if [ -f /etc/openvpn/client/ConsolePi.ovpn ]; then
+        logit "Retaining existing ConsolePi.ovpn"
+        if $push; then
+            if [ $(sudo grep -c "script-security 2" /etc/openvpn/client/ConsolePi.ovpn) -eq 0 ]; then
+                sudo echo -e "#\n# run push script to send notification of successful VPN connection\nscript-security 2" 1>> /etc/openvpn/client/ConsolePi.ovpn 2>>$log_file &&
+                logit "Enabled script-security 2 in ConsolePi.ovpn" || logit "Unable to Enable script-security 2 in ConsolePi.ovpn" "WARNING"
+            fi
+            if [ $(sudo grep -c 'up "/etc/ConsolePi' /etc/openvpn/client/ConsolePi.ovpn) -eq 0 ]; then
+                sudo echo 'up "/etc/ConsolePi/src/dhcpcd.exit-hook OVPN' 1>> /etc/openvpn/client/ConsolePi.ovpn 2>>$log_file &&
+                logit "Added Pointer to on-up script in ConsolePi.ovpn" || logit "Failed to Add Pointer to on-up script in ConsolePi.ovpn" "WARNING"
+            else
+                sudo sed -i '/up\s\"\/etc\/ConsolePi\/.*/c\up \"\/etc\/ConsolePi\/src\/dhcpcd.exit-hook OVPN\"' /etc/openvpn/client/ConsolePi.ovpn &&
+                logit "Succesfully Updated ovpn up Pointer" || logit "Failed to update ovpn up pointer" "WARNING"
+            fi
+        fi
     else
-        [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && sudo cp "${src_dir}ConsolePi.ovpn.example" "/etc/openvpn/client" ||
-            logit "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
+        found_path=$(get_staged_file_path "ConsolePi.ovpn")
+        if [[ $found_path ]]; then 
+            cp $found_path "/etc/openvpn/client" &&
+                logit "Found ${found_path}.  Copying to /etc/openvpn/client" &&
+                logit "**Ensure the ovpn file has the ConsolePi specific lines at the end of the file... see example in /etc/ConsolePi/src" "WARNING" ||
+                logit "Error occurred Copying your ovpn config" "WARNING"
+            # TODO # check for and append if not found the script lines specific to ConsolePi
+        else
+            [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && sudo cp "${src_dir}ConsolePi.ovpn.example" "/etc/openvpn/client" ||
+                logit "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
+        fi
     fi
     
     found_path=$(get_staged_file_path "ovpn_credentials")

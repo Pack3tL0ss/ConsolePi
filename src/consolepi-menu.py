@@ -126,7 +126,7 @@ class ConsolePiMenu:
             print('  {} Found...  Checking reachability'.format(remotepi), end='')
             if 'rem_ip' in this and check_reachable(this['rem_ip'], 22):
                 print(': Success', end='\n')
-                log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
+                log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, this['rem_ip']))
                 this['adapters'] = build_adapter_commands(this)
                 # for adapter in this['adapters']:
                 #     _dev = adapter['dev']

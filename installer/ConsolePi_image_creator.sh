@@ -216,7 +216,8 @@ main() {
     [[ $this =~ '*' ]] && this=
     if [[ $this ]]; then
         for overlay_file in ${this[@]}; do
-            sudo cp $overlay_file /mnt/usb1/overlays/ && echo "found overlay file ${overlay_file} copied to /boot/overlays/"
+            sudo cp $overlay_file /mnt/usb1/overlays/ && echo "found overlay file ${overlay_file} copied to /boot/overlays/" ||
+                echo "Error moving $overlay_file to /boot/overlays"
         done
     fi
     

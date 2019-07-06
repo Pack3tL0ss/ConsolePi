@@ -117,7 +117,7 @@ class ConsolePiMenu:
             for adapter in data['adapters']:
                 _dev = adapter['dev']
                 adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
-                    data['user'], _ip, _dev, self.baud, self.flow, self.data_bits, self.parity))
+                    data['user'], data['rem_ip'], _dev, self.baud, self.flow, self.data_bits, self.parity))
             return data['adapters']
 
         # Add remote commands to remote_consoles dict for each adapter

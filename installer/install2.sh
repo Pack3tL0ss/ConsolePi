@@ -436,7 +436,8 @@ install_ser2net () {
     process="Install ser2net"
     logit "${process} - Starting"
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
-    if [[ -z $ser2net_ver ]] ; then
+    # if [[ -z $ser2net_ver ]] || ( [ ! -z $ser2net_ver ] && [ ! "$ser2net_ver" = "$ser2net_source_version" ] ); then
+    if [[ -z $ser2net_ver ]]; then
         logit "Installing ser2net from source"
         cd /usr/local/bin
 
@@ -449,7 +450,7 @@ install_ser2net () {
             logit "Failed to extract ser2net from source" "ERROR"
 
         rm -f /usr/local/bin/ser2net.tar.gz || logit "Failed to remove tar.gz" "WARNING"
-        cd ser2net*/
+        cd ser2net-${ser2net_source_version}/
 
         logit "./configure ser2net"
         ./configure 1>/dev/null 2>> $log_file &&
@@ -654,7 +655,7 @@ install_autohotspotn () {
 
     logit "Create/Configure hostapd.conf"
     [[ -f "/etc/hostapd/hostapd.conf" ]] && sudo mv "/etc/hostapd/hostapd.conf" "${bak_dir}" && 
-        logit "existing hostapd.conf found, backed up to originals folder"
+        logit "existing hostapd.conf found, backed up to bak folder"
     echo "driver=nl80211" > "/tmp/hostapd.conf"
     echo "ctrl_interface=/var/run/hostapd" >> "/tmp/hostapd.conf"
     echo "ctrl_interface_group=0" >> "/tmp/hostapd.conf"
@@ -899,57 +900,15 @@ EOF
 # Create or Update ConsolePi API startup service (systemd)
 do_consolepi_api() {
     process="Configure/Enable ConsolePi API (systemd)"
-    if [[ -f /etc/ConsolePi/src/systemd/consolepi-api.service ]]; then 
-        sudo cp /etc/ConsolePi/src/systemd/consolepi-api.service /etc/systemd/system &&
-            logit "ConsolePi API systemd service created/updated" || 
-            logit "FAILED to create/update API systemd service" "WARNING"
-        sudo systemctl daemon-reload || logit "Failed to reload Daemons" "WARNING"
-        if [[ ! $(sudo systemctl list-unit-files consolepi-api.service | grep enabled) ]]; then
-            [[ -f /etc/systemd/system/consolepi-api.service ]] && sudo systemctl enable consolepi_api.service ||
-            logit "FAILED to enable API systemd service" "WARNING"
-        fi
-        [[ $(sudo systemctl list-unit-files consolepi-api.service | grep enabled) ]] &&
-            sudo systemctl restart consolepi-api.service || 
-            logit "FAILED to restart API systemd service" "WARNING"
-    else
-        logit "consolepi-api.service file not found in src directory.  git pull failed?" "WARNING"
-    fi
+    systemd_diff_update "consolepi-api"
     unset process
 }
 
 # Create or Update ConsolePi mdns startup service (systemd)
 do_consolepi_mdns() {
-    process="Configure/Enable ConsolePi mDNS service (systemd)"
-    # -- If both files exist check if they are different --
-    if [[ -f /etc/ConsolePi/src/systemd/consolepi-mdns.service ]] && [[ -f /etc/systemd/system/consolepi-mdns.service ]]; then
-        mdns_diff=$(diff -s /etc/ConsolePi/src/systemd/consolepi-mdns.service /etc/systemd/system/consolepi-mdns.service)
-    else
-        mdns_diff="doit"
-    fi
-
-    # -- if systemd file doesn't exist or doesn't match copy and enable from the source directory
-    if [[ ! "$mdns_match" = *"identical"* ]]; then
-        if [[ -f /etc/ConsolePi/src/systemd/consolepi-mdns.service ]]; then 
-            sudo cp /etc/ConsolePi/src/systemd/consolepi-mdns.service /etc/systemd/system &&
-                logit "ConsolePi mDNS systemd service created/updated" || 
-                logit "FAILED to create/update mDNS systemd service" "WARNING"
-            sudo systemctl daemon-reload || logit "Failed to reload Daemons" "WARNING"
-            if [[ ! $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]]; then
-                if [[ -f /etc/systemd/system/consolepi-mdns.service ]]; then
-                    sudo systemctl disable consolepi_mdns.service 
-                    sudo systemctl enable consolepi_mdns.service ||
-                        logit "FAILED to enable mDNS systemd service" "WARNING"
-                else
-                    logit "Failed file not found in systemd after move"
-                fi
-            fi
-            [[ $(sudo systemctl list-unit-files consolepi-mdns.service | grep enabled) ]] &&
-                sudo systemctl restart consolepi-mdns.service || 
-                logit "FAILED to restart mDNS systemd service" "WARNING"
-        else
-            logit "consolepi-mdns.service file not found in src directory.  git pull failed?" "WARNING"
-        fi
-    fi
+    process="Configure/Enable ConsolePi mDNS services (systemd)"
+    systemd_diff_update "consolepi-mdnsreg"
+    systemd_diff_update "consolepi-mdnsbrowse"
     unset process
 }
 

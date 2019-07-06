@@ -1163,7 +1163,7 @@ install2_main() {
     do_consolepi_api
     do_consolepi_mdns
     do_consolepi_commands
-    misc_stuff
+    ! $upgrade && misc_stuff
     get_known_ssids
     get_serial_udev
     custom_post_install_script

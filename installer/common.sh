@@ -173,7 +173,7 @@ user_input_bool() {
 systemd_diff_update() {
     # -- If both files exist check if they are different --
     if [[ -f /etc/ConsolePi/src/systemd/${1}.service ]] && [[ -f /etc/systemd/system/${1}.service ]]; then
-        mdns_diff=$(diff -s /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system/${1}.service)
+        mdns_diff=$(diff -s /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system/${1}.service) 
     else
         mdns_diff="doit"
     fi
@@ -181,21 +181,21 @@ systemd_diff_update() {
     # -- if systemd file doesn't exist or doesn't match copy and enable from the source directory
     if [[ ! "$mdns_diff" = *"identical"* ]]; then
         if [[ -f /etc/ConsolePi/src/systemd/${1}.service ]]; then 
-            sudo cp /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system &&
+            sudo cp /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system 1>/dev/null 2>> $log_file &&
                 logit "${1} systemd service created/updated" || 
                 logit "FAILED to create/update ${1} systemd service" "WARNING"
-            sudo systemctl daemon-reload || logit "Failed to reload Daemons: ${1}" "WARNING"
+            sudo systemctl daemon-reload 1>/dev/null 2>> $log_file || logit "Failed to reload Daemons: ${1}" "WARNING"
             if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
                 if [[ -f /etc/systemd/system/${1}.service ]]; then
-                    sudo systemctl disable ${1}.service 
-                    sudo systemctl enable ${1}.service ||
+                    sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file
+                    sudo systemctl enable ${1}.service 1>/dev/null 2>> $log_file ||
                         logit "FAILED to enable ${1} systemd service" "WARNING"
                 else
                     logit "Failed ${1}.service file not found in systemd after move"
                 fi
             fi
             [[ $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]] &&
-                sudo systemctl restart ${1}.service || 
+                sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file || 
                 logit "FAILED to restart ${1} systemd service" "WARNING"
         else
             logit "${1} file not found in src directory.  git pull failed?" "WARNING"

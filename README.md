@@ -73,22 +73,22 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 
 #### DHCP based:
 
-*Consolepi Acting as a DHCP server for other ConsolePis (Typically via HotSpot)*
- - HotSpot Connected ConsolePi's are automatically discovered, this works even if the Cloud function is disabled in the config.  If ConsolePiB is connected to ConsolePiA via A's HotSpot - when the menu is launched on ConsolePiA it will detect a RaspberryPi (ConsolePiB) was assigned an ip address and attempt to connect to it via ssh.  Once a connection is established ConsolePiA will send its details to ConsolePiB, ConsolePiB will respond with its details. 
+This function currently only logs as mDNS has made this unnecessary 
 
- > **This function is changing:** The repo already has the code for an improved method that will trigger automatically when a lease is handed out.  At this time it currently only logs, but the original method described above still works.  
- >
- >Along with this comes an API to speed up updates.  That API is now implemented and running... http (for now) port 5000 with the following URIs all start with /api/v1.0/ All current methods only support the GET method.  Post is coming.
->
- >* adapters: returns list of local adapters
- >* remcache: returns the local cloud cache
- >* ifaces: returns interface / IP details
- >* details: full json representing all local details for the ConsolePi  
+Triggered by ConsolePi Acting as DHCP server (generally hotspot):
+ 
+ Along with this mechanism comes an API to speed up updates.  That API is now implemented and running... http (for now) port 5000 with the following URIs all start with /api/v1.0/ All current methods only support the GET method.  If a need arises to actually use this for something Security and post capability may follow.
+
+/api/v1.0/
+* adapters: returns list of local adapters
+* remcache: returns the local cloud cache
+* ifaces: returns interface / IP details
+* details: full json representing all local details for the ConsolePi  
 
 #### mDNS **!!NEW!!**
 * ConsolePis now advertise themselves on the local network via mDNS (bonjour, avahi, ...)
 
-* When the menu is launched (and on refresh) it starts browsing mDNS for clients, verifies connectivity and updates the local cache.
+* 2 daemons run on ConsolePi one that registers itself via mdns and updates anytime a change in available USB-serial adapters is detected, and a browser service which browses for remote ConsolePis registered on the network.  The browser service updates the local cloud cache when a new ConsolePi is detected.
 
 #### Local Cloud Cache
   - local cloud cache:  For both of the above methods, a local file `/etc/ConsolePi/cloud.data` is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.  

@@ -34,6 +34,8 @@ $upgrade && log_file=$final_log || log_file=$tmp_log
 # -- External Sources --
 # ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download" ## now points to gensio not ser2net
 ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-3.5.1.tar.gz/download"
+ser2net_source_version="3.5.1"
+# ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-4.0.tar.gz/download"
 consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 
@@ -165,4 +167,40 @@ user_input_bool() {
         fi
     done
     echo $response
+}
+
+# arg1 = systemd file without the .service suffix
+systemd_diff_update() {
+    # -- If both files exist check if they are different --
+    if [[ -f /etc/ConsolePi/src/systemd/${1}.service ]] && [[ -f /etc/systemd/system/${1}.service ]]; then
+        mdns_diff=$(diff -s /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system/${1}.service)
+    else
+        mdns_diff="doit"
+    fi
+
+    # -- if systemd file doesn't exist or doesn't match copy and enable from the source directory
+    if [[ ! "$mdns_diff" = *"identical"* ]]; then
+        if [[ -f /etc/ConsolePi/src/systemd/${1}.service ]]; then 
+            sudo cp /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system &&
+                logit "${1} systemd service created/updated" || 
+                logit "FAILED to create/update ${1} systemd service" "WARNING"
+            sudo systemctl daemon-reload || logit "Failed to reload Daemons: ${1}" "WARNING"
+            if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
+                if [[ -f /etc/systemd/system/${1}.service ]]; then
+                    sudo systemctl disable ${1}.service 
+                    sudo systemctl enable ${1}.service ||
+                        logit "FAILED to enable ${1} systemd service" "WARNING"
+                else
+                    logit "Failed ${1}.service file not found in systemd after move"
+                fi
+            fi
+            [[ $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]] &&
+                sudo systemctl restart ${1}.service || 
+                logit "FAILED to restart ${1} systemd service" "WARNING"
+        else
+            logit "${1} file not found in src directory.  git pull failed?" "WARNING"
+        fi
+    else
+        logit "${1} systemd file is current"
+    fi
 }

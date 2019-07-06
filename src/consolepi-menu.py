@@ -302,7 +302,7 @@ class ConsolePiMenu:
             item += 1
 
         # Build menu items for each serial adapter found on remote ConsolePis
-        for host in rem:
+        for host in sorted(rem):
             if rem[host]['rem_ip'] is not None:
                 remotes_connected = True
                 header = '   [Remote] {} @ {}'.format(host, rem[host]['rem_ip'])

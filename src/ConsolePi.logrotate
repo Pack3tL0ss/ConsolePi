@@ -1,0 +1,13 @@
+/var/log/ConsolePi/ovpn.log
+/var/log/ConsolePi/push_response.log
+/var/log/ConsolePi/install.log
+/var/log/ConsolePi/cloud.log
+{
+        rotate 4
+        weekly
+        missingok
+        notifempty
+        compress
+        delaycompress
+        create 664 root consolepi
+}

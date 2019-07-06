@@ -9,9 +9,7 @@ import subprocess
 import shlex
 import serial.tools.list_ports
 from collections import OrderedDict as od
-import paramiko
 import ast
-import getpass
 import threading
 
 # get ConsolePi imports
@@ -19,19 +17,6 @@ from consolepi.common import check_reachable
 from consolepi.common import gen_copy_key
 from consolepi.gdrive import GoogleDrive
 from consolepi.common import ConsolePi_data
-
-
-# -- GLOBALS --
-# DO_DHCP=False   # DHCP update function now disabled, MDNS makes it unecessary
-# LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
-# LOG_FILE = '/var/log/ConsolePi/cloud.log'
-
-
-# Depricated - mdns is now automatically triggered via systemd file in background
-DO_MDNS = False
-if DO_MDNS:
-    from consolepi.mdns_browse import MDNS_Browser
-    from time import sleep
 
 rem_user = 'pi'
 rem_pass = None
@@ -42,10 +27,6 @@ class ConsolePiMenu:
         config = ConsolePi_data()
         self.config = config
         self.error = None
-        if DO_MDNS:
-            self.mdns = MDNS_Browser(config.log)
-            self.zcstop = threading.Thread(target=self.mdns.zc.close)
-
         self.cloud = None  # Set in refresh method if reachable
         self.do_cloud = config.cloud
         if self.do_cloud and config.cloud_svc == 'gdrive':
@@ -96,19 +77,6 @@ class ConsolePiMenu:
         if data is None:
             data = config.get_local_cloud_file()
 
-        # Depricated now done in background systemd
-        if DO_MDNS:
-            plog('Discovering Remotes via mdns')
-            m_data = self.mdns.mdata
-            if m_data is not None:
-                for _ in m_data:
-                    plog('    {} Discovered via mdns'.format(_))
-                data = config.update_local_cloud_file(m_data)
-
-        # if DO_DHCP:
-        #     if refresh or not config.do_cloud or self.local_only:
-        #         data = self.update_from_dhcp_leases(data)
-
         if config.hostname in data:
             data.pop(self.hostname)
             config.log.warning('Local Cloud cache included entry for self - there is a logic error someplace')
@@ -128,10 +96,6 @@ class ConsolePiMenu:
                 print(': Success', end='\n')
                 log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, this['rem_ip']))
                 this['adapters'] = build_adapter_commands(this)
-                # for adapter in this['adapters']:
-                #     _dev = adapter['dev']
-                #     adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
-                #         this['user'], _ip, _dev, self.baud, self.flow, self.data_bits, self.parity))
             else:
                 for _iface in this['interfaces']:
                     _ip = this['interfaces'][_iface]['ip']
@@ -141,10 +105,6 @@ class ConsolePiMenu:
                             print(': Success', end='\n')
                             log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
                             this['adapters'] = build_adapter_commands(this)
-                            # for adapter in this['adapters']:
-                            #     _dev = adapter['dev']
-                            #     adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
-                            #         this['user'], _ip, _dev, self.baud, self.flow, self.data_bits, self.parity))
                             break  # Stop Looping through interfaces we found a reachable one
                         else:
                             this['rem_ip'] = None
@@ -514,8 +474,6 @@ class ConsolePiMenu:
 
     # Exit program
     def exit(self):
-        if DO_MDNS:
-            self.zcstop.start()
         self.go = False
         # sys.exit(0)
 

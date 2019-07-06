@@ -1,9 +1,9 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-from consolepi.common import ConsolePi_Log
-from consolepi.common import get_local
-from consolepi.common import get_if_ips
-from consolepi.common import get_config
+from consolepi.common import ConsolePi_data
+# from consolepi.common import get_local
+# from consolepi.common import get_if_ips
+# from consolepi.common import get_config
 from zeroconf import ServiceInfo, Zeroconf
 from time import sleep
 import json
@@ -12,17 +12,17 @@ import pyudev
 import threading
 
 
-DEBUG = get_config('debug')
-cpi_log = ConsolePi_Log(debug=DEBUG, do_print=False)
-LOG = cpi_log.log
+#DEBUG = get_config('debug')
+CONFIG = ConsolePi_data(do_print=False)
+LOG = CONFIG.log
 # reference_value = get_local(log)
-HOSTNAME = socket.gethostname()
+HOSTNAME = CONFIG.hostname
 zeroconf = Zeroconf()
 context = pyudev.Context()
 
 def build_info():
-    local_adapters = get_local(cpi_log=cpi_log, do_print=False)
-    if_ips = get_if_ips(log=LOG)
+    local_adapters = CONFIG.get_local(do_print=False)
+    if_ips = CONFIG.get_if_ips()
         
     local_data = {'hostname': HOSTNAME,
         'adapters': json.dumps(local_adapters),
@@ -59,15 +59,6 @@ def run():
     monitor.filter_by('usb-serial')    
     observer = pyudev.MonitorObserver(monitor, name='udev_monitor', callback=update_mdns)
     observer.start()
-    while True:
-        sleep(1)
-
-    # return observer
-
-if __name__ == '__main__':
-
-    observer=(run())
-
     try:
         while True:
             sleep(1)
@@ -78,3 +69,8 @@ if __name__ == '__main__':
         zeroconf.unregister_service(build_info())
         zeroconf.close()
         observer.send_stop()
+
+if __name__ == '__main__':
+    run()
+
+

@@ -175,7 +175,7 @@ class ConsolePiMenu:
             remote_consoles = self.cloud.update_files(self.data['local'])
             if len(remote_consoles) > 0:
                 config.plog('Updating Local Cache with data from {}'.format(config.cloud_svc))
-                config.update_local_cloud_file(remote_consoles)
+                config.update_local_cloud_file(remote_consoles, self.data['remote'])
             else:
                 config.plog('No Remote ConsolePis found on {}'.format(config.cloud_svc))
         else:

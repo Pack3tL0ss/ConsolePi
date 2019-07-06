@@ -491,7 +491,7 @@ install_ser2net () {
 
         
         logit "Building init for ser2net"
-        cp /etc/ConsolePi/src/ser2net.init /etc/init.d/ser2net 2>> $log_file || 
+        cp /etc/ConsolePi/src/systemd/ser2net.init /etc/init.d/ser2net 2>> $log_file || 
             logit "ser2net Failed to copy init file from ConsolePi src" "ERROR"
             
         chmod +x /etc/init.d/ser2net 2>> $log_file || 

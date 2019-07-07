@@ -226,6 +226,12 @@ file_diff_update() {
                     logit "${2} backed up to bak dir" || 
                     logit "FAILED to backup existing ${2}" "WARNING"
             fi
+
+            if [ ! -d ${2%/*} ]; then
+                logit "Creating ${2%/*} directory as it doesn't exist"
+                sudo mkdir -p ${2%/*} || logit "Error Creating ${2%/*} directory"
+            fi
+            
             sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
                 logit "${2} created/updated" || 
                 logit "FAILED to create/update ${2}" "WARNING"

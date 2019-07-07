@@ -79,7 +79,7 @@ pre_git_prep() {
                     logit "ERROR Unable to remove old consolepi-menu quick-launch file" "WARNING"
         fi
     fi
-    
+
     process="ConsolePi-Upgrade-Prep (create consolepi group)"
     if [[ ! $(groups pi) == *"consolepi"* ]]; then
         if [[ $(grep -c consolepi /etc/group) == 0 ]]; then 
@@ -205,6 +205,7 @@ do_logging() {
     # echo "        delaycompress" >> "/etc/logrotate.d/ConsolePi"
     # echo "}" >> "/etc/logrotate.d/ConsolePi"
     file_diff_update "${src_dir}ConsolePi.logrotate" "/etc/logrotate.d/ConsolePi"
+    sudo logrotate -f /etc/logrotate.d/ConsolePi || logit "ConsolePi logrotate test failed" "WARNING"
     
     # Verify logrotate file was created correctly
     # lines=$(wc -l < "/etc/logrotate.d/ConsolePi")

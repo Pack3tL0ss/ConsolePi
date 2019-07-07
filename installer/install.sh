@@ -78,23 +78,25 @@ pre_git_prep() {
                 logit "Removed old consolepi-menu quick-launch file will replace during upgade" ||
                     logit "ERROR Unable to remove old consolepi-menu quick-launch file" "WARNING"
         fi
-        process="ConsolePi-Upgrade-Prep (create consolepi group)"
-        if [[ ! $(groups pi) == *"consolepi"* ]]; then
-            if [[ $(grep -c consolepi /etc/group) == 0 ]]; then 
-                sudo groupadd consolepi && 
-                logit "Added consolepi group" || 
-                logit "Error adding consolepi group" "WARNING"
-            else
-                logit "consolepi group already exists"
-            fi
-            sudo usermod -a -G consolepi pi && 
-                logit "Added pi user to consolepi group" || 
-                    logit "Error adding pi user to consolepi group" "WARNING"
-        else
-            logit "all good pi user already belongs to consolepi group"
-        fi
-        unset process
     fi
+    
+    process="ConsolePi-Upgrade-Prep (create consolepi group)"
+    if [[ ! $(groups pi) == *"consolepi"* ]]; then
+        if [[ $(grep -c consolepi /etc/group) == 0 ]]; then 
+            sudo groupadd consolepi && 
+            logit "Added consolepi group" || 
+            logit "Error adding consolepi group" "WARNING"
+        else
+            logit "consolepi group already exists"
+        fi
+        sudo usermod -a -G consolepi pi && 
+            logit "Added pi user to consolepi group" || 
+                logit "Error adding pi user to consolepi group" "WARNING"
+    else
+        logit "all good pi user already belongs to consolepi group"
+    fi
+    unset process
+    
 }
 
 git_ConsolePi() {

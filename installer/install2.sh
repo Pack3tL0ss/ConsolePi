@@ -564,7 +564,6 @@ ConsolePi_cleanup() {
 #sub process used by install_ovpn
 check_vpn_config(){
     if [ -f /etc/openvpn/client/ConsolePi.ovpn ]; then
-        logit "Retaining existing ConsolePi.ovpn"
         if $push; then
             if [ $(sudo grep -c "script-security 2" /etc/openvpn/client/ConsolePi.ovpn) -eq 0 ]; then
                 sudo echo -e "#\n# run push script to send notification of successful VPN connection\nscript-security 2" 1>> /etc/openvpn/client/ConsolePi.ovpn 2>>$log_file &&
@@ -585,7 +584,6 @@ install_ovpn() {
     process="OpenVPN"
     logit "Install OpenVPN"
     ovpn_ver=$(openvpn --version 2>/dev/null| head -1 | awk '{print $2}')
-#    if [[ ! $(dpkg -l openvpn | tail -1 |cut -d" " -f1) == "ii" ]]; then
     if [[ -z $ovpn_ver ]]; then
         sudo apt-get -y install openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN installed Successfully" || logit "FAILED to install OpenVPN" "WARNING"
         if ! $ovpn_enable; then
@@ -599,6 +597,7 @@ install_ovpn() {
     fi
     
     if [ -f /etc/openvpn/client/ConsolePi.ovpn ]; then
+        logit "Retaining existing ConsolePi.ovpn"
         $push && check_vpn_config
     else
         found_path=$(get_staged_file_path "ConsolePi.ovpn")
@@ -613,33 +612,27 @@ install_ovpn() {
         fi
     fi
     
-    found_path=$(get_staged_file_path "ovpn_credentials")
-    if [[ $found_path ]]; then 
-        mv $found_path "/etc/openvpn/client" &&
-        logit "Found ovpn_credentials ${found_path}. Moving to /etc/openvpn/client"  ||
-        logit "Error occurred moving your ovpn_credentials file" "WARNING"
+    if [ -f /etc/openvpn/client/ovpn_credentials ]; then
+        logit "Retaining existing openvpn credentials"
     else
-        [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}ovpn_credentials" "/etc/openvpn/client" ||
-            logit "Retaining existing ovpn_credentials file. See src dir for original example file."
+        found_path=$(get_staged_file_path "ovpn_credentials")
+        if [[ $found_path ]]; then 
+            mv $found_path "/etc/openvpn/client" &&
+            logit "Found ovpn_credentials ${found_path}. Moving to /etc/openvpn/client"  ||
+            logit "Error occurred moving your ovpn_credentials file" "WARNING"
+        else
+            [[ ! -f "/etc/openvpn/client/ovpn_credentials" ]] && cp "${src_dir}ovpn_credentials" "/etc/openvpn/client" ||
+                logit "Retaining existing ovpn_credentials file. See src dir for original example file."
+        fi
     fi
-            
+    
     sudo chmod 600 /etc/openvpn/client/* 1>/dev/null 2>> $log_file || logit "Failed chmod 600 openvpn client files" "WARNING"
     unset process
 }
 
 ovpn_graceful_shutdown() {
     process="OpenVPN Graceful Shutdown"
-    logit "Deploy ovpn_graceful_shutdown systemd service"
-    this_file="/etc/systemd/system/ovpn-graceful-shutdown.service"
-    echo -e "[Unit]\nDescription=Gracefully terminates any ovpn sessions on reboot or shutdown\nConditionPathExists=/var/run/ovpn.pid" > "${this_file}" 
-    echo -e "DefaultDependencies=no\nBefore=networking.service\n\n" >> "${this_file}" 
-    echo -e "[Service]\nType=oneshot\nExecStart=/bin/pkill -SIGTERM -e -F /var/run/ovpn.pid\n\n" >> "${this_file}"
-    echo -e "[Install]\nWantedBy=reboot.target halt.target poweroff.target" >> "${this_file}"
-    lines=$(wc -l < "${this_file}") || lines=0
-    [[ $lines == 0 ]] && logit "Failed to create ovpn_graceful_shutdown in systemd dir" "WARNING"
-    sudo systemctl enable ovpn-graceful-shutdown.service 1>/dev/null 2>> $log_file && logit "ovpn-gracefule-shutdown.service enabled" ||
-        logit "Failed to enable ovpn-graceful-shutdown service" "WARNING"
-    logit "${process} Complete"
+    systemd_diff_update "ovpn-graceful-shutdown"
     unset process
 }
 

@@ -172,6 +172,16 @@ do_logging() {
         sudo mkdir /var/log/ConsolePi 1>/dev/null 2>> $log_file || logit "Failed to create Log Directory"
     fi
 
+    # Create Log Files
+    touch /var/log/ConsolePi/ovpn.log || logit "Failed to create OpenVPN log file" "WARNING"
+    touch /var/log/ConsolePi/push_response.log || logit "Failed to create PushBullet log file" "WARNING"
+    touch /var/log/ConsolePi/cloud.log || logit "Failed to create cloud log file" "WARNING"
+    touch /var/log/ConsolePi/install.log || logit "Failed to create install log file" "WARNING"
+
+    # Update permissions
+    sudo chgrp consolepi /var/log/ConsolePi/* || logit "Failed to update group for log file" "WARNING"
+    sudo chmod g+w /var/log/ConsolePi/* || logit "Failed to update group write privs" "WARNING"
+
     # move installer log from temp to it's final location
     if ! $upgrade; then
         log_file=$final_log
@@ -186,11 +196,7 @@ do_logging() {
             rm $tmp_log
         fi
     fi
-
-    # Create Log Files
-    touch /var/log/ConsolePi/ovpn.log || logit "Failed to create OpenVPN log file" "WARNING"
-    touch /var/log/ConsolePi/push_response.log || logit "Failed to create PushBullet log file" "WARNING"
-    
+   
     # Create logrotate file for logs
     # echo "/var/log/ConsolePi/ovpn.log" > "/etc/logrotate.d/ConsolePi"
     # echo "/var/log/ConsolePi/push_response.log" >> "/etc/logrotate.d/ConsolePi"
@@ -205,7 +211,7 @@ do_logging() {
     # echo "        delaycompress" >> "/etc/logrotate.d/ConsolePi"
     # echo "}" >> "/etc/logrotate.d/ConsolePi"
     file_diff_update "${src_dir}ConsolePi.logrotate" "/etc/logrotate.d/ConsolePi"
-    sudo logrotate -f /etc/logrotate.d/ConsolePi || logit "ConsolePi logrotate test failed" "WARNING"
+    # sudo logrotate -f /etc/logrotate.d/ConsolePi || logit "ConsolePi logrotate test failed" "WARNING"
     
     # Verify logrotate file was created correctly
     # lines=$(wc -l < "/etc/logrotate.d/ConsolePi")

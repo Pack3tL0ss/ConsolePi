@@ -198,10 +198,10 @@ do_logging() {
     file_diff_update "${src_dir}ConsolePi.logrotate" "/etc/logrotate.d/ConsolePi"
     
     # Verify logrotate file was created correctly
-    lines=$(wc -l < "/etc/logrotate.d/ConsolePi")
-    ( $cloud && [[ $lines == 12 ]] ) || ( ! $cloud && [[ $lines == 11 ]] ) && 
-        logit "${process} Completed Successfully" || 
-        logit "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
+    # lines=$(wc -l < "/etc/logrotate.d/ConsolePi")
+    # ( $cloud && [[ $lines == 12 ]] ) || ( ! $cloud && [[ $lines == 11 ]] ) && 
+    #     logit "${process} Completed Successfully" || 
+    #     logit "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
 }
 
 get_install2() {

@@ -202,6 +202,7 @@ do_logging() {
     # ( $cloud && [[ $lines == 12 ]] ) || ( ! $cloud && [[ $lines == 11 ]] ) && 
     #     logit "${process} Completed Successfully" || 
     #     logit "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
+    unset process
 }
 
 get_install2() {

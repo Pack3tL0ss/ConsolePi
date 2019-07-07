@@ -147,7 +147,7 @@ do_pyvenv() {
         logit "Error - pip install ConsolePi requirements" "ERROR"
 
     # -- temporary until I have consolepi module on pypi --
-    sudo cp -r ${src_dir}/Pyconsolepi ${consolepi_dir}venv/lib/python3*/site-packages/ 2>> $log_file &&
+    sudo cp -r ${src_dir}Pyconsolepi ${consolepi_dir}venv/lib/python3*/site-packages/ 2>> $log_file &&
         logit "Success - moving consolepi python module into venv site-packages" ||
         logit "Error - moving consolepi python module into venv site-packages" "ERROR"
 }

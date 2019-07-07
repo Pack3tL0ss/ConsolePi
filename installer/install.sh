@@ -144,14 +144,16 @@ do_pyvenv() {
     fi
 
     # -- *Always* update venv packages based on requirements file --
-    logit "pip install ConsolePi requirements"
+    logit "pip install/upgrade ConsolePi requirements"
     sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 1>/dev/null 2>> $log_file &&
-        logit "Success - pip install ConsolePi requirements" ||
-        logit "Error - pip install ConsolePi requirements" "ERROR"
+        logit "Success - pip install/upgrade ConsolePi requirements" ||
+        logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
 
     # -- temporary until I have consolepi module on pypi --
     logit "moving consolepi python module into venv site-packages"
-    sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
+    python_ver=$(ls -l /etc/ConsolePi/venv/lib | grep python3 |  awk '{print $9}')
+    sudo cp -R ${src_dir}PyConsolePi/. ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
+    # sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
         logit "Success - moving consolepi python module into venv site-packages" ||
         logit "Error - moving consolepi python module into venv site-packages" "ERROR"
 

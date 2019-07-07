@@ -1,0 +1,18 @@
+#!/etc/ConsolePi/venv/bin/python3
+
+import json
+import sys
+from consolepi.common import ConsolePi_data
+
+config = ConsolePi_data(do_print=False)
+data = config.remotes
+
+if len(sys.argv) == 1:
+    print(json.dumps(data, indent=4, sort_keys=True))
+elif len(sys.argv) > 1:
+    if sys.argv[1] in data:
+        print(json.dumps(data[sys.argv[1]], indent=4, sort_keys=True))
+    else:
+        print('{} not found in file.  Printing all hosts'.format(sys.argv[1]))
+        print(json.dumps(data, indent=4, sort_keys=True))
+

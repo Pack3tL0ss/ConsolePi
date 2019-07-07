@@ -222,7 +222,7 @@ file_diff_update() {
     if [[ ! "$this_diff" = *"identical"* ]]; then
         if [[ -f ${1} ]]; then 
             if [ -f ${2} ]; then        # if dest file exists but doesn't match stash in bak dir
-                sudp cp $2 $bak_dir 1>/dev/null 2>> $log_file &&
+                sudo cp $2 $bak_dir 1>/dev/null 2>> $log_file &&
                     logit "${2} backed up to bak dir" || 
                     logit "FAILED to backup existing ${2}" "WARNING"
             fi
@@ -231,7 +231,7 @@ file_diff_update() {
                 logit "Creating ${2%/*} directory as it doesn't exist"
                 sudo mkdir -p ${2%/*} || logit "Error Creating ${2%/*} directory"
             fi
-            
+
             sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
                 logit "${2} created/updated" || 
                 logit "FAILED to create/update ${2}" "WARNING"

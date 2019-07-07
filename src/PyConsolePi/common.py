@@ -172,6 +172,7 @@ class ConsolePi_data:
                 os.remove(local_cloud_file)
 
             # update current_remotes dict with data passed to function
+            # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
             if current_remotes is not None:
                 for _ in current_remotes:
                     if _ not in remote_consoles:
@@ -179,13 +180,18 @@ class ConsolePi_data:
                         remote_consoles[_] = current_remotes[_]
                     else:
                         # only factor in existing data if source is not mdns
-                        if remote_consoles[_]['source'] != 'mdns':
-                            if 'rem_ip' in current_remotes[_]:
-                                remote_consoles[_]['rem_ip'] = current_remotes[_]['rem_ip']
+                        if remote_consoles[_]['source'] != 'mdns' and source in current_remotes[_] and current_remotes[_]['source'] == 'mdns':
+                            if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
+                                # given all of the above it would appear the mdns entry is more current than the cloud entry
+                                remote_consoles[_] = current_remotes[_]
+                        elif remote_consoles[_]['source'] != 'mdns':
+                                if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
+                                    # if we currently have a reachable ip assume whats in the cache is more valid
+                                    remote_consoles[_]['rem_ip'] = current_remotes[_]['rem_ip']
 
-                            if len(current_remotes[_]['adapters']) > 0 and len(remote_consoles[_]['adapters']) == 0:
-                                log.info('My Adapter data for {} is more current, keeping'.format(_))
-                                remote_consoles[_]['adapters'] = current_remotes[_]['adapters']
+                                    if len(current_remotes[_]['adapters']) > 0 and len(remote_consoles[_]['adapters']) == 0:
+                                        log.info('My Adapter data for {} is more current, keeping'.format(_))
+                                        remote_consoles[_]['adapters'] = current_remotes[_]['adapters']
         
             with open(local_cloud_file, 'a') as new_file:
                 new_file.write(json.dumps(remote_consoles))

@@ -23,6 +23,10 @@ class MDNS_Browser:
         self.stop = False
         self.zc = self.run()
         self.update = self.config.update_local_cloud_file
+        self.if_ips = config.interfaces
+        self.ip_list = []
+        for _iface in self.if_ips:
+            self.ip_list.append(self.if_ips[_iface]['ip'])    
         # self.run()
 
     def on_service_state_change(self,
@@ -41,8 +45,15 @@ class MDNS_Browser:
                         user = properties[b'user'].decode("utf-8")
                         interfaces = json.loads(properties[b'interfaces'].decode("utf-8"))
                         adapters = json.loads(properties[b'adapters'].decode("utf-8"))
-                        mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user, 'source': 'mdns'}}
-                        log.info('-mdns discovery- Final data set for {}:\n{}'.format(info.server.split('.')[0], mdns_data))
+                        rem_ip = None
+                        for _iface in interfaces:
+                            _ip = interfaces[_iface]['ip']
+                            if _ip not in self.ip_list:
+                                if check_reachable(_ip, 22):
+                            rem_ip = _ip
+                            break
+                        mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user, 'rem_ip': rem_ip, 'source': 'mdns'}}
+                        log.debug('-mdns discovery- Final data set for {}:\n{}'.format(info.server.split('.')[0], mdns_data))
                         self.update(remote_consoles=mdns_data)
                         log.info('Local Cloud Cache Updated with {} data discovered via mdns'.format(info.server.split('.')[0]))
                     else:

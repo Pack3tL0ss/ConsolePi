@@ -93,6 +93,7 @@ pre_git_prep() {
         else
             logit "all good pi user already belongs to consolepi group"
         fi
+        unset process
     fi
 }
 
@@ -109,10 +110,11 @@ git_ConsolePi() {
             logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "ERROR"
     fi
     [[ ! -d $bak_dir ]] && sudo mkdir $bak_dir
+    unset process
 }
 
 do_pyvenv() {
-    process "Prepare/Check Python venv"
+    process="Prepare/Check Python venv"
     if [ ! -d ${consolepi_dir}venv ]; then
         # -- Ensure python3-pip is installed --
         if [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]]; then

@@ -82,7 +82,7 @@ class ConsolePi_data:
                     value = value.replace('{0}='.format(var), '')
                     value = value.split('#')[0]
                     if '"' in value:
-                        value = value.replace('"'.format(var), '', 1)
+                        value = value.replace('"', '', 1)
                         value = value.split('"')
                         value = value[0]
                     
@@ -208,7 +208,7 @@ def get_config(var):
                 var_out = line.replace('{0}='.format(var), '')
                 var_out = var_out.split('#')[0]
                 if '"' in var_out:
-                    var_out = var_out.replace('"'.format(var), '', 1)
+                    var_out = var_out.replace('"', '', 1)
                     var_out = var_out.split('"')
                     var_out = var_out[0]
                 break

@@ -489,7 +489,7 @@ install_ser2net () {
         cd $cur_dir
         
         do_ser2net=true
-        if ! upgrade; then
+        if ! $upgrade; then
             found_path=$(get_staged_file_path "ser2net.conf")
             if [[ $found_path ]]; then 
             cp $found_path "/etc" &&

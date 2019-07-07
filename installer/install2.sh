@@ -450,7 +450,7 @@ misc_imports(){
     if ! $upgrade; then
         found_path=$(get_staged_file_path "authorized_keys")
         [[ $found_path ]] && logit "pre-staged ssh authorized keys found - importing"
-        if [[ $found_path ]] && [ -f /root/.ssh/authorized_keys ]; then 
+        if [[ $found_path ]]; then 
             file_diff_update $found_path /root/.ssh/authorized_keys
         fi
     fi

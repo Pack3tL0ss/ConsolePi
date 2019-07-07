@@ -17,17 +17,17 @@ remote-cert-tls server
 auth-nocache
 <ca>
 -----BEGIN CERTIFICATE-----
-<redacted>
+###redacted###
 -----END CERTIFICATE-----
 </ca>
 <cert>
 -----BEGIN CERTIFICATE-----
-<redacted>
+###redacted###
 -----END CERTIFICATE-----
 </cert>
 <key>
 -----BEGIN PRIVATE KEY-----
-<redacted>
+###redacted###
 -----END PRIVATE KEY-----
 </key>
 <tls-auth>
@@ -35,7 +35,7 @@ auth-nocache
 # 2048 bit OpenVPN static key
 #
 -----BEGIN OpenVPN Static key V1-----
-<redacted>
+###redacted###
 -----END OpenVPN Static key V1-----
 </tls-auth>
 key-direction 1

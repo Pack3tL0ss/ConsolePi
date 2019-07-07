@@ -143,7 +143,7 @@ do_pyvenv() {
     fi
 
     # -- *Always* update venv packages based on requirements file --
-    sudo venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 1>/dev/null 2>> $log_file &&
+    sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 1>/dev/null 2>> $log_file &&
         logit "Success - pip install ConsolePi requirements" ||
         logit "Error - pip install ConsolePi requirements" "ERROR"
 

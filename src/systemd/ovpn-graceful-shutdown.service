@@ -1,0 +1,14 @@
+[Unit]
+Description=Gracefully terminates any ovpn sessions on reboot or shutdown
+ConditionPathExists=/var/run/ovpn.pid
+DefaultDependencies=no
+Before=networking.service
+
+
+[Service]
+Type=oneshot
+ExecStart=/bin/pkill -SIGTERM -e -F /var/run/ovpn.pid
+
+
+[Install]
+WantedBy=reboot.target halt.target poweroff.target

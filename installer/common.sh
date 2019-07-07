@@ -225,12 +225,12 @@ file_diff_update() {
                 logit "${2} backed up to bak dir" || 
                 logit "FAILED to backup existing ${2}" "WARNING"
             sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
-                logit "${1} created/updated" || 
-                logit "FAILED to create/update ${1}" "WARNING"
+                logit "${2} created/updated" || 
+                logit "FAILED to create/update ${2}" "WARNING"
         else
             logit "${1} file not found in src directory.  git pull failed?" "WARNING"
         fi
     else
-        logit "${1} is current"
+        logit "${2} is current"
     fi
 }

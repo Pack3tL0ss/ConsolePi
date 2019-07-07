@@ -13,4 +13,5 @@ cloud.data
 /cloud/gdrive/headless-auth/*
 
 # venv
+.venv
 venv/

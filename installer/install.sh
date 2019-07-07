@@ -96,7 +96,7 @@ pre_git_prep() {
     fi
 }
 
-git_ConsolePi () {
+git_ConsolePi() {
     process="git Clone/Update ConsolePi"
     cd "/etc"
     if [ ! -d $consolepi_dir ]; then 
@@ -109,6 +109,45 @@ git_ConsolePi () {
             logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "ERROR"
     fi
     [[ ! -d $bak_dir ]] && sudo mkdir $bak_dir
+}
+
+do_pyvenv() {
+    process "Prepare/Check Python venv"
+    if [ ! -d ${consolepi_dir}venv ]; then
+        # -- Ensure python3-pip is installed --
+        if [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]]; then
+            sudo apt-get install -y python3-pip 1>/dev/null 2>> $log_file && logit "Success - Install python3-pip" ||
+                logit "Error - installing Python3-pip" "ERROR"
+        fi
+
+        # -- Ensure python3 virtualenv is installed --
+        venv_ver=$(sudo python3 -m pip list --format columns | grep virtualenv | awk '{print $2}')
+        if [ -z $venv_ver ]; then
+            logit "python virtualenv not installed... installing"
+            sudo python3 -m pip install virtualenv 1>/dev/null 2>> $log_file && 
+                logit "Success - Install virtualenv" ||
+                logit "Error - installing virtualenv" "ERROR"
+        else
+            logit "python virtualenv v${venv_ver} installed"
+        fi
+
+        # -- Create ConsolePi venv --
+        sudo python3 -m virtualenv venv 1>/dev/null 2>> $log_file && 
+            logit "Success - Creating ConsolePi virtualenv" ||
+            logit "Error - Creating ConsolePi virtualenv" "ERROR"
+    else
+        logit "${consolepi_dir}venv directory exists"
+    fi
+
+    # -- *Always* update venv packages based on requirements file --
+    sudo venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 1>/dev/null 2>> $log_file &&
+        logit "Success - pip install ConsolePi requirements" ||
+        logit "Error - pip install ConsolePi requirements" "ERROR"
+
+    # -- temporary until I have consolepi module on pypi --
+    sudo cp -r ${src_dir}/Pyconsolepi ${consolepi_dir}venv/lib/python3*/site-packages/ 2>> $log_file &&
+        logit "Success - moving consolepi python module into venv site-packages" ||
+        logit "Error - moving consolepi python module into venv site-packages" "ERROR"
 }
 
 # Configure ConsolePi logging directory and logrotate
@@ -141,18 +180,19 @@ do_logging() {
     touch /var/log/ConsolePi/push_response.log || logit "Failed to create PushBullet log file" "WARNING"
     
     # Create logrotate file for logs
-    echo "/var/log/ConsolePi/ovpn.log" > "/etc/logrotate.d/ConsolePi"
-    echo "/var/log/ConsolePi/push_response.log" >> "/etc/logrotate.d/ConsolePi"
-    echo "/var/log/ConsolePi/install.log" >> "/etc/logrotate.d/ConsolePi"
-    $cloud && echo "/var/log/ConsolePi/cloud.log" >> "/etc/logrotate.d/ConsolePi"    
-    echo "{" >> "/etc/logrotate.d/ConsolePi"
-    echo "        rotate 4" >> "/etc/logrotate.d/ConsolePi"
-    echo "        weekly" >> "/etc/logrotate.d/ConsolePi"
-    echo "        missingok" >> "/etc/logrotate.d/ConsolePi"
-    echo "        notifempty" >> "/etc/logrotate.d/ConsolePi"
-    echo "        compress" >> "/etc/logrotate.d/ConsolePi"
-    echo "        delaycompress" >> "/etc/logrotate.d/ConsolePi"
-    echo "}" >> "/etc/logrotate.d/ConsolePi"
+    # echo "/var/log/ConsolePi/ovpn.log" > "/etc/logrotate.d/ConsolePi"
+    # echo "/var/log/ConsolePi/push_response.log" >> "/etc/logrotate.d/ConsolePi"
+    # echo "/var/log/ConsolePi/install.log" >> "/etc/logrotate.d/ConsolePi"
+    # $cloud && echo "/var/log/ConsolePi/cloud.log" >> "/etc/logrotate.d/ConsolePi"    
+    # echo "{" >> "/etc/logrotate.d/ConsolePi"
+    # echo "        rotate 4" >> "/etc/logrotate.d/ConsolePi"
+    # echo "        weekly" >> "/etc/logrotate.d/ConsolePi"
+    # echo "        missingok" >> "/etc/logrotate.d/ConsolePi"
+    # echo "        notifempty" >> "/etc/logrotate.d/ConsolePi"
+    # echo "        compress" >> "/etc/logrotate.d/ConsolePi"
+    # echo "        delaycompress" >> "/etc/logrotate.d/ConsolePi"
+    # echo "}" >> "/etc/logrotate.d/ConsolePi"
+    file_diff_update "${src_dir}ConsolePi.logrotate" "/etc/logrotate.d/ConsolePi"
     
     # Verify logrotate file was created correctly
     lines=$(wc -l < "/etc/logrotate.d/ConsolePi")
@@ -178,6 +218,7 @@ main() {
         do_apt_update           # apt-get update the pi
         pre_git_prep            # process upgrade tasks required prior to git pull
         git_ConsolePi            # git ConsolePi
+        do_pyvenv               # build python3 venv for ConsolePi
         do_logging              # Configure logging and rotation
         get_install2            # get and import install2 functions
         install2_main           # Kick off install2 functions

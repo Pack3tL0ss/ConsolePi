@@ -11,3 +11,6 @@ cloud.data
 # /cloud/*/.credentials/*  # ignored via file in that dir
 .vscode/*
 /cloud/gdrive/headless-auth/*
+
+# venv
+venv/

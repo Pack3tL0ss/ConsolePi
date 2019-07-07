@@ -50,8 +50,8 @@ class MDNS_Browser:
                             _ip = interfaces[_iface]['ip']
                             if _ip not in self.ip_list:
                                 if check_reachable(_ip, 22):
-                            rem_ip = _ip
-                            break
+                                    rem_ip = _ip
+                                    break
                         mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user, 'rem_ip': rem_ip, 'source': 'mdns'}}
                         log.debug('-mdns discovery- Final data set for {}:\n{}'.format(info.server.split('.')[0], mdns_data))
                         self.update(remote_consoles=mdns_data)

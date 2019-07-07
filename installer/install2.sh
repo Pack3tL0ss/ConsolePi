@@ -357,14 +357,14 @@ set_hostname() {
         valid_response=false
 
         while ! $valid_response; do
-            #Display existing hostname
+            # Display existing hostname
             read -p "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
             response=${response,,}    # tolower
             ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
         done
 
         if [[ "$response" =~ ^(yes|y)$ ]]; then
-            #Ask for new hostname $newhost
+            # Ask for new hostname $newhost
             ok_do_hostname=false
             while ! $ok_do_hostname; do
                 read -p "Enter new hostname: " newhost
@@ -376,11 +376,11 @@ set_hostname() {
                 done
                 [[ "$response" =~ ^(yes|y)$ ]] && ok_do_hostname=true || ok_do_hostname=false
             done
-            # TODO # Verification would be good here
 
-            #change hostname in /etc/hosts & /etc/hostname
+            # change hostname in /etc/hosts & /etc/hostname
             sudo sed -i "s/$hostn/$newhost/g" /etc/hosts
             sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
+            # change hostname via command
             sudo hostname "$newhost" 2>>/dev/null
             # add wlan hotspot IP to hostfile for DHCP connected clients to resolve this host
             wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)

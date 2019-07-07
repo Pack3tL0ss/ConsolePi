@@ -365,7 +365,17 @@ set_hostname() {
 
         if [[ "$response" =~ ^(yes|y)$ ]]; then
             #Ask for new hostname $newhost
-            read -p "Enter new hostname: " newhost
+            ok_do_hostname=false
+            while ! $ok_do_hostname; do
+                read -p "Enter new hostname: " newhost
+                valid_response=false
+                while ! $valid_response; do
+                    read -p "New hostname: $newhost Is this correect (y/n)?: " response
+                    response=${response,,}    # tolower
+                    ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
+                done
+                [[ "$response" =~ ^(yes|y)$ ]] && ok_do_hostname=true || ok_do_hostname=false
+            done
             # TODO # Verification would be good here
 
             #change hostname in /etc/hosts & /etc/hostname

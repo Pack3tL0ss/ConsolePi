@@ -23,7 +23,7 @@ class MDNS_Browser:
         self.stop = False
         self.zc = self.run()
         self.update = self.config.update_local_cloud_file
-        self.if_ips = config.interfaces
+        self.if_ips = self.config.interfaces
         self.ip_list = []
         for _iface in self.if_ips:
             self.ip_list.append(self.if_ips[_iface]['ip'])    

@@ -180,7 +180,7 @@ class ConsolePi_data:
                         remote_consoles[_] = current_remotes[_]
                     else:
                         # only factor in existing data if source is not mdns
-                        if remote_consoles[_]['source'] != 'mdns' and source in current_remotes[_] and current_remotes[_]['source'] == 'mdns':
+                        if remote_consoles[_]['source'] != 'mdns' and 'source' in current_remotes[_] and current_remotes[_]['source'] == 'mdns':
                             if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
                                 # given all of the above it would appear the mdns entry is more current than the cloud entry
                                 remote_consoles[_] = current_remotes[_]

@@ -115,6 +115,7 @@ git_ConsolePi() {
 
 do_pyvenv() {
     process="Prepare/Check Python venv"
+    logit "$process - Starting"
     if [ ! -d ${consolepi_dir}venv ]; then
         # -- Ensure python3-pip is installed --
         if [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]]; then

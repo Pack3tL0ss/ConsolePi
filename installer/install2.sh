@@ -452,7 +452,7 @@ misc_imports(){
         [[ $found_path ]] && logit "pre-staged ssh authorized keys found - importing"
         if [[ $found_path ]]; then 
             file_diff_update $found_path /root/.ssh/authorized_keys
-            file_diff_update $found_path ${home_dir}authorized_keys
+            file_diff_update $found_path ${home_dir}.ssh/authorized_keys
         fi
     fi
     unset process

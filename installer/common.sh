@@ -12,7 +12,11 @@ iam=$(who am i | awk '{print $1}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"
 bak_dir="${consolepi_dir}bak/"
-home_dir="/home/${iam}/"
+if [ "$iam" = "root" ]; then
+    home_dir="/${iam}/"
+else
+    home_dir="/home/${iam}/"
+fi
 stage_dir="${home_dir}ConsolePi_stage/"
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"

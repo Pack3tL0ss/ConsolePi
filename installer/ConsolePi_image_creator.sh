@@ -263,7 +263,7 @@ main() {
     [[ -f ovpn_credentials ]] && cp ovpn_credentials $pi_home && echo "ovpn_credentials found pre-staging on image"
     [[ -f ConsolePi_init.sh ]] && cp ConsolePi_init.sh $pi_home && echo "Custome Post install script found pre-staging on image"
     [[ -d ConsolePi_stage ]] && sudo mkdir $pi_home/ConsolePi_stage && 
-        sudo cp -r "${cur_dir}"/ConsolePi_stage/* $pi_home/ConsolePi_stage/ && echo "ConsolePi_stage dir found Pre-Staging all files"
+        sudo cp -r ${cur_dir}/ConsolePi_stage/. $pi_home && echo "ConsolePi_stage dir found Pre-Staging all files"
     
     # if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.
     # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)

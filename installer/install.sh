@@ -135,7 +135,7 @@ do_pyvenv() {
         fi
 
         # -- Create ConsolePi venv --
-        sudo python3 -m virtualenv venv 1>/dev/null 2>> $log_file && 
+        sudo python3 -m virtualenv ${consolepi_dir}venv 1>/dev/null 2>> $log_file && 
             logit "Success - Creating ConsolePi virtualenv" ||
             logit "Error - Creating ConsolePi virtualenv" "ERROR"
     else

@@ -9,7 +9,7 @@ import json
 from threading import Thread
 
 from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
-# from consolepi.common import ConsolePi_Log
+from consolepi.common import check_reachable
 from consolepi.common import ConsolePi_data
 
 HOSTNAME = socket.gethostname()

@@ -539,7 +539,7 @@ dhcp_run_hook() {
             logit "exit-hook already configured [File Found and Pointer exists]"  #exit-hook exists and line is already there
         else
             sudo sed -i '/.*\/etc\/ConsolePi\/.*/c\\/etc\/ConsolePi\/src\/dhcpcd.exit-hook "$@"' /etc/dhcpcd.exit-hook &&
-            logit "Succesfully Updated exit-hook Pointer" || logit "Failed to update exit-hook pointer" "ERROR"
+            logit "Successfully Updated exit-hook Pointer" || logit "Failed to update exit-hook pointer" "ERROR"
         fi
     else
         sudo echo "$hook_file \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "Failed to create exit-hook script" "ERROR"

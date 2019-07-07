@@ -3,18 +3,8 @@
 """ 
     -- dev testing file currently --
     This file currently only logs
-    Eventually it will replace the function in consolepi-menu which looks at the leases file
-    and if a lease was handed out to a client with the Raspberry Pi MAC OUI it attempts to 
-    ssh to that device to echange adapter info (both pis will update)
+    Eventually this file may be used for ztp trigger or oobm switch discovery for the menu
 
-    This file will have a few advantages, 
-    - rather than keying off of MAC OUI it keys off the custom vendor class id ConsolePi 
-      has been modified to send.  
-    - Updates will be passed back and forth via the new API.  This is a bit more flexible than doing it via ssh
-      currently the api is http and no auth is in place, but its only gets and no sensitive
-      info so not an issue for testing.  
-    - Updates occur as the lease comes in vs. looking at the leases file upon refresh in the menu
-      This reduces the operations the menu would need to perform to help keep it lean/fast
 """
 
 from consolepi.common import check_reachable
@@ -23,7 +13,7 @@ import os
 import json
 import requests
 from consolepi.common import ConsolePi_Log
-from consolepi.common import get_local
+# from consolepi.common import get_local
 
 # -- Some Testing Stuff --
 # with open('/home/pi/dhcp-test.out', 'a') as new_file:

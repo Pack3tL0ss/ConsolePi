@@ -43,6 +43,7 @@ key-direction 1
 # Everything above can be configured however you want, based on how your openVPN server is configured
 # The Lines Below are necessary to get Push Notifications once VPN is established
 # ------------------------------------------------------------------------------------------------------
-script-security 2
+#
 # run push script to send notification of successful VPN connection
+script-security 2
 up "/etc/ConsolePi/src/dhcpcd.exit-hook OVPN"

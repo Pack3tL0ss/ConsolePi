@@ -1056,11 +1056,13 @@ get_serial_udev() {
     if ! $upgrade; then
         found_path=$(get_staged_file_path "10-ConsolePi.rules")
         if [[ $found_path ]]; then
+            logit "udev rules file found ${found_path} enabling provided udev rules"
             # [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] && cp /etc/udev/rules.d/10-ConsolePi.rules $bak_dir
             if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
-                logit "udev rules file found ${found_path} enabling provided udev rules"
+                # logit "udev rules file found ${found_path} enabling provided udev rules"
                 file_diff_update $found_path /etc/udev/rules.d
-                # sudo cp $found_path /etc/udev/rules.d
+            else
+                sudo cp $found_path /etc/udev/rules.d
                 sudo udevadm control --reload-rules
             fi
         fi

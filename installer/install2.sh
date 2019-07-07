@@ -625,7 +625,7 @@ install_ovpn() {
                 logit "Retaining existing ovpn_credentials file. See src dir for original example file."
         fi
     fi
-    
+
     sudo chmod 600 /etc/openvpn/client/* 1>/dev/null 2>> $log_file || logit "Failed chmod 600 openvpn client files" "WARNING"
     unset process
 }
@@ -1046,10 +1046,13 @@ get_serial_udev() {
     if ! $upgrade; then
         found_path=$(get_staged_file_path "10-ConsolePi.rules")
         if [[ $found_path ]]; then
-            [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] && cp /etc/udev/rules.d/10-ConsolePi.rules $bak_dir
-            logit "udev rules file found ${found_path} enabling provided udev rules"
-            sudo mv $found_path /etc/udev/rules.d
-            sudo udevadm control --reload-rules
+            # [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] && cp /etc/udev/rules.d/10-ConsolePi.rules $bak_dir
+            if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
+                logit "udev rules file found ${found_path} enabling provided udev rules"
+                file_diff_update $found_path /etc/udev/rules.d
+                # sudo cp $found_path /etc/udev/rules.d
+                sudo udevadm control --reload-rules
+            fi
         fi
     fi
     

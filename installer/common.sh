@@ -221,9 +221,9 @@ file_diff_update() {
     # -- if file on system doesn't exist or doesn't match src copy and enable from the source directory
     if [[ ! "$this_diff" = *"identical"* ]]; then
         if [[ -f ${1} ]]; then 
-            sudp cp $2 $bak_dir 1>/dev/null 2>> $log_file &&
+            [ -f ${2} ] && sudp cp $2 $bak_dir 1>/dev/null 2>> $log_file &&
                 logit "${2} backed up to bak dir" || 
-                logit "FAILED to backup existing ${2}}" "WARNING"
+                logit "FAILED to backup existing ${2}" "WARNING"
             sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
                 logit "${1} created/updated" || 
                 logit "FAILED to create/update ${1}" "WARNING"

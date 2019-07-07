@@ -209,7 +209,7 @@ systemd_diff_update() {
     fi
 }
 
-# arg1 = full path of src file arg2 = full path of file in final path
+# arg1 = full path of src file, arg2 = full path of file in final path
 file_diff_update() {
     # -- If both files exist check if they are different --
     if [[ -f ${1} ]] && [[ -f ${2} ]]; then
@@ -221,9 +221,11 @@ file_diff_update() {
     # -- if file on system doesn't exist or doesn't match src copy and enable from the source directory
     if [[ ! "$this_diff" = *"identical"* ]]; then
         if [[ -f ${1} ]]; then 
-            [ -f ${2} ] && sudp cp $2 $bak_dir 1>/dev/null 2>> $log_file &&
-                logit "${2} backed up to bak dir" || 
-                logit "FAILED to backup existing ${2}" "WARNING"
+            if [ -f ${2} ]; then        # if dest file exists but doesn't match stash in bak dir
+                sudp cp $2 $bak_dir 1>/dev/null 2>> $log_file &&
+                    logit "${2} backed up to bak dir" || 
+                    logit "FAILED to backup existing ${2}" "WARNING"
+            fi
             sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
                 logit "${2} created/updated" || 
                 logit "FAILED to create/update ${2}" "WARNING"

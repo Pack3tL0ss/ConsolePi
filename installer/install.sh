@@ -140,7 +140,8 @@ do_pyvenv() {
 
     # -- Ensure python3-pip is installed --
     if [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]]; then
-        sudo apt-get install -y python3-pip 1>/dev/null 2>> $log_file && logit "Success - Install python3-pip" ||
+        sudo apt-get install -y python3-pip 1>/dev/null 2>> $log_file && 
+            logit "Success - Install python3-pip" ||
             logit "Error - installing Python3-pip" "ERROR"
     fi
     

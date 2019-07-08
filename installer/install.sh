@@ -118,13 +118,14 @@ git_ConsolePi() {
 do_pyvenv() {
     process="Prepare/Check Python venv"
     logit "$process - Starting"
-    if [ ! -d ${consolepi_dir}venv ]; then
-        # -- Ensure python3-pip is installed --
-        if [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]]; then
-            sudo apt-get install -y python3-pip 1>/dev/null 2>> $log_file && logit "Success - Install python3-pip" ||
-                logit "Error - installing Python3-pip" "ERROR"
-        fi
 
+    # -- Ensure python3-pip is installed --
+    if [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]]; then
+        sudo apt-get install -y python3-pip 1>/dev/null 2>> $log_file && logit "Success - Install python3-pip" ||
+            logit "Error - installing Python3-pip" "ERROR"
+    fi
+    
+    if [ ! -d ${consolepi_dir}venv ]; then
         # -- Ensure python3 virtualenv is installed --
         venv_ver=$(sudo python3 -m pip list --format columns | grep virtualenv | awk '{print $2}')
         if [ -z $venv_ver ]; then
@@ -142,7 +143,7 @@ do_pyvenv() {
             logit "Success - Creating ConsolePi virtualenv" ||
             logit "Error - Creating ConsolePi virtualenv" "ERROR"
     else
-        logit "${consolepi_dir}venv directory exists"
+        logit "${consolepi_dir}venv directory already exists"
     fi
 
     # -- *Always* update venv packages based on requirements file --

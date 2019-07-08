@@ -56,7 +56,8 @@ def run():
     zeroconf.register_service(info)
     # monitor udev for add - remove of usb-serial adapters 
     monitor = pyudev.Monitor.from_netlink(context)
-    monitor.filter_by('usb-serial')    
+    # monitor.filter_by('usb-serial')    
+    monitor.filter_by('usb')    
     observer = pyudev.MonitorObserver(monitor, name='udev_monitor', callback=update_mdns)
     observer.start()
     try:

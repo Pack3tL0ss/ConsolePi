@@ -62,13 +62,19 @@ pre_git_prep() {
         # wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/.gitignore -O ${consolepi_dir}.gitignore &&
         #     logit "Successfully updated gitignore" ||
         #     logit "Failed to manually update gitignore" "WARNING"
-        process="checkout venv"
-        if [ -d ${consolepi_dir}venv ]; then
-            cd ${consolepi_dir} 
-            sudo git checkout venv &&
-                logit "git checkout venv Success" ||
-                logit "git checkout venv Failed" "WARNING"
-        fi
+        # process="checkout venv"
+        # if [ -d ${consolepi_dir}venv ]; then
+        #     cd ${consolepi_dir} 
+        #     sudo git checkout venv &&
+        #         logit "git checkout venv Success" ||
+        #         logit "git checkout venv Failed" "WARNING"
+        # fi
+        # process="move venv if it exists"
+        # if [ -d ${consolepi_dir}venv ]; then
+        #     sudo mv ${consolepi_dir}venv $bak_dir &&
+        #         logit "moved existing venv out of repo" ||
+        #         logit "git checkout venv Failed" "WARNING"
+        # fi
 
         # remove old bluemenu.sh script replaced with consolepi-menu.py
         process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"

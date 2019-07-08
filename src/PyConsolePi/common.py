@@ -175,11 +175,18 @@ class ConsolePi_data:
                         # if source == 'mdns' and source in current_remotes[_] and current_remotes[_]['source'] != 'mdns':
                         remote_consoles[_] = current_remotes[_]
                     else:
+                        log.debug('\n--{}-- \n    remote rem_ip: {}\n    remote source: {}\n    cache rem_ip: {}\n    cache source: {}\n'.format(
+                            _,
+                            remote_consoles[_]['rem_ip'] if 'rem_ip' in remote_consoles[_] else None,
+                            remote_consoles[_]['source'] if 'source' in remote_consoles[_] else None,
+                            current_remotes[_]['rem_ip'] if 'rem_ip' in current_remotes[_] else None, 
+                            current_remotes[_]['source'] if 'source' in current_remotes[_] else None))
                         # only factor in existing data if source is not mdns
                         if remote_consoles[_]['source'] != 'mdns' and 'source' in current_remotes[_] and current_remotes[_]['source'] == 'mdns':
                             if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
                                 # given all of the above it would appear the mdns entry is more current than the cloud entry
                                 remote_consoles[_] = current_remotes[_]
+                                log.info('Keeping existing cache data for {}'.format(_))
                         elif remote_consoles[_]['source'] != 'mdns':
                                 if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
                                     # if we currently have a reachable ip assume whats in the cache is more valid
@@ -188,6 +195,7 @@ class ConsolePi_data:
                                     if len(current_remotes[_]['adapters']) > 0 and len(remote_consoles[_]['adapters']) == 0:
                                         log.info('My Adapter data for {} is more current, keeping'.format(_))
                                         remote_consoles[_]['adapters'] = current_remotes[_]['adapters']
+                                        log.debug('!!! Keeping Adapter data from cache as none provided in data set !!!')
         
             with open(local_cloud_file, 'a') as new_file:
                 new_file.write(json.dumps(remote_consoles))

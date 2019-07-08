@@ -267,7 +267,7 @@ class ConsolePiMenu:
                 remotes_connected = True
                 header = '   [Remote] {} @ {}'.format(host, rem[host]['rem_ip'])
                 print('\n' + header + '\n   ' + '-' * (len(header) - 3))
-                for _dev in rem[host]['adapters']:
+                for _dev in sorted(rem[host]['adapters'], key = lambda i: i['dev']):
                     print('{0}. Connect to {1}'.format(item, _dev['dev'].replace('/dev/', '')))
                     # self.menu_actions[str(item)] = {'cmd': _dev['rem_cmd']}
                     _cmd = 'ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(

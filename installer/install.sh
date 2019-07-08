@@ -68,6 +68,7 @@ pre_git_prep() {
             sudo git checkout venv &&
                 logit "git checkout venv Success" ||
                 logit "git checkout venv Failed" "WARNING"
+        fi
 
         # remove old bluemenu.sh script replaced with consolepi-menu.py
         process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"

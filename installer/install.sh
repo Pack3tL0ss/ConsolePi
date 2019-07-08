@@ -55,8 +55,13 @@ do_apt_update () {
 
 # Process Changes that are required prior to git pull when doing upgrade
 pre_git_prep() {
-    [ -d /var/log/ConsolePi/ ] && upgrade=true || upgrade=false
     if $upgrade; then
+
+        # pull gitignore to ignore venv if already exists from previous builds (when venv was bundled not built on the system)
+        process="Update gitignore"
+        wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/.gitignore -O ${consolepi_dir}.gitignore ||
+            logit "Failed to manually update gitignore" "WARNING"
+
         # remove old bluemenu.sh script replaced with consolepi-menu.py
         process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"
         if [[ -f /etc/ConsolePi/src/bluemenu.sh ]]; then 

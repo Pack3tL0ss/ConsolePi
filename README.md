@@ -13,15 +13,38 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
 ------
 # Contents
  - [Features](#features)
+     - [Serial Console Server](#serial-console-server)
+     - [AutoHotSpot](#autoHotSpot)
+     - [Automatic VPN](#automatic-openvpn-tunnel)
+     - [Automatic PushBullet Notifications](#automatic-pushbullet-notification)
+     - [Clustering / Cloud Sync](#consolepi-cluster--cloud-config)
+         - [Supported Cluster Methods](#supported-cluster-sync-methods)
+             - [Google Drive](#google-drive)
+             - [mDNS](#mdns)
+             - [Manual](#local-cloud-cache)
+          - [How it works](#how-it-works)
+          - [Important Notes](#important-notes)
+      - [API](#api)
  - [Installation](#installation)
+     - [Automated Installation](#1-automated-installation)
+     - [Semi-Automatic Install](#2-semi-automatic-install)
+     - [Automated Flash Card Imaging/prep](#3-automated-flash-card-imaging-with-auto-install-on-boot)
  - [ConsolePi Usage](#consolepi-usage)
- - [Upgrading ConsolePi](#upgrading-consolepi)
+     - [Configuration](#configuration)
+     - [Console Server](#console-server)
+         - [TELNET](#telnet)
+         - [SSH / BlueTooth (`consolepi-menu`)](#ssh--bluetooth)
+      - [Convenience Commands](#convenience-commands)
+      - [Upgrading ConsolePi](#upgrading-consolepi)
  - [Tested Hardware](#tested-hardware)
  - [ConsolePi @ Work! (Image Gallery)](#consolepi-@-work)
  - [Credits](#credits)
 ------
 
 # Features
+
+## **Serial Console Server**
+This is the core feature of ConsolePi.  Connect USB to serial adapters to ConsolePi, then access the devices on those adapters via the ConsolePi.  Supports TELNET directly to the adapter, or connect to ConsolePi via SSH or BlueTooth and select the adapter from the menu.  A menu is launched automatically when connecting via BlueTooth, use `consolepi-menu` to launch the menu from an SSH connection.  The menu will show connection options for any locally connected adapters, as well as connections to any remote ConsolePis discovered via Cluster/sync.
 
 ## **AutoHotSpot**
 
@@ -71,27 +94,20 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 
   >In both of the above a local cloud cache is updated for the sake of persistence and speed.  The local cloud cache is what is referenced when the menu is initially launched
 
-#### DHCP based:
-
-This function currently only logs as mDNS has made this unnecessary 
-
-Triggered by ConsolePi Acting as DHCP server (generally hotspot):
- 
- Along with this mechanism comes an API to speed up updates.  That API is now implemented and running... http (for now) port 5000 with the following URIs all start with /api/v1.0/ All current methods only support the GET method.  If a need arises to actually use this for something Security and post capability may follow.
-
-/api/v1.0/
-* adapters: returns list of local adapters
-* remcache: returns the local cloud cache
-* ifaces: returns interface / IP details
-* details: full json representing all local details for the ConsolePi  
-
-#### mDNS **!!NEW!!**
+#### mDNS
 * ConsolePis now advertise themselves on the local network via mDNS (bonjour, avahi, ...)
 
 * 2 daemons run on ConsolePi one that registers itself via mdns and updates anytime a change in available USB-serial adapters is detected, and a browser service which browses for remote ConsolePis registered on the network.  The browser service updates the local cloud cache when a new ConsolePi is detected.
 
 #### Local Cloud Cache
-  - local cloud cache:  For both of the above methods, a local file `/etc/ConsolePi/cloud.data` is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.  
+  - local cloud cache:  For both of the above methods, a local file `/etc/ConsolePi/cloud.data` is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.
+
+#### DHCP based:
+
+This function currently only logs as mDNS has made this unnecessary 
+
+Triggered by ConsolePi Acting as DHCP server (generally hotspot):
+  
 
 ### How it works:  
 
@@ -123,6 +139,20 @@ Triggered by ConsolePi Acting as DHCP server (generally hotspot):
 
    ###### If you are configuring multiple ConsolePis to use this cluster, you should consider using the [Flash-Card imaging script](#3.-automated-flash-card-imaging-with-auto-install-on-boot).  Once You've installed the first ConsolePi, leverage the Automated flash-card imaging script to pre-stage the micro-sd cards for the other ConsolePis you will be creating.  This script is handy, if duplicating the install across multiple ConsolePis.  It can pre-stage the entire configuration and cut out some install time.
 
+## ConsolePi API
+
+ With the development of the short-lived DHCP sync function an API was created to speed up updates.  That API is now implemented and running... http (for now) port 5000 with the following URIs all start with /api/v1.0/ All current methods only support the GET method.  If a need arises to actually use this for something Security and post capability may follow.
+
+/api/v1.0/
+* adapters: returns list of local adapters
+* remcache: returns the local cloud cache
+* ifaces: returns interface / IP details
+* details: full json representing all local details for the ConsolePi   
+
+ConsolePi currently doesn't use the API for any of it's functionality.  It may be leveraged in the future for verification (to ensure cloud sync entry is not stale), or for other purposes yet to be determined.
+
+> The API is currently unsecured, it uses http, and Auth is not implemented yet.  It currently only supports GET requests, and doens't return any sensitive data.  As it's not currently used, it's OK to disable `sudo systemctl disable consolepi-api`.  Just be aware that you may have to disable after each upgrade.
+
 # Installation
 
 If you have a Linux system available you can use the [Flash-Card imaging script](#3.-automated-flash-card-imaging-with-auto-install-on-boot)  to burn the image to a micro-sd, enable SSH, pre-configure a WLAN (optional), and PreConfigure ConsolePi settings (optional).  This script is especially useful for doing headless installations.
@@ -153,11 +183,11 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
 
 **To enable the Clustering / Cloud-Config function see the description [above](#consolepi-cluster-/-cloud-config) and the prerequisite [Google Drive Setup](readme_content/gdrive.md)  instructions.**
 
-## **1. Automatic Installation**
+## **1. Automated Installation**
 
 Install raspbian on a raspberryPi and connect it to the network.
 
-The install script below is designed to be essentially turn-key.  It will prompt to change hostname, set timezone, and update the pi users password if you're logged in as pi.
+Use the command string below to kick-off the automated installer.  The install script is designed to be essentially turn-key.  It will prompt to change hostname, set timezone, and update the pi users password if you're logged in as pi.  Be sure to checkout the [image creator script](#3-automated-flash-card-imaging-with-auto-install-on-boot) if doing a headless install, or if you are creating multiple ConsolePis
 
 ```
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
@@ -234,9 +264,9 @@ Once Complete you place the newly blessed micro-sd in your raspberryPi and boot.
 
 The Configuration file is validated and created during the install.  Settings can be modified post-install via the configuration file `/etc/ConsolePi.conf` (Some Changes will require consolepi-upgrade to be ran to take effect)
 
-### **Console Server:**
+## **Console Server:**
 
-#### TELNET
+### TELNET
 
 *Don't overlook consolepi-menu which supports remote ConsolePi discovery and provides a single launch point into any local and remote connections discovered*
 
@@ -244,29 +274,32 @@ The Configuration file is validated and created during the install.  Settings ca
 
 - The install script automates the mapping of specific adapters to specific ports.  The defined predictable adapters start with 7001 +1 for each adapter you define.  The reasoning behind this is so you can label the adapters and always know what port you would reach them on.  Key if you are using a  multi-port pig-tail adapter, or if multiple adapters are plugged in @ boot.  This can also be accomplished after the install via the `consolepi-addconsole` command.
 
-  *Note: Some cheap a@# serial console adapters don't define serial #s, which is one of the attributes used to uniquely identify the adapter.  If the script finds this to be the case it will let you know and create a log with an attribute walk for the adapter; ```/var/log/ConsolePi/consolepi-addudev.error```* 
+  >Note: Some cheap a@# serial console adapters don't define serial #s, which is one of the attributes used to uniquely identify the adapter.  If the script finds this to be the case it will let you know and create a log with an attribute walk for the adapter; ```/var/log/ConsolePi/consolepi-addudev.error```* 
 
 Note: the 8000 range is always valid even if you are using an adapter specifically mapped to a port in the 7000 range.  So if you plug in an adapter pre-mapped to port 7005, and it's the only adapter plugged in, it would also be available on port 8001
 
 - Port monitoring/and control is available on TELNET port 7000.  This allows you to change the baud rate of the port on the fly without changing the config permanently.  The installer configures all ports to 9600 8N1. 
 - Serial Port configuration options can be modified after the install in /etc/ser2net.conf 
 
-#### SSH / BlueTooth
+### SSH / BlueTooth
 
 The ```consolepi-menu``` command can be used to display a menu providing options for any locally connected USB to Serial adapters.  In addition to any remotely connected USB to serial adapters connected to other ConsolePis if using the Clustering/cloud-config feature.  When connecting to ConsolePi via bluetooth this menu launches automatically.
 > Note that when using bluetooth the menu is limited to local adapters and remotes found in the local-cache file.  Connect via SSH for full remote functionality in the menu.
 
-### **Convenience Commands:**
+## **Convenience Commands:**
 
 There are a few convenience commands created for ConsolePi during the automated install
 
+- **consolepi-menu**: Launches ConsolePi Console Menu, which will have menu items for any serial adapters that are plugged in.  This allows you to connect to those serial adapters.  This menu is launched automatically when connecting to ConsolePi via BlueTooth, but can also be invoked from any shell session (i.e. SSH)
 - **consolepi-upgrade**:  Upgrades ConsolePi:  More useful in the future.  Currently bypasses upgrade of ser2net (it's compiled from source).  I'll eventually remove the bypass.  For now this is essentially the same as doing a 'sudo git pull' from /etc/ConsolePi and updating/upgrading the other packages via apt.  Note: in it's current form it may overwrite some custom changes.  It's only lightly been tested as an upgrade script.
+- **consolepi-showremotes**: Displays the formatted contents of the local cloud cache.  This command accepts 1 optional case sensitive argument: Hostname of the remote ConsolePi.  If a hostname is provided only data for that host will be displayed (if it exists in the local cache, if it doesn't exist the entire cache is dispayed). 
 - **consolepi-addssids**:  runs the /etc/ConsolePi/installer/ssids.sh script.  This script automates the creation of additional SSIDs which ConsolePi will attempt to connect to on boot.  Currently only supports psk and open SSIDs, but may eventually be improved to automate creation of other SSID types.
 - **consolepi-addconsole**: runs the /etc/ConsolePi/installer/udev.sh  This script automates the process of detecting USB to serial adapters and mapping them to specific telnet ports.  It does this by collecting the data required to create a udev rule.  It then creates the udev rule starting with the next available port (if rules already exist).
 - **consolepi-autohotspot**: runs /usr/bin/autohotspotN script  This script re-runs the autohotspot script which runs at boot (or periodically via cron although the installer currently doesn't configure that).  If the wlan adapter is already connected to an SSID it doesn't do anything.  If it's acting as a hotspot or not connected, it will scan for known SSIDs and attempt to connect, then fallback to a hotspot if it's unable to find/connect to a known SSID. 
 - **consolepi-testhotspot**: Toggles (Disables/Enables) the SSIDs ConsolePi is configured to connect to as a client before falling back to hotspot mode.  This is done to aid in testing hotspot mode.  After toggling the SSIDs run consolepi-autohotspot to trigger a change in state.
+- **consolepi-browse**: Runs the mdns browser script which runs as a daemon in the background by default.  When ran via this command it will display any ConsolePis discovered on the network along with the data being advertised by that remote ConsolePi.
 - **consolepi-killvpn**: gracefully terminates the OpenVPN tunnel if established.
-- **consolepi-menu**: Launches ConsolePi Console Menu, which will have menu items for any serial adapters that are plugged in.  This allows you to connect to those serial adapters.  This menu is launched automatically when connecting to ConsolePi via BlueTooth, but can also be invoked from any shell session (i.e. SSH)
+
 - **consolepi-bton**: Make ConsolePi Discoverable via BlueTooth (Default Behavior on boot)
 - **consolepi-btoff**: Stop advertising via BlueTooth.  Previously paired devices will still be able to Pair.
 
@@ -281,12 +314,14 @@ Use ```consolepi-upgrade``` to upgrade ConsolePi.  Simply doing a git pull *may*
 ConsolePi Should work on all variants of the RaspberryPi, but it has been tested on the following: 
 
 ​	*If you find a variant of the Rpi that does not work, create an "issue" to let me know.  If I have one I'll test when I have time to do so*
-
+- RaspberryPi 4 Model B
+    - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery)
 - RaspberryPi 3 Model B+
-  - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery), all worked fine *other than the known over-current errors on the original PoE Hat - still worked on my PoE switch*
+  - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery)
 - RaspberryPi zero w
-  - With both single port micro-usb otg USB adapter and multi-port otg usb-hub
-  *I did notice with some serial adapters the RaspberryPi zero w Would reboot when it was plugged in, this is with a RaspberryPi power-supply.  They work fine, it just caused it to reboot when initially plugged-in*
+  - With both single port micro-usb otg USB adapter and multi-port otg usb-hub.  Use this with battery pack on a regular basis.
+
+>I did notice with some serial adapters the RaspberryPi zero w Would reboot when the adapter was plugged in, this is with a RaspberryPi power-supply.  They work fine, it just caused it to reboot when initially plugged-in.
 
 # ConsolePi @ Work!
 

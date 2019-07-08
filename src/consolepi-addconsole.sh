@@ -30,7 +30,7 @@ udev_header() {
 }
 
 getdev() {
-for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep ttyUSB); do
+for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep 'ttyUSB\|ttyACM'); do
     syspath="${sysdevpath%/dev}"
     devname="$(udevadm info -q name -p $syspath)"
     # Debug Line # udevadm info -q property --export -p $syspath
@@ -119,7 +119,7 @@ udev_main() {
 }
 
 # __main__
-if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/udev.sh"* ]] ; then
+if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"src/consolepi-addconsole.sh"* ]] ; then
     iam=`whoami`
     if [ "${iam}" = "root" ]; then
         echo "...script ran from CLI..."
@@ -127,4 +127,6 @@ if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"installer/udev.sh"* ]] ; then
     else
         echo 'Script should be ran as root. exiting.'
     fi
+else
+    echo $0
 fi

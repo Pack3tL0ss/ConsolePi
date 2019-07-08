@@ -1,12 +1,12 @@
 import logging
 import netifaces as ni
-import serial.tools.list_ports
 import os
 import json
 import socket
 import subprocess
 import threading
 from pathlib import Path
+import pyudev
 
 # Common Static Global Variables
 DNS_CHECK_FILES = ['/etc/resolv.conf', '/run/dnsmasq/resolv.conf']
@@ -98,25 +98,21 @@ class ConsolePi_data:
     def get_local(self, do_print=True):   
         log = self.log
         plog = self.plog
-
+        context = pyudev.Context()
         plog('Detecting Locally Attached Serial Adapters')
-        this = serial.tools.list_ports.grep('.*ttyUSB[0-9]*', include_links=True)
-        tty_list = {}
-        tty_alias_list = {}
-        for x in this:
-            _device_path = x.device_path.split('/')
-            if x.device.replace('/dev/', '') != _device_path[len(_device_path)-1]:
-                tty_alias_list[x.device_path] = x.device
-            else:
-                tty_list[x.device_path] = x.device
 
+        # -- Detect Attached Serial Adapters --
         final_tty_list = []
-        for k in tty_list:
-            if k in tty_alias_list:
-                final_tty_list.append(tty_alias_list[k])
-            else:
-                final_tty_list.append(tty_list[k])
-
+        for device in context.list_devices(subsystem='tty', ID_BUS='usb'):
+            found = False
+            for _ in device['DEVLINKS'].split():
+                if '/dev/serial/by-' not in _:
+                    found = True
+                    final_tty_list.append(_)
+                    break
+            if not found:
+                final_tty_list.append(device['DEVNAME'])
+        
         # get telnet port definition from ser2net.conf
         # and build adapters dict
         serial_list = []
@@ -126,13 +122,13 @@ class ConsolePi_data:
                     for line in cfg:
                         if tty_dev in line:
                             tty_port = line.split(':')
-                            tty_port = tty_port[0]
+                            tty_port = int(tty_port[0])
                             log.info('get_local: found dev: {} TELNET port: {}'.format(tty_dev, tty_port))
                             break
                         else:
-                            tty_port = 7000  # this is error - placeholder value Telnet port is not currently used
+                            tty_port = 9999  # this is error - placeholder value Telnet port is not currently used
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
-                if tty_port == 7000:
+                if tty_port == 9999:
                     log.error('No ser2net.conf definition found for {}'.format(tty_dev))
                     print('No ser2net.conf definition found for {}'.format(tty_dev))
         else:

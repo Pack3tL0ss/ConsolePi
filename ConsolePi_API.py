@@ -10,19 +10,19 @@ log = config.log
 
 @app.route('/api/v1.0/adapters', methods=['GET'])
 def get_adapters():
-    return jsonify({'adapters': config.adapters})
+    return jsonify({'adapters': config.get_local(do_print=False)})
 
 @app.route('/api/v1.0/remcache', methods=['GET'])
 def get_cache():
-    return jsonify({'remotes': config.remotes})
+    return jsonify({'remotes': config.get_local_cloud_file()})
 
 @app.route('/api/v1.0/ifaces', methods=['GET'])
 def get_ifaces():
-    return jsonify({'interfaces': config.interfaces})
+    return jsonify({'interfaces': config.get_if_ips()})
 
 @app.route('/api/v1.0/details', methods=['GET'])
 def get_details():
-    return jsonify(config.local)
+    return jsonify({config.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': config.local['user']}})
 
 if __name__ == '__main__':
     serve(app, host='0.0.0.0', port=5000)

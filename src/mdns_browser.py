@@ -26,7 +26,8 @@ class MDNS_Browser:
         self.if_ips = self.config.interfaces
         self.ip_list = []
         for _iface in self.if_ips:
-            self.ip_list.append(self.if_ips[_iface]['ip'])    
+            self.ip_list.append(self.if_ips[_iface]['ip'])
+        self.discovered = []  
         # self.run()
 
     def on_service_state_change(self,
@@ -53,6 +54,12 @@ class MDNS_Browser:
                                     rem_ip = _ip
                                     break
                         mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user, 'rem_ip': rem_ip, 'source': 'mdns'}}
+                        if __name__ == '__main__':
+                            self.discovered.append(hostname)
+                            print(hostname + ' Discovered via mdns:')
+                            print(json.dumps(mdns_data, indent=4, sort_keys=True))
+                            print('Discovered ConsolePis: {}'.format(self.discovered))
+                            print("\npress Ctrl-C to exit...\n")
                         log.debug('-mdns discovery- Final data set for {}:\n{}'.format(info.server.split('.')[0], mdns_data))
                         self.update(remote_consoles=mdns_data)
                         log.info('Local Cloud Cache Updated with {} data discovered via mdns'.format(info.server.split('.')[0]))

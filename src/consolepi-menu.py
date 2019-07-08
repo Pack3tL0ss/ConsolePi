@@ -252,7 +252,7 @@ class ConsolePiMenu:
         print('   ' + '-' * 33)
 
         # Build menu items for each locally connected serial adapter
-        for _dev in loc:
+        for _dev in sorted(loc, key = lambda i: i['port']):
             this_dev = _dev['dev']
             print('{0}. Connect to {1}'.format(item, this_dev.replace('/dev/', '')))
 
@@ -267,7 +267,7 @@ class ConsolePiMenu:
                 remotes_connected = True
                 header = '   [Remote] {} @ {}'.format(host, rem[host]['rem_ip'])
                 print('\n' + header + '\n   ' + '-' * (len(header) - 3))
-                for _dev in sorted(rem[host]['adapters'], key = lambda i: i['dev']):
+                for _dev in sorted(rem[host]['adapters'], key = lambda i: i['port']):
                     print('{0}. Connect to {1}'.format(item, _dev['dev'].replace('/dev/', '')))
                     # self.menu_actions[str(item)] = {'cmd': _dev['rem_cmd']}
                     _cmd = 'ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(

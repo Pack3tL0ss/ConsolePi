@@ -121,7 +121,7 @@ class ConsolePiMenu:
         config = self.config
         # Update Local Adapters
         if not rem_update:
-            self.data['local'] = config.local
+            self.data['local'] = {self.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
             config.log.info('Final Data set collected for {}: {}'.format(self.hostname, self.data['local']))
 
         # Get details from Google Drive - once populated will skip
@@ -135,7 +135,7 @@ class ConsolePiMenu:
             remote_consoles = self.cloud.update_files(self.data['local'])
             if len(remote_consoles) > 0:
                 config.plog('Updating Local Cache with data from {}'.format(config.cloud_svc))
-                config.update_local_cloud_file(remote_consoles, self.data['remote'])
+                config.update_local_cloud_file(remote_consoles)
             else:
                 config.plog('No Remote ConsolePis found on {}'.format(config.cloud_svc))
         else:

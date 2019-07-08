@@ -59,7 +59,8 @@ pre_git_prep() {
 
         # pull gitignore to ignore venv if already exists from previous builds (when venv was bundled not built on the system)
         process="Update gitignore"
-        wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/.gitignore -O ${consolepi_dir}.gitignore ||
+        wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/.gitignore -O ${consolepi_dir}.gitignore &&
+            logit "Successfully updated gitignore" ||
             logit "Failed to manually update gitignore" "WARNING"
 
         # remove old bluemenu.sh script replaced with consolepi-menu.py

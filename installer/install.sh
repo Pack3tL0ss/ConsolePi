@@ -57,25 +57,6 @@ do_apt_update () {
 pre_git_prep() {
     if $upgrade; then
 
-        # # pull gitignore to ignore venv if already exists from previous builds (when venv was bundled not built on the system)
-        # process="Update gitignore"
-        # wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/.gitignore -O ${consolepi_dir}.gitignore &&
-        #     logit "Successfully updated gitignore" ||
-        #     logit "Failed to manually update gitignore" "WARNING"
-        # process="checkout venv"
-        # if [ -d ${consolepi_dir}venv ]; then
-        #     cd ${consolepi_dir} 
-        #     sudo git checkout venv &&
-        #         logit "git checkout venv Success" ||
-        #         logit "git checkout venv Failed" "WARNING"
-        # fi
-        # process="move venv if it exists"
-        # if [ -d ${consolepi_dir}venv ]; then
-        #     sudo mv ${consolepi_dir}venv $bak_dir &&
-        #         logit "moved existing venv out of repo" ||
-        #         logit "git checkout venv Failed" "WARNING"
-        # fi
-
         # remove old bluemenu.sh script replaced with consolepi-menu.py
         process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"
         if [[ -f /etc/ConsolePi/src/bluemenu.sh ]]; then 
@@ -137,6 +118,11 @@ git_ConsolePi() {
 do_pyvenv() {
     process="Prepare/Check Python venv"
     logit "$process - Starting"
+
+    # -- Check that git pull didn't bork venv ~ I don't think I handled the removal of venv from git properly seems to break things if it was already installed --
+    if [ ! -x ${consolepi_dir}venv/bin/python3 ]; then
+        sudo mv ${consolepi_dir}venv $bak_dir && logit "existing venv found, moved to bak, new venv will be created (it is OK to delete anything in bak)"
+    fi
 
     # -- Ensure python3-pip is installed --
     if [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]]; then

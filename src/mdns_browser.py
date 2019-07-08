@@ -7,6 +7,7 @@ from time import sleep
 from typing import cast
 import json
 from threading import Thread
+import sys
 
 from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 from consolepi.common import check_reachable
@@ -16,8 +17,9 @@ HOSTNAME = socket.gethostname()
 
 class MDNS_Browser:
 
-    def __init__(self, log=None):
+    def __init__(self, log=None, show=False):
         self.config = ConsolePi_data(do_print=False)
+        self.show = show
         self.log = log if log is not None else self.config.log
         # self.mdata = None
         self.stop = False
@@ -27,7 +29,7 @@ class MDNS_Browser:
         self.ip_list = []
         for _iface in self.if_ips:
             self.ip_list.append(self.if_ips[_iface]['ip'])
-        self.discovered = []  
+        self.discovered = []
         # self.run()
 
     def on_service_state_change(self,
@@ -54,7 +56,7 @@ class MDNS_Browser:
                                     rem_ip = _ip
                                     break
                         mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user, 'rem_ip': rem_ip, 'source': 'mdns'}}
-                        if __name__ == '__main__':
+                        if self.show:
                             self.discovered.append(hostname)
                             print(hostname + ' Discovered via mdns:')
                             print(json.dumps(mdns_data, indent=4, sort_keys=True))
@@ -87,8 +89,11 @@ class MDNS_Browser:
         return zeroconf
 
 if __name__ == '__main__':
-    mdns = MDNS_Browser()
-    print("\nBrowsing services, press Ctrl-C to exit...\n")
+    if len(sys.argv) > 1:
+        mdns = MDNS_Browser(show=True)
+        print("\nBrowsing services, press Ctrl-C to exit...\n")
+    else:
+        mdns = MDNS_Browser()
     try:
         while True:
             sleep(0.1)

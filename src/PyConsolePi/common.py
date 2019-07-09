@@ -253,6 +253,7 @@ def get_dns_ips(dns_check_files=DNS_CHECK_FILES):
                     if is_valid_ipv4_address(ip):
                         if ip != '127.0.0.1':
                             dns_ips.append(ip)
+    # -- only happens when the ConsolePi has no DNS will result in connection failure to cloud --
     if len(dns_ips) == 0:
         dns_ips.append('8.8.4.4')
 

@@ -114,7 +114,7 @@ main() {
     if $input; then
         echo "Displaying fdisk -l output in 'less' press q to quit"
         sleep 3
-        sudo fdisk -l | less
+        sudo fdisk -l | less +G
     fi
     
     # Give user chance to change target drive

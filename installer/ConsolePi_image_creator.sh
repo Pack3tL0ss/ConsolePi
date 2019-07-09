@@ -23,7 +23,6 @@
 # --      If found it will pull them in.  If the installer finds ConsolePi.conf it uses those values as the defaults allowing you to bypass the data entry (after confirmation). 
 # --    The OpenVPN related files are moved (by the installer) to the openvpn/client folder.
 # --      The installer only provides example ovpn files as the specifics would be dependent on how your openvpn server is configured
-# --    any dtbo are copied this script to /boot/overlays on the ConsolePi image
 # --  
 # --  To aid in headless installation this script will enable SSH and can configure a wlan_ssid.  With those options on first boot the raspberry pi will connect to
 # --  the SSID, so all you need to do is determine the IP address assigned and initiate an SSH session.
@@ -37,6 +36,8 @@
 # --      - 10-ConsolePi.rules: udev rules file mapping specific serial adapters to specific telnet ports
 # --      - ConsolePi_init.sh: Custom post-install script, the installer will run this script at the end of the process, it can be used to automate any additional tweaks 
 # --          you might want to make.  i.e. copy additional custom scripts you like to have on hand from the ConsolePi_stage dir to wherever you want them.
+# --      - authorized_keys: imported for both pi and root user (for now)
+# --      - rpi-poe-overlay.dts: Used to adjust thresholds for when and how fast the fan will kick on (PoE hat). Install script will create the dtbo overlay based on this dts.
 # --
 # --  Lastly this script also configures one of the consolepi quick commands: 'consolepi-install'. This command
 # --  is the same as the single command install command on the github.  btw the 'consolepi-install' command is changed to 'consolepi-upgrade' during the install.
@@ -208,19 +209,7 @@ main() {
     # Create empty file ssh in boot partition
     echo "Enabling ssh on image"
     sudo touch /mnt/usb1/ssh && echo -e "  SSh is now enabled\n" || echo 'Error enabling SSH... script will continue anyway'
-    
-    # move any overlay files to /boot/overlays (usb1/overlays)
-    this=(*.dtbo)
-    [[ $this =~ '*' ]] && this=
-    [[ -z $this ]] && this=(ConsolePi_stage/*.dtbo)
-    [[ $this =~ '*' ]] && this=
-    if [[ $this ]]; then
-        for overlay_file in ${this[@]}; do
-            sudo cp $overlay_file /mnt/usb1/overlays/ && echo "found overlay file ${overlay_file} copied to /boot/overlays/" ||
-                echo "Error moving $overlay_file to /boot/overlays"
-        done
-    fi
-    
+       
     # Done with boot partition unmount
     sudo umount /mnt/usb1
 

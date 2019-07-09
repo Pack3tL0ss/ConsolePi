@@ -140,7 +140,7 @@ main() {
     done
 
     # get raspbian-lite image if not in script dir
-    echo "Getting raspbian-lite image"
+    echo -e "\nGetting raspbian-lite image"
     
     # Find out what current raspbian release is
     cur_rel=$(curl -sIL https://downloads.raspberrypi.org/raspbian_lite_latest | 
@@ -195,7 +195,7 @@ main() {
     ! $input && echo 'Exiting Script based on user input' && exit 1
     echo -e "\nNow Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"
     sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo -e "\n\n\033[1;32mImage written to flash - no Errors$*\033[m\n\n" || 
-        ( echo "\n\n\033[1;32mError occurred burning image $*\033[m\n\n" && exit 1 )
+        ( echo -e "\n\n\033[1;32mError occurred burning image $*\033[m\n\n" && exit 1 )
 
     # Create some mount-points if they don't exist already.  Script will remove them if it has to create them, they will remain if they were already there
     [[ ! -d /mnt/usb1 ]] && sudo mkdir /mnt/usb1 && usb1_existed=false || usb1_existed=true

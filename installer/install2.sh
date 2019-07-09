@@ -256,17 +256,6 @@ collect() {
     user_input $cloud "${prompt}"
     cloud=$result
 
-    # -- pre staged cloud creds --
-    if $cloud && [[ -d ${stage_dir}.credentials ]]; then 
-        found_path=${stage_dir}.credentials
-        mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials/" &&
-        logit "Found ${cloud_svc} credentials ${found_path}. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
-        logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
-    else
-        logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
-        logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
-    fi
-
     # TODO - FUTURE - Currently it's on, but not used
     # -- api --
     # header
@@ -454,6 +443,17 @@ misc_imports(){
             file_diff_update $found_path /root/.ssh/authorized_keys
             file_diff_update $found_path ${home_dir}.ssh/authorized_keys
         fi
+    fi
+
+    # -- pre staged cloud creds --
+    if $cloud && [[ -d ${stage_dir}.credentials ]]; then 
+        found_path=${stage_dir}.credentials
+        mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials/" &&
+        logit "Found ${cloud_svc} credentials ${found_path}. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
+        logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
+    else
+        logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
+        logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
     fi
     unset process
 }

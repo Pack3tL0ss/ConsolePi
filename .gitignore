@@ -4,6 +4,8 @@
 ConsolePi.conf
 ConsolePi.cloud
 cloud.data
+*.data
+*.json
 /installer/install.log*
 /installer/ConsolePi_image_creator.sh
 *__pycache__*

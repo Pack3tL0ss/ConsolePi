@@ -459,7 +459,7 @@ misc_imports(){
         found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
         [[ $found_path ]] && logit "overlay file found creating dtbo"
         if [[ $found_path ]]; then 
-            sudo dtc -@ -I dts -O dtb -o /tmp/rpi-poe.dtbo $found_path &&
+            sudo dtc -@ -I dts -O dtb -o /tmp/rpi-poe.dtbo $found_path >> $log_file 2>&1 &&
                 overlay_success=true || overlay_success=false
                 if $overlay_success; then
                     sudo mv /tmp/rpi-poe.dtbo /boot/overlays 2>> $log_file &&

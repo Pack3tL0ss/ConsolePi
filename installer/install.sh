@@ -120,7 +120,7 @@ do_pyvenv() {
     logit "$process - Starting"
 
     # -- Check that git pull didn't bork venv ~ I don't think I handled the removal of venv from git properly seems to break things if it was already installed --
-    if [ ! -x ${consolepi_dir}venv/bin/python3 ]; then
+    if [ -d ${consolepi_dir}venv ] && [ ! -x ${consolepi_dir}venv/bin/python3 ]; then
         sudo mv ${consolepi_dir}venv $bak_dir && logit "existing venv found, moved to bak, new venv will be created (it is OK to delete anything in bak)"
     fi
 

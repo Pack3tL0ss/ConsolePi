@@ -208,14 +208,14 @@ main() {
     
     # Create empty file ssh in boot partition
     echo "Enabling ssh on image"
-    sudo touch /mnt/usb1/ssh && echo -e "  SSh is now enabled\n" || echo 'Error enabling SSH... script will continue anyway'
+    sudo touch /mnt/usb1/ssh && echo -e " + SSh is now enabled" || echo ' - Error enabling SSH... script will continue anyway'
        
     # Done with boot partition unmount
     sudo umount /mnt/usb1
 
-    echo -e "\n\nMounting System partition to Configure ConsolePi auto-install and copy over any pre-config files found in script dir"
+    echo -e "\nMounting System partition to Configure ConsolePi auto-install and copy over any pre-config files found in script dir"
     [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p2 /mnt/usb2 || sudo mount /dev/${my_usb}2 /mnt/usb2
-    [[ $? > 0 ]] && echo 'Error mounting system partition' && exit 1
+    [[ $? > 0 ]] && echo 'Fatal Error mounting system partition' && exit 1
     
     #Configure simple psk SSID based on params in this script
     if $configure_wpa_supplicant; then
@@ -227,12 +227,12 @@ main() {
         [[ $priority > 0 ]] && sudo echo "        priority=${priority}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
     else
-        echo '  Script Option to pre-config psk ssid not enabled'
+        echo -e "  ~ Script Option to pre-config psk ssid not enabled"
     fi
    
     # Configure pi user to auto-launch ConsolePi installer on first-login
     if $auto_install; then
-        echo 'auto-install enabled, configuring pi user to auto-launch ConsolePi installer on first-login'
+        echo -e '\nauto-install enabled, configuring pi user to auto-launch ConsolePi installer on first-login'
         echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install
 
         # echo 'branch=$(cd /etc/ConsolePi && sudo git status | head -1 | awk '{print $3}')' >> /mnt/usb2/usr/local/bin/consolepi-install
@@ -245,6 +245,7 @@ main() {
     fi
 
     # Look for pre-configuration files in script dir.  Also if ConsolePi_stage subdir is found in script dir cp the dir to the ConsolePi image
+    echo ""
     cur_dir=$(pwd)
     pi_home="/mnt/usb2/home/pi"
     [[ -f ConsolePi.conf ]] && cp ConsolePi.conf $pi_home  && echo "ConsolePi.conf found pre-staging on image"
@@ -290,7 +291,7 @@ main() {
     ! $usb1_existed && rmdir /mnt/usb1
     ! $usb2_existed && rmdir /mnt/usb2
 
-    echo -e "\nConsolepi image ready\n\n"
+    echo -e "\n\n\033[1;32mConsolepi image ready$*\033[m\n\n"
     echo "Boot RaspberryPi with this image, if auto-install was disabled in script enter 'consolepi-install' to deploy ConsolePi"
 }
 

@@ -61,7 +61,7 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep 'ttyUSB\|ttyA
                 echo 
                 echo "Let's assign alias names for the adapters.  This is mainly useful for the menu display in consolepi-menu."
                 echo "Enter \"auto\" to let the script automatically assign names (you won't see this prompt again for this session)"
-                read -p 'What alias (descriptive name) do you want to use for this adapter?: ' alias
+                read -e -p 'What alias (descriptive name) do you want to use for this adapter?: ' alias
                 echo -e '\n'
             fi
             [[ "${alias}" == "auto" ]] && auto_name=true && alias="ConsolePi"
@@ -106,7 +106,7 @@ udev_main() {
         echo
         echo "Insert the ${word} serial adapter - then press enter"
         echo "Type \"end\" when complete"
-        read input
+        read -en 3 input
         [[ $input != "end" ]] && getdev 
     done
 

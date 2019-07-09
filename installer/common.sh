@@ -129,7 +129,7 @@ user_input() {
     valid_result=false
     while ! $valid_result; do
         [ $pass -gt 0 ] && echo "Invalid Entry ${result}"
-        read -p "${prompt}" result
+        read -ep "${prompt}" result
         if $bool; then
             result=${result,,}    # tolower
             if [ ${#result} -gt 0 ]; then        # If they enter text ensure it's y/n otherwise accept default
@@ -160,7 +160,7 @@ user_input() {
 user_input_bool() {
     valid_response=false
     while ! $valid_response; do
-        read -p "${prompt}? (Y/N): " response
+        read -ep "${prompt}? (Y/N): " response
         response=${response,,}    # tolower
         if [[ "$response" =~ ^(yes|y)$ ]]; then
             response=true && valid_response=true

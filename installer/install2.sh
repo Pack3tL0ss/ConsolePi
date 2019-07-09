@@ -324,8 +324,8 @@ chg_password() {
         if $response; then
             match=false
             while ! $match; do
-                read -s -p "Enter new password for user pi: " pass && echo
-                read -s -p "Re-Enter new password for user pi: " pass2 && echo
+                read -sep "Enter new password for user pi: " pass && echo
+                read -sep "Re-Enter new password for user pi: " pass2 && echo
                 [[ "${pass}" == "${pass2}" ]] && match=true || match=false
                 ! $match && echo -e "ERROR: Passwords Do Not Match\n"
             done
@@ -347,7 +347,7 @@ set_hostname() {
 
         while ! $valid_response; do
             # Display existing hostname
-            read -p "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
+            read -ep "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
             response=${response,,}    # tolower
             ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
         done
@@ -356,10 +356,10 @@ set_hostname() {
             # Ask for new hostname $newhost
             ok_do_hostname=false
             while ! $ok_do_hostname; do
-                read -p "Enter new hostname: " newhost
+                read -ep "Enter new hostname: " newhost
                 valid_response=false
                 while ! $valid_response; do
-                    read -p "New hostname: $newhost Is this correect (y/n)?: " response
+                    read -ep "New hostname: $newhost Is this correect (y/n)?: " response
                     response=${response,,}    # tolower
                     ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
                 done

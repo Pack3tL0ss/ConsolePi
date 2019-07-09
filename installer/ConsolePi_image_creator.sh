@@ -61,7 +61,7 @@ auto_install=true
 get_input() {
     valid_input=false
     while ! $valid_input; do
-    read -p "${prompt} (y/n|exit): " input 
+    read -ep "${prompt} (y/n|exit): " input 
     case ${input,,} in
         'y'|'yes')
         input=true
@@ -119,7 +119,7 @@ main() {
     
     # Give user chance to change target drive
     echo -e "\n\nPress enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
-    read -p "Device to flash with image [${my_usb}]:" drive
+    read -ep "Device to flash with image [${my_usb}]:" drive
     [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
     
     if [[ $drive ]]; then

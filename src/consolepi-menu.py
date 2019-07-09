@@ -4,13 +4,10 @@
 import os
 import sys
 import json
-import socket
 import subprocess
 import shlex
-import serial.tools.list_ports
 from collections import OrderedDict as od
 import ast
-import threading
 
 # get ConsolePi imports
 from consolepi.common import check_reachable

@@ -437,23 +437,39 @@ EOF
 misc_imports(){
     process="Perform misc imports"
     if ! $upgrade; then
+        # -- ssh authorized keys --
         found_path=$(get_staged_file_path "authorized_keys")
         [[ $found_path ]] && logit "pre-staged ssh authorized keys found - importing"
         if [[ $found_path ]]; then 
             file_diff_update $found_path /root/.ssh/authorized_keys
             file_diff_update $found_path ${home_dir}.ssh/authorized_keys
         fi
-    fi
 
-    # -- pre staged cloud creds --
-    if $cloud && [[ -d ${stage_dir}.credentials ]]; then 
-        found_path=${stage_dir}.credentials
-        mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
-        logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
-        logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
-    else
-        logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
-        logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
+        # -- pre staged cloud creds --
+        if $cloud && [[ -d ${stage_dir}.credentials ]]; then 
+            found_path=${stage_dir}.credentials
+            mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
+            logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
+            logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
+        else
+            logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
+            logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
+        fi
+
+        found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
+        [[ $found_path ]] && logit "overlay file found creating dtbo"
+        if [[ $found_path ]]; then 
+            sudo dtc -@ -I dts -O dtb -o /tmp/rpi-poe.dtbo $found_path &&
+                overlay_success=true || overlay_success=false
+                if $overlay_success; then
+                    sudo mv /tmp/rpi-poe.dtbo /boot/overlays 2>> $log_file &&
+                        logit "Successfully moved overlay file, will activate on boot" ||
+                        logit "Failed to move overlay file"
+                else
+                    logit "Failed to create Overlay file from dts"
+                fi
+        fi
+
     fi
     unset process
 }

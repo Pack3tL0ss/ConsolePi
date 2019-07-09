@@ -253,6 +253,9 @@ def get_dns_ips(dns_check_files=DNS_CHECK_FILES):
                     if is_valid_ipv4_address(ip):
                         if ip != '127.0.0.1':
                             dns_ips.append(ip)
+    if len(dns_ips) == 0:
+        dns_ips.append('8.8.4.4')
+        dns_ips.append('9.9.9.9')
 
     return dns_ips
 

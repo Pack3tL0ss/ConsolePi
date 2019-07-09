@@ -232,7 +232,7 @@ main() {
    
     # Configure pi user to auto-launch ConsolePi installer on first-login
     if $auto_install; then
-        echo -e '\nauto-install enabled, configuring pi user to auto-launch ConsolePi installer on first-login'
+        echo -e "\nauto-install enabled, configuring pi user to auto-launch ConsolePi installer on first-login\n"
         echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install
 
         # echo 'branch=$(cd /etc/ConsolePi && sudo git status | head -1 | awk '{print $3}')' >> /mnt/usb2/usr/local/bin/consolepi-install
@@ -245,7 +245,6 @@ main() {
     fi
 
     # Look for pre-configuration files in script dir.  Also if ConsolePi_stage subdir is found in script dir cp the dir to the ConsolePi image
-    echo ""
     cur_dir=$(pwd)
     pi_home="/mnt/usb2/home/pi"
     [[ -f ConsolePi.conf ]] && cp ConsolePi.conf $pi_home  && echo "ConsolePi.conf found pre-staging on image"
@@ -291,7 +290,7 @@ main() {
     ! $usb1_existed && rmdir /mnt/usb1
     ! $usb2_existed && rmdir /mnt/usb2
 
-    echo -e "\n\n\033[1;32mConsolepi image ready$*\033[m\n\n"
+    echo -e "\n\n\033[1;32mConsolepi image ready $*\033[m\n\n"
     echo "Boot RaspberryPi with this image, if auto-install was disabled in script enter 'consolepi-install' to deploy ConsolePi"
 }
 

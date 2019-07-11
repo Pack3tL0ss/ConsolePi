@@ -193,7 +193,7 @@ class ConsolePiMenu:
             elif self.local_only:
                 print('*                          !!!LOCAL ONLY MODE!!!                         *')
             else:
-                print('* Remote Adapters based on local cahce only use refresh option to update *')
+                print('* Remote Adapters based on local cache only use refresh option to update *')
             print('=' * 74)
 
     def picocom_help(self):

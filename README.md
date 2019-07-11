@@ -77,10 +77,15 @@ Each Time a Notification is triggered all interface IPs are sent in the message 
 
 ## ConsolePi Cluster / Cloud Config
 
-The Cluster feature allows you to have multiple ConsolePis connected to the network, or to each other (i.e. first ConsolePi in hotspot mode, the others connected as clients to that hotspot).  A connection to any one of the ConsolePis in the Cluster will provide options to connect to any local serial adapters, as well as those connected to the other ConsolePis in the cluster (via the consolepi-menu command).
+The Cluster feature allows you to have multiple ConsolePis connected to the network, or to each other (i.e. first ConsolePi in hotspot mode, the others connected as clients to that hotspot).  A connection to any one of the ConsolePis in the Cluster will provide options to connect to any local serial adapters, as well as those connected to the other ConsolePis in the cluster (via the `consolepi-menu` command).
+
+
+![consolepi-menu image](readme_content/consolepi-use-diagram.jpg)
+
+**Another look at the menu**
+*(No Power Relays defined in this one)*
 
 ![consolepi-menu image](readme_content/menu.png)
-
 
 
 ### Supported Cluster Sync Methods:
@@ -106,28 +111,14 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 
 #### DHCP based:
 
-This function currently only logs as mDNS has made this unnecessary 
+This function currently only logs as mDNS has made this unnecessary. It remains as future enhancements (auto detect oobm ports, ztp) will likely use this mechanism.
 
 Triggered by ConsolePi Acting as DHCP server (generally hotspot):
   
 
-### How it works:  
-
- - When a ConsolePi gets an IP address and can reach the internet it will attempt to update a ConsolePi.csv on Google Drive.
-
- - It will collect the details for any other ConsolePis that have updated ConsolePi.csv.
-
- - Connectivity is verified to any other ConsolePis found, then the data is used to populate the ```consolepi-menu```
-
-    *Reachability is all that matters.  local, VPN, connected to another ConsolePi via hotspot, or any combination.*
-
- - When you connect to a remote ConsolePi it establishes an SSH session to the remote ConsolePi using the 'pi' user (currently hard-coded to use that user).  There is also an option in the menu to distribute SSH keys to the remotes.  Doing so and leaving the passphrase blank allows for authenticated access to the remote without being prompted for user/pass.
-
- - HotSpot connected ConsolePis (a ConsolePi connected to the HotSpot of another ConsolePi) are automatically detected and provide updates to each other via SSH.  *This function works even with cloud=false in the config*
-
 ###  Important Notes:
 
- - Uses the hostname as a unique identifier.  If all of your ConsolePis have the same hostname they will each overwrite the data.  The Hostname is also used to identify the device in the menu.
+ - The Gdrive function uses the hostname as a unique identifier.  If all of your ConsolePis have the same hostname they will each overwrite the data.  The Hostname is also used to identify the device in the menu.
 
    **Make Hostnames unique for each ConsolePi**
 

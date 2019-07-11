@@ -8,7 +8,7 @@
 INSTALLER_VER=29
 CFG_FILE_VER=3
 cur_dir=$(pwd)
-iam=$(who am i | awk '{print $1}')
+iam=$(who | awk '{print $1}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"
 bak_dir="${consolepi_dir}bak/"

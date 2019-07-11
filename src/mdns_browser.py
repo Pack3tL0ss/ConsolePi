@@ -36,6 +36,7 @@ class MDNS_Browser:
         zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange) -> None:
         mdns_data = None
         config = self.config
+        ip_list = config.get_ip_list()
         log = self.log
         if state_change is ServiceStateChange.Added:
             info = zeroconf.get_service_info(service_type, name)
@@ -51,7 +52,7 @@ class MDNS_Browser:
                         rem_ip = None
                         for _iface in interfaces:
                             _ip = interfaces[_iface]['ip']
-                            if _ip not in self.ip_list:
+                            if _ip not in ip_list:
                                 if check_reachable(_ip, 22):
                                     rem_ip = _ip
                                     break

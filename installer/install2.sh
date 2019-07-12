@@ -48,7 +48,7 @@ get_config() {
         echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
         echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
         # echo 'api=true                                                      # API used so ConsolePis can update other DHCP Discovery' >> "${default_config}"
-        echo 'relay=fase                                                    # Adds support for Power Outlet relays' >> "${default_config}"
+        echo 'relay=false                                                    # Adds support for Power Outlet relays' >> "${default_config}"
         echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
         header
         echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"

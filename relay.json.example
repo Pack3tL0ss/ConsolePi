@@ -1,0 +1,19 @@
+{
+    "vc33_test_env": {
+        "GPIO": 4,
+        "linked": true,
+        "noff": true,
+        "linked_devs": ["/dev/vc33_7007", "/dev/Branch33_switch_7008", "/dev/Branch33_gatewat_7009"]
+        },
+    "Aruba8325_Top": {
+        "GPIO": 17,
+        "noff": true,
+        "linked": true,
+        "linked_devs": ["/dev/8325t_7001"]
+        },
+    "Aruba8325_Bot": {
+        "GPIO": 22,
+        "noff": true,
+        "linked": false
+    }
+}

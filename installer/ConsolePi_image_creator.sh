@@ -123,8 +123,10 @@ main() {
     [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
     
     if [[ $drive ]]; then
-        [[ $boot_list =~ $drive ]] && prompt="The selected drive contains a bootable partition, are you sure about this?" && get_input
-        ! $input && echo "Exiting based on user input" && exit 1
+        if [[ $boot_list =~ $drive ]]; then
+            prompt="The selected drive contains a bootable partition, are you sure about this?" && get_input
+            ! $input && echo "Exiting based on user input" && exit 1
+        fi
         drive_list=( $(sudo fdisk -l | grep 'Disk /dev/' | awk '{print $2}' | cut -d'/' -f3 | cut -d':' -f1) )
         [[ $drive_list =~ $drive ]] && echo "${my_usb} not found on system. Exiting..." && exit 1
         my_usb=$drive
@@ -183,7 +185,8 @@ main() {
     while [[ -z $img_file ]] ; do
         [[ $retry > 3 ]] && echo "Exceeded retries exiting " && exit 1
         echo "downloading image from raspberrypi.org.  Attempt: ${retry}"
-        curl -JLO https://downloads.raspberrypi.org/raspbian_lite_latest
+        # curl -JLO https://downloads.raspberrypi.org/raspbian_lite_latest
+        wget -q https://downloads.raspberrypi.org/raspbian_lite_latest -O ${cur_rel}.zip
         do_unzip "${cur_rel}.zip"
         ((retry++))
     done

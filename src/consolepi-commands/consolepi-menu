@@ -1,3 +1,7 @@
 #!/usr/bin/env bash
 echo "Launching ConsolePi Serial Console Menu"
-sudo /etc/ConsolePi/src/consolepi-menu.py "${@}"
+if [ ! -z $1 ] && [ "$1" = 'sh' ]; then 
+    sudo /etc/ConsolePi/src/consolepi-menu.sh
+else
+    sudo /etc/ConsolePi/src/consolepi-menu.py "${@}"
+fi

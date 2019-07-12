@@ -5,7 +5,7 @@
 # Last Update: June 4 2019
 
 # -- Installation Defaults --
-INSTALLER_VER=29
+INSTALLER_VER=30
 CFG_FILE_VER=4
 cur_dir=$(pwd)
 iam=$(who | awk '{print $1}')

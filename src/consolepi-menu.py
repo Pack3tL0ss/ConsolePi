@@ -8,19 +8,22 @@ import subprocess
 import shlex
 from collections import OrderedDict as od
 import ast
+from threading import Thread
 
 # get ConsolePi imports
 from consolepi.common import check_reachable
 from consolepi.common import gen_copy_key
 from consolepi.gdrive import GoogleDrive
 from consolepi.common import ConsolePi_data
+from consolepi.relay import Relays
 
 rem_user = 'pi'
 rem_pass = None
 
-class ConsolePiMenu:
+class ConsolePiMenu(Relays):
 
     def __init__(self, bypass_remote=False, do_print=True):
+        super().__init__()
         config = ConsolePi_data()
         self.config = config
         self.error = None
@@ -58,6 +61,7 @@ class ConsolePiMenu:
             'main_menu': self.main_menu,
             'key_menu': self.key_menu,
             'c': self.con_menu,
+            'p': self.relay_menu,
             'h': self.picocom_help,
             'k': self.key_menu,
             'r': self.refresh,
@@ -89,7 +93,7 @@ class ConsolePiMenu:
         for remotepi in data:
             this = data[remotepi]
             print('  {} Found...  Checking reachability'.format(remotepi), end='')
-            if 'rem_ip' in this and check_reachable(this['rem_ip'], 22):
+            if 'rem_ip' in this and this['rem_ip'] is not None and check_reachable(this['rem_ip'], 22):
                 print(': Success', end='\n')
                 log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, this['rem_ip']))
                 this['adapters'] = build_adapter_commands(this)
@@ -213,6 +217,31 @@ class ConsolePiMenu:
         print('\n########################################################################\n')
         input('Press Enter to Continue')
 
+    def relay_menu(self):
+        item = 1
+        relays = self.get_relays()
+        if not self.DEBUG:
+            os.system('clear')
+        self.menu_actions['b'] = self.main_menu
+
+        self.menu_formatting('header', text=' Power Control Menu ')
+        print('  Defined Power Relays')
+        print('  ' + '-' * 33)
+
+        # Build menu items for each serial adapter found on remote ConsolePis
+        for r in sorted(relays):
+            cur_state = 'on' if relays[r]['is_on'] else 'off'
+            to_state = 'off' if relays[r]['is_on'] else 'on'
+            print('{0}. Turn {1} {2} [ Current State {3} ]'.format(item, r, to_state, cur_state ))
+            # led = self.relays.led(relay['GPIO'])
+            self.menu_actions[str(item)] = {'function': self.do_toggle, 'args': relays[r]['GPIO']}
+            item += 1
+
+        text = 'b. Back'
+        self.menu_formatting('footer', text=text)
+        choice = input(" >>  ")
+        self.exec_menu(choice, actions=self.menu_actions, calling_menu='relay_menu')
+
     def key_menu(self):
         item = 1
         rem = self.data['remote']
@@ -253,7 +282,7 @@ class ConsolePiMenu:
             this_dev = _dev['dev']
             print('{0}. Connect to {1}'.format(item, this_dev.replace('/dev/', '')))
 
-            # >> Future Store serial port connections settings by host/adapter locally so they are persistent
+            # >>TODO<< Future Store serial port connections settings by host/adapter locally so they are persistent
             _cmd = 'picocom {0} -b{1} -f{2} -d{3} -p{4}'.format(this_dev, self.baud, self.flow, self.data_bits, self.parity)
             self.menu_actions[str(item)] = {'cmd': _cmd}
             item += 1
@@ -274,6 +303,8 @@ class ConsolePiMenu:
 
         text = ['c. Change Serial Settings [{0} {1}{2}1 flow={3}] '.format(
             self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), 'h. Display picocom help']
+        if self.relay_data is not None:
+            text.append('p. Power Control Menu')
         if remotes_connected:
             text.append('k. Distribute SSH Key to Remote Hosts')
         r = 'r. Refresh (Find new adapters on Local and Remote ConsolePis)' if self.do_cloud and not self.local_only else 'r. Refresh (Find new Local adapters)'
@@ -300,10 +331,18 @@ class ConsolePiMenu:
                         c = shlex.split(menu_actions[ch]['cmd'])
                         subprocess.run(c)
                     elif 'function' in menu_actions[ch]:
-                        # hardcoded for the gen key function
-                        print(menu_actions[ch]['args'])
                         args = menu_actions[ch]['args']
-                        menu_actions[ch]['function'](args, rem_user=rem_user, hostname=self.hostname, copy=True)
+                        # this is a lame hack but for the sake of time... for now
+                        try:
+                            # hardcoded for the gen key function
+                            menu_actions[ch]['function'](args, rem_user=rem_user, hostname=self.hostname, copy=True)
+                        except TypeError as e:
+                            if 'toggle()' in str(e):
+                                menu_actions[ch]['function'](args)
+                            else:
+                                # print(e)
+                                raise TypeError(e)
+                            
                 else:
                     menu_actions[ch]()
             except KeyError:

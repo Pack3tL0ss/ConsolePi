@@ -27,12 +27,13 @@ get_staged_file_path() {
 get_config() {
     process="get config"
     bypass_verify=false
+    selected_prompts=false
     logit "Starting get/build Configuration"
     if [[ ! -f $default_config ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]] && [[ ! -f ${stage_dir}ConsolePi.conf ]]; then
         logit "No Existing Config found - building default"
         # This indicates it's the first time the script has ran
-        echo "# Do Not Delete this line. ConsolePi Configuration File ver ${CFG_FILE_VER}"  > "${default_config}"
-        echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" > "${default_config}"
+        echo "cfg_file_ver=${CFG_FILE_VER}                  # Do Not Delete or modify this line"  > "${default_config}"
+        echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" >> "${default_config}"
         echo "push_all=true                                    # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
         echo "push_api_key=\"PutYourPBAPIKeyHereChangeMe:\"    # PushBullet API key" >> "${default_config}"
         echo "push_iden=\"putyourPBidenHere\"                    # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
@@ -47,6 +48,7 @@ get_config() {
         echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
         echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
         # echo 'api=true                                                      # API used so ConsolePis can update other DHCP Discovery' >> "${default_config}"
+        echo 'relay=fase                                                    # Adds support for Power Outlet relays' >> "${default_config}"
         echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
         header
         echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
@@ -70,6 +72,12 @@ get_config() {
     # If Config exists in /etc/ConsolePi/ConsolePi.conf it takes precedence
     elif [[ -f "${default_config}" ]]; then
         logit "Using existing Config found in ${consolepi_dir}"
+        if [ -z $cfg_file_ver ] || [ $cfg_file_ver -lt $CFG_FILE_VER ]; then
+            bypass_verify=true         # bypass verify function
+            input=false                # so collect function will run (while loop in main)
+            selected_prompts=true
+            echo "-- NEW OPTIONS HAVE BEEN ADDED DATA COLLECTION PROMPTS WILL DISPLAY --"
+        fi
     # For first run if no config exists in default location look in user home_dir and stage_dir for pre-config file
     elif [[ -f "/home/${iam}/ConsolePi.conf" ]] || [[ -f ${stage_dir}ConsolePi.conf ]]; then
         found_path=$(get_staged_file_path "ConsolePi.conf")
@@ -92,12 +100,12 @@ get_config() {
 upgrade_prep() {
     # Update Config to include values for Cloud Config Function
     if [[ -f "${default_config}" ]]; then
-        process="ConsolePi-Upgrade-Prep (Config Updates)"
-        [ -z "$cloud" ] && cloud=false &&
-            echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}" &&
-                logit "Updated Existing Config to support new Cloud Features.  Refer to gitHub for instructions on setup"
-        [ -z "$cloud_svc" ] && cloud_svc="gdrive" &&
-            echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
+        # process="ConsolePi-Upgrade-Prep (Config Updates)"
+        # [ -z "$cloud" ] && cloud=false &&
+        #     echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}" &&
+        #         logit "Updated Existing Config to support new Cloud Features.  Refer to gitHub for instructions on setup"
+        # [ -z "$cloud_svc" ] && cloud_svc="gdrive" &&
+        #     echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
         [ -z "$debug" ] && debug=false &&
             echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
     else
@@ -107,7 +115,7 @@ upgrade_prep() {
 
 # Update Config file with Collected values
 update_config() {
-    echo "# Do Not Delete this line. ConsolePi Configuration File ver ${CFG_FILE_VER}"  > "${default_config}"
+    echo "cfg_file_ver=${CFG_FILE_VER}                  # Do Not Delete or modify this line"  > "${default_config}"
     echo "push=${push}                                                                   # PushBullet Notifications: true - enable, false - disable" >> "${default_config}"
     echo "push_all=${push_all}                                                   # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
     echo "push_api_key=\"${push_api_key}\"   # PushBullet API key" >> "${default_config}"
@@ -123,6 +131,7 @@ update_config() {
     echo "cloud=${cloud}                                                      # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
     echo "cloud_svc=\"${cloud_svc}\"                                              # Future - only Google Drive / Google Sheets supported currently - must be \"gdrive\"" >> "${default_config}"
     # echo "api=${api}                                                           # API used so ConsolePis can update other DHCP Discovery" >> "${default_config}"
+    echo "relay=${relay}                                                     # Adds support for Power Outlet relays" >> "${default_config}"
     echo "debug=${debug}                                                     # turns on additional debugging" >> "${default_config}"
 }
 
@@ -160,101 +169,112 @@ hotspot_dhcp_range() {
     
 collect() {
     # -- PushBullet  --
-    header
-    prompt="Configure ConsolePi to send notifications via PushBullet"
-    user_input $push "${prompt}"
-    push=$result
-    if $push; then
-
-        # -- PushBullet API Key --
+    if ! $selected_prompts || [ -z $push ]; then
         header
-        prompt="PushBullet API key"
-        user_input $push_api_key "${prompt}"
-        push_api_key=$result
-        
-        # -- Push to All Devices --
-        header
-        echo "Do you want to send PushBullet Messages to all PushBullet devices?"
-        echo "Answer 'N'(no) to send to just 1 device "
-        echo
-        prompt="Send PushBullet Messages to all devices"
-        user_input $push_all "${prompt}"
-        push_all=$result
+        prompt="Configure ConsolePi to send notifications via PushBullet"
+        user_input $push "${prompt}"
+        push=$result
+        if $push; then
 
-        # -- PushBullet device iden --
-        if ! $push_all; then
-            [ ${#push_iden} -gt 0 ] && default="[${push_iden}]"
+            # -- PushBullet API Key --
             header
-            prompt="Provide the iden of the device you would like PushBullet Messages sent to"
-            user_input $push_iden "${prompt}"
-            push_iden=$result
-        else
-            push_iden="NotUsedSendToAll"
+            prompt="PushBullet API key"
+            user_input $push_api_key "${prompt}"
+            push_api_key=$result
+            
+            # -- Push to All Devices --
+            header
+            echo "Do you want to send PushBullet Messages to all PushBullet devices?"
+            echo "Answer 'N'(no) to send to just 1 device "
+            echo
+            prompt="Send PushBullet Messages to all devices"
+            user_input $push_all "${prompt}"
+            push_all=$result
+
+            # -- PushBullet device iden --
+            if ! $push_all; then
+                [ ${#push_iden} -gt 0 ] && default="[${push_iden}]"
+                header
+                prompt="Provide the iden of the device you would like PushBullet Messages sent to"
+                user_input $push_iden "${prompt}"
+                push_iden=$result
+            else
+                push_iden="NotUsedSendToAll"
+            fi
         fi
     fi
 
+    
     # -- OpenVPN --
-    header
-    prompt="Enable Auto-Connect OpenVPN"
-    user_input $ovpn_enable "${prompt}"
-    ovpn_enable=$result
-    
-    # -- VPN Check IP --
-    if $ovpn_enable; then
+    if ! $selected_prompts || [ -z $ovpn_enable ]; then
         header
-        echo "Provide an IP address used to check vpn connectivity (an IP only reachable once VPN is established)"
-        echo "Typically you would use the OpenVPN servers inside interface IP."
-        echo
-        prompt="IP Used to verify reachability inside OpenVPN tunnel"
-        user_input $vpn_check_ip "${prompt}"
-        vpn_check_ip=$result
+        prompt="Enable Auto-Connect OpenVPN"
+        user_input $ovpn_enable "${prompt}"
+        ovpn_enable=$result
         
-        # -- Net Check IP --
-        header
-        prompt="Provide an IP address used to verify Internet connectivity"
-        user_input $net_check_ip "${prompt}"
-        net_check_ip=$result
-        
-        # -- Local Lab Domain --
-        header
-        echo "ConsolePi uses the domain provided by DHCP to determine if it's on your local network"
-        echo "If you are connected locally (No VPN will be established)"
-        echo
-        prompt="Local Lab Domain"
-        user_input $local_domain "${prompt}"
-        local_domain=$result
+        # -- VPN Check IP --
+        if $ovpn_enable; then
+            header
+            echo "Provide an IP address used to check vpn connectivity (an IP only reachable once VPN is established)"
+            echo "Typically you would use the OpenVPN servers inside interface IP."
+            echo
+            prompt="IP Used to verify reachability inside OpenVPN tunnel"
+            user_input $vpn_check_ip "${prompt}"
+            vpn_check_ip=$result
+            
+            # -- Net Check IP --
+            header
+            prompt="Provide an IP address used to verify Internet connectivity"
+            user_input $net_check_ip "${prompt}"
+            net_check_ip=$result
+            
+            # -- Local Lab Domain --
+            header
+            echo "ConsolePi uses the domain provided by DHCP to determine if it's on your local network"
+            echo "If you are connected locally (No VPN will be established)"
+            echo
+            prompt="Local Lab Domain"
+            user_input $local_domain "${prompt}"
+            local_domain=$result
+        fi
     fi
-    
-    # -- HotSpot IP --
-    header
-    prompt="What IP do you want to assign to ConsolePi when acting as HotSpot"
-    user_input $wlan_ip "${prompt}"
-    wlan_ip=$result
-    hotspot_dhcp_range
-    
-    # -- HotSpot SSID --
-    header
-    prompt="What SSID do you want the HotSpot to Broadcast when in HotSpot mode"
-    user_input $wlan_ssid "${prompt}"
-    wlan_ssid=$result
-    
-    # -- HotSpot psk --
-    header
-    prompt="Enter the psk used for the HotSpot SSID"
-    user_input $wlan_psk "${prompt}"
-    wlan_psk=$result
-    
-    # -- HotSpot country --
-    header
-    prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
-    user_input "US" "${prompt}"
-    wlan_country=$result
+        
+    # -- HotSpot  --
+    if ! $selected_prompts || [ -z $wlan_ip ]; then
+        header
+        prompt="What IP do you want to assign to ConsolePi when acting as HotSpot"
+        user_input $wlan_ip "${prompt}"
+        wlan_ip=$result
+        hotspot_dhcp_range
+        
+        # -- HotSpot SSID --
+        header
+        prompt="What SSID do you want the HotSpot to Broadcast when in HotSpot mode"
+        user_input $wlan_ssid "${prompt}"
+        wlan_ssid=$result
+        
+        # -- HotSpot psk --
+        header
+        prompt="Enter the psk used for the HotSpot SSID"
+        user_input $wlan_psk "${prompt}"
+        wlan_psk=$result
+        
+        # -- HotSpot country --
+        header
+        prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
+        user_input "US" "${prompt}"
+        wlan_country=$result
+    fi
+
 
     # -- cloud --
-    header
-    prompt="Do you want to enable ConsolePi Cloud Config (Clustering) Function"
-    user_input $cloud "${prompt}"
-    cloud=$result
+    if ! $selected_prompts || [ -z $cloud ]; then
+        header
+        [ -z $cloud ] && cloud=false
+        user_input $cloud "Do you want to enable ConsolePi Cloud Sync with Gdrive"
+        cloud=$result
+        cloud_svc="gdrive"
+    fi
 
     # TODO - FUTURE - Currently it's on, but not used
     # -- api --
@@ -277,7 +297,23 @@ collect() {
     # prompt="What Cloud Service will you use"
     # cloud_svc_menu $cloud_svc "${prompt}"
     # cloud_svc=$result
-    cloud_svc="gdrive"
+    
+    # -- power relays --
+    if ! $selected_prompts || [ -z $relay ]; then
+        header
+        prompt="Do you want to enable ConsolePi Power Outlet Relay(s) Control/Trigger"
+        [ -z $relay ] && relay=false
+        user_input $relay "${prompt}"
+        relay=$result
+        if $relay; then
+            echo -e "\nCurrently to support relays you need to populate /etc/ConsolePi/relay.json manually" 
+            echo -e "You can copy and edit relay.json.example.  Ensure you follow proper json format\n"
+            echo -e "The logic for relays currently only supports Normally Off Outlets.  Meaning the outlet is"
+            echo -e "off unless ConsolePi has been triggered to turn it on.  Normally On Outlets will come in a"
+            echo -e "future build."
+            read -n 1 -p "Press any key to continue"
+        fi
+    fi
 }
 
 verify() {
@@ -306,6 +342,7 @@ verify() {
     echo " ConsolePi Hot Spot regulatory domain:                    $wlan_country"
     echo " ConsolePi Cloud Support:                                 $cloud"
     $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
+    echo " ConsolePi Power Relay Support:                           $relay"
     echo
     echo "----------------------------------------------------------------------------------------------------------------"
     echo

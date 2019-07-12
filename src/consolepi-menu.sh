@@ -18,13 +18,13 @@ cloud=false
 
 # -- Get List of all ttyUSB_ devices currently connected --
 get_tty_devices() {
-	tty_list=(/sys/bus/usb-serial/devices/*)
-	[[ ${tty_list[0]} == '/sys/bus/usb-serial/devices/*' ]] && tty_list=
+    tty_list=($(ls -lhF /dev/serial/by-id/ | grep ^l | cut -d'>' -f2|awk -F'/' '{print $3}'))
+    tty_list=($(ls -lhF /dev/serial/by-id/ | grep ^l | cut -d'>' -f2))
 }
 
 # -- If ttyUSB device has defined alias, Display the alias in menu --
 get_tty_name() {
-    tty_name=$(ls -l /dev |grep lrwx.*${this_tty##*/}.* |cut -d: -f2|awk '{print $2}')
+    tty_name=$(ls -l /dev |grep ^lrwx.*${this_tty##*/} |cut -d: -f2|awk '{print $2}')
     [[ -z $tty_name ]] && tty_name=${this_tty##*/} ||
         tty_name="${tty_name} (${this_tty##*/})"
 
@@ -360,16 +360,19 @@ main_menu() {
 }
 
 exit_script() {
-    # echo -e "\n*******************************"
-    # echo ''
-    echo -e "exiting to shell"
-    echo ''
-    echo -e "The blue user used in this shell"
-    echo -e "has limited permissions"
-    echo ''
-    echo -e "'su pi' to gain typical rights"
-    echo ''
-    echo -e "*******************************\n"
+    if [ $(who | awk '{print $1}') = "blue" ]; then
+        echo -e "exiting to shell"
+        echo ''
+        echo -e "The blue user used in this shell"
+        echo -e "has limited permissions"
+        echo ''
+        echo -e "'su pi' to gain typical rights"
+        echo ''
+        echo -e "*******************************\n"
+    else
+        echo -e "exiting to shell"
+        echo -e "*******************************\n"
+    fi
     exit 0
 }
 
@@ -391,4 +394,5 @@ main() {
 }
 
 # __main__
+[ $iam ] && echo $iam || echo Undefined
 main

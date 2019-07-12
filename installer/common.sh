@@ -6,7 +6,7 @@
 
 # -- Installation Defaults --
 INSTALLER_VER=29
-CFG_FILE_VER=3
+CFG_FILE_VER=4
 cur_dir=$(pwd)
 iam=$(who | awk '{print $1}')
 consolepi_dir="/etc/ConsolePi/"
@@ -241,4 +241,9 @@ file_diff_update() {
     else
         logit "${2} is current"
     fi
+}
+
+get_ser2net() {
+    mapfile -t _aliases < <( cat /etc/ser2net.conf | grep ^70[0-9][0-9] | grep ^70[0-9][0-9]: | cut -d'/' -f3 | cut -d':' -f1 )
+    mapfile -t _ports < <( cat /etc/ser2net.conf | grep ^70[0-9][0-9] | grep ^70[0-9][0-9]: | cut -d':' -f1 )
 }

@@ -49,7 +49,7 @@ do_apt_update () {
     apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
         
     logit "Installing git via apt"
-    apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install Successful" || logit "git install FAILED to install" "ERROR"
+    apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
     logit "Process Complete"
 }
 

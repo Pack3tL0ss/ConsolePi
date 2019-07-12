@@ -25,6 +25,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
           - [How it works](#how-it-works)
           - [Important Notes](#important-notes)
       - [API](#api)
+      - [Power Control](#power-control)
  - [Installation](#installation)
      - [Automated Installation](#1-automated-installation)
      - [Semi-Automatic Install](#2-semi-automatic-install)
@@ -145,6 +146,23 @@ Triggered by ConsolePi Acting as DHCP server (generally hotspot):
 ConsolePi currently doesn't use the API for any of it's functionality.  It may be leveraged in the future for verification (to ensure cloud sync entry is not stale), or for other purposes yet to be determined.
 
 > The API is currently unsecured, it uses http, and Auth is not implemented yet.  It currently only supports GET requests, and doens't return any sensitive data.  As it's not currently used, it's OK to disable `sudo systemctl disable consolepi-api`.  Just be aware that you may have to disable after each upgrade.
+
+## Power Control
+
+> This section describes everything this function *will* do.  It's currently only partially complete.  The Function currently allows you to control defined outlets, but the automatic power verification on connection is not built.  It currently works with Normally Off outlets (Normally On should work, but the status will show opposite of reality).  This function currently only works with locally connected relays, control of relays on Remote ConsolePis will come in a future release.
+
+- The Power Control Function allows you to control power to external devices via external power relay controlled by ConsolePi ( Like this one [Digital-Loggers IoT Relay](https://dlidirect.com/products/iot-power-relay) ).
+- If the function is enabled and relays are defined, an option in `consolepi-menu` will display allowing access to a sub-menu, where those outlets can be controlled (toggle power on/off).
+- Relays can be linked to Console Adapter(s) (requires the adapter be pre-defined using `consolepi-addconsole`).  If there is a link defined between the relay and the adapter, anytime you initiate a connection to the adapter via `consolepi-menu` ConsolePi will ensure the outlet is powered on.  Otherwise if the link is defined you can connect to a device and power it on, simply by initiating the connection.
+
+### Power Control Setup
+
+- After enabling via `consolepi-upgrade` or during initial install; `relay.json` needs to be populated, see `relay.json.example` for formatting.
+- Trigger on relay should be connected to GPIO ports.  Trigger expecting voltage to one of the GPIO pins, Trigger ground to one of the GPIO ground pins.
+- ConsolePi expects the GPIO number not the Board pin # in `relay.json`.  For example given the GPIO layout for the Raspberry Pi below.  Board Pin # 7 = GPIO 4.  `relay.json` should be populated with 4.
+
+![GPIO Pin Layout](readme_content/pin_layout.svg)
+
 
 # Installation
 

@@ -15,6 +15,7 @@ LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
 CLOUD_LOG_FILE = '/var/log/ConsolePi/cloud.log'
 USER = 'pi' # currently not used, user pi is hardcoded using another user may have unpredictable results as it hasn't been tested
 HOME = str(Path.home())
+RELAY_FILE = '/etc/ConsolePi/relay.json'
 
 class ConsolePi_Log:
 
@@ -150,6 +151,13 @@ class ConsolePi_data:
                     log.info('No IP Found for {} skipping'.format(_if))
         log.debug('get_if_ips complete: {}'.format(if_data))
         return if_data
+
+    def get_ip_list(self):
+        ip_list = []
+        if_ips = self.get_if_ips()
+        for _iface in if_ips:
+            ip_list.append(if_ips[_iface]['ip'])
+        return ip_list
 
     def get_local_cloud_file(self, local_cloud_file=LOCAL_CLOUD_FILE):
         data = {}

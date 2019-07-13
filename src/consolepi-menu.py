@@ -323,7 +323,7 @@ class ConsolePiMenu(Relays):
             os.system('clear')
         ch = choice.lower()
         if ch == '':
-            self.menu_actions[calling_menu]()
+            menu_actions[calling_menu]()
         else:
             try:
                 if isinstance(menu_actions[ch], dict):
@@ -348,6 +348,7 @@ class ConsolePiMenu(Relays):
             except KeyError:
                 print("Invalid selection, please try again.\n")
                 menu_actions[calling_menu]()
+        
         return
 
     # Connection SubMenu

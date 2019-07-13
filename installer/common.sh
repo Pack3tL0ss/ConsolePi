@@ -247,3 +247,9 @@ get_ser2net() {
     mapfile -t _aliases < <( cat /etc/ser2net.conf | grep ^70[0-9][0-9] | grep ^70[0-9][0-9]: | cut -d'/' -f3 | cut -d':' -f1 )
     mapfile -t _ports < <( cat /etc/ser2net.conf | grep ^70[0-9][0-9] | grep ^70[0-9][0-9]: | cut -d':' -f1 )
 }
+
+# Hung Terminal Helper
+do_kill_hung_ssh() {
+    dev_name = $1
+    sudo pkill -SIGTERM -ns $(ps auxf | grep -v grep | grep $dev_name | awk '{print $2}')
+}

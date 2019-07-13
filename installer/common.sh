@@ -252,5 +252,5 @@ get_ser2net() {
 do_kill_hung_ssh() {
     dev_name=${1##*/}
     echo $HOSTNAME $dev_name - ${1}
-    sudo pkill -SIGTERM -ns $(ps auxf | grep -v grep | grep ${1##*/} | awk '{print $2}')
+    sudo pkill -SIGTERM -ns $(ps auxf | grep -v grep | grep "$dev_name" | awk '{print $2}')
 }

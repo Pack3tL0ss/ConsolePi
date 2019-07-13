@@ -250,7 +250,7 @@ get_ser2net() {
 
 # Hung Terminal Helper
 do_kill_hung_ssh() {
-    echo $HOSTNAME $Dev_name
+    echo $HOSTNAME $dev_name
     dev_name = $1
     sudo pkill -SIGTERM -ns $(ps auxf | grep -v grep | grep $dev_name | awk '{print $2}')
 }

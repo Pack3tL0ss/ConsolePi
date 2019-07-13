@@ -8,6 +8,7 @@ import subprocess
 import shlex
 from collections import OrderedDict as od
 import ast
+import readline
 from threading import Thread
 
 # get ConsolePi imports

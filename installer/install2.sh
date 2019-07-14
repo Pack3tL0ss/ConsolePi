@@ -115,11 +115,11 @@ upgrade_prep() {
 
 # Update Config file with Collected values
 update_config() {
-    echo "cfg_file_ver=${CFG_FILE_VER}                  # Do Not Delete or modify this line"  > "${default_config}"
-    echo "push=${push}                                                                   # PushBullet Notifications: true - enable, false - disable" >> "${default_config}"
+    echo "cfg_file_ver=${CFG_FILE_VER}   # ---- Do Not Delete or modify this line ---- #"  > "${default_config}"
+    echo "push=${push}                                                       # PushBullet Notifications: true - enable, false - disable" >> "${default_config}"
     echo "push_all=${push_all}                                                   # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
     echo "push_api_key=\"${push_api_key}\"   # PushBullet API key" >> "${default_config}"
-    echo "push_iden=\"${push_iden}\"                                    # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
+    echo "push_iden=\"${push_iden}\"                              # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
     echo "ovpn_enable=${ovpn_enable}                                                # if enabled will establish VPN connection" >> "${default_config}"
     echo "vpn_check_ip=\"${vpn_check_ip}\"                                       # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
     echo "net_check_ip=\"${net_check_ip}\"                                          # used to check Internet connectivity" >> "${default_config}"
@@ -622,22 +622,14 @@ dhcp_run_hook() {
 
 ConsolePi_cleanup() {
     # ConsolePi_cleanup is an init script that runs on startup / shutdown.  On startup it removes tmp files used by ConsolePi script to determine if the ip
-    # address of an interface has changed (PB notifications only occur if there is a change). So notifications are always sent on reboot
+    # address of an interface has changed (PB notifications only occur if there is a change). So notifications are always sent after a reboot.
     process="Deploy ConsolePi cleanup init Script"
-    logit "${process} Starting"
-    sudo cp "/etc/ConsolePi/src/systemd/ConsolePi_cleanup" "/etc/init.d" 1>/dev/null 2>> $log_file || 
-        logit "Error Copying ConsolePi_cleanup init script." "WARNING"
-    chmod +x /etc/init.d/ConsolePi_cleanup 1>/dev/null 2>> $log_file || 
-        logit "Failed to make ConsolePi_cleanup init script executable." "WARNING"
-    sudo /lib/systemd/systemd-sysv-install enable ConsolePi_cleanup 1>/dev/null 2>> $log_file || 
-        logit "Failed to enable ConsolePi_cleanup init script." "WARNING"
-        
-    logit "${process} - Complete"
+        file_diff_update /etc/ConsolePi/src/systemd/ConsolePi_cleanup /etc/init.d/ConsolePi_cleanup
     unset process
 }
 
 #sub process used by install_ovpn
-check_vpn_config(){
+sub_check_vpn_config(){
     if [ -f /etc/openvpn/client/ConsolePi.ovpn ]; then
         if $push; then
             if [ $(sudo grep -c "script-security 2" /etc/openvpn/client/ConsolePi.ovpn) -eq 0 ]; then
@@ -673,14 +665,14 @@ install_ovpn() {
     
     if [ -f /etc/openvpn/client/ConsolePi.ovpn ]; then
         logit "Retaining existing ConsolePi.ovpn"
-        $push && check_vpn_config
+        $push && sub_check_vpn_config
     else
         found_path=$(get_staged_file_path "ConsolePi.ovpn")
         if [[ $found_path ]]; then 
             cp $found_path "/etc/openvpn/client" &&
                 logit "Found ${found_path}.  Copying to /etc/openvpn/client" ||
                 logit "Error occurred Copying your ovpn config" "WARNING"
-            $push && [ -f /etc/openvpn/client/ConsolePi.ovpn ] && check_vpn_config
+            $push && [ -f /etc/openvpn/client/ConsolePi.ovpn ] && sub_check_vpn_config
         else
             [[ ! -f "/etc/openvpn/client/ConsolePi.ovpn.example" ]] && sudo cp "${src_dir}ConsolePi.ovpn.example" "/etc/openvpn/client" ||
                 logit "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
@@ -714,21 +706,23 @@ ovpn_graceful_shutdown() {
 install_autohotspotn () {
     # Can Remove portions of this and remove file in /usr/bin/ have pointed everything directly to the file in the repo
     process="AutoHotSpotN"
-    logit "Install AutoHotSpotN"
-    [[ -f "${src_dir}autohotspotN" ]] && cp "${src_dir}autohotspotN" /usr/bin 1>/dev/null 2>> $log_file
+    logit "Install/Update AutoHotSpotN"
+    # [[ -f "${src_dir}autohotspotN" ]] && cp "${src_dir}autohotspotN" /usr/bin 1>/dev/null 2>> $log_file
+    file_diff_update ${src_dir}autohotspotN /usr/bin/autohotspotN
     [[ $? == 0 ]] && logit "Create/Update autohotspotN script Success" || logit "Failed to create autohotspotN script" "WARNING"
         
     chmod +x /usr/bin/autohotspotN 1>/dev/null 2>> $log_file ||
         logit "Failed to chmod autohotspotN script" "WARNING"
         
     logit "Installing hostapd via apt."
-    hostapd_ver=$(hostapd -v 2>&1| head -1| awk '{print $2}')
-    hostapd -v > /dev/null 2>&1
-    if [ $? -gt 1 ]; then
+    # hostapd -v > /dev/null 2>&1
+    # if [ $? -gt 1 ]; then
+    if ! $(which hostapd >/dev/null); then
         apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
             logit "hostapd install Success" ||
             logit "hostapd install Failed" "WARNING"
     else
+        hostapd_ver=$(hostapd -v 2>&1| head -1| awk '{print $2}')
         logit "hostapd ${hostapd_ver} already installed"
     fi
     

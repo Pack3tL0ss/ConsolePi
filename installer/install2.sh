@@ -72,6 +72,8 @@ get_config() {
     # If Config exists in /etc/ConsolePi/ConsolePi.conf it takes precedence
     elif [[ -f "${default_config}" ]]; then
         logit "Using existing Config found in ${consolepi_dir}"
+        . "$default_config" || 
+            logit "Error Loading Configuration defaults" "WARNING"
         if [ -z $cfg_file_ver ] || [ $cfg_file_ver -lt $CFG_FILE_VER ]; then
             bypass_verify=true         # bypass verify function
             input=false                # so collect function will run (while loop in main)
@@ -83,14 +85,14 @@ get_config() {
         found_path=$(get_staged_file_path "ConsolePi.conf")
         if [[ $found_path ]]; then
             logit "using provided config: ${found_path}"
-            sudo mv $found_path $default_config ||
-                logit "Error Moving provided config: ${found_path}" "WARNING"
+            sudo mv $found_path $default_config && ok_import=true || ok_import=false
+            ! $ok_import && logit "Error Moving provided config: ${found_path}" "WARNING"
+            $ok_import && . "$default_config" || 
+                logit "Error Loading Configuration defaults" "WARNING"
         else
             logit "NUL Return from found_path: ${found_path}" "ERROR"
         fi
     fi
-    . "$default_config" || 
-        logit "Error Loading Configuration defaults" "WARNING"
     hotspot_dhcp_range
     unset process
 }
@@ -350,6 +352,7 @@ verify() {
     echo
     prompt="Are Values Correct"
     input=$(user_input_bool)
+    # ! $input && selected_prompts=false
 }
 
 chg_password() {
@@ -1234,7 +1237,7 @@ install2_main() {
     upgrade_prep
     ! $bypass_verify && verify
     while ! $input; do
-        collect "fix"
+        collect
         verify
     done
     update_config

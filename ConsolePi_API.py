@@ -7,6 +7,7 @@ from consolepi.common import ConsolePi_data
 app = Flask(__name__)
 config = ConsolePi_data(do_print=False)
 log = config.log
+user = 'pi'
 
 @app.route('/api/v1.0/adapters', methods=['GET'])
 def get_adapters():
@@ -22,7 +23,7 @@ def get_ifaces():
 
 @app.route('/api/v1.0/details', methods=['GET'])
 def get_details():
-    return jsonify({config.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': config.local['user']}})
+    return jsonify({config.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': user}})
 
 if __name__ == '__main__':
     serve(app, host='0.0.0.0', port=5000)

@@ -91,6 +91,7 @@ class ConsolePiMenu(Relays):
             return data['adapters']
 
         # Add remote commands to remote_consoles dict for each adapter
+        update_cache = False
         for remotepi in data:
             this = data[remotepi]
             print('  {} Found...  Checking reachability'.format(remotepi), end='')
@@ -113,7 +114,12 @@ class ConsolePiMenu(Relays):
 
             if this['rem_ip'] is None:
                 log.warning('get_remote: Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
+                update_cache = True                
                 print(': !!! UNREACHABLE !!!', end='\n')
+                        
+        # update local cache if any ConsolePis found UnReachable
+        if update_cache:
+            data = config.update_local_cloud_file(data)
 
         return data
 
@@ -148,7 +154,7 @@ class ConsolePiMenu(Relays):
         # Update Remote data with data from local_cloud cache (and dhcp leases)
         self.data['remote'] = self.get_remote(data=remote_consoles, refresh=True)
 
-
+    # -- Deprecated function will return this ConsolePis data if consolepi-menu called with an argument (if arg is data of calling ConsolePi it's read in)
     def update_from_remote(self, rem_data):
         config = self.config
         log = config.log
@@ -219,29 +225,36 @@ class ConsolePiMenu(Relays):
         input('Press Enter to Continue')
 
     def relay_menu(self):
-        item = 1
-        relays = self.get_relays()
-        if not self.DEBUG:
-            os.system('clear')
-        self.menu_actions['b'] = self.main_menu
+        choice = ''
+        while choice.lower() not in ['x', 'b']:
+            item = 1
+            relays = self.get_relays()
+            if not self.DEBUG:
+                os.system('clear')
+            self.menu_actions['b'] = self.main_menu
 
-        self.menu_formatting('header', text=' Power Control Menu ')
-        print('  Defined Power Relays')
-        print('  ' + '-' * 33)
+            self.menu_formatting('header', text=' Power Control Menu ')
+            print('  Defined Power Relays')
+            print('  ' + '-' * 33)
 
-        # Build menu items for each serial adapter found on remote ConsolePis
-        for r in sorted(relays):
-            cur_state = 'on' if relays[r]['is_on'] else 'off'
-            to_state = 'off' if relays[r]['is_on'] else 'on'
-            print('{0}. Turn {1} {2} [ Current State {3} ]'.format(item, r, to_state, cur_state ))
-            # led = self.relays.led(relay['GPIO'])
-            self.menu_actions[str(item)] = {'function': self.do_toggle, 'args': relays[r]['GPIO']}
-            item += 1
+            # Build menu items for each serial adapter found on remote ConsolePis
+            for r in sorted(relays):
+                if relays[r]['noff']:
+                    cur_state = 'on' if relays[r]['is_on'] else 'off'
+                    to_state = 'off' if relays[r]['is_on'] else 'on'
+                else:
+                    cur_state = 'off' if relays[r]['is_on'] else 'on'
+                    to_state = 'on' if relays[r]['is_on'] else 'off'
+                print('{0}. Turn {1} {2} [ Current State {3} ]'.format(item, r, to_state, cur_state ))
+                # led = self.relays.led(relay['GPIO'])
+                self.menu_actions[str(item)] = {'function': self.do_toggle, 'args': relays[r]['GPIO']}
+                item += 1
 
-        text = 'b. Back'
-        self.menu_formatting('footer', text=text)
-        choice = input(" >>  ")
-        self.exec_menu(choice, actions=self.menu_actions, calling_menu='relay_menu')
+            text = 'b. Back'
+            self.menu_formatting('footer', text=text)
+            choice = input(" >>  ")
+            self.exec_menu(choice, actions=self.menu_actions, calling_menu='relay_menu')
+        
 
     def key_menu(self):
         item = 1

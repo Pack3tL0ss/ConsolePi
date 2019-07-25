@@ -360,7 +360,7 @@ main_menu() {
 }
 
 exit_script() {
-    if [ $(who | awk '{print $1}') = "blue" ]; then
+    if [ $(who | tail -1 | awk '{print $1}') = "blue" ]; then
         echo -e "exiting to shell"
         echo ''
         echo -e "The blue user used in this shell"
@@ -370,7 +370,7 @@ exit_script() {
         echo ''
         echo -e "*******************************\n"
     else
-        echo -e "exiting to shell"
+        echo -e "exiting to shell\n"
         echo -e "*******************************\n"
     fi
     exit 0
@@ -394,5 +394,5 @@ main() {
 }
 
 # __main__
-[ $iam ] && echo $iam || echo Undefined
+# [ $iam ] && echo $iam || echo Undefined
 main

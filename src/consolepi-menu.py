@@ -54,7 +54,7 @@ class ConsolePiMenu(Relays):
         self.if_ips = config.interfaces
         self.ip_list = []
         for _iface in self.if_ips:
-            self.ip_list.append(self.if_ips[_iface]['ip'])    
+            self.ip_list.append(self.if_ips[_iface]['ip'])
         self.data = {'local': config.local}
         if not bypass_remote:
             self.data['remote'] = self.get_remote()
@@ -76,14 +76,15 @@ class ConsolePiMenu(Relays):
         config = self.config
         log = config.log
         plog = config.plog
-        plog('Fetching Remote ConsolePis with attached Serial Adapters from local cache')
+        print('Fetching Remote ConsolePis with attached Serial Adapters from local cache')
+        log.info('[GET REM] Starting fetch from local cache')
 
         if data is None:
             data = config.get_local_cloud_file()
 
         if config.hostname in data:
             data.pop(self.hostname)
-            config.log.warning('Local Cloud cache included entry for self - there is a logic error someplace')
+            log.warning('[GET REM] Local cache included entry for self - there is a logic error someplace')
 
         # def build_adapter_commands(data):
         #     for adapter in data['adapters']:
@@ -99,7 +100,7 @@ class ConsolePiMenu(Relays):
             print('  {} Found...  Checking reachability'.format(remotepi), end='')
             if 'rem_ip' in this and this['rem_ip'] is not None and check_reachable(this['rem_ip'], 22):
                 print(': Success', end='\n')
-                log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, this['rem_ip']))
+                log.info('[GET REM] Found {0} in Local Cache, reachable via {1}'.format(remotepi, this['rem_ip']))
                 #this['adapters'] = build_adapter_commands(this)
             else:
                 for _iface in this['interfaces']:
@@ -108,14 +109,14 @@ class ConsolePiMenu(Relays):
                         if check_reachable(_ip, 22):
                             this['rem_ip'] = _ip
                             print(': Success', end='\n')
-                            log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
+                            log.info('[GET REM] Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
                             #this['adapters'] = build_adapter_commands(this)
                             break  # Stop Looping through interfaces we found a reachable one
                         else:
                             this['rem_ip'] = None
 
             if this['rem_ip'] is None:
-                log.warning('get_remote: Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
+                log.warning('[GET REM] Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
                 update_cache = True                
                 print(': !!! UNREACHABLE !!!', end='\n')
                         
@@ -131,6 +132,7 @@ class ConsolePiMenu(Relays):
         config = self.config
         # Update Local Adapters
         if not rem_update:
+            print('Detecting Locally Attached Serial Adapters')
             self.data['local'] = {self.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
             config.log.info('Final Data set collected for {}: {}'.format(self.hostname, self.data['local']))
 

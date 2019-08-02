@@ -7,6 +7,7 @@ import subprocess
 import threading
 from pathlib import Path
 import pyudev
+from .relay import Relays
 
 # Common Static Global Variables
 DNS_CHECK_FILES = ['/etc/resolv.conf', '/run/dnsmasq/resolv.conf']
@@ -16,6 +17,7 @@ CLOUD_LOG_FILE = '/var/log/ConsolePi/cloud.log'
 USER = 'pi' # currently not used, user pi is hardcoded using another user may have unpredictable results as it hasn't been tested
 HOME = str(Path.home())
 RELAY_FILE = '/etc/ConsolePi/relay.json'
+VALID_BAUD = ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']
 
 class ConsolePi_Log:
 
@@ -71,6 +73,7 @@ class ConsolePi_data:
         self.hostname = socket.gethostname()
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()
+        self.relays = Relays().relay_data
         self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
         self.remotes = self.get_local_cloud_file()
     
@@ -100,9 +103,14 @@ class ConsolePi_data:
         log = self.log
         plog = self.plog
         context = pyudev.Context()
+
+        if os.path.isfile(RELAY_FILE):
+            with open(RELAY_FILE, 'r') as relay_file:
+                relay_data = json.load(relay_file)
+
         plog('Detecting Locally Attached Serial Adapters')
 
-        # -- Detect Attached Serial Adapters --
+        # -- Detect Attached Serial Adapters and linked power relays if defined --
         final_tty_list = []
         for device in context.list_devices(subsystem='tty', ID_BUS='usb'):
             found = False
@@ -119,19 +127,62 @@ class ConsolePi_data:
         serial_list = []
         if os.path.isfile('/etc/ser2net.conf'):
             for tty_dev in final_tty_list:
+
+                # -- extract defined TELNET port and connection parameters from ser2net.conf --
                 with open('/etc/ser2net.conf', 'r') as cfg:
                     for line in cfg:
                         if tty_dev in line:
-                            tty_port = line.split(':')
-                            tty_port = int(tty_port[0])
-                            log.info('get_local: found dev: {} TELNET port: {}'.format(tty_dev, tty_port))
+                            line = line.split(':')
+                            tty_port = int(line[0])
+                            # 9600 NONE 1STOPBIT 8DATABITS XONXOFF LOCAL -RTSCTS
+                            # 9600 8DATABITS NONE 1STOPBIT banner
+                            # -- Set Default Connection Params overwritten if found in ser2net.conf --
+                            baud = 9600
+                            dbits = 8
+                            parity = 'n'
+                            flow = 'n'
+                            connect_params = line[4]
+                            connect_params.replace(',', ' ')
+                            connect_params = connect_params.split()
+                            for option in connect_params:
+                                if option in VALID_BAUD:
+                                    baud = int(option)
+                                elif 'DATABITS' in option:
+                                    dbits = int(option.replace('DATABITS', '')) # int 5 - 8
+                                    if dbits < 5 or dbits > 8:
+                                        print('Invalid value for "data bits" found in ser2net.conf falling back to 8')
+                                        log.error('Invalid Value for data bits found in ser2net.conf: {}'.format(option))
+                                        # dbits is pre-set for default of 8
+                                elif option in ['EVEN', 'ODD', 'NONE']:
+                                    parity = option[0].lower() # EVEN ODD NONE
+                                elif option in ['XONXOFF', 'RTSCTS']:
+                                    if option == 'XONXOFF':
+                                        flow = 'x'
+                                    elif option == 'RTSCTS':
+                                        flow = 'h'
+
+                            log.info('get_local: found dev: {0} TELNET port: {1} Connect Options [{2},{3},parity {4}, flow {5}'.format(
+                                tty_dev, tty_port, baud, dbits, parity, flow))
                             break
                         else:
                             tty_port = 9999  # this is error - placeholder value Telnet port is not currently used
-                serial_list.append({'dev': tty_dev, 'port': tty_port})
+
+                # -- get linked relay GPIO if defined --
+                if self.relay:
+                    gpio = None
+                    noff = None
+                    for relay in relay_data:
+                        if relay_data[relay]['linked']: # and relay_data[relay_set]['noff']: # check noff when toggle send desired state as off if non
+                            if tty_dev in relay_data[relay]['linked_devs']:
+                                gpio = relay_data[relay]['GPIO']
+                                noff = relay_data[relay]['noff']          
+
+                serial_list.append({'dev': tty_dev, 'port': tty_port, 'GPIO': gpio, 'noff': noff, 'baud': baud, 'dbits': dbits,
+                                    'parity': parity, 'flow': flow})
                 if tty_port == 9999:
                     log.error('No ser2net.conf definition found for {}'.format(tty_dev))
                     print('No ser2net.conf definition found for {}'.format(tty_dev))
+
         else:
             log.error('No ser2net.conf file found unable to extract port definition')
             print('No ser2net.conf file found unable to extract port definition')
@@ -206,7 +257,7 @@ class ConsolePi_data:
                                         log.debug('!!! Keeping Adapter data from cache as none provided in data set !!!')
         
             with open(local_cloud_file, 'a') as new_file:
-                new_file.write(json.dumps(remote_consoles))
+                new_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
         else:
             log.warning('update_local_cloud_file called with no data passed, doing nothing')
         

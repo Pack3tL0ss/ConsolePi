@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from consolepi.common import ConsolePi_data
+from consolepi.common import set_perm
 
 config = ConsolePi_data(do_print=False)
 local_cloud_file = config.LOCAL_CLOUD_FILE
@@ -26,6 +27,7 @@ elif len(sys.argv) == 3:
                 os.remove(local_cloud_file)
             with open(local_cloud_file, 'a') as new_file:
                 new_file.write(json.dumps(data, indent=4, sort_keys=True))
+                set_perm(local_cloud_file)
             print('Remotes remaining in local cache')
             print(json.dumps(data, indent=4, sort_keys=True))
             print('{} Removed from local cache'.format(sys.argv[2]))

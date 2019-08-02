@@ -37,11 +37,12 @@ class Relays:
             GPIO.output(gpio, 1) if not GPIO.input(gpio) else GPIO.output(gpio, 0)
         else:
             desired_state = desired_state.lower()
-            GPIO.output(gpio, 0) if desired_state == 'off' else GPIO.output(gpio, 0)
+            GPIO.output(gpio, 0) if desired_state == 'off' else GPIO.output(gpio, 1)
 
         return GPIO.input(gpio)
 
     def get_state(self, gpio):
+        GPIO.setup(gpio)
         return GPIO.input(gpio)
 
 if __name__ == '__main__':

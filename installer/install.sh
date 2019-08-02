@@ -164,6 +164,14 @@ do_pyvenv() {
         logit "${consolepi_dir}venv directory already exists"
     fi
 
+    if $upgrade; then
+        # -- *Upgrade Only* update pip to current --
+        logit "Upgrade pip"
+        sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade pip 1>/dev/null 2>> $log_file &&
+            logit "Success - pip upgrade" ||
+            logit "WARNING - pip upgrade returned error" "WARNING"
+    fi
+
     # -- *Always* update venv packages based on requirements file --
     logit "pip install/upgrade ConsolePi requirements - This can take some time."
     sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 1>/dev/null 2>> $log_file &&

@@ -267,26 +267,28 @@ class ConsolePi_data:
         
         return remote_consoles
 
-        def get_adapters_via_api(self, ip):
-    
-            url = 'http://{}:5000/api/v1.0/adapters'.format(ip)
+    def get_adapters_via_api(self, ip):
+        log = self.log
+        url = 'http://{}:5000/api/v1.0/adapters'.format(ip)
 
-            headers = {
-                'Accept': "*/*",
-                'Cache-Control': "no-cache",
-                'Host': "{}:5000".format(ip),
-                'accept-encoding': "gzip, deflate",
-                'Connection': "keep-alive",
-                'cache-control': "no-cache"
-                }
+        headers = {
+            'Accept': "*/*",
+            'Cache-Control': "no-cache",
+            'Host': "{}:5000".format(ip),
+            'accept-encoding': "gzip, deflate",
+            'Connection': "keep-alive",
+            'cache-control': "no-cache"
+            }
 
-            response = requests.request("GET", url, headers=headers)
+        response = requests.request("GET", url, headers=headers)
 
-            if response.ok:
-                ret = json.loads(response.text)
-            else:
-                ret = response.status_code
-            return ret
+        if response.ok:
+            ret = json.loads(response.text)
+            log.info('Adapters successfully retrieved via API for Remote ConsolePi {}\n{}'.format(ip, ret))
+        else:
+            ret = response.status_code
+            log.error('Failed to retrieve adapters via API for Remote ConsolePi {}\n{}:{}'.format(ip, ret, response.text))
+        return ret
 
 def set_perm(file):
     gid = grp.getgrnam("consolepi").gr_gid

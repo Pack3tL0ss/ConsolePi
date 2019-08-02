@@ -41,7 +41,10 @@ def build_info(log=log):
     return info
 
 def update_mdns(device=None, log=log, action=None, *args, **kwargs):
-    info = build_info()
+    try:
+        info = build_info()
+    except Exception as e:
+        log.error(str(e))
 
     if device is not None:
         zeroconf.update_service(info)

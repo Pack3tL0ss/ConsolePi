@@ -30,18 +30,15 @@ def build_info(log=log):
         'user': 'pi'
     }
     log.info(local_data)
-    try:
-        info = ServiceInfo(
-            "_consolepi._tcp.local.",
-            hostname + "._consolepi._tcp.local.",
-            addresses=[socket.inet_aton("127.0.0.1")],
-            port=5000,
-            properties=local_data,
-            server='{}.local.'.format(hostname)
-        )
-    except Exception as e:
-        log.error(str(e))
-        info = None
+
+    info = ServiceInfo(
+        "_consolepi._tcp.local.",
+        hostname + "._consolepi._tcp.local.",
+        addresses=[socket.inet_aton("127.0.0.1")],
+        port=5000,
+        properties=local_data,
+        server='{}.local.'.format(hostname),
+    )
 
     return info
 
@@ -57,24 +54,30 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
 
 
 def run():
-    info = build_info()
-    zeroconf.register_service(info)
-    # monitor udev for add - remove of usb-serial adapters 
-    monitor = pyudev.Monitor.from_netlink(context)
-    # monitor.filter_by('usb-serial')    
-    monitor.filter_by('usb')    
-    observer = pyudev.MonitorObserver(monitor, name='udev_monitor', callback=update_mdns)
-    observer.start()
     try:
-        while True:
-            sleep(1)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        print("Unregistering...")
-        zeroconf.unregister_service(build_info())
-        zeroconf.close()
-        observer.send_stop()
+        info = build_info()
+    except Exception as e:
+        log.error(str(e))
+        info = None
+
+    if info is not None:
+        zeroconf.register_service(info)
+        # monitor udev for add - remove of usb-serial adapters 
+        monitor = pyudev.Monitor.from_netlink(context)
+        # monitor.filter_by('usb-serial')    
+        monitor.filter_by('usb')    
+        observer = pyudev.MonitorObserver(monitor, name='udev_monitor', callback=update_mdns)
+        observer.start()
+        try:
+            while True:
+                sleep(1)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            print("Unregistering...")
+            zeroconf.unregister_service(build_info())
+            zeroconf.close()
+            observer.send_stop()
 
 if __name__ == '__main__':
     run()

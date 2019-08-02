@@ -164,8 +164,8 @@ class ConsolePi_data:
                                     elif option == 'RTSCTS':
                                         flow = 'h'
 
-                            log.info('get_local: found dev: {0} TELNET port: {1} Connect Options [{2},{3},parity {4}, flow {5}'.format(
-                                tty_dev, tty_port, baud, dbits, parity, flow))
+                            log.info('get_local: found dev: {0} TELNET port: {1} [{2},{3}{4}1, flow: {5}]'.format(
+                                tty_dev, tty_port, baud, dbits, parity.upper(), flow.upper()))
                             break
                         else:
                             tty_port = 9999  # this is error - placeholder value Telnet port is not currently used

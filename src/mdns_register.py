@@ -26,11 +26,12 @@ def build_info(error=False):
     
 
     local_data = {'hostname': hostname,
-        if not error:
-            'adapters': json.dumps(local_adapters),  # if data set is too large for mdns browser will retrieve via API
         'interfaces': json.dumps(if_ips),
         'user': 'pi'
     }
+    if not error:
+        local_data['adapters'] = json.dumps(local_adapters),  # if data set is too large for mdns browser will retrieve via API
+        
     info = ServiceInfo(
         "_consolepi._tcp.local.",
         hostname + "._consolepi._tcp.local.",

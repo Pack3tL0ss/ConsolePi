@@ -29,8 +29,8 @@ def build_info(error=False):
         'interfaces': json.dumps(if_ips),
         'user': 'pi'
     }
-    if not error:
-        local_data['adapters'] = json.dumps(local_adapters),  # if data set is too large for mdns browser will retrieve via API
+    if not error: # if data set is too large for mdns browser will retrieve via API
+        local_data['adapters'] = json.dumps(local_adapters)
 
     info = ServiceInfo(
         "_consolepi._tcp.local.",
@@ -47,7 +47,7 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
     try:
         info = build_info()
     except struct.error:
-        print('{} data is too big for mdns, removing adapter data'.format(hostname))
+        log.warning('[MDNS REG] data is too big for mdns, removing adapter data')
         info = build_info(error=True)
 
     if device is not None:
@@ -55,7 +55,7 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
         zeroconf.unregister_service(info)
         sleep(1)
         zeroconf.register_service(info)
-        log.info('mdns monitor detected change: {} {}'.format(device.action, device.sys_name))
+        log.info('[MDNS REG] detected change: {} {}'.format(device.action, device.sys_name))
 
 
 def run():

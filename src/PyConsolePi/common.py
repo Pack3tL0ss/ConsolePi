@@ -7,6 +7,7 @@ import json
 import socket
 import subprocess
 import threading
+import requests
 from pathlib import Path
 import pyudev
 from .relay import Relays
@@ -265,6 +266,27 @@ class ConsolePi_data:
             log.warning('update_local_cloud_file called with no data passed, doing nothing')
         
         return remote_consoles
+
+        def get_adapters_via_api(self, ip):
+    
+            url = 'http://{}:5000/api/v1.0/adapters'.format(ip)
+
+            headers = {
+                'Accept': "*/*",
+                'Cache-Control': "no-cache",
+                'Host': "{}:5000".format(ip),
+                'accept-encoding': "gzip, deflate",
+                'Connection': "keep-alive",
+                'cache-control': "no-cache"
+                }
+
+            response = requests.request("GET", url, headers=headers)
+
+            if response.ok:
+                ret = json.loads(response.text)
+            else:
+                ret = response.status_code
+            return ret
 
 def set_perm(file):
     gid = grp.getgrnam("consolepi").gr_gid

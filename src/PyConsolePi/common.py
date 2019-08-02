@@ -1,6 +1,8 @@
 import logging
 import netifaces as ni
 import os
+import pwd
+import grp
 import json
 import socket
 import subprocess
@@ -258,10 +260,15 @@ class ConsolePi_data:
         
             with open(local_cloud_file, 'a') as new_file:
                 new_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
+                set_perm(local_cloud_file)
         else:
             log.warning('update_local_cloud_file called with no data passed, doing nothing')
         
         return remote_consoles
+
+def set_perm(file):
+    gid = grp.getgrnam("consolepi").gr_gid
+    os.chown(file, 0, gid)
 
 # Get Variables from Config
 def get_config(var):

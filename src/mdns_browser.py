@@ -85,7 +85,7 @@ class MDNS_Browser:
     def run(self):
         log = self.log
         zeroconf = Zeroconf()
-        log.info("Discovering ConsolePis via mdns")
+        log.info("[MDNS DSCRY] Discovering ConsolePis via mdns")
         browser = ServiceBrowser(zeroconf, "_consolepi._tcp.local.", handlers=[self.on_service_state_change])
         # while not self.stop:
         # sleep(2.0)

@@ -111,7 +111,8 @@ class ConsolePi_data:
             with open(RELAY_FILE, 'r') as relay_file:
                 relay_data = json.load(relay_file)
 
-        plog('Detecting Locally Attached Serial Adapters')
+        # plog('Detecting Locally Attached Serial Adapters')
+        log.info('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
 
         # -- Detect Attached Serial Adapters and linked power relays if defined --
         final_tty_list = []
@@ -237,7 +238,7 @@ class ConsolePi_data:
                         # if source == 'mdns' and source in current_remotes[_] and current_remotes[_]['source'] != 'mdns':
                         remote_consoles[_] = current_remotes[_]
                     else:
-                        log.debug('\n--{}-- \n    remote rem_ip: {}\n    remote source: {}\n    cache rem_ip: {}\n    cache source: {}\n'.format(
+                        log.debug('[CACHE UPD] \n--{}-- \n    remote rem_ip: {}\n    remote source: {}\n    cache rem_ip: {}\n    cache source: {}\n'.format(
                             _,
                             remote_consoles[_]['rem_ip'] if 'rem_ip' in remote_consoles[_] else None,
                             remote_consoles[_]['source'] if 'source' in remote_consoles[_] else None,
@@ -248,22 +249,22 @@ class ConsolePi_data:
                             if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
                                 # given all of the above it would appear the mdns entry is more current than the cloud entry
                                 remote_consoles[_] = current_remotes[_]
-                                log.info('Keeping existing cache data for {}'.format(_))
+                                log.info('[CACHE UPD] Keeping existing cache data for {}'.format(_))
                         elif remote_consoles[_]['source'] != 'mdns':
                                 if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
                                     # if we currently have a reachable ip assume whats in the cache is more valid
                                     remote_consoles[_]['rem_ip'] = current_remotes[_]['rem_ip']
 
                                     if len(current_remotes[_]['adapters']) > 0 and len(remote_consoles[_]['adapters']) == 0:
-                                        log.info('My Adapter data for {} is more current, keeping'.format(_))
+                                        log.info('[CACHE UPD] My Adapter data for {} is more current, keeping'.format(_))
                                         remote_consoles[_]['adapters'] = current_remotes[_]['adapters']
-                                        log.debug('!!! Keeping Adapter data from cache as none provided in data set !!!')
+                                        log.debug('[CACHE UPD] !!! Keeping Adapter data from cache as none provided in data set !!!')
         
             with open(local_cloud_file, 'a') as new_file:
                 new_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
                 set_perm(local_cloud_file)
         else:
-            log.warning('update_local_cloud_file called with no data passed, doing nothing')
+            log.warning('[CACHE UPD] cache update called with no data passed, doing nothing')
         
         return remote_consoles
 
@@ -284,6 +285,7 @@ class ConsolePi_data:
 
         if response.ok:
             ret = json.loads(response.text)
+            ret = ret['adapters']
             log.info('[API] Adapters retrieved via API for Remote ConsolePi {}'.format(ip))
             log.debug('[API] Response: {}'.format(json.dumps(ret, indent=4, sort_keys=True)))
         else:

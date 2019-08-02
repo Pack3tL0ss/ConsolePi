@@ -69,7 +69,7 @@ class MDNS_Browser:
                     else:
                         log.warning('{}: No properties found'.format(info.server.split('.')[0]))
             else:
-                log.warning('{}: No info found'.format(info.server.split('.')[0]))
+                log.warning('{}: No info found'.format(info))
 
             # if mdns_data is not None:
             #    if self.mdata is None:

@@ -8,7 +8,6 @@ from typing import cast
 import json
 from threading import Thread
 import sys
-
 from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 from consolepi.common import check_reachable
 from consolepi.common import ConsolePi_data
@@ -45,10 +44,10 @@ class MDNS_Browser:
                     log.info('ConsolePi: {} Discovered via mdns'.format(info.server.split('.')[0]))
                     if info.properties:
                         properties = info.properties
+                        log.debug('{}'.format(properties))
                         hostname = properties[b'hostname'].decode("utf-8")
                         user = properties[b'user'].decode("utf-8")
                         interfaces = json.loads(properties[b'interfaces'].decode("utf-8"))
-                        adapters = json.loads(properties[b'adapters'].decode("utf-8"))
                         rem_ip = None
                         for _iface in interfaces:
                             _ip = interfaces[_iface]['ip']
@@ -56,6 +55,12 @@ class MDNS_Browser:
                                 if check_reachable(_ip, 22):
                                     rem_ip = _ip
                                     break
+
+                        if isinstance(properties[b'adapters'], bytes):
+                            adapters = json.loads(properties[b'adapters'].decode("utf-8"))
+                        else:
+                            adapters = config.get_adapters_via_api(rem_ip) if rem_ip is not None else 'API'
+                            
                         mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user, 'rem_ip': rem_ip, 'source': 'mdns'}}
                         if self.show:
                             self.discovered.append(hostname)

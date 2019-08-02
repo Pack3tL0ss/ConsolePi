@@ -29,22 +29,22 @@ def build_info(log=log):
         'interfaces': json.dumps(if_ips),
         'user': 'pi'
     }
-    info = ServiceInfo(
-        "_consolepi._tcp.local.",
-        hostname + "._consolepi._tcp.local.",
-        addresses=[socket.inet_aton("127.0.0.1")],
-        port=5000,
-        properties=local_data,
-        server='{}.local.'.format(hostname)
-    )
+    try:
+        info = ServiceInfo(
+            "_consolepi._tcp.local.",
+            hostname + "._consolepi._tcp.local.",
+            addresses=[socket.inet_aton("127.0.0.1")],
+            port=5000,
+            properties=local_data,
+            server='{}.local.'.format(hostname)
+        )
+    Exception as e:
+        log.error(str(e))
 
     return info
 
 def update_mdns(device=None, log=log, action=None, *args, **kwargs):
-    try:
-        info = build_info()
-    except Exception as e:
-        log.error(str(e))
+    info = build_info()
 
     if device is not None:
         zeroconf.update_service(info)

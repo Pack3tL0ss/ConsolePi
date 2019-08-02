@@ -26,8 +26,8 @@ class ConsolePiMenu(Relays):
     def __init__(self, bypass_remote=False, do_print=True):
         super().__init__()
         config = ConsolePi_data()
-        self.remotes_connected = False
         self.config = config
+        self.remotes_connected = False
         self.error = None
         self.cloud = None  # Set in refresh method if reachable
         self.do_cloud = config.cloud

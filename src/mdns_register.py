@@ -47,7 +47,7 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
     try:
         info = build_info()
     except struct.error:
-        log.warning('{} data is too big for mdns, removing adapter data'.format(hostname))
+        print('{} data is too big for mdns, removing adapter data'.format(hostname))
         info = build_info(error=True)
 
     if device is not None:
@@ -62,7 +62,7 @@ def run():
     try:
         info = build_info()
     except struct.error:
-        log.warning('{} data is too big for mdns, removing adapter data'.format(hostname))
+        print('{} data is too big for mdns, removing adapter data'.format(hostname))
         info = build_info(error=True)
 
     zeroconf.register_service(info)

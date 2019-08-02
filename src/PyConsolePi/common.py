@@ -284,7 +284,8 @@ class ConsolePi_data:
 
         if response.ok:
             ret = json.loads(response.text)
-            log.info('Adapters successfully retrieved via API for Remote ConsolePi {}\n{}'.format(ip, ret))
+            log.info('Adapters successfully retrieved via API for Remote ConsolePi {}'.format(ip))
+            log.debug('API Response: {}'.format(json.dumps(ret, indent=4, sort_keys=True)))
         else:
             ret = response.status_code
             log.error('Failed to retrieve adapters via API for Remote ConsolePi {}\n{}:{}'.format(ip, ret, response.text))

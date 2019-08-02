@@ -168,9 +168,9 @@ class ConsolePi_data:
                             tty_port = 9999  # this is error - placeholder value Telnet port is not currently used
 
                 # -- get linked relay GPIO if defined --
+                gpio = None
+                noff = None
                 if self.relay:
-                    gpio = None
-                    noff = None
                     for relay in relay_data:
                         if relay_data[relay]['linked']: # and relay_data[relay_set]['noff']: # check noff when toggle send desired state as off if non
                             if tty_dev in relay_data[relay]['linked_devs']:

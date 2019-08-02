@@ -24,6 +24,7 @@ tmp_log="/tmp/consolepi_install.log"
 final_log="/var/log/ConsolePi/install.log"
 boldon="\033[1;32m"
 boldoff="$*\033[m"
+cloud_cache="/etc/ConsolePi/cloud.data"
 
 # vpn_dest=$(sudo grep -G "^remote\s.*" /etc/openvpn/client/ConsolePi.ovpn | awk '{print $2}')
 

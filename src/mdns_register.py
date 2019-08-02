@@ -30,7 +30,7 @@ def build_info(log=log):
         'user': 'pi'
     }
     log.info(type(local_adapters))
-    log.info(type(local_data['adapters']))
+    log.info(type(local_data))
     log.info(json.dumps(local_data['adapters']))
 
     info = ServiceInfo(

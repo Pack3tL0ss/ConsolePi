@@ -38,7 +38,7 @@ def build_info(log=log):
             properties=local_data,
             server='{}.local.'.format(hostname)
         )
-    Exception as e:
+    except Exception as e:
         log.error(str(e))
 
     return info

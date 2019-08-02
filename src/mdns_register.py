@@ -29,7 +29,7 @@ def build_info(log=log):
         'interfaces': json.dumps(if_ips),
         'user': 'pi'
     }
-    log.info(local_data)
+    log.info(local_adapters)
 
     info = ServiceInfo(
         "_consolepi._tcp.local.",

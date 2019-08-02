@@ -96,7 +96,19 @@ pre_git_prep() {
         logit "all good pi user already belongs to consolepi group"
     fi
     unset process
-    
+
+    if [ -f $cloud_cache ]; then
+        process process="ConsolePi-Upgrade-Prep (ensure cache owned by consolepi group)"
+        group=$(stat -c '%G' $cloud_cache)
+        if [ ! $group == "consolepi" ]; then
+            sudo chgrp consolepi $cloud_cache 2>> $log_file &&
+                logit "Successfully Changed cloud cache group" ||
+                logit "Failed to Change cloud cache group" "WARNING"
+        else
+            logit "Cloud Cache ownership already OK"
+        fi
+        unset process
+    fi
 }
 
 git_ConsolePi() {

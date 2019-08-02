@@ -23,13 +23,13 @@ context = pyudev.Context()
 def build_info(log=log):
     local_adapters = config.get_local(do_print=False)
     if_ips = config.get_if_ips()
-        
+    
     local_data = {'hostname': hostname,
-        # 'adapters': json.dumps(local_adapters[0]),
+        'adapters': json.dumps(local_adapters[0]),  # had to remove due to length limit, browser service will retrieve via API
         'interfaces': json.dumps(if_ips),
         'user': 'pi'
     }
-    log.info(local_adapters)
+    log.info(len(local_data))
 
     info = ServiceInfo(
         "_consolepi._tcp.local.",

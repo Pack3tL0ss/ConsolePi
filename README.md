@@ -38,7 +38,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
          - [SSH / BlueTooth (`consolepi-menu`)](#ssh--bluetooth)
       - [Convenience Commands](#convenience-commands)
       - [Upgrading ConsolePi](#upgrading-consolepi)
- - [Tested Hardware](#tested-hardware)
+ - [Tested Hardware/Software](#tested-hardware-software)
  - [ConsolePi @ Work! (Image Gallery)](#consolepi-@-work)
  - [Credits](#credits)
 ------
@@ -293,29 +293,53 @@ The Configuration file is validated and created during the install.  Settings ca
 
 *Don't overlook consolepi-menu which supports remote ConsolePi discovery and provides a single launch point into any local and remote connections discovered*
 
-- Serial/Console adapters are reachable starting with telnet port 8001 +1 for each subsequent adapter plugged in (8002, 8003...).  If you are using a multi-port pigtail adapter or have multiple adapters plugged in @ boot, then it's a crap shoot which will be assigned to each telnet port.  Hence the next step.
+- Serial/Console adapters that show up as ttyUSB# devices when plugged in are reachable starting with telnet port 8001 +1 for each subsequent adapter plugged in (8002, 8003...).  If you are using a multi-port pigtail adapter or have multiple adapters plugged in @ boot, then it's a crap shoot which will be assigned to each telnet port.  Hence the next step.
+
+- Serial/Console adapters that show up as ttyACM# devices start at 9001 +1 for each subsequent device.
+
+> Most USB to serial adapters present as ttyUSB, some emnbeded adapters; i.e. network devices with built in USB console (typically a micro or mini USB) may show up as ttyACM#  
 
 - The install script automates the mapping of specific adapters to specific ports.  The defined predictable adapters start with 7001 +1 for each adapter you define.  The reasoning behind this is so you can label the adapters and always know what port you would reach them on.  Key if you are using a  multi-port pig-tail adapter, or if multiple adapters are plugged in @ boot.  This can also be accomplished after the install via the `consolepi-addconsole` command.
 
   >Note: Some cheap a@# serial console adapters don't define serial #s, which is one of the attributes used to uniquely identify the adapter.  If the script finds this to be the case it will let you know and create a log with an attribute walk for the adapter; ```/var/log/ConsolePi/consolepi-addudev.error```* 
 
-Note: the 8000 range is always valid even if you are using an adapter specifically mapped to a port in the 7000 range.  So if you plug in an adapter pre-mapped to port 7005, and it's the only adapter plugged in, it would also be available on port 8001
+Note: the 8000/9000 range is always valid even if you are using an adapter specifically mapped to a port in the 7000 range.  So if you plug in an adapter (ttyUSB) pre-mapped to port 7005, and it's the only adapter plugged in, it would also be available on port 8001
 
 - Port monitoring/and control is available on TELNET port 7000.  This allows you to change the baud rate of the port on the fly without changing the config permanently.  The installer configures all ports to 9600 8N1. 
-- Serial Port configuration options can be modified after the install in /etc/ser2net.conf 
+- Serial Port configuration options can be modified after the install in /etc/ser2net.conf
+
 
 ### SSH / BlueTooth
 
-The ```consolepi-menu``` command can be used to display a menu providing options for any locally connected USB to Serial adapters.  In addition to any remotely connected USB to serial adapters connected to other ConsolePis if using the Clustering/cloud-config feature.  When connecting to ConsolePi via bluetooth this menu launches automatically.
+The ```consolepi-menu``` command can be used to display a menu providing options for any locally connected USB to Serial adapters.  In addition to any remotely connected USB to serial adapters connected to other remote ConsolePis discovered (either via mdns or the Cloud Sync function).  When connecting to ConsolePi via bluetooth this menu launches automatically.
 > Note that when using bluetooth the menu is limited to local adapters and remotes found in the local-cache file.  Connect via SSH for full remote functionality in the menu.
+>
+>Serial Adapter connection options (baud, flow-control, data-bits, parity) are extracted from ser2net.conf by consolepi-menu.  If there is an issue getting the data it falls back to the default of 9600 8N1 which can be changed in the menu (option c)
+
 
 ## **Convenience Commands:**
 
 There are a few convenience commands created for ConsolePi during the automated install
 
-- **consolepi-menu**: Launches ConsolePi Console Menu, which will have menu items for any serial adapters that are plugged in.  This allows you to connect to those serial adapters.  This menu is launched automatically when connecting to ConsolePi via BlueTooth, but can also be invoked from any shell session (i.e. SSH)
-- **consolepi-upgrade**:  Upgrades ConsolePi:  More useful in the future.  Currently bypasses upgrade of ser2net (it's compiled from source).  I'll eventually remove the bypass.  For now this is essentially the same as doing a 'sudo git pull' from /etc/ConsolePi and updating/upgrading the other packages via apt.  Note: in it's current form it may overwrite some custom changes.  It's only lightly been tested as an upgrade script.
-- **consolepi-remotes**: Displays the formatted contents of the local cloud cache.  This command accepts an optional case sensitive argument: Hostname of the remote ConsolePi.  If a hostname is provided only data for that host will be displayed (if it exists in the local cache, if it doesn't exist the entire cache is dispayed).  This command can also be used to remove a remote from the local cache by using the argument 'del' followed by the hostname.  i.e. ```consolepi-remote del ConsolePi0``` will delete ConsolePi0 from the local cache.
+- **consolepi-menu**: Launches ConsolePi Console Menu, which will have menu items described in the list below.  This menu is launched automatically when connecting to ConsolePi via BlueTooth, but can also be invoked from any shell session (i.e. SSH)
+
+    - Connection options for locally attached serial adapters
+    - Connection options for serial adapters connected to remote ConsolePis (discovered via mdns or cloud-sync as described [here](#consolepi-cluster--cloud-config))
+    - sub-menu to automate distribution of ssh keys to remote ConsolePis.<br>
+      >*Distributing SSH keys allows you to securely connect to the remote adapter seemlessly without the need to enter a password.*
+    - Remote Shell sub-menu, providing options to ssh directly to the shell of one of the remote ConsolePis
+    - Power Control sub-menu if power relays have been defined (as described [here](#power-control))
+    - Refresh option: If Cloud-Sync is enabled ConsolePi only reaches out to the cloud when the refresh option is used, *NOT* during initial menu-load.  Refresh will detect any new serail adapters directly attahced, as well as connect to Gdrive to sync.
+    >Some menu items only appear if the feature is enabled.
+    
+    
+
+  ```consolepi-menu``` also accepts a single argument "sh".  Which will launch the original consolepi-menu created in bash.  It's been crippled so it only displays local connections, it loads a bit faster because it's local only, and doens't need to import any modules as the new full-featured Python based menu does.  This is currently the default menu that launches when connecting via bluetooth.  Although if connecting to a RaspberryPi Zero you may find it more favorable based on load time.
+- **consolepi-upgrade**:  Upgrades ConsolePi:  **Required method to properly update ConsolePi**.  *Currently bypasses upgrade of ser2net (it's compiled from source).*
+
+- **consolepi-remotes**: Displays the formatted contents of the local cloud cache.  This command accepts an optional case sensitive argument: Hostname of the remote ConsolePi.  If a hostname is provided only data for that host will be displayed (if it exists in the local cache, if it doesn't exist the entire cache is dispayed).  
+
+    This command can also be used to remove a remote from the local cache by using the argument 'del' followed by the hostname.  i.e. `consolepi-remote del ConsolePi0` will delete ConsolePi0 from the local cache.
 - **consolepi-details**: Displays full details of all data ConsolePi collects/generates.  With multiple available arguments.
 
     ```consolepi-details``` : Displays all collected data
@@ -347,7 +371,9 @@ Use ```consolepi-upgrade``` to upgrade ConsolePi.  Simply doing a git pull *may*
 
 > Note manual changes to some system files may be overwritten during upgrade.  If that occurs, the original modified file is stashed in the `ConsolePi/bak` directory.
 
-# Tested Hardware
+# Tested Hardware/Software
+
+ConsolePi was built on raspbian Stretch, and has been tested with both Stretch and Buster.
 
 ConsolePi Should work on all variants of the RaspberryPi, but it has been tested on the following: 
 
@@ -358,6 +384,8 @@ ConsolePi Should work on all variants of the RaspberryPi, but it has been tested
   - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery)
 - RaspberryPi zero w
   - With both single port micro-usb otg USB adapter and multi-port otg usb-hub.  Use this with battery pack on a regular basis.
+- Raspberry Pi Model B (running Buster)
+    - Tested via wired port, and with external USB-WiFi adapter.  Have not tested any BlueTooth Dongles
 
 >I did notice with some serial adapters the RaspberryPi zero w Would reboot when the adapter was plugged in, this is with a RaspberryPi power-supply.  They work fine, it just caused it to reboot when initially plugged-in.
 

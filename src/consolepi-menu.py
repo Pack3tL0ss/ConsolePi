@@ -26,6 +26,7 @@ class ConsolePiMenu(Relays):
     def __init__(self, bypass_remote=False, do_print=True):
         super().__init__()
         config = ConsolePi_data()
+        self.remotes_connected = False
         self.config = config
         self.error = None
         self.cloud = None  # Set in refresh method if reachable
@@ -66,6 +67,7 @@ class ConsolePiMenu(Relays):
             'h': self.picocom_help,
             'k': self.key_menu,
             'r': self.refresh,
+            's': self.rshell_menu,
             'x': self.exit
         }
 
@@ -83,12 +85,12 @@ class ConsolePiMenu(Relays):
             data.pop(self.hostname)
             config.log.warning('Local Cloud cache included entry for self - there is a logic error someplace')
 
-        def build_adapter_commands(data):
-            for adapter in data['adapters']:
-                _dev = adapter['dev']
-                adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
-                    data['user'], data['rem_ip'], _dev, self.baud, self.flow, self.data_bits, self.parity))
-            return data['adapters']
+        # def build_adapter_commands(data):
+        #     for adapter in data['adapters']:
+        #         _dev = adapter['dev']
+        #         adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
+        #             data['user'], data['rem_ip'], _dev, self.baud, self.flow, self.data_bits, self.parity))
+        #    return data['adapters']
 
         # Add remote commands to remote_consoles dict for each adapter
         update_cache = False
@@ -98,7 +100,7 @@ class ConsolePiMenu(Relays):
             if 'rem_ip' in this and this['rem_ip'] is not None and check_reachable(this['rem_ip'], 22):
                 print(': Success', end='\n')
                 log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, this['rem_ip']))
-                this['adapters'] = build_adapter_commands(this)
+                #this['adapters'] = build_adapter_commands(this)
             else:
                 for _iface in this['interfaces']:
                     _ip = this['interfaces'][_iface]['ip']
@@ -107,7 +109,7 @@ class ConsolePiMenu(Relays):
                             this['rem_ip'] = _ip
                             print(': Success', end='\n')
                             log.info('get_remote: Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
-                            this['adapters'] = build_adapter_commands(this)
+                            #this['adapters'] = build_adapter_commands(this)
                             break  # Stop Looping through interfaces we found a reachable one
                         else:
                             this['rem_ip'] = None
@@ -207,6 +209,18 @@ class ConsolePiMenu(Relays):
                 print('* Remote Adapters based on local cache only use refresh option to update *')
             print('=' * 74)
 
+    def do_flow_pretty(self, flow):
+        if flow == 'x':
+            flow_pretty = 'xon/xoff'
+        elif flow == 'h':
+            flow_pretty = 'RTS/CTS'
+        elif flow == 'n':
+            flow_pretty = 'NONE'
+        else:
+            flow_pretty = 'VALUE ERROR'
+        
+        return flow_pretty
+
     def picocom_help(self):
         print('##################### picocom Command Sequences ########################\n')
         print(' This program will launch serial session via picocom')
@@ -246,7 +260,6 @@ class ConsolePiMenu(Relays):
                     cur_state = 'off' if relays[r]['is_on'] else 'on'
                     to_state = 'on' if relays[r]['is_on'] else 'off'
                 print('{0}. Turn {1} {2} [ Current State {3} ]'.format(item, r, to_state, cur_state ))
-                # led = self.relays.led(relay['GPIO'])
                 self.menu_actions[str(item)] = {'function': self.do_toggle, 'args': relays[r]['GPIO']}
                 item += 1
 
@@ -283,7 +296,7 @@ class ConsolePiMenu(Relays):
     def main_menu(self):
         loc = self.data['local'][self.hostname]['adapters']
         rem = self.data['remote']
-        remotes_connected = False
+        # remotes_connected = False
         item = 1
         if not self.DEBUG:
             os.system('clear')
@@ -291,38 +304,79 @@ class ConsolePiMenu(Relays):
         print('   [LOCAL] Connect to Local Adapters')
         print('   ' + '-' * 33)
 
+        # TODO # >> Clean this up, make sub to do this on both local and remote
         # Build menu items for each locally connected serial adapter
         for _dev in sorted(loc, key = lambda i: i['port']):
             this_dev = _dev['dev']
-            print('{0}. Connect to {1}'.format(item, this_dev.replace('/dev/', '')))
+            try:
+                def_indicator = ''
+                baud = _dev['baud']
+                dbits = _dev['dbits']
+                flow = _dev['flow']
+                parity = _dev['parity']
+            except KeyError:
+                def_indicator = '*'
+                baud = self.baud
+                flow = self.flow
+                dbits = self.data_bits
+                parity = self.parity
 
-            # >>TODO<< Future Store serial port connections settings by host/adapter locally so they are persistent
-            _cmd = 'picocom {0} -b{1} -f{2} -d{3} -p{4}'.format(this_dev, self.baud, self.flow, self.data_bits, self.parity)
+            # Generate Menu Line
+            menu_line = '{0}. Connect to {1} [{2}{3} {4}{5}1]'.format(
+                item, this_dev.replace('/dev/', ''), def_indicator, baud, dbits, parity[0].upper())
+            flow_pretty = self.do_flow_pretty(flow)
+            if flow_pretty != 'NONE':
+                menu_line += ' {}'.format(flow_pretty)
+            print(menu_line)
+
+            # Generate Command executed for Menu Line
+            _cmd = 'picocom {0} -b{1} -f{2} -d{3} -p{4}'.format(this_dev, baud, flow, dbits, parity)
             self.menu_actions[str(item)] = {'cmd': _cmd}
             item += 1
 
         # Build menu items for each serial adapter found on remote ConsolePis
         for host in sorted(rem):
             if rem[host]['rem_ip'] is not None:
-                remotes_connected = True
+                self.remotes_connected = True
                 header = '   [Remote] {} @ {}'.format(host, rem[host]['rem_ip'])
                 print('\n' + header + '\n   ' + '-' * (len(header) - 3))
                 for _dev in sorted(rem[host]['adapters'], key = lambda i: i['port']):
-                    print('{0}. Connect to {1}'.format(item, _dev['dev'].replace('/dev/', '')))
-                    # self.menu_actions[str(item)] = {'cmd': _dev['rem_cmd']}
+                    try:
+                        def_indicator = ''
+                        baud = _dev['baud']
+                        dbits = _dev['dbits']
+                        flow = _dev['flow']
+                        parity = _dev['parity']
+                    except KeyError:
+                        def_indicator = '*'
+                        baud = self.baud
+                        flow = self.flow
+                        dbits = self.data_bits
+                        parity = self.parity
+
+                    # Generate Menu Line
+                    menu_line = '{0}. Connect to {1} [{2}{3} {4}{5}1]'.format(
+                        item, _dev['dev'].replace('/dev/', ''), def_indicator, baud, dbits, parity[0].upper())
+                    flow_pretty = self.do_flow_pretty(flow)
+                    if flow_pretty != 'NONE':
+                        menu_line += ' {}'.format(flow_pretty)
+                    print(menu_line)
+
+                    # Generate Command executed for Menu Line
                     _cmd = 'ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
-                                rem[host]['user'], rem[host]['rem_ip'], _dev['dev'], self.baud, self.flow, self.data_bits, self.parity)
+                                rem[host]['user'], rem[host]['rem_ip'], _dev['dev'], baud, flow, dbits, parity)
                     self.menu_actions[str(item)] = {'cmd': _cmd}
                     item += 1
 
-        text = ['c. Change Serial Settings [{0} {1}{2}1 flow={3}] '.format(
+        # -- General Menu Command Options --
+        text = ['c. Change *default Serial Settings [{0} {1}{2}1 flow={3}] '.format(
             self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), 'h. Display picocom help']
         if self.relay_data is not None:
             text.append('p. Power Control Menu')
-        if remotes_connected:
+        if self.remotes_connected:
             text.append('k. Distribute SSH Key to Remote Hosts')
-        r = 'r. Refresh (Find new adapters on Local and Remote ConsolePis)' if self.do_cloud and not self.local_only else 'r. Refresh (Find new Local adapters)'
-        text.append(r)
+            text.append('s. Remote Shell Menu (Connect to Remote ConsolePi Shell)')
+        text.append('r. Refresh')
 
         self.menu_formatting('footer', text=text)
         choice = input(" >>  ")
@@ -330,9 +384,40 @@ class ConsolePiMenu(Relays):
 
         return
 
+    def rshell_menu(self):
+        if self.remotes_connected:
+            choice = ''
+            rem = self.data['remote']
+            while choice.lower() not in ['x', 'b']:
+                if not self.DEBUG:
+                    os.system('clear')
+                self.menu_actions['b'] = self.main_menu
+                self.menu_formatting('header', text=' Remote Shell Menu ')
+
+                # Build menu items for each serial adapter found on remote ConsolePis
+                item = 1
+                for host in sorted(rem):
+                    if rem[host]['rem_ip'] is not None:
+                        self.remotes_connected = True
+                        print('{0}. Connect to {1} @ {2}'.format(item, host, rem[host]['rem_ip']))
+                        _cmd = 'ssh -t {0}@{1}'.format('pi', rem[host]['rem_ip'])
+                        self.menu_actions[str(item)] = {'cmd': _cmd}
+                        item += 1
+
+                text = 'b. Back'
+                self.menu_formatting('footer', text=text)
+                choice = input(" >>  ")
+                self.exec_menu(choice, actions=self.menu_actions, calling_menu='rshell_menu')
+        else:
+            print('No Reachable remote devices found')
+        return
+
     # Execute menu
     def exec_menu(self, choice, actions=None, calling_menu='main_menu'):
         menu_actions = self.menu_actions if actions is None else actions
+        # for k in menu_actions:
+        #     print('{}: {}'.format(k, menu_actions[k]))
+        config = self.config
         if not self.DEBUG:
             os.system('clear')
         ch = choice.lower()
@@ -343,6 +428,22 @@ class ConsolePiMenu(Relays):
                 if isinstance(menu_actions[ch], dict):
                     if 'cmd' in menu_actions[ch]:
                         c = shlex.split(menu_actions[ch]['cmd'])
+                        # c = list like (local): ['picocom', '/dev/White3_7003', '-b9600', '-fn', '-d8', '-pn']
+                        #               (remote): ['ssh', '-t', 'pi@10.1.30.28', 'picocom /dev/AP303P-BARN_7001 -b9600 -fn -d8 -pn']
+                        
+                        # -- if Power Relay function is enabled check if device is linked to a relay and ensure relay is pwrd on --
+                        if config.relay:
+                            if '/dev/' in c:
+                                menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[1]
+                                for dev in config.local[self.hostname]['adapters']:
+                                    if menu_dev == dev['dev']:
+                                        if dev['GPIO'] is not None:
+                                            gpio = dev['GPIO']
+                                            noff = dev['noff']
+                                            desired_state = 'on' if noff else 'off'
+                                            print('Ensuring ' + menu_dev + ' is Powered On')
+                                            self.do_toggle(gpio, desired_state=desired_state)
+
                         subprocess.run(c)
                     elif 'function' in menu_actions[ch]:
                         args = menu_actions[ch]['args']
@@ -359,7 +460,8 @@ class ConsolePiMenu(Relays):
                             
                 else:
                     menu_actions[ch]()
-            except KeyError:
+            except KeyError as e:
+                print(e)
                 print("Invalid selection, please try again.\n")
                 menu_actions[calling_menu]()
         

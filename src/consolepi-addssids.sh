@@ -61,9 +61,11 @@ known_ssid_main() {
                         psk_valid=false
                         prompt="ERROR: Passphrase must be 8..63 characters. Enter valid Passphrase for ${ssid}" && header && echo -e $header_txt
                     else
+                        temp=$(echo -e "$temp" | sed -e 's/\t/    /g')
                         psk_valid=true
                     fi
                 else
+                    # -- open network --
                     psk_valid=true
                     temp=`echo -e "network={\n    ssid=\"${ssid}\"\n    key_mgmt=NONE\n}"`
                 fi

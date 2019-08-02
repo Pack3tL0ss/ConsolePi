@@ -38,7 +38,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
          - [SSH / BlueTooth (`consolepi-menu`)](#ssh--bluetooth)
       - [Convenience Commands](#convenience-commands)
       - [Upgrading ConsolePi](#upgrading-consolepi)
- - [Tested Hardware/Software](#tested-hardware-software)
+ - [Tested Hardware/Software](#tested-hardwaresoftware)
  - [ConsolePi @ Work! (Image Gallery)](#consolepi-@-work)
  - [Credits](#credits)
 ------

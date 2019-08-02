@@ -98,7 +98,7 @@ pre_git_prep() {
     unset process
 
     if [ -f $cloud_cache ]; then
-        process process="ConsolePi-Upgrade-Prep (ensure cache owned by consolepi group)"
+        process="ConsolePi-Upgrade-Prep (ensure cache owned by consolepi group)"
         group=$(stat -c '%G' $cloud_cache)
         if [ ! $group == "consolepi" ]; then
             sudo chgrp consolepi $cloud_cache 2>> $log_file &&

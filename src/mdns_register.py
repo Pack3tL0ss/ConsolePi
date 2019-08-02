@@ -13,34 +13,34 @@ import threading
 
 
 #DEBUG = get_config('debug')
-CONFIG = ConsolePi_data(do_print=False)
-LOG = CONFIG.log
+config = ConsolePi_data(do_print=False)
+log = config.log
 # reference_value = get_local(log)
-HOSTNAME = CONFIG.hostname
+hostname = config.hostname
 zeroconf = Zeroconf()
 context = pyudev.Context()
 
-def build_info():
-    local_adapters = CONFIG.get_local(do_print=False)
-    if_ips = CONFIG.get_if_ips()
+def build_info(log=log):
+    local_adapters = config.get_local(do_print=False)
+    if_ips = config.get_if_ips()
         
-    local_data = {'hostname': HOSTNAME,
+    local_data = {'hostname': hostname,
         'adapters': json.dumps(local_adapters),
         'interfaces': json.dumps(if_ips),
         'user': 'pi'
     }
     info = ServiceInfo(
         "_consolepi._tcp.local.",
-        HOSTNAME + "._consolepi._tcp.local.",
+        hostname + "._consolepi._tcp.local.",
         addresses=[socket.inet_aton("127.0.0.1")],
         port=5000,
         properties=local_data,
-        server='{}.local.'.format(HOSTNAME),
+        server='{}.local.'.format(hostname)
     )
 
     return info
 
-def update_mdns(device=None, log=LOG, action=None, *args, **kwargs):
+def update_mdns(device=None, log=log, action=None, *args, **kwargs):
     info = build_info()
 
     if device is not None:

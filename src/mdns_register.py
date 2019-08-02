@@ -29,6 +29,7 @@ def build_info(log=log):
         'interfaces': json.dumps(if_ips),
         'user': 'pi'
     }
+    log.info(type(local_adapters))
     log.info(type(local_data['adapters']))
     log.info(json.dumps(local_data['adapters']))
 

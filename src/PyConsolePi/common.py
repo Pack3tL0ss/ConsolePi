@@ -112,7 +112,7 @@ class ConsolePi_data:
                 relay_data = json.load(relay_file)
 
         # plog('Detecting Locally Attached Serial Adapters')
-        log.info('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
+        log.info('[GET ADAPTERS]: Detecting Locally Attached Serial Adapters')
 
         # -- Detect Attached Serial Adapters and linked power relays if defined --
         final_tty_list = []

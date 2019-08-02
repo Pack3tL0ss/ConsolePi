@@ -38,7 +38,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
          - [SSH / BlueTooth (`consolepi-menu`)](#ssh--bluetooth)
       - [Convenience Commands](#convenience-commands)
       - [Upgrading ConsolePi](#upgrading-consolepi)
- - [Tested Hardware/Software](#tested-hardwaresoftware)
+ - [Tested Hardware/Software](#tested-hardware--software)
  - [ConsolePi @ Work! (Image Gallery)](#consolepi-@-work)
  - [Credits](#credits)
 ------
@@ -371,7 +371,7 @@ Use ```consolepi-upgrade``` to upgrade ConsolePi.  Simply doing a git pull *may*
 
 > Note manual changes to some system files may be overwritten during upgrade.  If that occurs, the original modified file is stashed in the `ConsolePi/bak` directory.
 
-# Tested Hardware/Software
+# Tested Hardware / Software
 
 ConsolePi was built on raspbian Stretch, and has been tested with both Stretch and Buster.
 

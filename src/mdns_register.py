@@ -25,7 +25,7 @@ def build_info(log=log):
     if_ips = config.get_if_ips()
         
     local_data = {'hostname': hostname,
-        'adapters': json.dumps(local_adapters),
+        'adapters': json.dumps(local_adapters[0]),
         'interfaces': json.dumps(if_ips),
         'user': 'pi'
     }

@@ -12,6 +12,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
 ```
 ------
 # Contents
+ - [What's New](#whats-new)
  - [Features](#features)
      - [Serial Console Server](#serial-console-server)
      - [AutoHotSpot](#autoHotSpot)
@@ -41,6 +42,14 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
  - [ConsolePi @ Work! (Image Gallery)](#consolepi-@-work)
  - [Credits](#credits)
 ------
+
+# What's New
+- Added a What's New Section to the ReadMe and highlighted that I'm a smart ass by noting it in the What's New Section.
+- ConsolePi remote discovery via mdns, or sync to Google Drive
+- Power Outlet Control, via relay attached to GPIO.  Power on automatically when attempting to connect to console session (via consolepi-menu)
+- consolepi-menu adapter connection parameters (baud, flow, parity, data-bits) is now extracted from the associated definition in ser2net.conf if one exists, if it doesn't defaults are used (which can be changed via menu option c)
+- Added new option 's' to menu which allows you to connect to the shell on any reachable remote ConsolePis
+- Added new quick commands and an option to delete a remote ConsolePi from the local cloud cache via ```consolepi-remotes```
 
 # Features
 
@@ -149,17 +158,20 @@ ConsolePi currently doesn't use the API for any of it's functionality.  It may b
 
 ## Power Control
 
-> This section describes everything this function *will* do.  It's currently only partially complete.  The Function currently allows you to control defined outlets, but the automatic power verification on connection is not built.  It currently works with Normally Off outlets (Normally On should work, but the status will show opposite of reality).  This function currently only works with locally connected relays, control of relays on Remote ConsolePis will come in a future release.
-
 - The Power Control Function allows you to control power to external devices via external power relay controlled by ConsolePi ( Like this one [Digital-Loggers IoT Relay](https://dlidirect.com/products/iot-power-relay) ).
-- If the function is enabled and relays are defined, an option in `consolepi-menu` will display allowing access to a sub-menu, where those outlets can be controlled (toggle power on/off).
-- Relays can be linked to Console Adapter(s) (requires the adapter be pre-defined using `consolepi-addconsole`).  If there is a link defined between the relay and the adapter, anytime you initiate a connection to the adapter via `consolepi-menu` ConsolePi will ensure the outlet is powered on.  Otherwise if the link is defined you can connect to a device and power it on, simply by initiating the connection.
+- If the function is enabled and relays are defined, an option in `consolepi-menu` will be presented allowing access to a sub-menu where those outlets can be controlled (toggle power on/off).
+- Relays can be linked to Console Adapter(s) (best if the adapter is pre-defined using `consolepi-addconsole`).  If there is a link defined between the relay and the adapter, anytime you initiate a connection to the adapter via `consolepi-menu` ConsolePi will ensure the outlet is powered on.  Otherwise if the link is defined you can connect to a device and power it on, simply by initiating the connection.
 
 ### Power Control Setup
 
 - After enabling via `consolepi-upgrade` or during initial install; `relay.json` needs to be populated, see `relay.json.example` for formatting.
-- Trigger on relay should be connected to GPIO ports.  Trigger expecting voltage to one of the GPIO pins, Trigger ground to one of the GPIO ground pins.
+- Trigger on relay should be connected to GPIO ports.  Trigger(+) to one of the GPIO pins, Trigger(-) to one of the GPIO ground pins.
 - ConsolePi expects the GPIO number not the Board pin # in `relay.json`.  For example given the GPIO layout for the Raspberry Pi below.  Board Pin # 7 = GPIO 4.  `relay.json` should be populated with 4.
+> The Power Control Function supports relays with outlets that are 'normally on' or 'normally off'.  A 'normally off' outlet will not apply power until told to do so by ConsolePi (voltage applied to Trigger).  A 'normally on' outlet works the opposite way, it will have power with no voltage on the trigger, meaning it would be powered even if there is no connection to the ConsolePi.  It only powers off the outlet if ConsolePi applies voltage.  
+>
+> *A 'normally off' outlet will revert to powered off if ConsolePi is powered-off, disconnected, or rebooted, inversly a 'normally on' outlet will revert to a powered-on state if ConsolePi is powered-off, disconnected, or rebooted.*
+>
+> ConsolePi Supports both 'normally on' and 'normally off' outlets, this is configured via the required "noff" key in the json file (true|false).
 
 ![GPIO Pin Layout](readme_content/pin_layout.svg)
 
@@ -303,7 +315,21 @@ There are a few convenience commands created for ConsolePi during the automated 
 
 - **consolepi-menu**: Launches ConsolePi Console Menu, which will have menu items for any serial adapters that are plugged in.  This allows you to connect to those serial adapters.  This menu is launched automatically when connecting to ConsolePi via BlueTooth, but can also be invoked from any shell session (i.e. SSH)
 - **consolepi-upgrade**:  Upgrades ConsolePi:  More useful in the future.  Currently bypasses upgrade of ser2net (it's compiled from source).  I'll eventually remove the bypass.  For now this is essentially the same as doing a 'sudo git pull' from /etc/ConsolePi and updating/upgrading the other packages via apt.  Note: in it's current form it may overwrite some custom changes.  It's only lightly been tested as an upgrade script.
-- **consolepi-showremotes**: Displays the formatted contents of the local cloud cache.  This command accepts 1 optional case sensitive argument: Hostname of the remote ConsolePi.  If a hostname is provided only data for that host will be displayed (if it exists in the local cache, if it doesn't exist the entire cache is dispayed). 
+- **consolepi-remotes**: Displays the formatted contents of the local cloud cache.  This command accepts an optional case sensitive argument: Hostname of the remote ConsolePi.  If a hostname is provided only data for that host will be displayed (if it exists in the local cache, if it doesn't exist the entire cache is dispayed).  This command can also be used to remove a remote from the local cache by using the argument 'del' followed by the hostname.  i.e. ```consolepi-remote del ConsolePi0``` will delete ConsolePi0 from the local cache.
+- **consolepi-details**: Displays full details of all data ConsolePi collects/generates.  With multiple available arguments.
+
+    ```consolepi-details``` : Displays all collected data
+
+    ```consolepi-details [<remote consolepi hostname>]``` : Displays data for the specified remote ConsolePi only (from the local cloud cache)
+    
+    ```consolepi-details adapters``` : Displays all data collected for discocered adapters connected directly to ConsolePi (USB to Serial Adapters)
+
+    ```consolepi-details interfaces``` : Displays interface data
+
+    ```consolepi-details relays``` : Displays power relay data
+
+    ```consolepi-details remotes``` : Displays data for remote ConsolePis from the local cloud cache
+
 - **consolepi-addssids**:  runs the /etc/ConsolePi/installer/ssids.sh script.  This script automates the creation of additional SSIDs which ConsolePi will attempt to connect to on boot.  Currently only supports psk and open SSIDs, but may eventually be improved to automate creation of other SSID types.
 - **consolepi-addconsole**: runs the /etc/ConsolePi/installer/udev.sh  This script automates the process of detecting USB to serial adapters and mapping them to specific telnet ports.  It does this by collecting the data required to create a udev rule.  It then creates the udev rule starting with the next available port (if rules already exist).
 - **consolepi-autohotspot**: runs /usr/bin/autohotspotN script  This script re-runs the autohotspot script which runs at boot (or periodically via cron although the installer currently doesn't configure that).  If the wlan adapter is already connected to an SSID it doesn't do anything.  If it's acting as a hotspot or not connected, it will scan for known SSIDs and attempt to connect, then fallback to a hotspot if it's unable to find/connect to a known SSID. 

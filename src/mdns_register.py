@@ -40,6 +40,7 @@ def build_info(log=log):
         )
     except Exception as e:
         log.error(str(e))
+        info = None
 
     return info
 

@@ -31,7 +31,7 @@ def build_info(error=False):
     }
     if not error:
         local_data['adapters'] = json.dumps(local_adapters),  # if data set is too large for mdns browser will retrieve via API
-        
+
     info = ServiceInfo(
         "_consolepi._tcp.local.",
         hostname + "._consolepi._tcp.local.",
@@ -44,7 +44,10 @@ def build_info(error=False):
     return info
 
 def update_mdns(device=None, log=log, action=None, *args, **kwargs):
-    info = build_info()
+    try:
+        info = build_info()
+    except struct.error:
+        info = build_info(error=True)
 
     if device is not None:
         zeroconf.update_service(info)
@@ -57,7 +60,7 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
 def run():
     try:
         info = build_info()
-    except struct.error as e:
+    except struct.error:
         info = build_info(error=True)
 
     zeroconf.register_service(info)

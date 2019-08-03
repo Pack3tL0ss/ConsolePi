@@ -7,7 +7,7 @@ from consolepi.common import ConsolePi_data
 from consolepi.common import set_perm
 
 config = ConsolePi_data(do_print=False)
-local_cloud_file = config.LOCAL_CLOUD_FILE
+local_cloud_file = config.LOCAL_CLOUD_FILE  # pylint: disable=maybe-no-member
 data = config.remotes
 
 if len(sys.argv) == 1:

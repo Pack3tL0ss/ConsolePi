@@ -20,7 +20,6 @@ class MDNS_Browser:
         self.config = ConsolePi_data(do_print=False)
         self.show = show
         self.log = log if log is not None else self.config.log
-        # self.mdata = None
         self.stop = False
         self.zc = self.run()
         self.update = self.config.update_local_cloud_file
@@ -29,7 +28,6 @@ class MDNS_Browser:
         for _iface in self.if_ips:
             self.ip_list.append(self.if_ips[_iface]['ip'])
         self.discovered = []
-        # self.run()
 
     def on_service_state_change(self,
         zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange) -> None:
@@ -78,22 +76,12 @@ class MDNS_Browser:
             else:
                 log.warning('{}: No info found'.format(info))
 
-            # if mdns_data is not None:
-            #    if self.mdata is None:
-            #        self.mdata = mdns_data
-            #    else:
-            #        self.mdata[hostname] = mdns_data[hostname]
 
     def run(self):
         log = self.log
         zeroconf = Zeroconf()
         log.info("[MDNS DSCRY] Discovering ConsolePis via mdns")
         browser = ServiceBrowser(zeroconf, "_consolepi._tcp.local.", handlers=[self.on_service_state_change])  # pylint: disable=unused-variable
-        # while not self.stop:
-        # sleep(2.0)
-        # print('start')
-        # Thread(target=zeroconf.close()).start()
-        # print('end')
         return zeroconf
 
 if __name__ == '__main__':

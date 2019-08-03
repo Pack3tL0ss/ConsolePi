@@ -3,7 +3,7 @@
 """ Browse for other ConsolePis on the network """
 
 import socket
-from time import sleep
+import time
 from typing import cast
 import json
 from threading import Thread
@@ -68,6 +68,8 @@ class MDNS_Browser:
                             print(json.dumps(mdns_data, indent=4, sort_keys=True))
                             print('Discovered ConsolePis: {}'.format(self.discovered))
                             print("\npress Ctrl-C to exit...\n")
+
+                        mdns_data['upd_time'] = int(time.time())
                         log.debug('[MDNS DSCVRY] Final data set for {}:\n{}'.format(info.server.split('.')[0], mdns_data))
                         self.update(remote_consoles=mdns_data)
                         log.info('[MDNS DSCVRY] Local Cache Updated with {} details'.format(info.server.split('.')[0]))
@@ -102,7 +104,7 @@ if __name__ == '__main__':
         mdns = MDNS_Browser()
     try:
         while True:
-            sleep(0.1)
+            time.sleep(0.1)
     except KeyboardInterrupt:
         pass
     finally:

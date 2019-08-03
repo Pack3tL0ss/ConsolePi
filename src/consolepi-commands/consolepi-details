@@ -12,7 +12,7 @@ adapters = config.get_local()
 interfaces = config.get_if_ips()
 relays = Relays().relay_data
 remotes = config.get_local_cloud_file()
-details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'user': 'pi'}, 'Relays': relays, 'remotes': remotes}
+details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'user': 'pi'}, 'relays': relays, 'remotes': remotes}
         
 if len(sys.argv) > 1:
     if sys.argv[1] == 'adapters':

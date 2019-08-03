@@ -30,6 +30,7 @@ def build_info(error=False):
         'interfaces': json.dumps(if_ips),
         'user': 'pi'
     }
+
     if not error: # if data set is too large for mdns browser will retrieve via API
         local_data['adapters'] = json.dumps(local_adapters)
 
@@ -45,11 +46,12 @@ def build_info(error=False):
     return info
 
 def update_mdns(device=None, log=log, action=None, *args, **kwargs):
-    try:
-        info = build_info()
-    except struct.error:
-        log.warning('[MDNS REG] data is too big for mdns, removing adapter data')
-        info = build_info(error=True)
+    # try:
+    #     info = build_info()
+    # except struct.error:
+    #     log.warning('[MDNS REG] data is too big for mdns, removing adapter data')
+    #     info = build_info(error=True)
+    info = try_build_info()
 
     if device is not None:
         zeroconf.update_service(info)
@@ -58,13 +60,22 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
         zeroconf.register_service(info)
         log.info('[MDNS REG] detected change: {} {}'.format(device.action, device.sys_name))
 
-
-def run():
+def try_build_info():
     try:
         info = build_info()
     except struct.error:
-        print('{} data is too big for mdns, removing adapter data'.format(hostname))
+        log.warning('[MDNS REG] data is too big for mdns, removing adapter data')
+        log.debug('[MDNS REG] offending adapter data \n{}'.format(json.dumps(config.get_local(do_print=False), indent=4, sort_keys=True)))
         info = build_info(error=True)
+    return info
+
+def run():
+    # try:
+    #     info = build_info()
+    # except struct.error:
+    #     print('{} data is too big for mdns, removing adapter data'.format(hostname))
+    #     info = build_info(error=True)
+    info = try_build_info()
 
     zeroconf.register_service(info)
     # monitor udev for add - remove of usb-serial adapters 

@@ -67,13 +67,13 @@ class MDNS_Browser:
                             print('Discovered ConsolePis: {}'.format(self.discovered))
                             print("\npress Ctrl-C to exit...\n")
 
-                        log.debug('[MDNS DSCVRY] Final data set for {}:\n{}'.format(info.server.split('.')[0], mdns_data))
+                        log.debug('[MDNS DSCVRY]: Final data set for {}:\n{}'.format(info.server.split('.')[0], mdns_data))
                         self.update(remote_consoles=mdns_data)
-                        log.info('[MDNS DSCVRY] Local Cache Updated with {} details'.format(info.server.split('.')[0]))
+                        log.info('[MDNS DSCVRY]: Local Cache Updated with {} details'.format(info.server.split('.')[0]))
                     else:
-                        log.warning('{}: No properties found'.format(info.server.split('.')[0]))
+                        log.warning('[MDNS DSCVRY]: {}: No properties found'.format(info.server.split('.')[0]))
             else:
-                log.warning('{}: No info found'.format(info))
+                log.warning('[MDNS DSCVRY]: {}: No info found'.format(info))
 
 
     def run(self):

@@ -59,7 +59,7 @@ class MDNS_Browser:
                         else:
                             adapters = config.get_adapters_via_api(rem_ip) if rem_ip is not None else 'API'
                             
-                        mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user, 'rem_ip': rem_ip, 'source': 'mdns'}}
+                        mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user, 'rem_ip': rem_ip, 'source': 'mdns', 'upd_time': int(time.time())}}
                         if self.show:
                             self.discovered.append(hostname)
                             print(hostname + ' Discovered via mdns:')
@@ -67,7 +67,6 @@ class MDNS_Browser:
                             print('Discovered ConsolePis: {}'.format(self.discovered))
                             print("\npress Ctrl-C to exit...\n")
 
-                        mdns_data['upd_time'] = int(time.time())
                         log.debug('[MDNS DSCVRY] Final data set for {}:\n{}'.format(info.server.split('.')[0], mdns_data))
                         self.update(remote_consoles=mdns_data)
                         log.info('[MDNS DSCVRY] Local Cache Updated with {} details'.format(info.server.split('.')[0]))

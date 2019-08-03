@@ -10,6 +10,7 @@ import json
 import socket
 import pyudev
 import threading
+import struct
 
 
 #DEBUG = get_config('debug')

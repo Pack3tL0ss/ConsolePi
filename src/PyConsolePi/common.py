@@ -204,7 +204,7 @@ class ConsolePi_data:
                     if_data[_if] = {'ip': ni.ifaddresses(_if)[ni.AF_INET][0]['addr'], 'mac': ni.ifaddresses(_if)[ni.AF_LINK][0]['addr']}
                 except KeyError:
                     log.info('No IP Found for {} skipping'.format(_if))
-        log.debug('[GET IFACES]: get_if_ips complete: {}'.format(if_data))
+        log.debug('[GET IFACES]: Completed Iface Data: {}'.format(if_data))
         return if_data
 
     def get_ip_list(self):

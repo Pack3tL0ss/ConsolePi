@@ -25,13 +25,14 @@ class ConsolePiMenu(Relays):
 
     def __init__(self, bypass_remote=False, do_print=True):
         super().__init__()
+        # pylint: disable=maybe-no-member
         config = ConsolePi_data()
         self.config = config
         self.remotes_connected = False
         self.error = None
         self.cloud = None  # Set in refresh method if reachable
-        self.do_cloud = config.cloud
-        if self.do_cloud and config.cloud_svc == 'gdrive':
+        self.do_cloud = config.cloud  
+        if self.do_cloud and config.cloud_svc == 'gdrive':  
             if check_reachable('www.googleapis.com', 443):
                 self.local_only = False
                 if not os.path.isfile('/etc/ConsolePi/cloud/gdrive/.credentials/credentials.json'):
@@ -75,7 +76,7 @@ class ConsolePiMenu(Relays):
     def get_remote(self, data=None, refresh=False):
         config = self.config
         log = config.log
-        plog = config.plog
+        # plog = config.plog
         print('Fetching Remote ConsolePis with attached Serial Adapters from local cache')
         log.info('[GET REM] Starting fetch from local cache')
 
@@ -85,13 +86,6 @@ class ConsolePiMenu(Relays):
         if config.hostname in data:
             data.pop(self.hostname)
             log.warning('[GET REM] Local cache included entry for self - there is a logic error someplace')
-
-        # def build_adapter_commands(data):
-        #     for adapter in data['adapters']:
-        #         _dev = adapter['dev']
-        #         adapter['rem_cmd'] = shlex.split('ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
-        #             data['user'], data['rem_ip'], _dev, self.baud, self.flow, self.data_bits, self.parity))
-        #    return data['adapters']
 
         # Add remote commands to remote_consoles dict for each adapter
         update_cache = False
@@ -128,6 +122,7 @@ class ConsolePiMenu(Relays):
 
     # Update ConsolePi.csv on Google Drive and pull any data for other ConsolePis
     def refresh(self, rem_update=False):
+        # pylint: disable=maybe-no-member
         remote_consoles = None
         config = self.config
         # Update Local Adapters
@@ -434,7 +429,7 @@ class ConsolePiMenu(Relays):
                         #               (remote): ['ssh', '-t', 'pi@10.1.30.28', 'picocom /dev/AP303P-BARN_7001 -b9600 -fn -d8 -pn']
                         
                         # -- if Power Relay function is enabled check if device is linked to a relay and ensure relay is pwrd on --
-                        if config.relay:
+                        if config.relay:  # pylint: disable=maybe-no-member
                             if '/dev/' in c:
                                 menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[1]
                                 for dev in config.local[self.hostname]['adapters']:

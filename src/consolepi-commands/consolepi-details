@@ -12,7 +12,7 @@ adapters = config.get_local()
 interfaces = config.get_if_ips()
 relays = Relays().relay_data
 remotes = config.get_local_cloud_file()
-details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'user': 'pi'}, 'relays': relays, 'remotes': remotes}
+details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'relays': relays, 'user': 'pi'}, 'remotes': remotes}
         
 if len(sys.argv) > 1:
     if sys.argv[1] == 'adapters':
@@ -23,6 +23,9 @@ if len(sys.argv) > 1:
         print(json.dumps(relays, indent=4, sort_keys=True))
     elif sys.argv[1] == 'remotes':
         print(json.dumps(remotes, indent=4, sort_keys=True))
+    elif sys.argv[1] == 'local':
+        details.pop('remotes', '')
+        print(json.dumps(details, indent=4, sort_keys=True))
     else:
         try:
             print(json.dumps(details[sys.argv[1]], indent=4, sort_keys=True))

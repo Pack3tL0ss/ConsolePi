@@ -70,7 +70,7 @@ class ConsolePi_data:
                 exec('self.{} = {}'.format(key, x))
         self.do_print = do_print
         self.log_file = log_file
-        cpi_log = ConsolePi_Log(log_file=log_file, do_print=do_print, debug=self.debug)
+        cpi_log = ConsolePi_Log(log_file=log_file, do_print=do_print, debug=self.debug) # pylint: disable=maybe-no-member
         self.log = cpi_log.log
         self.plog = cpi_log.plog
         self.hostname = socket.gethostname()
@@ -104,7 +104,7 @@ class ConsolePi_data:
 
     def get_local(self, do_print=True):   
         log = self.log
-        plog = self.plog
+        # plog = self.plog
         context = pyudev.Context()
 
         if os.path.isfile(RELAY_FILE):
@@ -174,7 +174,7 @@ class ConsolePi_data:
                 # -- get linked relay GPIO if defined --
                 gpio = None
                 noff = None
-                if self.relay:
+                if self.relay:  # pylint: disable=maybe-no-member
                     for relay in relay_data:
                         if relay_data[relay]['linked']: # and relay_data[relay_set]['noff']: # check noff when toggle send desired state as off if non
                             if tty_dev in relay_data[relay]['linked_devs']:
@@ -196,7 +196,7 @@ class ConsolePi_data:
     def get_if_ips(self):
         log=self.log
         if_list = ni.interfaces()
-        log.debug('interface list: {}'.format(if_list))
+        log.debug('[GET IFACES]: interface list: {}'.format(if_list))
         if_data = {}
         for _if in if_list:
             if _if != 'lo':
@@ -204,7 +204,7 @@ class ConsolePi_data:
                     if_data[_if] = {'ip': ni.ifaddresses(_if)[ni.AF_INET][0]['addr'], 'mac': ni.ifaddresses(_if)[ni.AF_LINK][0]['addr']}
                 except KeyError:
                     log.info('No IP Found for {} skipping'.format(_if))
-        log.debug('get_if_ips complete: {}'.format(if_data))
+        log.debug('[GET IFACES]: get_if_ips complete: {}'.format(if_data))
         return if_data
 
     def get_ip_list(self):
@@ -339,7 +339,7 @@ def get_dns_ips(dns_check_files=DNS_CHECK_FILES):
 
     for file in dns_check_files:
         with open(file) as fp:
-            for cnt, line in enumerate(fp):
+            for cnt, line in enumerate(fp):  # pylint: disable=unused-variable
                 columns = line.split()
                 if columns[0] == 'nameserver':
                     ip = columns[1:][0]

@@ -67,6 +67,7 @@ class GoogleDrive:
 
     # Google Drive Get File ID from File Name
     def get_file_id(self):
+        # pylint: disable=maybe-no-member
         """
         Gets file id for ConsolePi.csv file on Google Drive
         Params: credentials object
@@ -88,6 +89,7 @@ class GoogleDrive:
 
     # Create spreadsheet to store data if not found (get_file_id returns None)
     def create_sheet(self):
+        # pylint: disable=maybe-no-member
         log = self.log
         service = self.sheets_svc
         log.info('[GDRIVE]: ConsolePi.csv not found on Gdrive. Creating ConsolePi.csv')
@@ -102,6 +104,7 @@ class GoogleDrive:
 
     # Auto Resize gdrive columns to match content
     def resize_cols(self):
+        # pylint: disable=maybe-no-member
         log = self.log
         service = self.sheets_svc
         body = {"requests": [{"autoResizeDimensions": {"dimensions": {"sheetId": 0, "dimension": "COLUMNS", "startIndex": 0, "endIndex": 2}}}]}
@@ -111,8 +114,9 @@ class GoogleDrive:
         log.debug('[GDRIVE]: resize_cols response: {}'.format(response))
 
     def update_files(self, data):
+        # pylint: disable=maybe-no-member
         log = self.log
-        log.debug('[GDRIVE]: -->update_files - data passed to function\n'.format(json.dumps(data, indent=4, sort_keys=True)))
+        log.debug('[GDRIVE]: -->update_files - data passed to function\n{}'.format(json.dumps(data, indent=4, sort_keys=True)))
         self.auth()
         spreadsheet_id = self.file_id
         service = self.sheets_svc
@@ -137,7 +141,7 @@ class GoogleDrive:
             result = service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id, range='A:B').execute()
             # TODO add exception catcher for HttpError 503 service currently unreachable with retries
-            log.debug('[GDRIVE]: Reading from Cloud Config: {}'.format(result.get('values')))
+            log.info('[GDRIVE]: Reading from Cloud Config') # .format(result.get('values')))
             if result.get('values') is not None:
                 x = 1
                 for row in result.get('values'):

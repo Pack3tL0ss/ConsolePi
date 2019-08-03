@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+tail -f /var/log/cloud.log & tail -f /var/log/kern.log | grep wlan0 &
+    tail -f  /var/log/syslog | grep 'puship\|dhcpcd\|dhcpcd-run-hooks\|wpa_supplicant\|ser2net\|python3\|hostapd\|autohotspotN\|bluetoothd\|dnsmasq'

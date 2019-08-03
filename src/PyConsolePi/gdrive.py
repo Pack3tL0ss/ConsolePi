@@ -4,8 +4,9 @@ import os
 import json
 import socket
 import os.path
+import time
 
-# google stuff
+# -- google stuff --
 from googleapiclient import discovery
 import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -39,9 +40,9 @@ class GoogleDrive:
     # Google sheets API credentials - used to update config on Google Drive
     def get_credentials(self):
         log = self.log
-        log.debug('-->get_credentials() {}'.format(log.name))
+        log.debug('[GDRIVE]: -->get_credentials() {}'.format(log.name))
         """
-        Get credentials for google drive sheets
+        Get credentials for google drive / sheets
         """
         creds = None
         # The file token.pickle stores the user's access and refresh tokens, and is
@@ -73,9 +74,8 @@ class GoogleDrive:
         """
         if self.creds is None:
             self.creds = self.get_credentials()
-        # http = credentials.authorize(httplib2.Http())
+        
         service = discovery.build('drive', 'v3', credentials=self.creds)
-
         results = service.files().list(
             pageSize=10, fields="nextPageToken, files(id, name)", q="name='ConsolePi.csv'").execute()
         items = results.get('files', [])
@@ -89,9 +89,8 @@ class GoogleDrive:
     # Create spreadsheet to store data if not found (get_file_id returns None)
     def create_sheet(self):
         log = self.log
-        log.debug('New Sheet being created')
         service = self.sheets_svc
-        print('ConsolePi.csv not found on Gdrive. Creating ConsolePi.csv')
+        log.info('[GDRIVE]: ConsolePi.csv not found on Gdrive. Creating ConsolePi.csv')
         spreadsheet = {
             'properties': {
                 'title': 'ConsolePi.csv'
@@ -109,12 +108,11 @@ class GoogleDrive:
         response = service.spreadsheets().batchUpdate(
             spreadsheetId=self.file_id,
             body=body).execute()
-        log.debug('resize_cols response: {}'.format(response))
-        # print(response)
+        log.debug('[GDRIVE]: resize_cols response: {}'.format(response))
 
     def update_files(self, data):
         log = self.log
-        log.debug('-->update_files({})'.format(data))
+        log.debug('[GDRIVE]: -->update_files - data passed to function\n'.format(json.dumps(data, indent=4, sort_keys=True)))
         self.auth()
         spreadsheet_id = self.file_id
         service = self.sheets_svc
@@ -123,6 +121,7 @@ class GoogleDrive:
         value_input_option = 'USER_ENTERED'
         remote_consoles = {}
         cnt = 1
+        data[self.hostname]['upd_time'] = int(time.time())  # Put timestamp (epoch) on data for this ConsolePi
         for k in data:
             found = False
             value_range_body = {
@@ -138,33 +137,31 @@ class GoogleDrive:
             result = service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id, range='A:B').execute()
             # TODO add exception catcher for HttpError 503 service currently unreachable with retries
-            log.info('Reading from Cloud Config: {}'.format(result.get('values')))
+            log.debug('[GDRIVE]: Reading from Cloud Config: {}'.format(result.get('values')))
             if result.get('values') is not None:
                 x = 1
                 for row in result.get('values'):
-                    # if self.hostname == row[0]:
-                    if k == row[0]:
+                    if k == row[0]:  # k is hostname row[0] is column A of current row
                         cnt = x
                         found = True
                     else:
-                        log.info('{0} found on Google Drive Config'.format(row[0]))
+                        log.info('[GDRIVE]: {0} found on Google Drive Config'.format(row[0]))
                         remote_consoles[row[0]] = json.loads(row[1])
                         remote_consoles[row[0]]['source'] = 'cloud'
                     x += 1
-                log.debug('remote_ConsolePis Discovered from sheet: {0}, Count: {1}'.format(
+                log.debug('[GDRIVE]: remote_ConsolePis Discovered from sheet: {0}, Count: {1}'.format(
                     json.dumps(remote_consoles) if len(remote_consoles) > 0 else 'None', str(len(remote_consoles))))
             range_ = 'a' + str(cnt) + ':b' + str(cnt)
 
             if found:
-                log.info('Updating ' + str(k) + ' data found on row ' + str(cnt) + ' of Google Drive config')
+                log.info('[GDRIVE]: Updating ' + str(k) + ' data found on row ' + str(cnt) + ' of Google Drive config')
                 request = service.spreadsheets().values().update(spreadsheetId=spreadsheet_id, range=range_,
                                                                  valueInputOption=value_input_option, body=value_range_body)
             else:
-                log.info('Adding ' + str(k) + ' to Google Drive Config')
+                log.info('[GDRIVE]: Adding ' + str(k) + ' to Google Drive Config')
                 request = service.spreadsheets().values().append(spreadsheetId=spreadsheet_id, range=range_,
                                                                  valueInputOption=value_input_option, body=value_range_body)
             request.execute()
-            # self.resize_cols()
             cnt += 1
         self.resize_cols()
         return remote_consoles

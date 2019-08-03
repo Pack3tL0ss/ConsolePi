@@ -1,22 +1,17 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 from consolepi.common import ConsolePi_data
-# from consolepi.common import get_local
-# from consolepi.common import get_if_ips
-# from consolepi.common import get_config
 from zeroconf import ServiceInfo, Zeroconf
-from time import sleep
+import time
 import json
 import socket
 import pyudev
 import threading
 import struct
+from consolepi.gdrive import GoogleDrive
 
-
-#DEBUG = get_config('debug')
 config = ConsolePi_data(do_print=False)
 log = config.log
-# reference_value = get_local(log)
 hostname = config.hostname
 zeroconf = Zeroconf()
 context = pyudev.Context()
@@ -31,7 +26,7 @@ def build_info(error=False):
         'user': 'pi'
     }
 
-    if not error: # if data set is too large for mdns browser will retrieve via API
+    if not error: # if data set is too large for mdns browser on other side will retrieve via API
         local_data['adapters'] = json.dumps(local_adapters)
 
     info = ServiceInfo(
@@ -46,35 +41,50 @@ def build_info(error=False):
     return info
 
 def update_mdns(device=None, log=log, action=None, *args, **kwargs):
-    # try:
-    #     info = build_info()
-    # except struct.error:
-    #     log.warning('[MDNS REG] data is too big for mdns, removing adapter data')
-    #     info = build_info(error=True)
     info = try_build_info()
 
     if device is not None:
         zeroconf.update_service(info)
         zeroconf.unregister_service(info)
-        sleep(1)
+        time.sleep(5)
         zeroconf.register_service(info)
-        log.info('[MDNS REG] detected change: {} {}'.format(device.action, device.sys_name))
+        log.info('[MDNS REG]: detected change: {} {}'.format(device.action, device.sys_name))
+        if config.cloud:     # pylint: disable=maybe-no-member
+            abort=False
+            for thread in threading.enumerate():
+                if 'cloud_update' in thread.name:
+                    log.debug('[MDNS REG]: Another cloud Update thread already queued, this thread will abort')
+                    abort = True
+                    break
+
+            if not abort:
+                threading.Thread(target=trigger_cloud_update, name='cloud_update', args=()).start()
+                log.info('[MDNS REG]: Cloud Update Thread Started.  Current Threads:\n{}'.format(threading.enumerate()))
 
 def try_build_info():
     try:
         info = build_info()
     except struct.error:
-        log.warning('[MDNS REG] data is too big for mdns, removing adapter data')
-        log.debug('[MDNS REG] offending adapter data \n{}'.format(json.dumps(config.get_local(do_print=False), indent=4, sort_keys=True)))
+        log.warning('[MDNS REG]: data is too big for mdns, removing adapter data')
+        log.debug('[MDNS REG]: offending adapter data \n{}'.format(json.dumps(config.get_local(do_print=False), indent=4, sort_keys=True)))
         info = build_info(error=True)
     return info
 
+def trigger_cloud_update():
+    log.info('[CLOUD TRIGGER (udev)]: Cloud Update triggered by serial adapter add/remove - waiting 30 seconds for other changes')
+    time.sleep(30)  # Wait 30 seconds and then update, to accomodate multiple add removes
+    data = {config.hostname: {'adapters': config.get_local(do_print=False), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
+    log.debug('[CLOUD TRIGGER (udev)]: Final Data set collected for {}: \n{}'.format(config.hostname, data))
+
+    if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member
+        cloud = GoogleDrive(log)
+    remote_consoles = cloud.update_files(data)
+
+    # Send remotes learned from cloud file to local cache
+    if len(remote_consoles) > 0:
+        config.update_local_cloud_file(remote_consoles)
+
 def run():
-    # try:
-    #     info = build_info()
-    # except struct.error:
-    #     print('{} data is too big for mdns, removing adapter data'.format(hostname))
-    #     info = build_info(error=True)
     info = try_build_info()
 
     zeroconf.register_service(info)
@@ -86,7 +96,7 @@ def run():
     observer.start()
     try:
         while True:
-            sleep(1)
+            time.sleep(1)
     except KeyboardInterrupt:
         pass
     finally:

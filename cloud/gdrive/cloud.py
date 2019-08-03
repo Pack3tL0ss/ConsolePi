@@ -8,9 +8,9 @@ config = ConsolePi_data(do_print=False)
 def main():
     log = config.log
     data = config.local
-    log.debug('Final Data set collected for {}: {}'.format(config.hostname, data))
-    log.info('Cloud Update triggered by IP update')
-    if config.cloud_svc == 'gdrive':
+    log.debug('[CLOUD TRIGGER]: Final Data set collected for {}: \n{}'.format(config.hostname, data))
+    log.info('[CLOUD TRIGGER]: Cloud Update triggered')
+    if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member
         cloud = GoogleDrive(log)
     remote_consoles = cloud.update_files(data)
 

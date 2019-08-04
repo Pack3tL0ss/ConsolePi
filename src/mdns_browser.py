@@ -11,6 +11,10 @@ import sys
 from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 from consolepi.common import check_reachable
 from consolepi.common import ConsolePi_data
+try:
+    import better_exceptions # pylint: disable=import-error
+except Exception:
+    pass
 
 HOSTNAME = socket.gethostname()
 
@@ -42,7 +46,15 @@ class MDNS_Browser:
                     log.info('[MDNS DSCVRY] {} Discovered via mdns'.format(info.server.split('.')[0]))
                     if info.properties:
                         properties = info.properties
-                        log.debug('{}'.format(properties))
+                        # -- DEBUG --
+                        properties_decode = {}
+                        for key in properties:
+                            key_dec = key.decode("utf-8")                          
+                            properties_decode[key_dec] = properties[key].decode("utf-8")
+                        log_out = json.dumps(properties_decode, indent=4, sort_keys=True)
+                        log.debug('[MDNS DSCVRY]: {} Properties Discovered via mdns:\n{}'.format(
+                            info.server.split('.')[0], log_out))
+                        # -- /DEBUG --
                         hostname = properties[b'hostname'].decode("utf-8")
                         user = properties[b'user'].decode("utf-8")
                         interfaces = json.loads(properties[b'interfaces'].decode("utf-8"))
@@ -53,10 +65,13 @@ class MDNS_Browser:
                                 if check_reachable(_ip, 22):
                                     rem_ip = _ip
                                     break
-
-                        if isinstance(properties[b'adapters'], bytes):
-                            adapters = json.loads(properties[b'adapters'].decode("utf-8"))
-                        else:
+                        try:
+                            if isinstance(properties[b'adapters'], bytes):
+                                adapters = json.loads(properties[b'adapters'].decode("utf-8"))
+                            else:
+                                adapters = config.get_adapters_via_api(rem_ip) if rem_ip is not None else 'API'
+                        except KeyError:
+                            log.info('[MDNS DSCVRY]: {} provided no adapter data Collecting via API'.format(info.server.split('.')[0]))
                             adapters = config.get_adapters_via_api(rem_ip) if rem_ip is not None else 'API'
                             
                         mdns_data = {hostname: {'interfaces': interfaces, 'adapters': adapters, 'user': user, 'rem_ip': rem_ip, 'source': 'mdns', 'upd_time': int(time.time())}}
@@ -67,9 +82,9 @@ class MDNS_Browser:
                             print('Discovered ConsolePis: {}'.format(self.discovered))
                             print("\npress Ctrl-C to exit...\n")
 
-                        log.debug('[MDNS DSCVRY]: Final data set for {}:\n{}'.format(info.server.split('.')[0], mdns_data))
+                        log.debug('[MDNS DSCVRY]: {} Final data set:\n{}'.format(info.server.split('.')[0], json.dumps(mdns_data, indent=4, sort_keys=True)))
                         self.update(remote_consoles=mdns_data)
-                        log.info('[MDNS DSCVRY]: Local Cache Updated with {} details'.format(info.server.split('.')[0]))
+                        log.info('[MDNS DSCVRY]: {} Local Cache Updated after mdns discovery'.format(info.server.split('.')[0]))
                     else:
                         log.warning('[MDNS DSCVRY]: {}: No properties found'.format(info.server.split('.')[0]))
             else:

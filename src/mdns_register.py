@@ -9,6 +9,10 @@ import pyudev
 import threading
 import struct
 from consolepi.gdrive import GoogleDrive
+try:
+    import better_exceptions # pylint: disable=import-error
+except ImportError:
+    pass
 
 config = ConsolePi_data(do_print=False)
 log = config.log
@@ -35,7 +39,7 @@ def build_info(error=False):
         addresses=[socket.inet_aton("127.0.0.1")],
         port=5000,
         properties=local_data,
-        server='{}.local.'.format(hostname),
+        server='{}.local.'.format(hostname)
     )
 
     return info
@@ -64,8 +68,8 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
 def try_build_info():
     try:
         info = build_info()
-    except struct.error:
-        log.warning('[MDNS REG]: data is too big for mdns, removing adapter data')
+    except struct.error as e:
+        log.warning('[MDNS REG]: data is too big for mdns, removing adapter data \n{} {}'.format(e.__class__.__name__, e))
         log.debug('[MDNS REG]: offending adapter data \n{}'.format(json.dumps(config.get_local(do_print=False), indent=4, sort_keys=True)))
         info = build_info(error=True)
     return info

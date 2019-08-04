@@ -8,6 +8,7 @@ import socket
 import subprocess
 import threading
 import requests
+import time
 from pathlib import Path
 import pyudev
 from .relay import Relays
@@ -235,17 +236,33 @@ class ConsolePi_data:
             if current_remotes is not None:
                 for _ in current_remotes:
                     if _ not in remote_consoles:
-                        # if source == 'mdns' and source in current_remotes[_] and current_remotes[_]['source'] != 'mdns':
                         remote_consoles[_] = current_remotes[_]
                     else:
-                        log.debug('[CACHE UPD] \n--{}-- \n    remote rem_ip: {}\n    remote source: {}\n    cache rem_ip: {}\n    cache source: {}\n'.format(
+                        # -- DEBUG --
+                        log.debug('[CACHE UPD] \n--{}-- \n    remote rem_ip: {}\n    remote source: {}\n    remote upd_time: {}\n    cache rem_ip: {}\n    cache source: {}\n    cache upd_time: {}\n'.format(
                             _,
                             remote_consoles[_]['rem_ip'] if 'rem_ip' in remote_consoles[_] else None,
                             remote_consoles[_]['source'] if 'source' in remote_consoles[_] else None,
+                            time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(remote_consoles[_]['upd_time'])) if 'upd_time' in remote_consoles[_] else None,
                             current_remotes[_]['rem_ip'] if 'rem_ip' in current_remotes[_] else None, 
-                            current_remotes[_]['source'] if 'source' in current_remotes[_] else None))
+                            current_remotes[_]['source'] if 'source' in current_remotes[_] else None,
+                            time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(current_remotes[_]['upd_time'])) if 'upd_time' in current_remotes[_] else None,
+                            ))
+                        # -- /DEBUG --
                         # only factor in existing data if source is not mdns
-                        if remote_consoles[_]['source'] != 'mdns' and 'source' in current_remotes[_] and current_remotes[_]['source'] == 'mdns':
+                        if 'upd_time' in remote_consoles[_] or 'upd_time' in current_remotes[_]:
+                            if 'upd_time' in remote_consoles[_] and 'upd_time' in current_remotes[_]:
+                                if current_remotes[_]['upd_time'] > remote_consoles[_]['upd_time']:
+                                    remote_consoles[_] = current_remotes[_]
+                                    log.info('[CACHE UPD] {} Keeping existing data based on more current update time'.format(_))
+                                else: 
+                                    log.info('[CACHE UPD] {} Updating data from {} based on more current update time'.format(_, remote_consoles[_]['source']))
+                            elif 'upd_time' in current_remotes[_]:
+                                    remote_consoles[_] = current_remotes[_] 
+                                    log.info('[CACHE UPD] {} Keeping existing data based *existence* of update time which is lacking in this update from {}'.format(_, remote_consoles[_]['source']))
+                                    
+                        # -- Should be able to remove some of this logic now that a timestamp has beeen added along with a cloud update on serial adapter change --
+                        elif remote_consoles[_]['source'] != 'mdns' and 'source' in current_remotes[_] and current_remotes[_]['source'] == 'mdns':
                             if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
                                 # given all of the above it would appear the mdns entry is more current than the cloud entry
                                 remote_consoles[_] = current_remotes[_]

@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
 
-tail -f /var/log/ConsolePi/cloud.log & tail -f /var/log/kern.log | grep wlan0 &
-    tail -f  /var/log/syslog | grep 'puship\|dhcpcd\|dhcpcd-run-hooks\|wpa_supplicant\|ser2net\|python3\|hostapd\|autohotspotN\|bluetoothd\|dnsmasq'
+
+if [ -z $(which multitail) ]; then
+    echo "multitail not installed... installing"
+    sudo apt-get install -y multitail
+fi
+
+multitail -i /var/log/ConsolePi/cloud.log \
+    -L "tail -f /var/log/kern.log | grep wlan0" \
+    -L "tail -f  /var/log/syslog | grep 'puship\|dhcpcd\|dhcpcd-run-hooks\|wpa_supplicant\|ser2net\|python3\|hostapd\|autohotspotN\|bluetoothd\|dnsmasq'"
+
+# tail -f /var/log/ConsolePi/cloud.log & tail -f /var/log/kern.log | grep wlan0 &
+#     tail -f  /var/log/syslog | grep 'puship\|dhcpcd\|dhcpcd-run-hooks\|wpa_supplicant\|ser2net\|python3\|hostapd\|autohotspotN\|bluetoothd\|dnsmasq'

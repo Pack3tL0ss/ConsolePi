@@ -21,7 +21,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
      - [Clustering / Cloud Sync](#consolepi-cluster--cloud-config)
          - [Supported Cluster Methods](#supported-cluster-sync-methods)
              - [Google Drive](#google-drive)
-             - [mDNS](#mdns)
+             - [mDNS / API](#mdns--api)
              - [Manual](#local-cloud-cache)
           - [How it works](#how-it-works)
           - [Important Notes](#important-notes)
@@ -109,12 +109,16 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 
   2. When consolepi-menu is launched and the `'r'` (refresh) option is selected.
 
-  >In both of the above a local cloud cache is updated for the sake of persistence and speed.  The local cloud cache is what is referenced when the menu is initially launched
+  3. When a USB to Serial adapter is added or removed.  (This happens on a 30 second delay, so if multiple add/removes are made in a 30 second window, only 1 update to the cloud will occur, that update will include everything that happened within the 30 second window)
 
-#### mDNS
+  >In all of the above a local cloud cache which includes data for any remote ConsolePis pulled from ConsolePi.csv is updated for the sake of persistence and speed.  The local cloud cache is what is referenced when the menu is initially launched
+
+#### mDNS / API
 * ConsolePis now advertise themselves on the local network via mDNS (bonjour, avahi, ...)
 
 * 2 daemons run on ConsolePi one that registers itself via mdns and updates anytime a change in available USB-serial adapters is detected, and a browser service which browses for remote ConsolePis registered on the network.  The browser service updates the local cloud cache when a new ConsolePi is detected.
+
+> The API described [here](#api) comes into play when enough adapters are plugged in, such that the data payload would be over what's allowed via mDNS.  In the event this occurs... well here is an example:  ConsolePi-A has a has enough USB to Serial adapters plugged in to be over the data limit allowed via mDNS, the mdns-register service will detect this and fall-back to advertising ConsolePi-A without the adapter data.  ConsolePi-B, and ConsolePi-C are on the network and discover ConsolePi-A.  B and Cs browser service will detect that the adapter data was stripped and request the adapter data from A via the API.
 
 #### Local Cloud Cache
   - local cloud cache:  For both of the above methods, a local file `/etc/ConsolePi/cloud.data` is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.
@@ -144,7 +148,7 @@ Triggered by ConsolePi Acting as DHCP server (generally hotspot):
 
 ## ConsolePi API
 
- With the development of the short-lived DHCP sync function an API was created to speed up updates.  That API is now implemented and running... http (for now) port 5000 with the following URIs all start with /api/v1.0/ All current methods only support the GET method.  If a need arises to actually use this for something Security and post capability may follow.
+ConsolePi includes and API with the following available methods (All Are GET methods via http currently).
 
 /api/v1.0/
 * adapters: returns list of local adapters
@@ -152,9 +156,9 @@ Triggered by ConsolePi Acting as DHCP server (generally hotspot):
 * ifaces: returns interface / IP details
 * details: full json representing all local details for the ConsolePi   
 
-ConsolePi currently doesn't use the API for any of it's functionality.  It may be leveraged in the future for verification (to ensure cloud sync entry is not stale), or for other purposes yet to be determined.
+The API is used by ConsolePi when mdns doesn't have the head-room for all of the data.  When this occurs, the remote will advertise via mdns without it's adapter data, the local ConsolePi will detect the adapter data was stripped out and request it via the API.
 
-> The API is currently unsecured, it uses http, and Auth is not implemented yet.  It currently only supports GET requests, and doens't return any sensitive data.  As it's not currently used, it's OK to disable `sudo systemctl disable consolepi-api`.  Just be aware that you may have to disable after each upgrade.
+> The API is currently unsecured, it uses http, and Auth is not implemented yet.  It currently only supports GET requests, and doens't return any sensitive data.  
 
 ## Power Control
 
@@ -198,7 +202,7 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
 
   The script will look for certs in the following directories (using pi as an example will look in user home dir for any user):
 
-  1.  /home/pi
+  1. /home/pi
   2. /home/pi/cert
   3. /home/pi/ConsolePi_stage/cert
 

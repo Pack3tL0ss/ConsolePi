@@ -410,7 +410,7 @@ set_hostname() {
             sudo sed -i "s/$hostn/$newhost/g" /etc/hosts
             sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
             # change hostname via command
-            sudo hostname "$newhost" 1>&2 2>>/dev/null
+            hostname "$newhost" 1>&2 2>>/dev/null
             [ $? -gt 0 ] && logit "Error returned from hostname command" "WARNING"
             # add wlan hotspot IP to hostfile for DHCP connected clients to resolve this host
             wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)

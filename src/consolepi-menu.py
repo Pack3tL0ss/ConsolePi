@@ -272,14 +272,14 @@ class ConsolePiMenu(Outlets):
         
 
     def key_menu(self):
-        menu_actions = {
-            'b': self.main_menu,
-            'x': self.exit,
-            'key_menu': self.key_menu
-        }
         rem = self.data['remote']
         choice = ''
         while choice.lower() not in ['x', 'b']:
+            menu_actions = {
+                'b': self.main_menu,
+                'x': self.exit,
+                'key_menu': self.key_menu
+            }
             if not self.DEBUG:
                 os.system('clear')
             # self.menu_actions['b'] = self.main_menu
@@ -288,7 +288,6 @@ class ConsolePiMenu(Outlets):
             print('  Available Remote Hosts')
             print('  ' + '-' * 33)
         
-
             # Build menu items for each serial adapter found on remote ConsolePis
             item = 1
             for host in rem:
@@ -302,7 +301,7 @@ class ConsolePiMenu(Outlets):
             self.menu_formatting('footer', text='b. Back')
             choice = input(" >>  ")
             
-        self.exec_menu(choice, actions=menu_actions, calling_menu='key_menu')
+            self.exec_menu(choice, actions=menu_actions, calling_menu='key_menu')
 
     def main_menu(self):
         loc = self.data['local'][self.hostname]['adapters']
@@ -473,7 +472,7 @@ class ConsolePiMenu(Outlets):
                     menu_actions[ch]()
             except KeyError as e:
                 print('Invalid selection {}, please try again.\n'.format(e))
-                menu_actions[calling_menu]()
+                # menu_actions[calling_menu]()
         
         return
 

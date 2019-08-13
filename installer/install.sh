@@ -81,20 +81,22 @@ pre_git_prep() {
     fi
 
     process="ConsolePi-Upgrade-Prep (create consolepi group)"
-    if [[ ! $(groups pi) == *"consolepi"* ]]; then
-        if [[ $(grep -c consolepi /etc/group) == 0 ]]; then 
-            sudo groupadd consolepi && 
-            logit "Added consolepi group" || 
-            logit "Error adding consolepi group" "WARNING"
+    for user in pi; do
+        if [[ ! $(groups $user) == *"consolepi"* ]]; then
+            if ! $(grep -q consolepi /etc/group); then 
+                sudo groupadd consolepi && 
+                logit "Added consolepi group" || 
+                logit "Error adding consolepi group" "WARNING"
+            else
+                logit "consolepi group already exists"
+            fi
+            sudo usermod -a -G consolepi $user && 
+                logit "Added ${user} user to consolepi group" || 
+                    logit "Error adding ${user} user to consolepi group" "WARNING"
         else
-            logit "consolepi group already exists"
+            logit "all good ${user} user already belongs to consolepi group"
         fi
-        sudo usermod -a -G consolepi pi && 
-            logit "Added pi user to consolepi group" || 
-                logit "Error adding pi user to consolepi group" "WARNING"
-    else
-        logit "all good pi user already belongs to consolepi group"
-    fi
+    done
     unset process
 
     if [ -f $cloud_cache ]; then

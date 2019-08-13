@@ -6,7 +6,7 @@
 
 # -- Installation Defaults --
 INSTALLER_VER=30
-CFG_FILE_VER=4
+CFG_FILE_VER=5
 cur_dir=$(pwd)
 iam=$(who | awk '{print $1}')
 consolepi_dir="/etc/ConsolePi/"

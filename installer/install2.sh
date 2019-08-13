@@ -48,7 +48,7 @@ get_config() {
         echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
         echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
         # echo 'api=true                                                      # API used so ConsolePis can update other DHCP Discovery' >> "${default_config}"
-        echo 'relay=false                                                    # Adds support for Power Outlet relays' >> "${default_config}"
+        echo 'power=false                                                    # Adds support for Power Outlet control' >> "${default_config}"
         echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
         header
         echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
@@ -133,7 +133,7 @@ update_config() {
     echo "cloud=${cloud}                                                      # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
     echo "cloud_svc=\"${cloud_svc}\"                                              # Future - only Google Drive / Google Sheets supported currently - must be \"gdrive\"" >> "${default_config}"
     # echo "api=${api}                                                           # API used so ConsolePis can update other DHCP Discovery" >> "${default_config}"
-    echo "relay=${relay}                                                     # Adds support for Power Outlet relays" >> "${default_config}"
+    echo "power=${power}                                                     # Adds support for Power Outlet Control" >> "${default_config}"
     echo "debug=${debug}                                                     # turns on additional debugging" >> "${default_config}"
 }
 
@@ -300,19 +300,18 @@ collect() {
     # cloud_svc_menu $cloud_svc "${prompt}"
     # cloud_svc=$result
     
-    # -- power relays --
-    if ! $selected_prompts || [ -z $relay ]; then
+    # -- power Control --
+    if ! $selected_prompts || [ -z $power ]; then
         header
-        prompt="Do you want to enable ConsolePi Power Outlet Relay(s) Control/Trigger"
-        [ -z $relay ] && relay=false
-        user_input $relay "${prompt}"
-        relay=$result
-        if $relay; then
-            echo -e "\nCurrently to support relays you need to populate /etc/ConsolePi/relay.json manually" 
-            echo -e "You can copy and edit relay.json.example.  Ensure you follow proper json format\n"
-            echo -e "The logic for relays currently only supports Normally Off Outlets.  Meaning the outlet is"
-            echo -e "off unless ConsolePi has been triggered to turn it on.  Normally On Outlets will come in a"
-            echo -e "future build."
+        prompt="Do you want to enable ConsolePi Power Outlet Control"
+        [ -z $power ] && power=false
+        user_input $power "${prompt}"
+        power=$result
+        if $power; then
+            echo -e "\nCurrently to support Power Control you need to populate /etc/ConsolePi/power.json manually" 
+            echo -e "You can copy and edit power.json.example.  Ensure you follow proper json format\n"
+            echo -e "\nConsolePi currently supports Control of GPIO controlled Power Outlets(relays) and IP connected"
+            echo -e "outlets running tasmota firmware.  See GitHub for more details."
             read -n 1 -p "Press any key to continue"
         fi
     fi
@@ -344,7 +343,7 @@ verify() {
     echo " ConsolePi Hot Spot regulatory domain:                    $wlan_country"
     echo " ConsolePi Cloud Support:                                 $cloud"
     $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
-    echo " ConsolePi Power Relay Support:                           $relay"
+    echo " ConsolePi Power Control Support:                         $power"
     echo
     echo "----------------------------------------------------------------------------------------------------------------"
     echo
@@ -940,13 +939,16 @@ EOF
         logit "BlueTooth User already exists"
     fi
     
-    # add blue user to dialout group so they can access /dev/ttyUSB_ devices
-    if [[ ! $(groups blue | grep -o dialout) ]]; then
-    sudo usermod -a -G dialout blue 2>> $log_file && logit "BlueTooth User added to dialout group" || 
-        logit "FAILED to add Bluetooth user to dialout group" "WARNING"
-    else
-        logit "BlueTooth User already in dialout group" 
-    fi
+    # add blue user to dialout group so they can access /dev/ttyUSB_ devices 
+    #   and consolepi group so they can access logs and data files for ConsolePi
+    for group in dialout consolepi; do
+        if [[ ! $(groups blue | grep -o $group) ]]; then
+        sudo usermod -a -G $group blue 2>> $log_file && logit "BlueTooth User added to ${group} group" || 
+            logit "FAILED to add Bluetooth user to ${group} group" "WARNING"
+        else
+            logit "BlueTooth User already in ${group} group" 
+        fi
+    done
 
     # Configure blue user default tty cols/rows
     if [[ ! $(sudo grep stty /home/blue/.bashrc) ]]; then

@@ -16,12 +16,12 @@ from consolepi.common import check_reachable
 from consolepi.common import gen_copy_key
 from consolepi.gdrive import GoogleDrive
 from consolepi.common import ConsolePi_data
-from consolepi.relay import Relays
+from consolepi.power import Outlets
 
 rem_user = 'pi'
 rem_pass = None
 
-class ConsolePiMenu(Relays):
+class ConsolePiMenu(Outlets):
 
     def __init__(self, bypass_remote=False, do_print=True):
         super().__init__()
@@ -64,7 +64,7 @@ class ConsolePiMenu(Relays):
             'main_menu': self.main_menu,
             'key_menu': self.key_menu,
             'c': self.con_menu,
-            'p': self.relay_menu,
+            'p': self.power_menu,
             'h': self.picocom_help,
             'k': self.key_menu,
             'r': self.refresh,
@@ -235,60 +235,74 @@ class ConsolePiMenu(Relays):
         print('\n########################################################################\n')
         input('Press Enter to Continue')
 
-    def relay_menu(self):
+    def power_menu(self):
         choice = ''
         while choice.lower() not in ['x', 'b']:
             item = 1
-            relays = self.get_relays()
+            outlets = self.get_outlets()
             if not self.DEBUG:
                 os.system('clear')
             self.menu_actions['b'] = self.main_menu
 
             self.menu_formatting('header', text=' Power Control Menu ')
-            print('  Defined Power Relays')
+            print('  Defined Power Outlets')
             print('  ' + '-' * 33)
 
             # Build menu items for each serial adapter found on remote ConsolePis
-            for r in sorted(relays):
-                if relays[r]['noff']:
-                    cur_state = 'on' if relays[r]['is_on'] else 'off'
-                    to_state = 'off' if relays[r]['is_on'] else 'on'
-                else:
-                    cur_state = 'off' if relays[r]['is_on'] else 'on'
-                    to_state = 'on' if relays[r]['is_on'] else 'off'
+            for r in sorted(outlets):
+                outlet = outlets[r]
+                if outlet['type'].upper() == 'GPIO':
+                    if outlet['noff']:
+                        cur_state = 'on' if outlet['is_on'] else 'off'
+                        to_state = 'off' if outlet['is_on'] else 'on'
+                    else:
+                        cur_state = 'off' if outlet['is_on'] else 'on'
+                        to_state = 'on' if outlet['is_on'] else 'off'
+                elif outlet['type'].lower() == 'tasmota':
+                    cur_state = 'on' if outlet['is_on'] else 'off'
+                    to_state = 'off' if outlet['is_on'] else 'on'
                 print('{0}. Turn {1} {2} [ Current State {3} ]'.format(item, r, to_state, cur_state ))
-                self.menu_actions[str(item)] = {'function': self.do_toggle, 'args': relays[r]['GPIO']}
+                self.menu_actions[str(item)] = {'function': self.do_toggle, 'args': [outlet['type'], outlet['address']]}
                 item += 1
 
             text = 'b. Back'
             self.menu_formatting('footer', text=text)
             choice = input(" >>  ")
-            self.exec_menu(choice, actions=self.menu_actions, calling_menu='relay_menu')
+            self.exec_menu(choice, actions=self.menu_actions, calling_menu='power_menu')
         
 
     def key_menu(self):
-        item = 1
+        menu_actions = {
+            'b': self.main_menu,
+            'x': self.exit,
+            'key_menu': self.key_menu
+        }
         rem = self.data['remote']
-        if not self.DEBUG:
-            os.system('clear')
-        self.menu_actions['b'] = self.main_menu
+        choice = ''
+        while choice.lower() not in ['x', 'b']:
+            if not self.DEBUG:
+                os.system('clear')
+            # self.menu_actions['b'] = self.main_menu
 
-        self.menu_formatting('header', text=' Remote SSH Key Distribution Menu ')
-        print('  Available Remote Hosts')
-        print('  ' + '-' * 33)
+            self.menu_formatting('header', text=' Remote SSH Key Distribution Menu ')
+            print('  Available Remote Hosts')
+            print('  ' + '-' * 33)
+        
 
-        # Build menu items for each serial adapter found on remote ConsolePis
-        for host in rem:
-            if rem[host]['rem_ip'] is not None:
-                rem_ip = rem[host]['rem_ip']
-                print('{0}. Send SSH key to {1} @ {2}'.format(item, host, rem_ip))
-                self.menu_actions[str(item)] = {'function': gen_copy_key, 'args': rem[host]['rem_ip']}
-                item += 1
-
-        text = 'b. Back'
-        self.menu_formatting('footer', text=text)
-        choice = input(" >>  ")
-        self.exec_menu(choice, actions=self.menu_actions, calling_menu='key_menu')
+            # Build menu items for each serial adapter found on remote ConsolePis
+            item = 1
+            for host in rem:
+                if rem[host]['rem_ip'] is not None:
+                    rem_ip = rem[host]['rem_ip']
+                    print('{0}. Send SSH key to {1} @ {2}'.format(item, host, rem_ip))
+                    # self.menu_actions[str(item)] = {'function': gen_copy_key, 'args': rem[host]['rem_ip']}
+                    menu_actions[str(item)] = {'function': gen_copy_key, 'args': rem[host]['rem_ip']}
+                    item += 1
+        
+            self.menu_formatting('footer', text='b. Back')
+            choice = input(" >>  ")
+            
+        self.exec_menu(choice, actions=menu_actions, calling_menu='key_menu')
 
     def main_menu(self):
         loc = self.data['local'][self.hostname]['adapters']
@@ -333,7 +347,7 @@ class ConsolePiMenu(Relays):
 
         # Build menu items for each serial adapter found on remote ConsolePis
         for host in sorted(rem):
-            if rem[host]['rem_ip'] is not None:
+            if rem[host]['rem_ip'] is not None and len(rem[host]['adapters']) > 0:
                 self.remotes_connected = True
                 header = '   [Remote] {} @ {}'.format(host, rem[host]['rem_ip'])
                 print('\n' + header + '\n   ' + '-' * (len(header) - 3))
@@ -368,7 +382,7 @@ class ConsolePiMenu(Relays):
         # -- General Menu Command Options --
         text = ['c. Change *default Serial Settings [{0} {1}{2}1 flow={3}] '.format(
             self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), 'h. Display picocom help']
-        if self.relay_data is not None:
+        if self.outlet_data is not None:
             text.append('p. Power Control Menu')
         if self.remotes_connected:
             text.append('k. Distribute SSH Key to Remote Hosts')
@@ -428,18 +442,17 @@ class ConsolePiMenu(Relays):
                         # c = list like (local): ['picocom', '/dev/White3_7003', '-b9600', '-fn', '-d8', '-pn']
                         #               (remote): ['ssh', '-t', 'pi@10.1.30.28', 'picocom /dev/AP303P-BARN_7001 -b9600 -fn -d8 -pn']
                         
-                        # -- if Power Relay function is enabled check if device is linked to a relay and ensure relay is pwrd on --
-                        if config.relay:  # pylint: disable=maybe-no-member
-                            if '/dev/' in c:
+                        # -- if Power Control function is enabled check if device is linked to an outlet and ensure outlet is pwrd on --
+                        if config.power:  # pylint: disable=maybe-no-member
+                            if '/dev/' in c[1] or ( len(c) >= 4 and '/dev/' in c[3] ):
                                 menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[1]
                                 for dev in config.local[self.hostname]['adapters']:
                                     if menu_dev == dev['dev']:
-                                        if dev['GPIO'] is not None:
-                                            gpio = dev['GPIO']
-                                            noff = dev['noff']
-                                            desired_state = 'on' if noff else 'off'
+                                        if dev['outlet'] is not None:
+                                            outlet = dev['outlet']
+                                            desired_state = 'on' if outlet['noff'] else 'off' # TODO Move noff logic to power.py
                                             print('Ensuring ' + menu_dev + ' is Powered On')
-                                            self.do_toggle(gpio, desired_state=desired_state)
+                                            self.do_toggle(outlet['type'], outlet['address'], desired_state=desired_state)
 
                         subprocess.run(c)
                     elif 'function' in menu_actions[ch]:
@@ -450,7 +463,8 @@ class ConsolePiMenu(Relays):
                             menu_actions[ch]['function'](args, rem_user=rem_user, hostname=self.hostname, copy=True)
                         except TypeError as e:
                             if 'toggle()' in str(e):
-                                menu_actions[ch]['function'](args)
+                                menu_actions[ch]['function'](args[0], args[1])
+                                # self.do_toggle('tasmota', '10.115.0.129')
                             else:
                                 # print(e)
                                 raise TypeError(e)
@@ -458,8 +472,7 @@ class ConsolePiMenu(Relays):
                 else:
                     menu_actions[ch]()
             except KeyError as e:
-                print(e)
-                print("Invalid selection, please try again.\n")
+                print('Invalid selection {}, please try again.\n'.format(e))
                 menu_actions[calling_menu]()
         
         return

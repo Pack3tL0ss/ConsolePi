@@ -11,7 +11,7 @@ import requests
 import time
 from pathlib import Path
 import pyudev
-from .relay import Relays
+from .power import Outlets
 
 # Common Static Global Variables
 DNS_CHECK_FILES = ['/etc/resolv.conf', '/run/dnsmasq/resolv.conf']
@@ -20,7 +20,7 @@ LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
 CLOUD_LOG_FILE = '/var/log/ConsolePi/cloud.log'
 USER = 'pi' # currently not used, user pi is hardcoded using another user may have unpredictable results as it hasn't been tested
 HOME = str(Path.home())
-RELAY_FILE = '/etc/ConsolePi/relay.json'
+POWER_FILE = '/etc/ConsolePi/power.json'
 VALID_BAUD = ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']
 
 class ConsolePi_Log:
@@ -77,7 +77,7 @@ class ConsolePi_data:
         self.hostname = socket.gethostname()
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()
-        self.relays = Relays().relay_data
+        self.outlets = Outlets().outlet_data
         self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
         self.remotes = self.get_local_cloud_file()
     
@@ -108,14 +108,14 @@ class ConsolePi_data:
         # plog = self.plog
         context = pyudev.Context()
 
-        if os.path.isfile(RELAY_FILE):
-            with open(RELAY_FILE, 'r') as relay_file:
-                relay_data = json.load(relay_file)
+        if os.path.isfile(POWER_FILE):
+            with open(POWER_FILE, 'r') as power_file:
+                outlet_data = json.load(power_file)
 
         # plog('Detecting Locally Attached Serial Adapters')
         log.info('[GET ADAPTERS]: Detecting Locally Attached Serial Adapters')
 
-        # -- Detect Attached Serial Adapters and linked power relays if defined --
+        # -- Detect Attached Serial Adapters and linked power outlets if defined --
         final_tty_list = []
         for device in context.list_devices(subsystem='tty', ID_BUS='usb'):
             found = False
@@ -172,18 +172,24 @@ class ConsolePi_data:
                         else:
                             tty_port = 9999  # this is error - placeholder value Telnet port is not currently used
 
-                # -- get linked relay GPIO if defined --
-                gpio = None
-                noff = None
-                if self.relay:  # pylint: disable=maybe-no-member
-                    for relay in relay_data:
-                        if relay_data[relay]['linked']: # and relay_data[relay_set]['noff']: # check noff when toggle send desired state as off if non
-                            if tty_dev in relay_data[relay]['linked_devs']:
-                                gpio = relay_data[relay]['GPIO']
-                                noff = relay_data[relay]['noff']          
+                # -- get linked outlet details if defined --
+                outlet_dict = None
+                if self.power:  # pylint: disable=maybe-no-member
+                    for o in outlet_data:
+                        outlet = outlet_data[o]
+                        if outlet['linked']:
+                            if tty_dev in outlet['linked_devs']:
+                                noff = True # default value
+                                address = outlet['address']
+                                if outlet['type'].upper() == 'GPIO':
+                                    address = int(outlet['address'])
+                                    if 'noff' in outlet:
+                                        noff = outlet['noff']
+                                outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff}
+                                break
 
-                serial_list.append({'dev': tty_dev, 'port': tty_port, 'GPIO': gpio, 'noff': noff, 'baud': baud, 'dbits': dbits,
-                                    'parity': parity, 'flow': flow})
+                serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
+                                    'parity': parity, 'flow': flow, 'outlet': outlet_dict})
                 if tty_port == 9999:
                     log.error('No ser2net.conf definition found for {}'.format(tty_dev))
                     print('No ser2net.conf definition found for {}'.format(tty_dev))

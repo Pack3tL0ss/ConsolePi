@@ -1,0 +1,15 @@
+{
+    "cloud_lab": {
+        "type": "tasmota",
+        "address": "10.115.0.129",
+        "linked": true,
+        "linked_devs": ["/dev/2930F-cloud_lab", "/dev/SD-Branch1-cloud_lab"]
+        },
+    "Aruba8325_Top": {
+        "type": "GPIO",
+        "address": 4,
+        "noff": true,
+        "linked": true,
+        "linked_devs": ["/dev/8325T"]
+        }
+}

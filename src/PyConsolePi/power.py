@@ -13,6 +13,7 @@ power_file = '/etc/ConsolePi/power.json'
 class Outlets:
 
     def __init__(self):
+        # pylint: disable=maybe-no-member
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
 
@@ -62,8 +63,8 @@ class Outlets:
             for k in outlet_data:
                 outlet = outlet_data[k]
                 if outlet['type'].upper() == 'GPIO':
-                    GPIO.setup(outlet['address'], GPIO.OUT)
-                    outlet['is_on'] = GPIO.input(outlet['address'])
+                    GPIO.setup(outlet['address'], GPIO.OUT)  # pylint: disable=maybe-no-member
+                    outlet['is_on'] = GPIO.input(outlet['address'])  # pylint: disable=maybe-no-member
                 elif outlet['type'] == 'tasmota':
                     response = self.do_tasmota_cmd(outlet['address'])
                     outlet['is_on'] = response
@@ -74,24 +75,24 @@ class Outlets:
         gpio = address
         if desired_state is None:
             if type.upper() == 'GPIO':
-                GPIO.output(gpio, 1) if not GPIO.input(gpio) else GPIO.output(gpio, 0)
+                GPIO.output(gpio, 1) if not GPIO.input(gpio) else GPIO.output(gpio, 0)  # pylint: disable=maybe-no-member
             elif type == 'tasmota':
                 response = self.do_tasmota_cmd(address, 'toggle')
         else:
             desired_state = desired_state.lower()
             if type == 'GPIO':
-                GPIO.output(gpio, 0) if desired_state == 'off' else GPIO.output(gpio, 1)
+                GPIO.output(gpio, 0) if desired_state == 'off' else GPIO.output(gpio, 1)  # pylint: disable=maybe-no-member
             elif type == 'tasmota':
                 response = self.do_tasmota_cmd(address, desired_state)
 
-        response = GPIO.input(gpio) if type == 'GPIO' else response
+        response = GPIO.input(gpio) if type == 'GPIO' else response  # pylint: disable=maybe-no-member
 
         return response
 
     def get_state(self, type, address):
         if type.upper() == 'GPIO':
-            GPIO.setup(gpio)
-            response = GPIO.input(gpio)
+            GPIO.setup(address)  # pylint: disable=maybe-no-member
+            response = GPIO.input(address)  # pylint: disable=maybe-no-member
         elif type.lower() == 'tasmota':
             response = self.do_tasmota_cmd(address)
 

@@ -200,7 +200,7 @@ class ConsolePi_data:
                 outlet = outlet_data[o]
                 if outlet['linked']:
                     if dev['dev'] in outlet['linked_devs']:
-                        log.info('   Found Outlet {} linked to {}'.format(o, dev['dev']))
+                        log.info('[PWR OUTLETS]: Found Outlet {} linked to {}'.format(o, dev['dev']))
                         noff = True # default value
                         address = outlet['address']
                         if outlet['type'].upper() == 'GPIO':

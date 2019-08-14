@@ -59,6 +59,7 @@ class ConsolePiMenu(Outlets):
         self.data = {'local': config.local}
         if not bypass_remote:
             self.data['remote'] = self.get_remote()
+        self.outlet_data = self.get_outlets() if config.power else None
         self.DEBUG = config.debug
         self.menu_actions = {
             'main_menu': self.main_menu,
@@ -237,12 +238,14 @@ class ConsolePiMenu(Outlets):
 
     def power_menu(self):
         choice = ''
+        outlets = self.outlet_data
         while choice.lower() not in ['x', 'b']:
             item = 1
+            # if choice.lower() == 'r':
             outlets = self.get_outlets()
+                # print('Refreshing Outlets')
             if not self.DEBUG:
                 os.system('clear')
-            self.menu_actions['b'] = self.main_menu
 
             self.menu_formatting('header', text=' Power Control Menu ')
             print('  Defined Power Outlets')
@@ -261,14 +264,20 @@ class ConsolePiMenu(Outlets):
                 elif outlet['type'].lower() == 'tasmota':
                     cur_state = 'on' if outlet['is_on'] else 'off'
                     to_state = 'off' if outlet['is_on'] else 'on'
-                print('{0}. Turn {1} {2} [ Current State {3} ]'.format(item, r, to_state, cur_state ))
-                self.menu_actions[str(item)] = {'function': self.do_toggle, 'args': [outlet['type'], outlet['address']]}
-                item += 1
-
-            text = 'b. Back'
+                
+                if isinstance(outlet['is_on'], int) and outlet['is_on'] <= 1:
+                    print('{0}. Turn {1} {2} [ Current State {3} ]'.format(item, r, to_state, cur_state ))
+                    self.menu_actions[str(item)] = {'function': self.do_toggle, 'args': [outlet['type'], outlet['address']]}
+                    item += 1
+                else:
+                    print('!! Skipping {} as it returned an error: {}'.format(r, outlet['is_on']))
+            
+            self.menu_actions['b'] = self.main_menu
+            text = ['b. Back', 'r. Refresh']
             self.menu_formatting('footer', text=text)
             choice = input(" >>  ")
-            self.exec_menu(choice, actions=self.menu_actions, calling_menu='power_menu')
+            if not choice.lower() == 'r':
+                self.exec_menu(choice, actions=self.menu_actions, calling_menu='power_menu')
         
 
     def key_menu(self):
@@ -428,6 +437,7 @@ class ConsolePiMenu(Outlets):
         # for k in menu_actions:
         #     print('{}: {}'.format(k, menu_actions[k]))
         config = self.config
+        log = config.log
         if not self.DEBUG:
             os.system('clear')
         ch = choice.lower()
@@ -447,11 +457,16 @@ class ConsolePiMenu(Outlets):
                                 menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[1]
                                 for dev in config.local[self.hostname]['adapters']:
                                     if menu_dev == dev['dev']:
-                                        if dev['outlet'] is not None:
-                                            outlet = dev['outlet']
+                                        outlet = dev['outlet']
+                                        if outlet is not None and isinstance(outlet['is_on'], int) and outlet['is_on'] <= 1:
                                             desired_state = 'on' if outlet['noff'] else 'off' # TODO Move noff logic to power.py
                                             print('Ensuring ' + menu_dev + ' is Powered On')
-                                            self.do_toggle(outlet['type'], outlet['address'], desired_state=desired_state)
+                                            r = self.do_toggle(outlet['type'], outlet['address'], desired_state=desired_state)
+                                            if isinstance(r, int) and r > 1:
+                                                print('Error operating linked outlet @ {}'.format(outlet['address']))
+                                                log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
+                                        else:
+                                            print('Linked Outlet @ {} returned an error during menu load. Skipping...'.format(outlet['address']))
 
                         subprocess.run(c)
                     elif 'function' in menu_actions[ch]:

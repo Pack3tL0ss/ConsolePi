@@ -15,7 +15,6 @@ class Outlets:
     def __init__(self):
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
-        self.outlet_data = self.get_outlets()
 
     def do_tasmota_cmd(self, address, command=None):
         url = 'http://' + address + '/cm'
@@ -33,18 +32,21 @@ class Outlets:
             'cache-control': "no-cache"
             }
 
-        response = requests.request("GET", url, headers=headers, params=querystring, timeout=2)
-  
-        if response.status_code == 200:
-            if json.loads(response.text)['POWER'] == 'ON':
-                out_state = 1
-            elif json.loads(response.text)['POWER'] == 'OFF':
-                out_state = 0
+        try:
+            response = requests.request("GET", url, headers=headers, params=querystring, timeout=1)
+            if response.status_code == 200:
+                if json.loads(response.text)['POWER'] == 'ON':
+                    out_state = 1
+                elif json.loads(response.text)['POWER'] == 'OFF':
+                    out_state = 0
+                else:
+                    out_state = 'invalid state returned {}'.format(response.text)
             else:
-                out_state = 'invalid state returned {}'.format(response.text)
-        else:
-            out_state = '[{}] error returned {}'.format(response.status_code, response.text)
-            
+                out_state = '[{}] error returned {}'.format(response.status_code, response.text)
+        except requests.exceptions.Timeout:
+            out_state = 408
+        except requests.exceptions.RequestException:
+            out_state = 404
 
         return out_state
 
@@ -97,4 +99,4 @@ class Outlets:
 
 if __name__ == '__main__':
     outlets = Outlets()
-    print(json.dumps(outlets.outlet_data, sort_keys=True, indent=4))
+    print(json.dumps(outlets.get_outlets(), sort_keys=True, indent=4))

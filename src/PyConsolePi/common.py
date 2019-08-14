@@ -77,7 +77,7 @@ class ConsolePi_data:
         self.hostname = socket.gethostname()
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()
-        self.outlets = Outlets().outlet_data
+        # self.outlets = Outlets().outlet_data
         self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
         self.remotes = self.get_local_cloud_file()
     
@@ -108,9 +108,9 @@ class ConsolePi_data:
         # plog = self.plog
         context = pyudev.Context()
 
-        if os.path.isfile(POWER_FILE):
-            with open(POWER_FILE, 'r') as power_file:
-                outlet_data = json.load(power_file)
+        # if os.path.isfile(POWER_FILE):
+        #     with open(POWER_FILE, 'r') as power_file:
+        #         outlet_data = json.load(power_file)
 
         # plog('Detecting Locally Attached Serial Adapters')
         log.info('[GET ADAPTERS]: Detecting Locally Attached Serial Adapters')
@@ -172,24 +172,9 @@ class ConsolePi_data:
                         else:
                             tty_port = 9999  # this is error - placeholder value Telnet port is not currently used
 
-                # -- get linked outlet details if defined --
-                outlet_dict = None
-                if self.power:  # pylint: disable=maybe-no-member
-                    for o in outlet_data:
-                        outlet = outlet_data[o]
-                        if outlet['linked']:
-                            if tty_dev in outlet['linked_devs']:
-                                noff = True # default value
-                                address = outlet['address']
-                                if outlet['type'].upper() == 'GPIO':
-                                    address = int(outlet['address'])
-                                    if 'noff' in outlet:
-                                        noff = outlet['noff']
-                                outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff}
-                                break
-
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
-                                    'parity': parity, 'flow': flow, 'outlet': outlet_dict})
+                                    'parity': parity, 'flow': flow})
+
                 if tty_port == 9999:
                     log.error('No ser2net.conf definition found for {}'.format(tty_dev))
                     print('No ser2net.conf definition found for {}'.format(tty_dev))
@@ -197,8 +182,36 @@ class ConsolePi_data:
         else:
             log.error('No ser2net.conf file found unable to extract port definition')
             print('No ser2net.conf file found unable to extract port definition')
+        
+        if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
+            serial_list = self.get_outlet_data(serial_list)
 
         return serial_list
+
+    # TODO Refactor make more efficient
+    def get_outlet_data(self, serial_list):
+        outlet_data = Outlets().get_outlets()
+        print('Fetching Power Outlet Data')
+        for dev in serial_list:
+            # -- get linked outlet details if defined --
+            outlet_dict = None
+            for o in outlet_data:
+                outlet = outlet_data[o]
+                if outlet['linked']:
+                    if dev['dev'] in outlet['linked_devs']:
+                        print('   Found Outlet {} linked to {}'.format(o, dev['dev']))
+                        noff = True # default value
+                        address = outlet['address']
+                        if outlet['type'].upper() == 'GPIO':
+                            address = int(outlet['address'])
+                            if 'noff' in outlet:
+                                noff = outlet['noff']
+                        outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on']}
+                        break
+            dev['outlet'] = outlet_dict
+
+        return serial_list
+
 
     def get_if_ips(self):
         log=self.log

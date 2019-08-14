@@ -456,6 +456,8 @@ ConsolePi Should work on all variants of the RaspberryPi, but it has been tested
   - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery)
 - RaspberryPi zero w
   - With both single port micro-usb otg USB adapter and multi-port otg usb-hub.  Use this with battery pack on a regular basis.
+- Raspberry Pi 2 Model B (running Buster)
+    - Tested via wired port, and with external USB-WiFi adapter.  Have not tested any BlueTooth Dongles
 - Raspberry Pi Model B (running Buster)
     - Tested via wired port, and with external USB-WiFi adapter.  Have not tested any BlueTooth Dongles
 

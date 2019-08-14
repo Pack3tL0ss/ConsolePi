@@ -190,8 +190,9 @@ class ConsolePi_data:
 
     # TODO Refactor make more efficient
     def get_outlet_data(self, serial_list):
+        log = self.log
         outlet_data = Outlets().get_outlets()
-        print('Fetching Power Outlet Data')
+        # print('Fetching Power Outlet Data')
         for dev in serial_list:
             # -- get linked outlet details if defined --
             outlet_dict = None
@@ -199,7 +200,7 @@ class ConsolePi_data:
                 outlet = outlet_data[o]
                 if outlet['linked']:
                     if dev['dev'] in outlet['linked_devs']:
-                        print('   Found Outlet {} linked to {}'.format(o, dev['dev']))
+                        log.info('   Found Outlet {} linked to {}'.format(o, dev['dev']))
                         noff = True # default value
                         address = outlet['address']
                         if outlet['type'].upper() == 'GPIO':

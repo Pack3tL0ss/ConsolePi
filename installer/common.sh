@@ -115,7 +115,7 @@ user_input() {
     esac
 
     # Format full prompt
-    if ![ -z $default ]; then
+    if [ ! -z $default ]; then
         if $bool; then
             prompt+="? (Y/N)"
             $default && prompt+=" [Y]: " || prompt+=" [N]: "

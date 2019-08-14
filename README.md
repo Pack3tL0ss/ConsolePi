@@ -23,10 +23,12 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
              - [Google Drive](#google-drive)
              - [mDNS / API](#mdns--api)
              - [Manual](#local-cloud-cache)
-          - [How it works](#how-it-works)
           - [Important Notes](#important-notes)
       - [API](#api)
       - [Power Control](#power-control)
+          - [Power Control Setup](#power-control-setup)
+              - [GPIO Connected Relays](#gpio-connected-relays)
+              - [WiFi Smart Outlets (tasmota)](#wifi-smart-outlets-tasmota)
  - [Installation](#installation)
      - [Automated Installation](#1-automated-installation)
      - [Semi-Automatic Install](#2-semi-automatic-install)
@@ -162,23 +164,89 @@ The API is used by ConsolePi when mdns doesn't have the head-room for all of the
 
 ## Power Control
 
-- The Power Control Function allows you to control power to external devices via external power relay controlled by ConsolePi ( Like this one [Digital-Loggers IoT Relay](https://dlidirect.com/products/iot-power-relay) ).
-- If the function is enabled and relays are defined, an option in `consolepi-menu` will be presented allowing access to a sub-menu where those outlets can be controlled (toggle power on/off).
-- Relays can be linked to Console Adapter(s) (best if the adapter is pre-defined using `consolepi-addconsole`).  If there is a link defined between the relay and the adapter, anytime you initiate a connection to the adapter via `consolepi-menu` ConsolePi will ensure the outlet is powered on.  Otherwise if the link is defined you can connect to a device and power it on, simply by initiating the connection.
+- The Power Control Function allows you to control power to external outlets.  Currently ConsolePi supports:
+  - External relays controlled by ConsolePi GPIO ( Like this one [Digital-Loggers IoT Relay](https://dlidirect.com/products/iot-power-relay) ).
+  - [Tasmota](https://blakadder.github.io/templates/) flashed WiFi smart [outlets](https://blakadder.github.io/templates/) (i.e. SonOff S31).  These are low cost outlets based on ESP8266 microcontrollers.
+  > Tasmota was chosen because it allows for local control without reliance on a cloud service.  So your 'kit' can include a small relatively portable smart outlet which can be programmed to connect to the ConsolePi hotspot.  Then ConsolePi can control that outlet even if an internet connection is not available.
+- If the function is enabled and outlets are defined, an option in `consolepi-menu` will be presented allowing access to a sub-menu where those outlets can be controlled (toggle power on/off).
+- Relays can be linked to Console Adapter(s) (best if the adapter is pre-defined using `consolepi-addconsole`).  If there is a link defined between the outlet and the adapter, anytime you initiate a connection to the adapter via `consolepi-menu` ConsolePi will ensure the outlet is powered on.  Otherwise if the link is defined you can connect to a device and power it on, simply by initiating the connection from the menu (*does not apply when connecting via TELNET*).
 
 ### Power Control Setup
 
-- After enabling via `consolepi-upgrade` or during initial install; `relay.json` needs to be populated, see `relay.json.example` for formatting.
-- Trigger on relay should be connected to GPIO ports.  Trigger(+) to one of the GPIO pins, Trigger(-) to one of the GPIO ground pins.
+After enabling via `consolepi-upgrade` or during initial install; `power.json` needs to be populated, see `power.json.example` for formatting.
+The file should look something like this:
+```
+{
+    "vc33_test_env": {
+        "type": "tasmota",
+        "address": "10.3.0.11",
+        "linked": true,
+        "linked_devs": ["/dev/Aruba2930F_cloud-lab", "/dev/SDBranchGW1_cloud-lab"]
+        },
+    "Aruba8325_Top": {
+        "type": "GPIO",
+        "address": 4,
+        "noff": true,
+        "linked": true,
+        "linked_devs": ["/dev/Orange6_Home_7006"]
+        },
+}
+```
+
+The schema or explanation of fields:
+```
+{
+  "unique_name_for_outlet": [required, string] ... this is how the outlet is described in the power sub-menu {
+    "type": [required, valid values = "GPIO" or "tasmota"],
+    "address": [required, integer(GPIO pin (BCM numbering)) if type is "GPIO" OR string(ip address) if type is "tasmota"],
+    "noff": [required for type GPIO, bool] ... indicates if outlet is normally off (true) or normally on (false)
+    "linked": [required, bool] ... indicates if outlet is linked to serial adapters (true) or not (false)
+    "linked_devs": [required if linked = true, list of strings defining linked serial adapters (include /dev/)] 
+  }
+}
+```
+#### GPIO Connected Relays
+- For GPIO controlled relays: The trigger on the relay should be connected to GPIO ports.  Trigger(+) to one of the GPIO pins, Trigger(-) to one of the GPIO ground pins.
 - ConsolePi expects the GPIO number not the Board pin # in `relay.json`.  For example given the GPIO layout for the Raspberry Pi below.  Board Pin # 7 = GPIO 4.  `relay.json` should be populated with 4.
 > The Power Control Function supports relays with outlets that are 'normally on' or 'normally off'.  A 'normally off' outlet will not apply power until told to do so by ConsolePi (voltage applied to Trigger).  A 'normally on' outlet works the opposite way, it will have power with no voltage on the trigger, meaning it would be powered even if there is no connection to the ConsolePi.  It only powers off the outlet if ConsolePi applies voltage.  
 >
 > *A 'normally off' outlet will revert to powered off if ConsolePi is powered-off, disconnected, or rebooted, inversly a 'normally on' outlet will revert to a powered-on state if ConsolePi is powered-off, disconnected, or rebooted.*
 >
-> ConsolePi Supports both 'normally on' and 'normally off' outlets, this is configured via the required "noff" key in the json file (true|false).
+> ConsolePi Supports both 'normally on' and 'normally off' outlets, this is configured via the required "noff" key in the power.json file (true|false).
 
 ![GPIO Pin Layout](readme_content/pin_layout.svg)
 
+#### WiFi Smart Outlets (Tasmota)
+- You'll need a WiFi smart outlet running Tasmota.  There are plenty of resources online to help with that.  You should start [here](https://blakadder.github.io/templates/)
+- You can control the outlet as long as ConsolePi can reach it (IP).
+- When setting the outlet to connect to ConsolePi via hotspot, it's best to configure a DHCP reservation so it is assigned the same IP everytime.  This way the IP in power.json is always valid.
+
+To add a DHCP reservation you'll need to determine the MAC address of the smart-outlet.  If you're not sure what the MAC is, you can run `tail -f /var/log/syslog | grep DHCPACK`.  Then power on the smart-outlet.  Once it connects and gets DHCP you should see a log with the MAC.  Then use <ctrl+c> to break out of `tail -f`.
+To Create the reservation add a file in the `/etc/dnsmasq.d/` directory called something like `smartoutlets`
+```
+sudo nano /etc/dnsmasq.d/smartoutlets
+```
+Then in nano add something like the following:
+```
+#Outlet A
+dhcp-host=b4:e6:2d:aa:bb:99,outleta,10.3.0.11
+```
+repeat as needed for multiple outlets.
+
+Then your power.json file should look something like this:
+```
+{
+    "OutletA": {
+        "type": "tasmota",
+        "address": "10.3.0.11",
+        "linked": true,
+        "linked_devs": ["/dev/Aruba2930F_cloud-lab", "/dev/SDBranchGW1_cloud-lab"]
+        }
+}
+```
+The above assumes you have udev rules assigning aliases ('Aruba2930F_cloud-lab' and 'SDBranchGW1_cloud-lab') to specific adapters (You can use `consolepi-addconsole` to accomplish this with most adapters.)
+
+> You could link the root devices i.e. /dev/ttyUSB0 or /dev/ttyACM0 to an outlet.  This will work if there is no alias configured for the adapter.  The predictable aliases just ensure the outlet is linked to a specific physical adapter, where the root devices essentially link the outlet to whichever adapter was plugged in first.  In either case the function only powers on the outlet automatically.  It will not power off a device, that has to be done via the power sub-menu.
 
 # Installation
 

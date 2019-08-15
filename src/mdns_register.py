@@ -20,7 +20,9 @@ hostname = config.hostname
 zeroconf = Zeroconf()
 context = pyudev.Context()
 
-def build_info(error=False):
+# Have now hard-coded this to *not* send adapter data, the payload is typically too large
+# ConsolePi that discovers will follow up discovery with an API call to gather adapter data
+def build_info(error=True):
     local_adapters = config.get_local(do_print=False)
     if_ips = config.get_if_ips()
     

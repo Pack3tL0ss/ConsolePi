@@ -10,7 +10,7 @@ config = ConsolePi_data(do_print=False)
 hostname = config.hostname
 adapters = config.get_local()
 interfaces = config.get_if_ips()
-outlets = Outlets().get_outlets
+outlets = Outlets().get_outlets()
 remotes = config.get_local_cloud_file()
 details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'outlets': outlets, 'user': 'pi'}, 'remotes': remotes}
         

@@ -31,18 +31,21 @@ def build_info(squash=None):
         'user': 'pi'
     }
 
-    if squash is None: # if data set is too large for mdns browser on other side will retrieve via API
-        local_data['adapters'] = json.dumps(local_adapters)
+    # if squash is None: # if data set is too large for mdns browser on other side will retrieve via API
+    #     local_data['adapters'] = json.dumps(local_adapters)
     
     if squash is not None:
-        if squash != 'interfaces':
-            local_data['interfaces'] = json.dumps(if_ips)
-        elif squash == 'interfaces':
+        if squash == 'interfaces':
             squashed_if_ips = {}
             for _if in if_ips:
                 if '.' not in _if or 'docker' not in _if or 'ifb' not in _if:
                     squashed_if_ips[_if] = if_ips[_if]
                     local_data['interfaces'] = json.dumps(squashed_if_ips)
+        else:
+            local_data['interfaces'] = json.dumps(if_ips)
+    else:
+        local_data['adapters'] = json.dumps(local_adapters)
+        local_data['interfaces'] = json.dumps(if_ips)
 
     info = ServiceInfo(
         "_consolepi._tcp.local.",

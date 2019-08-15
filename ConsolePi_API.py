@@ -3,11 +3,11 @@
 from waitress import serve
 from flask import Flask, jsonify
 from consolepi.common import ConsolePi_data
-from consolepi.relay import Relays
+from consolepi.power import Outlets
 
 app = Flask(__name__)
 config = ConsolePi_data(do_print=False)
-relays = Relays()
+outlets = Outlets()
 log = config.log
 user = 'pi'
 
@@ -23,9 +23,9 @@ def get_cache():
 def get_ifaces():
     return jsonify({'interfaces': config.get_if_ips()})
 
-@app.route('/api/v1.0/relays', methods=['GET'])
-def get_relays():
-    return jsonify(relays.get_relays())
+@app.route('/api/v1.0/outlets', methods=['GET'])
+def get_outlets():
+    return jsonify(outlets.get_outlets())
 
 @app.route('/api/v1.0/details', methods=['GET'])
 def get_details():

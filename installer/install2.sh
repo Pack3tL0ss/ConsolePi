@@ -1238,7 +1238,7 @@ install2_main() {
     # pre_git_prep
     # gitConsolePi
     get_config
-    # upgrade_prep
+    upgrade_prep
     ! $bypass_verify && verify
     while ! $input; do
         collect

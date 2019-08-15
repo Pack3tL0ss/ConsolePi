@@ -61,6 +61,8 @@ get_config() {
         if $continue ; then
             bypass_verify=true         # bypass verify function
             input=false                # so collect function will run (while loop in main)
+            . "$default_config" || 
+                logit "Error Loading Configuration defaults" "WARNING"
         else
             header
             echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
@@ -97,7 +99,7 @@ get_config() {
     unset process
 }
  
-
+# -- deprecated safe to remove --
 # Process Changes that are required after the existing config is read in when doing upgrade
 upgrade_prep() {
     # Update Config to include values for Cloud Config Function
@@ -1236,7 +1238,7 @@ install2_main() {
     # pre_git_prep
     # gitConsolePi
     get_config
-    upgrade_prep
+    # upgrade_prep
     ! $bypass_verify && verify
     while ! $input; do
         collect

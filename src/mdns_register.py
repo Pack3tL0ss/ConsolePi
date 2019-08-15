@@ -22,18 +22,26 @@ context = pyudev.Context()
 
 # Have now hard-coded this to *not* send adapter data, the payload is typically too large
 # ConsolePi that discovers will follow up discovery with an API call to gather adapter data
-def build_info(error=True):
+def build_info(squash=None):
     local_adapters = config.get_local(do_print=False)
     if_ips = config.get_if_ips()
     
 
     local_data = {'hostname': hostname,
-        'interfaces': json.dumps(if_ips),
         'user': 'pi'
     }
 
-    if not error: # if data set is too large for mdns browser on other side will retrieve via API
+    if squash is None: # if data set is too large for mdns browser on other side will retrieve via API
         local_data['adapters'] = json.dumps(local_adapters)
+    
+    if squash is not None:
+        if squash != 'interfaces':
+            local_data['interfaces'] = json.dumps(if_ips)
+        elif squash == 'interfaces':
+            for _if in if_ips:
+                if '.' in _if or 'docker' in _if or 'ifb' in _if:
+                    if_ips.pop(_if)
+                    local_data['interfaces'] = json.dumps(if_ips)
 
     info = ServiceInfo(
         "_consolepi._tcp.local.",
@@ -68,12 +76,21 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
                 log.info('[MDNS REG]: Cloud Update Thread Started.  Current Threads:\n{}'.format(threading.enumerate()))
 
 def try_build_info():
+    # Try sending with all data
     try:
         info = build_info()
     except struct.error as e:
         log.warning('[MDNS REG]: data is too big for mdns, removing adapter data \n{} {}'.format(e.__class__.__name__, e))
         log.debug('[MDNS REG]: offending adapter data \n{}'.format(json.dumps(config.get_local(do_print=False), indent=4, sort_keys=True)))
-        info = build_info(error=True)
+        # Too Big - Try sending without adapter data
+        try:
+            info = build_info(squash='adapters')
+        except struct.error as e:
+            log.warning('[MDNS REG]: data is still too big for mdns, reducing interface payload \n{} {}'.format(e.__class__.__name__, e))
+            log.debug('[MDNS REG]: offending interface data \n{}'.format(json.dumps(config.get_if_ips(), indent=4, sort_keys=True)))
+            # Still too big - Try reducing advertised interfaces (generally an issue with WAN emulator)
+            info = build_info(squash='interfaces')
+
     return info
 
 def trigger_cloud_update():

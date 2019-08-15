@@ -80,7 +80,7 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
 
             if not abort:
                 threading.Thread(target=trigger_cloud_update, name='cloud_update', args=()).start()
-                log.info('[MDNS REG] Cloud Update Thread Started.  Current Threads:\n{}'.format(threading.enumerate()))
+                log.info('[MDNS REG] Cloud Update Thread Started.  Current Threads:\n    {}'.format(threading.enumerate()))
 
 def try_build_info():
     # TODO Figure out how to calculate the struct size
@@ -88,14 +88,14 @@ def try_build_info():
     try:
         info = build_info()
     except struct.error as e:
-        log.warning('[MDNS REG] data is too big for mdns, removing adapter data \n{} {}'.format(e.__class__.__name__, e))
-        log.debug('[MDNS REG] offending adapter data \n{}'.format(json.dumps(config.get_local(do_print=False), indent=4, sort_keys=True)))
+        log.warning('[MDNS REG] data is too big for mdns, removing adapter data \n    {} {}'.format(e.__class__.__name__, e))
+        log.debug('[MDNS REG] offending adapter data \n    {}'.format(json.dumps(config.get_local(do_print=False), indent=4, sort_keys=True)))
         # Too Big - Try sending without adapter data
         try:
             info = build_info(squash='adapters')
         except struct.error as e:
-            log.warning('[MDNS REG] data is still too big for mdns, reducing interface payload \n{} {}'.format(e.__class__.__name__, e))
-            log.debug('[MDNS REG] offending interface data \n{}'.format(json.dumps(config.get_if_ips(), indent=4, sort_keys=True)))
+            log.warning('[MDNS REG] data is still too big for mdns, reducing interface payload \n    {} {}'.format(e.__class__.__name__, e))
+            log.debug('[MDNS REG] offending interface data \n    {}'.format(json.dumps(config.get_if_ips(), indent=4, sort_keys=True)))
             # Still too big - Try reducing advertised interfaces (generally an issue with WAN emulator)
             info = build_info(squash='interfaces')
 

@@ -3,24 +3,24 @@
 import json
 import sys
 from consolepi.common import ConsolePi_data
-from consolepi.relay import Relays
+from consolepi.power import Outlets
 
 config = ConsolePi_data(do_print=False)
 
 hostname = config.hostname
 adapters = config.get_local()
 interfaces = config.get_if_ips()
-relays = Relays().relay_data
+outlets = Outlets().get_outlets
 remotes = config.get_local_cloud_file()
-details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'relays': relays, 'user': 'pi'}, 'remotes': remotes}
+details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'outlets': outlets, 'user': 'pi'}, 'remotes': remotes}
         
 if len(sys.argv) > 1:
     if sys.argv[1] == 'adapters':
         print(json.dumps(adapters, indent=4, sort_keys=True))
     elif sys.argv[1] == 'interfaces':
         print(json.dumps(interfaces, indent=4, sort_keys=True))
-    elif sys.argv[1] == 'relays':
-        print(json.dumps(relays, indent=4, sort_keys=True))
+    elif sys.argv[1] == 'outlets':
+        print(json.dumps(outlets, indent=4, sort_keys=True))
     elif sys.argv[1] == 'remotes':
         print(json.dumps(remotes, indent=4, sort_keys=True))
     elif sys.argv[1] == 'local':

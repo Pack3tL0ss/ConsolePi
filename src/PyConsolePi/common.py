@@ -132,7 +132,11 @@ class ConsolePi_data:
         serial_list = []
         if os.path.isfile('/etc/ser2net.conf'):
             for tty_dev in final_tty_list:
-
+                # -- Set Default Connection Params overwritten if found in ser2net.conf --
+                baud = 9600
+                dbits = 8
+                parity = 'n'
+                flow = 'n'
                 # -- extract defined TELNET port and connection parameters from ser2net.conf --
                 with open('/etc/ser2net.conf', 'r') as cfg:
                     for line in cfg:
@@ -141,11 +145,6 @@ class ConsolePi_data:
                             tty_port = int(line[0])
                             # 9600 NONE 1STOPBIT 8DATABITS XONXOFF LOCAL -RTSCTS
                             # 9600 8DATABITS NONE 1STOPBIT banner
-                            # -- Set Default Connection Params overwritten if found in ser2net.conf --
-                            baud = 9600
-                            dbits = 8
-                            parity = 'n'
-                            flow = 'n'
                             connect_params = line[4]
                             connect_params.replace(',', ' ')
                             connect_params = connect_params.split()

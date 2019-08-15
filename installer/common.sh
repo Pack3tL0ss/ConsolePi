@@ -256,7 +256,7 @@ do_kill_hung_ssh() {
     dev_name=${1##*/}
     echo $HOSTNAME $dev_name - ${1} - $0
     proc=$(ps auxf | grep -v grep | grep -v "$0" | grep "$dev_name" | awk '{print $2}')
-    sudo pkill -SIGTERM -ns $proc
+    sudo pkill -SIGTERM -ns ${proc##*-}
     ps auxf
     echo $proc
 }

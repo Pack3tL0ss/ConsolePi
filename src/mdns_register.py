@@ -48,7 +48,7 @@ def build_info(squash=None):
         local_data['interfaces'] = json.dumps(if_ips)
 
     log.debug('[MDNS REG]: Current content of local_data \n{}'.format(json.dumps(local_data, indent=4, sort_keys=True)))
-    print(len(local_data))
+    print(struct.calcsize(local_data))
 
     info = ServiceInfo(
         "_consolepi._tcp.local.",
@@ -83,6 +83,7 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
                 log.info('[MDNS REG]: Cloud Update Thread Started.  Current Threads:\n{}'.format(threading.enumerate()))
 
 def try_build_info():
+    # TODO Figure out how to calculate the struct size
     # Try sending with all data
     try:
         info = build_info()

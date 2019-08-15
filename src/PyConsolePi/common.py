@@ -154,7 +154,8 @@ class ConsolePi_data:
                                 elif 'DATABITS' in option:
                                     dbits = int(option.replace('DATABITS', '')) # int 5 - 8
                                     if dbits < 5 or dbits > 8:
-                                        print('Invalid value for "data bits" found in ser2net.conf falling back to 8')
+                                        if do_print:
+                                            print('Invalid value for "data bits" found in ser2net.conf falling back to 8')
                                         log.error('Invalid Value for data bits found in ser2net.conf: {}'.format(option))
                                         # dbits is pre-set for default of 8
                                 elif option in ['EVEN', 'ODD', 'NONE']:
@@ -176,11 +177,13 @@ class ConsolePi_data:
 
                 if tty_port == 9999:
                     log.error('No ser2net.conf definition found for {}'.format(tty_dev))
-                    print('No ser2net.conf definition found for {}'.format(tty_dev))
+                    if do_print:
+                        print('No ser2net.conf definition found for {}'.format(tty_dev))
 
         else:
             log.error('No ser2net.conf file found unable to extract port definition')
-            print('No ser2net.conf file found unable to extract port definition')
+            if do_print:
+                print('No ser2net.conf file found unable to extract port definition')
         
         if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
             serial_list = self.get_outlet_data(serial_list)

@@ -8,7 +8,7 @@ from consolepi.power import Outlets
 config = ConsolePi_data(do_print=False)
 
 hostname = config.hostname
-adapters = config.get_local()
+adapters = config.get_local(do_print=False)
 interfaces = config.get_if_ips()
 outlets = Outlets().get_outlets()
 remotes = config.get_local_cloud_file()

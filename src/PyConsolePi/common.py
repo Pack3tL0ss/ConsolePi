@@ -103,7 +103,8 @@ class ConsolePi_data:
         ret_data.pop('line')
         return ret_data
 
-    def get_local(self, do_print=True):   
+    # TODO run get_local in blocking thread abort additional calls if thread already running
+    def get_local(self, do_print=True):
         log = self.log
         # plog = self.plog
         context = pyudev.Context()
@@ -113,7 +114,7 @@ class ConsolePi_data:
         #         outlet_data = json.load(power_file)
 
         # plog('Detecting Locally Attached Serial Adapters')
-        log.info('[GET ADAPTERS]: Detecting Locally Attached Serial Adapters')
+        log.info('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
 
         # -- Detect Attached Serial Adapters and linked power outlets if defined --
         final_tty_list = []
@@ -166,7 +167,7 @@ class ConsolePi_data:
                                     elif option == 'RTSCTS':
                                         flow = 'h'
 
-                            log.info('[GET ADAPTERS]: Found {0} TELNET port: {1} [{2} {3}{4}1, flow: {5}]'.format(
+                            log.info('[GET ADAPTERS] Found {0} TELNET port: {1} [{2} {3}{4}1, flow: {5}]'.format(
                                 tty_dev.replace('/dev/', ''), tty_port, baud, dbits, parity.upper(), flow.upper()))
                             break
                         else:
@@ -202,7 +203,7 @@ class ConsolePi_data:
                 outlet = outlet_data[o]
                 if outlet['linked']:
                     if dev['dev'] in outlet['linked_devs']:
-                        log.info('[PWR OUTLETS]: Found Outlet {} linked to {}'.format(o, dev['dev']))
+                        log.info('[PWR OUTLETS] Found Outlet {} linked to {}'.format(o, dev['dev']))
                         noff = True # default value
                         address = outlet['address']
                         if outlet['type'].upper() == 'GPIO':
@@ -219,15 +220,15 @@ class ConsolePi_data:
     def get_if_ips(self):
         log=self.log
         if_list = ni.interfaces()
-        log.debug('[GET IFACES]: interface list: {}'.format(if_list))
+        log.debug('[GET IFACES] interface list: {}'.format(if_list))
         if_data = {}
         for _if in if_list:
             if _if != 'lo':
                 try:
                     if_data[_if] = {'ip': ni.ifaddresses(_if)[ni.AF_INET][0]['addr'], 'mac': ni.ifaddresses(_if)[ni.AF_LINK][0]['addr']}
                 except KeyError:
-                    log.info('No IP Found for {} skipping'.format(_if))
-        log.debug('[GET IFACES]: Completed Iface Data: {}'.format(if_data))
+                    log.info('[GET IFACES] No IP Found for {} skipping'.format(_if))
+        log.debug('[GET IFACES] Completed Iface Data: {}'.format(if_data))
         return if_data
 
     def get_ip_list(self):

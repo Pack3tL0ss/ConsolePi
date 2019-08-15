@@ -47,7 +47,7 @@ def build_info(squash=None):
         local_data['adapters'] = json.dumps(local_adapters)
         local_data['interfaces'] = json.dumps(if_ips)
 
-    log.debug('[MDNS REG]: Current content of local_data \n{}'.format(json.dumps(local_data, indent=4, sort_keys=True)))
+    log.debug('[MDNS REG] Current content of local_data \n{}'.format(json.dumps(local_data, indent=4, sort_keys=True)))
     # print(struct.calcsize(json.dumps(local_data).encode('utf-8')))
 
     info = ServiceInfo(
@@ -69,18 +69,18 @@ def update_mdns(device=None, log=log, action=None, *args, **kwargs):
         zeroconf.unregister_service(info)
         time.sleep(5)
         zeroconf.register_service(info)
-        log.info('[MDNS REG]: detected change: {} {}'.format(device.action, device.sys_name))
+        log.info('[MDNS REG] detected change: {} {}'.format(device.action, device.sys_name))
         if config.cloud:     # pylint: disable=maybe-no-member
             abort=False
             for thread in threading.enumerate():
                 if 'cloud_update' in thread.name:
-                    log.debug('[MDNS REG]: Another cloud Update thread already queued, this thread will abort')
+                    log.debug('[MDNS REG] Another cloud Update thread already queued, this thread will abort')
                     abort = True
                     break
 
             if not abort:
                 threading.Thread(target=trigger_cloud_update, name='cloud_update', args=()).start()
-                log.info('[MDNS REG]: Cloud Update Thread Started.  Current Threads:\n{}'.format(threading.enumerate()))
+                log.info('[MDNS REG] Cloud Update Thread Started.  Current Threads:\n{}'.format(threading.enumerate()))
 
 def try_build_info():
     # TODO Figure out how to calculate the struct size
@@ -88,24 +88,24 @@ def try_build_info():
     try:
         info = build_info()
     except struct.error as e:
-        log.warning('[MDNS REG]: data is too big for mdns, removing adapter data \n{} {}'.format(e.__class__.__name__, e))
-        log.debug('[MDNS REG]: offending adapter data \n{}'.format(json.dumps(config.get_local(do_print=False), indent=4, sort_keys=True)))
+        log.warning('[MDNS REG] data is too big for mdns, removing adapter data \n{} {}'.format(e.__class__.__name__, e))
+        log.debug('[MDNS REG] offending adapter data \n{}'.format(json.dumps(config.get_local(do_print=False), indent=4, sort_keys=True)))
         # Too Big - Try sending without adapter data
         try:
             info = build_info(squash='adapters')
         except struct.error as e:
-            log.warning('[MDNS REG]: data is still too big for mdns, reducing interface payload \n{} {}'.format(e.__class__.__name__, e))
-            log.debug('[MDNS REG]: offending interface data \n{}'.format(json.dumps(config.get_if_ips(), indent=4, sort_keys=True)))
+            log.warning('[MDNS REG] data is still too big for mdns, reducing interface payload \n{} {}'.format(e.__class__.__name__, e))
+            log.debug('[MDNS REG] offending interface data \n{}'.format(json.dumps(config.get_if_ips(), indent=4, sort_keys=True)))
             # Still too big - Try reducing advertised interfaces (generally an issue with WAN emulator)
             info = build_info(squash='interfaces')
 
     return info
 
 def trigger_cloud_update():
-    log.info('[CLOUD TRIGGER (udev)]: Cloud Update triggered by serial adapter add/remove - waiting 30 seconds for other changes')
+    log.info('[CLOUD TRIGGER (udev)] Cloud Update triggered by serial adapter add/remove - waiting 30 seconds for other changes')
     time.sleep(30)  # Wait 30 seconds and then update, to accomodate multiple add removes
     data = {config.hostname: {'adapters': config.get_local(do_print=False), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
-    log.debug('[CLOUD TRIGGER (udev)]: Final Data set collected for {}: \n{}'.format(config.hostname, data))
+    log.debug('[CLOUD TRIGGER (udev)] Final Data set collected for {}: \n{}'.format(config.hostname, data))
 
     if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member
         cloud = GoogleDrive(log)

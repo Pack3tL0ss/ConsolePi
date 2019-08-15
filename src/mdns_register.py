@@ -47,6 +47,8 @@ def build_info(squash=None):
         local_data['adapters'] = json.dumps(local_adapters)
         local_data['interfaces'] = json.dumps(if_ips)
 
+    print(json.dumps(local_data, indent=4, sort_keys=True))
+
     info = ServiceInfo(
         "_consolepi._tcp.local.",
         hostname + "._consolepi._tcp.local.",

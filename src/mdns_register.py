@@ -48,7 +48,7 @@ def build_info(squash=None):
         local_data['interfaces'] = json.dumps(if_ips)
 
     log.debug('[MDNS REG]: Current content of local_data \n{}'.format(json.dumps(local_data, indent=4, sort_keys=True)))
-    print(struct.calcsize(local_data))
+    print(struct.calcsize(json.dumps(local_data).encode(utf-8)))
 
     info = ServiceInfo(
         "_consolepi._tcp.local.",

@@ -38,10 +38,11 @@ def build_info(squash=None):
         if squash != 'interfaces':
             local_data['interfaces'] = json.dumps(if_ips)
         elif squash == 'interfaces':
+            squashed_if_ips = {}
             for _if in if_ips:
-                if '.' in _if or 'docker' in _if or 'ifb' in _if:
-                    if_ips.pop(_if)
-                    local_data['interfaces'] = json.dumps(if_ips)
+                if '.' not in _if or 'docker' not in _if or 'ifb' not in _if:
+                    squashed_if_ips[_if] = if_ips[_if]
+                    local_data['interfaces'] = json.dumps(squashed_if_ips)
 
     info = ServiceInfo(
         "_consolepi._tcp.local.",

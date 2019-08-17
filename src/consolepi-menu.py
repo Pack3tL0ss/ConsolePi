@@ -327,6 +327,7 @@ class ConsolePiMenu(Outlets):
     def main_menu(self):
         loc = self.data['local'][self.hostname]['adapters']
         rem = self.data['remote']
+        config = self.config
         # remotes_connected = False
         item = 1
         if not self.DEBUG:
@@ -396,8 +397,10 @@ class ConsolePiMenu(Outlets):
                     print(menu_line)
 
                     # Generate Command executed for Menu Line
-                    _cmd = 'ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
-                                rem[host]['user'], rem[host]['rem_ip'], _dev['dev'], baud, flow, dbits, parity)
+                    # _cmd = 'ssh -t {0}@{1} "picocom {2} -b{3} -f{4} -d{5} -p{6}"'.format(
+                    #             rem[host]['user'], rem[host]['rem_ip'], _dev['dev'], baud, flow, dbits, parity)
+                    _cmd = 'ssh -t {0}@{1} "{2} picocom {3} -b{4} -f{5} -d{6} -p{7}"'.format(
+                                 rem[host]['user'], rem[host]['rem_ip'], config.REM_LAUNCH, _dev['dev'], baud, flow, dbits, parity)
                     self.menu_actions[str(item)] = {'cmd': _cmd}
                     item += 1
 

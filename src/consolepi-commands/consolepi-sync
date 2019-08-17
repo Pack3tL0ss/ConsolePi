@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+pushd /etc/ConsolePi >/dev/null
+sudo git pull
+popd >/dev/null
+sudo cp /etc/ConsolePi/src/PyConsolePi/* /etc/ConsolePi/venv/lib/python3.7/site-packages/consolepi/

@@ -22,6 +22,7 @@ USER = 'pi' # currently not used, user pi is hardcoded using another user may ha
 HOME = str(Path.home())
 POWER_FILE = '/etc/ConsolePi/power.json'
 VALID_BAUD = ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']
+REM_LAUNCH = '/etc/ConsolePi/src/remote_launcher.py'
 
 class ConsolePi_Log:
 

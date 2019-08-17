@@ -28,8 +28,9 @@ class ConsolePiMenu(Outlets):
         # pylint: disable=maybe-no-member
         config = ConsolePi_data()
         self.config = config
+        self.error_msgs = []
         self.remotes_connected = False
-        self.error = None
+        # self.error = None
         self.cloud = None  # Set in refresh method if reachable
         self.do_cloud = config.cloud  
         if self.do_cloud and config.cloud_svc == 'gdrive':  
@@ -38,10 +39,11 @@ class ConsolePiMenu(Outlets):
                 if not os.path.isfile('/etc/ConsolePi/cloud/gdrive/.credentials/credentials.json'):
                     config.plog('Required {} credentials files are missing refer to GitHub for details'.format(config.cloud_svc), level='warning')
                     config.plog('Disabling {} updates'.format(config.cloud_svc), level='warning')
-                    self.error = ' {} credentials not found'.format(config.cloud_svc)
+                    self.error_msgs.append('Cloud Function Disabled by script - No Credentials Found')
                     self.do_cloud = False
             else:
                 config.plog('failed to connect to {}, operating in local only mode'.format(config.cloud_svc), level='warning')
+                self.error_msgs.append('failed to connect to {} - operating in local only mode'.format(config.cloud_svc))
                 self.local_only = True
 
         self.go = True
@@ -59,6 +61,12 @@ class ConsolePiMenu(Outlets):
         self.data = {'local': config.local}
         if not bypass_remote:
             self.data['remote'] = self.get_remote()
+        if config.power:
+            if not os.path.isfile(config.POWER_FILE):
+                config.plog('Outlet Control Function enabled but no power.json configuration found - Disabling feature',
+                    level='warning')
+                self.error_msgs.append('Outlet Control Disabled by Script - No power.json found')
+                config.power = False
         self.outlet_data = self.get_outlets() if config.power else None
         self.DEBUG = config.debug
         self.menu_actions = {
@@ -194,18 +202,22 @@ class ConsolePiMenu(Outlets):
                         print(t)
                 else:
                     print(text)
-            print('x. exit\n')
+            print(' x. exit\n')
             print('=' * 74)
-            if not self.do_cloud:
-                if self.error is None:
-                    print('*                          Cloud Function Disabled                       *')
-                else:
-                    print('*        Cloud Function Disabled by script - no credentials found        *')
-            elif self.local_only:
-                print('*                          !!!LOCAL ONLY MODE!!!                         *')
-            else:
-                print('* Remote Adapters based on local cache only use refresh option to update *')
-            print('=' * 74)
+            # if not self.do_cloud:
+            #     if self.error is not None:
+            #         print('*        Cloud Function Disabled by script - no credentials found        *')
+            # elif self.local_only:
+            #     print('*                          !!!LOCAL ONLY MODE!!!                         *')
+            # else:
+            #     print('* Remote Adapters based on local cache only use refresh option to update *')
+
+            # -- print any error messages -- #
+            if len(self.error_msgs) > 0:
+                for msg in self.error_msgs:
+                    x = ((74 - len(msg)) / 2 ) - 1
+                    print('*{}{}{}*'.format(' ' * int(x), msg, ' ' * x if x == int(x) else ' ' * (int(x) + 1)))
+                    print('=' * 74)
 
     def do_flow_pretty(self, flow):
         if flow == 'x':
@@ -266,7 +278,7 @@ class ConsolePiMenu(Outlets):
                     to_state = 'off' if outlet['is_on'] else 'on'
                 
                 if isinstance(outlet['is_on'], int) and outlet['is_on'] <= 1:
-                    print('{0}. Turn {1} {2} [ Current State {3} ]'.format(item, r, to_state, cur_state ))
+                    print(' {0}. Turn {1} {2} [ Current State {3} ]'.format(item, r, to_state, cur_state ))
                     self.menu_actions[str(item)] = {'function': self.do_toggle, 'args': [outlet['type'], outlet['address']]}
                     item += 1
                 else:
@@ -302,7 +314,7 @@ class ConsolePiMenu(Outlets):
             for host in rem:
                 if rem[host]['rem_ip'] is not None:
                     rem_ip = rem[host]['rem_ip']
-                    print('{0}. Send SSH key to {1} @ {2}'.format(item, host, rem_ip))
+                    print(' {0}. Send SSH key to {1} @ {2}'.format(item, host, rem_ip))
                     # self.menu_actions[str(item)] = {'function': gen_copy_key, 'args': rem[host]['rem_ip']}
                     menu_actions[str(item)] = {'function': gen_copy_key, 'args': rem[host]['rem_ip']}
                     item += 1
@@ -320,8 +332,8 @@ class ConsolePiMenu(Outlets):
         if not self.DEBUG:
             os.system('clear')
         self.menu_formatting('header', text=' ConsolePi Serial Menu ')
-        print('   [LOCAL] Connect to Local Adapters')
-        print('   ' + '-' * 33)
+        print('     [LOCAL] Connect to Local Adapters')
+        print('     ' + '-' * 33)
 
         # TODO # >> Clean this up, make sub to do this on both local and remote
         # Build menu items for each locally connected serial adapter
@@ -341,8 +353,9 @@ class ConsolePiMenu(Outlets):
                 parity = self.parity
 
             # Generate Menu Line
-            menu_line = '{0}. Connect to {1} [{2}{3} {4}{5}1]'.format(
-                item, this_dev.replace('/dev/', ''), def_indicator, baud, dbits, parity[0].upper())
+            spacing = '  ' if item < 10 else ' '
+            menu_line = ' {0}.{1}Connect to {2} [{3}{4} {5}{6}1]'.format(
+                item, spacing, this_dev.replace('/dev/', ''), def_indicator, baud, dbits, parity[0].upper())
             flow_pretty = self.do_flow_pretty(flow)
             if flow_pretty != 'NONE':
                 menu_line += ' {}'.format(flow_pretty)
@@ -357,8 +370,8 @@ class ConsolePiMenu(Outlets):
         for host in sorted(rem):
             if rem[host]['rem_ip'] is not None and len(rem[host]['adapters']) > 0:
                 self.remotes_connected = True
-                header = '   [Remote] {} @ {}'.format(host, rem[host]['rem_ip'])
-                print('\n' + header + '\n   ' + '-' * (len(header) - 3))
+                header = '     [Remote] {} @ {}'.format(host, rem[host]['rem_ip'])
+                print('\n' + header + '\n     ' + '-' * (len(header) - 5))
                 for _dev in sorted(rem[host]['adapters'], key = lambda i: i['port']):
                     try:
                         def_indicator = ''
@@ -374,8 +387,9 @@ class ConsolePiMenu(Outlets):
                         parity = self.parity
 
                     # Generate Menu Line
-                    menu_line = '{0}. Connect to {1} [{2}{3} {4}{5}1]'.format(
-                        item, _dev['dev'].replace('/dev/', ''), def_indicator, baud, dbits, parity[0].upper())
+                    spacing = '  ' if item < 10 else ' '
+                    menu_line = ' {0}.{1}Connect to {2} [{3}{4} {5}{6}1]'.format(
+                        item, spacing, _dev['dev'].replace('/dev/', ''), def_indicator, baud, dbits, parity[0].upper())
                     flow_pretty = self.do_flow_pretty(flow)
                     if flow_pretty != 'NONE':
                         menu_line += ' {}'.format(flow_pretty)
@@ -388,14 +402,14 @@ class ConsolePiMenu(Outlets):
                     item += 1
 
         # -- General Menu Command Options --
-        text = ['c. Change *default Serial Settings [{0} {1}{2}1 flow={3}] '.format(
-            self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), 'h. Display picocom help']
+        text = [' c. Change *default Serial Settings [{0} {1}{2}1 flow={3}] '.format(
+            self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), ' h. Display picocom help']
         if self.outlet_data is not None:
-            text.append('p. Power Control Menu')
+            text.append(' p. Power Control Menu')
         if self.remotes_connected:
-            text.append('k. Distribute SSH Key to Remote Hosts')
-            text.append('s. Remote Shell Menu (Connect to Remote ConsolePi Shell)')
-        text.append('r. Refresh')
+            text.append(' k. Distribute SSH Key to Remote Hosts')
+            text.append(' s. Remote Shell Menu (Connect to Remote ConsolePi Shell)')
+        text.append(' r. Refresh')
 
         self.menu_formatting('footer', text=text)
         choice = input(" >>  ")
@@ -418,12 +432,12 @@ class ConsolePiMenu(Outlets):
                 for host in sorted(rem):
                     if rem[host]['rem_ip'] is not None:
                         self.remotes_connected = True
-                        print('{0}. Connect to {1} @ {2}'.format(item, host, rem[host]['rem_ip']))
+                        print(' {0}. Connect to {1} @ {2}'.format(item, host, rem[host]['rem_ip']))
                         _cmd = 'ssh -t {0}@{1}'.format('pi', rem[host]['rem_ip'])
                         self.menu_actions[str(item)] = {'cmd': _cmd}
                         item += 1
 
-                text = 'b. Back'
+                text = ' b. Back'
                 self.menu_formatting('footer', text=text)
                 choice = input(" >>  ")
                 self.exec_menu(choice, actions=self.menu_actions, calling_menu='rshell_menu')
@@ -504,11 +518,11 @@ class ConsolePiMenu(Outlets):
             'x': self.exit
         }
         self.menu_formatting('header', text=' Connection Settings Menu ')
-        print('1. Baud [{}]'.format(self.baud))
-        print('2. Data Bits [{}]'.format(self.data_bits))
-        print('3. Parity [{}]'.format(self.parity_pretty[self.parity]))
-        print('4. Flow [{}]'.format(self.flow_pretty[self.flow]))
-        text = 'b. Back'
+        print(' 1. Baud [{}]'.format(self.baud))
+        print(' 2. Data Bits [{}]'.format(self.data_bits))
+        print(' 3. Parity [{}]'.format(self.parity_pretty[self.parity]))
+        print(' 4. Flow [{}]'.format(self.flow_pretty[self.flow]))
+        text = ' b. Back'
         self.menu_formatting('footer', text=text)
         choice = input(" >>  ")
         self.exec_menu(choice, actions=menu_actions, calling_menu='con_menu')
@@ -535,9 +549,9 @@ class ConsolePiMenu(Outlets):
 
         for key in menu_actions:
             if not callable(menu_actions[key]):
-                print('{0}. {1}'.format(key, menu_actions[key]))
+                print(' {0}. {1}'.format(key, menu_actions[key]))
 
-        text = 'b. Back'
+        text = ' b. Back'
         self.menu_formatting('footer', text=text)
         choice = input(" Baud >>  ")
         ch = choice.lower()
@@ -560,12 +574,15 @@ class ConsolePiMenu(Outlets):
         valid = False
         while not valid:
             self.menu_formatting('header', text=' Enter Desired Data Bits ')
-            print('Default 8, Current {}, Valid range 5-8'.format(self.data_bits))
-            self.menu_formatting('footer')
+            print(' Default 8, Current {}, Valid range 5-8'.format(self.data_bits))
+            self.menu_formatting('footer', text=' b. back')
             choice = input(' Data Bits >>  ')
             try:
                 if choice.lower() == 'x':
-                    self.exit()
+                    # self.exit()
+                    sys.exit(0)
+                elif choice.lower() == 'b':
+                    valid = True
                 elif int(choice) >= 5 and int(choice) <= 8:
                     self.data_bits = choice
                     valid = True
@@ -577,15 +594,17 @@ class ConsolePiMenu(Outlets):
         return
 
     def parity_menu(self):
-        self.menu_formatting('header', text=' Select Desired Parity ')
-        print('Default No Parity\n')
-        print('1. None')
-        print('2. Odd')
-        print('3. Even')
-        text = 'b. Back'
-        self.menu_formatting('footer', text=text)
+        def print_menu():
+            self.menu_formatting('header', text=' Select Desired Parity ')
+            print(' Default No Parity\n')
+            print(' 1. None')
+            print(' 2. Odd')
+            print(' 3. Even')
+            text = ' b. Back'
+            self.menu_formatting('footer', text=text)
         valid = False
         while not valid:
+            print_menu()
             valid = True
             choice = input(' Parity >>  ')
             choice = choice.lower()
@@ -598,7 +617,8 @@ class ConsolePiMenu(Outlets):
             elif choice == 'b':
                 pass
             elif choice == 'x':
-                self.exit()
+                # self.exit()
+                sys.exit(0)
             else:
                 valid = False
                 print('\n!!! Invalid selection, please try again.\n')
@@ -609,19 +629,20 @@ class ConsolePiMenu(Outlets):
 
     def flow_menu(self):
         def print_menu():
-            self.menu_formatting('header', text=' Select Desired Parity ')
-            print('Default No Flow\n')
-            print('1. No Flow Control (default)')
-            print('2. Xon/Xoff (software)')
-            print('3. RTS/CTS (hardware)')
-            text = 'b. Back'
+            self.menu_formatting('header', text=' Select Desired Flow Control ')
+            print(' Default No Flow\n')
+            print(' 1. No Flow Control (default)')
+            print(' 2. Xon/Xoff (software)')
+            print(' 3. RTS/CTS (hardware)')
+            text = ' b. Back'
             self.menu_formatting('footer', text=text)
-        print_menu()
         valid = False
         while not valid:
-            valid = True
+            print_menu()
             choice = input(' Flow >>  ')
             choice = choice.lower()
+            if choice in ['1', '2', '3', 'b', 'x']:
+                valid = True
             try:
                 if choice == '1':
                     self.flow = 'n'
@@ -632,17 +653,14 @@ class ConsolePiMenu(Outlets):
                 elif choice.lower() == 'b':
                     pass
                 elif choice == 'x':
-                    self.exit()
+                    # self.exit()
+                    sys.exit(0)
                 else:
-                    valid = False
                     print("\n!!! Invalid selection, please try again.\n")
-                    print_menu()
             except Exception as e:
-                valid = False
                 print('\n[{}]\n!!! Invalid selection, please try again.\n'.format(e))
-                print_menu()
-            if valid:
-                self.con_menu()
+            # if valid:
+            #     self.con_menu()
         return
 
     # Back to main menu

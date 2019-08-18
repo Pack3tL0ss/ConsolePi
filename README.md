@@ -18,7 +18,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
      - [AutoHotSpot](#autoHotSpot)
      - [Automatic VPN](#automatic-openvpn-tunnel)
      - [Automatic PushBullet Notifications](#automatic-pushbullet-notification)
-     - [Clustering / Cloud Sync](#consolepi-cluster--cloud-config)
+     - [Clustering / Cloud Sync](#consolepi-cluster--cloud-sync)
          - [Supported Cluster Methods](#supported-cluster-sync-methods)
              - [Google Drive](#google-drive)
              - [mDNS / API](#mdns--api)
@@ -87,7 +87,7 @@ An additional message is sent once a tunnel is established if the Automatic Open
 
 Each Time a Notification is triggered all interface IPs are sent in the message along with the ConsolePi's default gateway(s).
 
-## ConsolePi Cluster / Cloud Config
+## ConsolePi Cluster / Cloud Sync
 
 The Cluster feature allows you to have multiple ConsolePis connected to the network, or to each other (i.e. first ConsolePi in hotspot mode, the others connected as clients to that hotspot).  A connection to any one of the ConsolePis in the Cluster will provide options to connect to any local serial adapters, as well as those connected to the other ConsolePis in the cluster (via the `consolepi-menu` command).
 
@@ -156,6 +156,7 @@ ConsolePi includes and API with the following available methods (All Are GET met
 * adapters: returns list of local adapters
 * remcache: returns the local cloud cache
 * ifaces: returns interface / IP details
+* outlets: returns details for defined outlets (power control function)
 * details: full json representing all local details for the ConsolePi   
 
 The API is used by ConsolePi when mdns doesn't have the head-room for all of the data.  When this occurs, the remote will advertise via mdns without it's adapter data, the local ConsolePi will detect the adapter data was stripped out and request it via the API.
@@ -169,7 +170,8 @@ The API is used by ConsolePi when mdns doesn't have the head-room for all of the
   - [Tasmota](https://blakadder.github.io/templates/) flashed WiFi smart [outlets](https://blakadder.github.io/templates/) (i.e. SonOff S31).  These are low cost outlets based on ESP8266 microcontrollers.
   > Tasmota was chosen because it allows for local control without reliance on a cloud service.  So your 'kit' can include a small relatively portable smart outlet which can be programmed to connect to the ConsolePi hotspot.  Then ConsolePi can control that outlet even if an internet connection is not available.
 - If the function is enabled and outlets are defined, an option in `consolepi-menu` will be presented allowing access to a sub-menu where those outlets can be controlled (toggle power on/off).
-- Relays can be linked to Console Adapter(s) (best if the adapter is pre-defined using `consolepi-addconsole`).  If there is a link defined between the outlet and the adapter, anytime you initiate a connection to the adapter via `consolepi-menu` ConsolePi will ensure the outlet is powered on.  Otherwise if the link is defined you can connect to a device and power it on, simply by initiating the connection from the menu (*does not apply when connecting via TELNET*).
+- Outlets can be linked to Console Adapter(s) (best if the adapter is pre-defined using `consolepi-addconsole`).  If there is a link defined between the outlet and the adapter, anytime you initiate a connection to the adapter via `consolepi-menu` ConsolePi will ensure the outlet is powered on.  Otherwise if the link is defined you can connect to a device and power it on, simply by initiating the connection from the menu (*does not apply when connecting via TELNET*).
+    > The power sub-menu **currently** only appears in the menu on the ConsolePi where the outlets are defined.  The auto-power-on when connecting to an adapter linked to an outlet works for both local and remote connections (establishing a connection to an adapter on a remote ConsolePi (clustering / cloud-sync function) via another ConsolePis menu)
 
 ### Power Control Setup
 
@@ -207,7 +209,7 @@ The schema or explanation of fields:
 ```
 #### GPIO Connected Relays
 - For GPIO controlled relays: The trigger on the relay should be connected to GPIO ports.  Trigger(+) to one of the GPIO pins, Trigger(-) to one of the GPIO ground pins.
-- ConsolePi expects the GPIO number not the Board pin # in `relay.json`.  For example given the GPIO layout for the Raspberry Pi below.  Board Pin # 7 = GPIO 4.  `relay.json` should be populated with 4.
+- ConsolePi expects the GPIO number not the Board pin # in `power.json`.  For example given the GPIO layout for the Raspberry Pi below.  Board Pin # 7 = GPIO 4.  `power.json` should be populated with 4.
 > The Power Control Function supports relays with outlets that are 'normally on' or 'normally off'.  A 'normally off' outlet will not apply power until told to do so by ConsolePi (voltage applied to Trigger).  A 'normally on' outlet works the opposite way, it will have power with no voltage on the trigger, meaning it would be powered even if there is no connection to the ConsolePi.  It only powers off the outlet if ConsolePi applies voltage.  
 >
 > *A 'normally off' outlet will revert to powered off if ConsolePi is powered-off, disconnected, or rebooted, inversly a 'normally on' outlet will revert to a powered-on state if ConsolePi is powered-off, disconnected, or rebooted.*
@@ -276,7 +278,7 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
 
 - ConsolePi_init.sh: Custom post install script.  This custom script is triggered after all install steps are complete.  It runs just before the post-install message is displayed.
 
-**To enable the Clustering / Cloud-Config function see the description [above](#consolepi-cluster-/-cloud-config) and the prerequisite [Google Drive Setup](readme_content/gdrive.md)  instructions.**
+**To enable the Clustering / Cloud-Sync function see the description [above](#consolepi-cluster-/-cloud-config) and the prerequisite [Google Drive Setup](readme_content/gdrive.md)  instructions.**
 
 ## **1. Automated Installation**
 

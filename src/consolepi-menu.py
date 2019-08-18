@@ -159,7 +159,7 @@ class ConsolePiMenu(Outlets):
                 print('Not Updating from {} due to connection failure'.format(config.cloud_svc))
                 print('Close and re-launch menu if network access has been restored')
 
-        # Update Remote data with data from local_cloud cache (and dhcp leases)
+        # Update Remote data with data from local_cloud cache
         self.data['remote'] = self.get_remote(data=remote_consoles, refresh=True)
 
     # -- Deprecated function will return this ConsolePis data if consolepi-menu called with an argument (if arg is data of calling ConsolePi it's read in)
@@ -282,10 +282,10 @@ class ConsolePiMenu(Outlets):
                     self.menu_actions[str(item)] = {'function': self.do_toggle, 'args': [outlet['type'], outlet['address']]}
                     item += 1
                 else:
-                    print('!! Skipping {} as it returned an error: {}'.format(r, outlet['is_on']))
+                    print(' !! Skipping {} as it returned an error: {}'.format(r, outlet['is_on']))
             
             self.menu_actions['b'] = self.main_menu
-            text = ['b. Back', 'r. Refresh']
+            text = [' b. Back', ' r. Refresh']
             self.menu_formatting('footer', text=text)
             choice = input(" >>  ")
             if not choice.lower() == 'r':
@@ -319,7 +319,7 @@ class ConsolePiMenu(Outlets):
                     menu_actions[str(item)] = {'function': gen_copy_key, 'args': rem[host]['rem_ip']}
                     item += 1
         
-            self.menu_formatting('footer', text='b. Back')
+            self.menu_formatting('footer', text=' b. Back')
             choice = input(" >>  ")
             
             self.exec_menu(choice, actions=menu_actions, calling_menu='key_menu')
@@ -579,7 +579,7 @@ class ConsolePiMenu(Outlets):
         while not valid:
             self.menu_formatting('header', text=' Enter Desired Data Bits ')
             print(' Default 8, Current {}, Valid range 5-8'.format(self.data_bits))
-            self.menu_formatting('footer', text=' b. back')
+            self.menu_formatting('footer', text=' b. Back')
             choice = input(' Data Bits >>  ')
             try:
                 if choice.lower() == 'x':

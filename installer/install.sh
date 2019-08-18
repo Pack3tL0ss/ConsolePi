@@ -24,11 +24,19 @@ remove_first_boot() {
     #IF first boot was enabled by image creator script - remove it
     process="Remove exec on first-boot"
     sudo sed -i "s#consolepi-install##g" /home/pi/.bashrc
-    count=$(grep -c consolepi-install /home/pi/.bashrc)
-    [[ $count > 0 ]] && logit "Failed to remove first-boot verify /etc/rc.local" "WARNING"
+    grep -q consolepi-install /home/pi/.bashrc && 
+        logit "Failed to remove first-boot verify /etc/rc.local" "WARNING"
 }
 
-do_apt_update () {
+get_pi_details() {
+    # Collect some details about the Pi for diagnostic if an issue is reported
+    process="Collect Pi Details"
+    logit "$(get_pi_info)"
+    unset process
+}
+
+
+do_apt_update() {
     header
     process="Update/Upgrade ConsolePi (apt)"
     logit "Update Sources"
@@ -51,6 +59,7 @@ do_apt_update () {
     logit "Installing git via apt"
     apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
     logit "Process Complete"
+    unset process
 }
 
 # Process Changes that are required prior to git pull when doing upgrade
@@ -226,27 +235,7 @@ do_logging() {
         fi
     fi
    
-    # Create logrotate file for logs
-    # echo "/var/log/ConsolePi/ovpn.log" > "/etc/logrotate.d/ConsolePi"
-    # echo "/var/log/ConsolePi/push_response.log" >> "/etc/logrotate.d/ConsolePi"
-    # echo "/var/log/ConsolePi/install.log" >> "/etc/logrotate.d/ConsolePi"
-    # $cloud && echo "/var/log/ConsolePi/cloud.log" >> "/etc/logrotate.d/ConsolePi"    
-    # echo "{" >> "/etc/logrotate.d/ConsolePi"
-    # echo "        rotate 4" >> "/etc/logrotate.d/ConsolePi"
-    # echo "        weekly" >> "/etc/logrotate.d/ConsolePi"
-    # echo "        missingok" >> "/etc/logrotate.d/ConsolePi"
-    # echo "        notifempty" >> "/etc/logrotate.d/ConsolePi"
-    # echo "        compress" >> "/etc/logrotate.d/ConsolePi"
-    # echo "        delaycompress" >> "/etc/logrotate.d/ConsolePi"
-    # echo "}" >> "/etc/logrotate.d/ConsolePi"
     file_diff_update "${src_dir}ConsolePi.logrotate" "/etc/logrotate.d/ConsolePi"
-    # sudo logrotate -f /etc/logrotate.d/ConsolePi || logit "ConsolePi logrotate test failed" "WARNING"
-    
-    # Verify logrotate file was created correctly
-    # lines=$(wc -l < "/etc/logrotate.d/ConsolePi")
-    # ( $cloud && [[ $lines == 12 ]] ) || ( ! $cloud && [[ $lines == 11 ]] ) && 
-    #     logit "${process} Completed Successfully" || 
-    #     logit "${process} ERROR Verify '/etc/logrotate.d/ConsolePi'" "WARNING"
     unset process
 }
 
@@ -263,6 +252,7 @@ main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
         get_common              # get and import common functions script
+        get_pi_details          # Collect some version info for logging
         remove_first_boot       # if autolaunch install is configured remove
         do_apt_update           # apt-get update the pi
         pre_git_prep            # process upgrade tasks required prior to git pull

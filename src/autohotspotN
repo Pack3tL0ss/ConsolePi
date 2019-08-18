@@ -33,6 +33,8 @@ wpassid=$(awk '/ssid="/{ print $0 }' /etc/wpa_supplicant/wpa_supplicant.conf | a
 IFS=","
 ssids=($wpassid)
 IFS=$IFSdef #reset back to defaults
+# Number of seconds the script will pause after wifi is enabled before checking to see if it successfully connected.
+wait_time=20
 
 
 #Note:If you only want to check for certain SSIDs
@@ -82,7 +84,7 @@ KillHotspot()
 ChkWifiUp()
 {
 	echo "Checking WiFi connection ok"
-        sleep 20 #give time for connection to be completed to router
+        sleep $wait_time #give time for connection to be completed to router
 	if ! wpa_cli -i "$wifidev" status | grep 'ip_address' >/dev/null 2>&1
         then #Failed to connect to wifi (check your wifi settings, password etc)
 	       echo 'Wifi failed to connect, falling back to Hotspot.'

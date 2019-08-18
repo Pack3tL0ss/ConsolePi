@@ -110,10 +110,6 @@ class ConsolePi_data:
         # plog = self.plog
         context = pyudev.Context()
 
-        # if os.path.isfile(POWER_FILE):
-        #     with open(POWER_FILE, 'r') as power_file:
-        #         outlet_data = json.load(power_file)
-
         # plog('Detecting Locally Attached Serial Adapters')
         log.info('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
 
@@ -216,7 +212,6 @@ class ConsolePi_data:
             dev['outlet'] = outlet_dict
 
         return serial_list
-
 
     def get_if_ips(self):
         log=self.log
@@ -428,3 +423,14 @@ def gen_copy_key(rem_ip, rem_user='pi', hostname=None, copy=False):
     if copy:
         print('\nAttempting to copy ssh cert to {}\n'.format(rem_ip))
         bash_command('ssh-copy-id {0}@{1}'.format(rem_user, rem_ip))
+
+def user_input_bool(question):
+    answer = input(question + '? (y/n): ').lower().strip()
+    while not(answer == "y" or answer == "yes" or \
+              answer == "n" or answer == "no"):
+        print("Input yes or no")
+        answer = input(question + '? (y/n):').lower().strip()
+    if answer[0] == "y":
+        return True
+    else:
+        return False

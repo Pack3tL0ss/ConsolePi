@@ -260,3 +260,24 @@ do_kill_hung_ssh() {
     ps auxf
     echo $proc
 }
+
+# Gather Some info about the Pi useful in triage of issues
+get_pi_info() {
+    ver_full=$(head -1 /etc/debian_version)
+    ver=$(echo $ver_full | cut -d. -f1)
+
+    if [ $ver -eq 10 ]; then
+        version="Raspbian $ver_full (Buster)"
+    elif [ $ver -eq 9 ]; then
+        version="Raspbian $ver_full (Stretch)" 
+    elif [ $ver -eq 8 ]; then 
+        version="Raspbian $ver_full (Jessie)" 
+    else 
+        version="Raspbian $ver_full (Wheezy)"
+    fi
+
+    cpu=$(cat /proc/cpuinfo | grep 'Hardware' | awk '{print $3}')
+    rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}' | sed 's/^1000//')
+
+    echo $version running on $cpu Revision: $rev
+}

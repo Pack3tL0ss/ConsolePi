@@ -95,15 +95,18 @@ udev_main() {
     udev_init
     udev_header
 	# -- strip blank lines from end of rules file and ser2net.conf
-    sudo sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' $ser2net_conf
-    sudo sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' $rules_file
+    [ -f $ser2net_conf ] && sudo sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' $ser2net_conf
+    [ -f $rules_file ] && sudo sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' $rules_file
     # -- if rules file already exist grab the port assigned to the last entry and start with the next port --
     if [ -f $ser2net_conf ]; then
         port=$(grep ^70[0-9][0-9]: /etc/ser2net.conf | tail -1 | cut -d: -f1)
+        [ ${#port} -eq 0 ] && port=7000 # result is port = 7001 if no match in ser2net
         ((port++))
-		echo -e '\n\n'
-        echo "->> Existing rules file found with the following rules, adding ports will append to these rules starting at port $port <<-"
-        cat $rules_file
+        if [ -f $rules_file ]; then
+            echo -e '\n\n'
+            echo "->> Existing rules file found with the following rules, adding ports will append to these rules starting at port $port <<-"
+            cat $rules_file
+        fi
         echo "-------------------------------------------------------------------------------------------------------------------------"
     else
         port=7001

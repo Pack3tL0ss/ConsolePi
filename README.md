@@ -52,6 +52,9 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
 - consolepi-menu adapter connection parameters (baud, flow, parity, data-bits) is now extracted from the associated definition in ser2net.conf if one exists, if it doesn't defaults are used (which can be changed via menu option c)
 - Added new option 's' to menu which allows you to connect to the shell on any reachable remote ConsolePis
 - Added new quick commands and an option to delete a remote ConsolePi from the local cloud cache via ```consolepi-remotes```
+    <br>**8/19/2019**
+- remote connections are now established through proxy script, which will prompt/kill a previous hung session.
+    - Bonus, the proxy script also adds support for auto-power-on for devices linked to outlets on the remote system (having them appear in a power sub-menu will come later once I build out the API further)
 
 # Features
 

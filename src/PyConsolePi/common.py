@@ -128,18 +128,17 @@ class ConsolePi_data:
         # get telnet port definition from ser2net.conf
         # and build adapters dict
         serial_list = []
-        if os.path.isfile('/etc/ser2net.conf'):
-            for tty_dev in final_tty_list:
-                # -- Set Default Connection Params overwritten if found in ser2net.conf --
-                baud = 9600
-                dbits = 8
-                parity = 'n'
-                flow = 'n'
-                # -- extract defined TELNET port and connection parameters from ser2net.conf --
+        for tty_dev in final_tty_list:
+            tty_port = 9999 # using 9999 as an indicator there was no def for the device.
+            flow = 'n' # default if no value found in file
+            # -- extract defined TELNET port and connection parameters from ser2net.conf --
+            if os.path.isfile('/etc/ser2net.conf'):
                 with open('/etc/ser2net.conf', 'r') as cfg:
                     for line in cfg:
                         if tty_dev in line:
                             line = line.split(':')
+                            if '#' in line[0]:
+                                continue
                             tty_port = int(line[0])
                             # 9600 NONE 1STOPBIT 8DATABITS XONXOFF LOCAL -RTSCTS
                             # 9600 8DATABITS NONE 1STOPBIT banner
@@ -155,7 +154,7 @@ class ConsolePi_data:
                                         if do_print:
                                             print('Invalid value for "data bits" found in ser2net.conf falling back to 8')
                                         log.error('Invalid Value for data bits found in ser2net.conf: {}'.format(option))
-                                        # dbits is pre-set for default of 8
+                                        dbits = 8
                                 elif option in ['EVEN', 'ODD', 'NONE']:
                                     parity = option[0].lower() # EVEN ODD NONE
                                 elif option in ['XONXOFF', 'RTSCTS']:
@@ -167,22 +166,20 @@ class ConsolePi_data:
                             log.info('[GET ADAPTERS] Found {0} TELNET port: {1} [{2} {3}{4}1, flow: {5}]'.format(
                                 tty_dev.replace('/dev/', ''), tty_port, baud, dbits, parity.upper(), flow.upper()))
                             break
-                        else:
-                            tty_port = 9999  # this is error - placeholder value Telnet port is not currently used
+            else:
+                log.error('No ser2net.conf file found unable to extract port definition')
+                if do_print:
+                    print('No ser2net.conf file found unable to extract port definition')
 
+            if tty_port == 9999:
+                log.error('No ser2net.conf definition found for {}'.format(tty_dev))
+                serial_list.append({'dev': tty_dev, 'port': tty_port})
+                if do_print:
+                    print('No ser2net.conf definition found for {}'.format(tty_dev))
+            else:
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
-                                    'parity': parity, 'flow': flow})
+                        'parity': parity, 'flow': flow})       
 
-                if tty_port == 9999:
-                    log.error('No ser2net.conf definition found for {}'.format(tty_dev))
-                    if do_print:
-                        print('No ser2net.conf definition found for {}'.format(tty_dev))
-
-        else:
-            log.error('No ser2net.conf file found unable to extract port definition')
-            if do_print:
-                print('No ser2net.conf file found unable to extract port definition')
-        
         if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
             serial_list = self.get_outlet_data(serial_list)
 

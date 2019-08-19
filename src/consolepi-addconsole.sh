@@ -8,6 +8,9 @@ udev_init(){
     ser2net_conf='/etc/ser2net.conf'
     process="Predictable Console Ports"
     auto_name=false
+    # this isn't used yet.  ser2net 4 uses yaml config
+    # ser2net_ver=$(which ser2net >/dev/null 2>&1 && ser2net -v | awk '{print $3}' | cut -d. -f1 || echo 0)
+    # [ ! $ser2net_ver -eq 4 ] && ser2net_conf='/etc/ser2net.conf' || ser2net_conf='/etc/ser2net/ser2net.yaml'
     # [ -f /etc/ConsolePi/installer/common.sh ] && . /etc/ConsolePi/installer/common.sh ||
     #     echo "ERROR Failed to import common functions"
 }
@@ -55,6 +58,7 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep 'ttyUSB\|ttyA
     else
         if [ ! -f $rules_file ] || [ $(grep -c -m 1 $ID_SERIAL_SHORT $rules_file) -eq 0 ]; then
             echo -e "\033[1;32mDevice Found:$*\033[m ${ID_MODEL_FROM_DATABASE} "
+            echo "  vendor: ${ID_VENDOR} / ${ID_VENDOR_FROM_DATABASE} model: ${ID_MODEL}"
             echo "  idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT} It Will be assigned to telnet port ${port}"
 
             if ! $auto_name; then
@@ -65,21 +69,23 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep 'ttyUSB\|ttyA
                 echo -e '\n'
             fi
             [[ "${alias}" == "auto" ]] && auto_name=true && alias="ConsolePi"
+            $auto_name && $alias+="_${port}"
 
-            this_dev="SUBSYSTEM==\"tty\", ATTRS{idVendor}==\"${ID_VENDOR_ID}\", ATTRS{idProduct}==\"${ID_MODEL_ID}\", ATTRS{serial}==\"${ID_SERIAL_SHORT}\", SYMLINK+=\"${alias}_${port}\""
+            this_dev="SUBSYSTEM==\"tty\", ATTRS{idVendor}==\"${ID_VENDOR_ID}\", ATTRS{idProduct}==\"${ID_MODEL_ID}\", ATTRS{serial}==\"${ID_SERIAL_SHORT}\", SYMLINK+=\"${alias}\""
             if [ -f $rules_file ]; then
                 echo $this_dev >> $rules_file
             else
                 echo $this_dev > $rules_file
             fi
-            [ -f $ser2net_conf ] && echo "${port}:telnet:0:/dev/${alias}_${port}:9600 8DATABITS NONE 1STOPBIT banner" >> $ser2net_conf
+            [ -f $ser2net_conf ] && echo "${port}:telnet:0:/dev/${alias}:9600 8DATABITS NONE 1STOPBIT banner" >> $ser2net_conf
             echo "${process}" "${ID_MODEL_FROM_DATABASE} idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT} Assigned to telnet port ${port} alias: ${alias}_${port}" \
                 >> /var/log/ConsolePi/install.log
             ((port++))
         else
             echo -e " ---!! \033[1;32mDEVICE ALREADY EXISTS$*\033[m !!---"
-            echo "${ID_MODEL_FROM_DATABASE} Found, idVendor: ${ID_VENDOR_ID} idProduct: ${ID_MODEL_ID} Serial: ${ID_SERIAL_SHORT}"
-            echo -e "This device already exists in ${rules_file}.  Ignoring\n"
+            echo "${ID_MODEL_FROM_DATABASE} with serial ${ID_SERIAL_SHORT} already has a defined rule:"
+            printf '  ' && grep ${ID_SERIAL_SHORT} ${rules_file}
+            echo -e "\nThis device already exists in ${rules_file}.  Ignoring\n"
         fi
     fi
 done
@@ -88,10 +94,12 @@ done
 udev_main() {
     udev_init
     udev_header
-	
+	# -- strip blank lines from end of rules file and ser2net.conf
+    sudo sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' $ser2net_conf
+    sudo sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' $rules_file
     # -- if rules file already exist grab the port assigned to the last entry and start with the next port --
-    if [ -f $rules_file ]; then
-        port=$(tail -1 $rules_file | awk '{ print $5 }') && port=${port: -5:4}
+    if [ -f $ser2net_conf ]; then
+        port=$(grep ^70[0-9][0-9]: /etc/ser2net.conf | tail -1 | cut -d: -f1)
         ((port++))
 		echo -e '\n\n'
         echo "->> Existing rules file found with the following rules, adding ports will append to these rules starting at port $port <<-"

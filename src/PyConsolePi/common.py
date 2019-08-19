@@ -233,7 +233,7 @@ class ConsolePi_data:
 
     def get_local_cloud_file(self, local_cloud_file=LOCAL_CLOUD_FILE):
         data = {}
-        if os.path.isfile(local_cloud_file):
+        if os.path.isfile(local_cloud_file) and os.stat(local_cloud_file).st_size > 0:
             with open(local_cloud_file, mode='r') as cloud_file:
                 data = json.load(cloud_file)
         return data
@@ -241,7 +241,7 @@ class ConsolePi_data:
     def update_local_cloud_file(self, remote_consoles=None, current_remotes=None, local_cloud_file=LOCAL_CLOUD_FILE):
         # NEW gets current remotes from file and updates with new
         log = self.log
-        if remote_consoles is not None and len(remote_consoles) > 0:
+        if len(remote_consoles) > 0:
             if os.path.isfile(local_cloud_file):
                 if current_remotes is None:
                     current_remotes = self.get_local_cloud_file()

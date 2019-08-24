@@ -25,6 +25,7 @@ final_log="/var/log/ConsolePi/install.log"
 boldon="\033[1;32m"
 boldoff="$*\033[m"
 cloud_cache="/etc/ConsolePi/cloud.data"
+override_dir="/etc/ConsolePi/src/override"
 
 # vpn_dest=$(sudo grep -G "^remote\s.*" /etc/openvpn/client/ConsolePi.ovpn | awk '{print $2}')
 
@@ -179,70 +180,88 @@ user_input_bool() {
 # arg1 = systemd file without the .service suffix
 systemd_diff_update() {
     # -- If both files exist check if they are different --
-    if [[ -f /etc/ConsolePi/src/systemd/${1}.service ]] && [[ -f /etc/systemd/system/${1}.service ]]; then
-        mdns_diff=$(diff -s /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system/${1}.service) 
+    dst_file="/etc/systemd/system/${1}.service"
+    if [ -f ${override_dir}/${1}.service ]; then
+        override=true
+        logit "override file found for ${1}.service ... Skipping no changes will be made"
     else
-        mdns_diff="doit"
+        override=false
+        src_file="${src_dir}systemd/${1}.service"
+        if [[ -f "$src_file" ]] && [[ -f "$dst_file" ]]; then
+            mdns_diff=$(diff -s ${src_file} ${dst_file}) 
+        else
+            mdns_diff="doit"
+        fi
     fi
 
     # -- if systemd file doesn't exist or doesn't match copy and enable from the source directory
-    if [[ ! "$mdns_diff" = *"identical"* ]]; then
-        if [[ -f /etc/ConsolePi/src/systemd/${1}.service ]]; then 
-            sudo cp /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system 1>/dev/null 2>> $log_file &&
-                logit "${1} systemd service created/updated" || 
-                logit "FAILED to create/update ${1} systemd service" "WARNING"
-            sudo systemctl daemon-reload 1>/dev/null 2>> $log_file || logit "Failed to reload Daemons: ${1}" "WARNING"
-            if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
-                if [[ -f /etc/systemd/system/${1}.service ]]; then
-                    sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file
-                    sudo systemctl enable ${1}.service 1>/dev/null 2>> $log_file ||
-                        logit "FAILED to enable ${1} systemd service" "WARNING"
-                else
-                    logit "Failed ${1}.service file not found in systemd after move"
+    if ! $override; then
+        if [[ ! "$mdns_diff" = *"identical"* ]]; then
+            if [[ -f "/etc/ConsolePi/src/systemd/${1}.service" ]]; then 
+                sudo cp /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system 1>/dev/null 2>> $log_file &&
+                    logit "${1} systemd service created/updated" || 
+                    logit "FAILED to create/update ${1} systemd service" "WARNING"
+                sudo systemctl daemon-reload 1>/dev/null 2>> $log_file || logit "Failed to reload Daemons: ${1}" "WARNING"
+                if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
+                    if [[ -f /etc/systemd/system/${1}.service ]]; then
+                        sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file
+                        sudo systemctl enable ${1}.service 1>/dev/null 2>> $log_file ||
+                            logit "FAILED to enable ${1} systemd service" "WARNING"
+                    else
+                        logit "Failed ${1}.service file not found in systemd after move"
+                    fi
                 fi
+                [[ $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]] &&
+                    sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file || 
+                    logit "FAILED to restart ${1} systemd service" "WARNING"
+            else
+                logit "${1} file not found in src directory.  git pull failed?" "WARNING"
             fi
-            [[ $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]] &&
-                sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file || 
-                logit "FAILED to restart ${1} systemd service" "WARNING"
         else
-            logit "${1} file not found in src directory.  git pull failed?" "WARNING"
+            logit "${1} systemd file is current"
         fi
-    else
-        logit "${1} systemd file is current"
     fi
 }
 
 # arg1 = full path of src file, arg2 = full path of file in final path
 file_diff_update() {
     # -- If both files exist check if they are different --
-    if [[ -f ${1} ]] && [[ -f ${2} ]]; then
-        this_diff=$(diff -s ${1} ${2}) 
+    if [ -f ${override_dir}/${1##*/} ]; then
+        override=true
+        logit "override file found for ${1}.service ... Skipping no changes will be made"
     else
-        this_diff="doit"
+        override=false
+        if [[ -f ${1} ]] && [[ -f ${2} ]]; then
+            this_diff=$(diff -s ${1} ${2}) 
+        else
+            this_diff="doit"
+        fi
     fi
 
     # -- if file on system doesn't exist or doesn't match src copy and enable from the source directory
-    if [[ ! "$this_diff" = *"identical"* ]]; then
-        if [[ -f ${1} ]]; then 
-            if [ -f ${2} ]; then        # if dest file exists but doesn't match stash in bak dir
-                sudo cp $2 $bak_dir 1>/dev/null 2>> $log_file &&
-                    logit "${2} backed up to bak dir" || 
-                    logit "FAILED to backup existing ${2}" "WARNING"
-            fi
+    if ! $override; then
+        if [[ ! "$this_diff" = *"identical"* ]]; then
+            if [[ -f ${1} ]]; then 
+                if [ -f ${2} ]; then        # if dest file exists but doesn't match stash in bak dir
+                    sudo cp $2 $bak_dir 1>/dev/null 2>> $log_file &&
+                        logit "${2} backed up to bak dir" || 
+                        logit "FAILED to backup existing ${2}" "WARNING"
+                fi
 
-            if [ ! -d ${2%/*} ]; then
-                logit "Creating ${2%/*} directory as it doesn't exist"
-                sudo mkdir -p ${2%/*} || logit "Error Creating ${2%/*} directory"
-            fi
+                if [ ! -d ${2%/*} ]; then
+                    logit "Creating ${2%/*} directory as it doesn't exist"
+                    sudo mkdir -p ${2%/*} || logit "Error Creating ${2%/*} directory"
+                fi
 
-            sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
-                logit "${2} created/updated" || 
-                logit "FAILED to create/update ${2}" "WARNING"
+                sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
+                    logit "${2} created/updated" || 
+                    logit "FAILED to create/update ${2}" "WARNING"
+            else
+                logit "${1} file not found in src directory.  git pull failed?" "WARNING"
+            fi
         else
-            logit "${1} file not found in src directory.  git pull failed?" "WARNING"
+            logit "${2} is current"
         fi
-    else
-        logit "${2} is current"
     fi
 }
 

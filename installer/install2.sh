@@ -1032,7 +1032,7 @@ get_known_ssids() {
         found_path=$(get_staged_file_path "wpa_supplicant.conf")
         if [[ -f $found_path ]]; then
             logit "Found stage file ${found_path} Applying"
-            # To To compare the files ask user if they want to import if they dont match
+            # ToDo compare the files ask user if they want to import if they dont match
             [[ -f $wpa_supplicant_file ]] && sudo cp $wpa_supplicant_file $bak_dir
             sudo mv $found_path $wpa_supplicant_file
             client_cert=$(grep client_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)

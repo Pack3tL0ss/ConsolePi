@@ -1,0 +1,15 @@
+driver=nl80211
+ctrl_interface=/var/run/hostapd
+ctrl_interface_group=0
+beacon_int=100
+auth_algs=1
+wpa_key_mgmt=WPA-PSK
+ssid={{wlan_ssid}}
+channel=1
+hw_mode=g
+wpa_passphrase={{wlan_psk}}
+interface=wlan0
+wpa=2
+wpa_pairwise=CCMP
+country_code={{wlan_country}}
+ieee80211n=1

@@ -711,13 +711,18 @@ install_autohotspotn () {
     # Can Remove portions of this and remove file in /usr/bin/ have pointed everything directly to the file in the repo
     process="AutoHotSpotN"
     logit "Install/Update AutoHotSpotN"
-    # [[ -f "${src_dir}autohotspotN" ]] && cp "${src_dir}autohotspotN" /usr/bin 1>/dev/null 2>> $log_file
-    file_diff_update ${src_dir}autohotspotN /usr/bin/autohotspotN
-    [[ $? == 0 ]] && logit "Create/Update autohotspotN script Success" || logit "Failed to create autohotspotN script" "WARNING"
+    # file_diff_update ${src_dir}autohotspotN /usr/bin/autohotspotN
+    # [[ $? == 0 ]] && logit "Create/Update autohotspotN script Success" || logit "Failed to create autohotspotN script" "WARNING"
         
-    chmod +x /usr/bin/autohotspotN 1>/dev/null 2>> $log_file ||
-        logit "Failed to chmod autohotspotN script" "WARNING"
-        
+    # chmod +x /usr/bin/autohotspotN 1>/dev/null 2>> $log_file ||
+    #     logit "Failed to chmod autohotspotN script" "WARNING"
+    
+    systemd_diff_update autohotspot
+    logit "Enabling Startup script."
+    systemctl enable autohotspot.service 1>/dev/null 2>> $log_file &&
+    logit "Successfully enabled autohotspot.service" ||
+    logit "Failed to enable autohotspot.service" "WARNING"
+
     logit "Installing hostapd via apt."
     # hostapd -v > /dev/null 2>&1
     # if [ $? -gt 1 ]; then
@@ -748,26 +753,7 @@ install_autohotspotn () {
         logit "An error occurred disabling hostapd and/or dnsmasq autostart" "WARNING"
 
     logit "Create/Configure hostapd.conf"
-    [[ -f "/etc/hostapd/hostapd.conf" ]] && sudo mv "/etc/hostapd/hostapd.conf" "${bak_dir}" && 
-        logit "existing hostapd.conf found, backed up to bak folder"
-    echo "driver=nl80211" > "/tmp/hostapd.conf"
-    echo "ctrl_interface=/var/run/hostapd" >> "/tmp/hostapd.conf"
-    echo "ctrl_interface_group=0" >> "/tmp/hostapd.conf"
-    echo "beacon_int=100" >> "/tmp/hostapd.conf"
-    echo "auth_algs=1" >> "/tmp/hostapd.conf"
-    echo "wpa_key_mgmt=WPA-PSK" >> "/tmp/hostapd.conf"
-    echo "ssid=${wlan_ssid}" >> "/tmp/hostapd.conf"
-    echo "channel=1" >> "/tmp/hostapd.conf"
-    echo "hw_mode=g" >> "/tmp/hostapd.conf"
-    echo "wpa_passphrase=${wlan_psk}" >> "/tmp/hostapd.conf"
-    echo "interface=wlan0" >> "/tmp/hostapd.conf"
-    echo "wpa=2" >> "/tmp/hostapd.conf"
-    echo "wpa_pairwise=CCMP" >> "/tmp/hostapd.conf"
-    echo "country_code=${wlan_country}" >> "/tmp/hostapd.conf"
-    echo "ieee80211n=1" >> "/tmp/hostapd.conf"
-    mv /tmp/hostapd.conf /etc/hostapd/hostapd.conf 1>/dev/null 2>> $log_file &&
-        logit "hostapd.conf Successfully configured." ||
-        logit "hostapdapd.conf Failed to create config" "WARNING"
+    convert_template hostapd.conf /etc/hostapd/hostapd.conf wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_country=${wlan_country}
     
     logit "Making changes to /etc/hostapd/hostapd.conf"
     [[ -f "/etc/default/hostapd" ]] && mv "/etc/default/hostapd" "${bak_dir}" 
@@ -809,22 +795,22 @@ install_autohotspotn () {
             logit "Failed to move interfaces file" "WARNING"
     fi
 
-    logit "Creating Startup script."
-    echo "[Unit]" > "/tmp/autohotspot.service"
-    echo "Description=Automatically generates an internet Hotspot when a valid ssid is not in range" >> "/tmp/autohotspot.service"
-    echo "After=multi-user.target" >> "/tmp/autohotspot.service"
-    echo "[Service]" >> "/tmp/autohotspot.service"
-    echo "Type=oneshot" >> "/tmp/autohotspot.service"
-    echo "RemainAfterExit=yes" >> "/tmp/autohotspot.service"
-    echo "ExecStart=/usr/bin/autohotspotN" >> "/tmp/autohotspot.service"
-    echo "[Install]" >> "/tmp/autohotspot.service"
-    echo "WantedBy=multi-user.target" >> "/tmp/autohotspot.service"
-    mv "/tmp/autohotspot.service" "/etc/systemd/system/" 1>/dev/null 2>> $log_file ||
-            logit "Failed to create autohotspot.service init" "WARNING"
-    logit "Enabling Startup script."
-    systemctl enable autohotspot.service 1>/dev/null 2>> $log_file &&
-        logit "Successfully enabled autohotspot.service" ||
-        logit "Failed to enable autohotspot.service" "WARNING"
+    # logit "Creating Startup script."
+    # echo "[Unit]" > "/tmp/autohotspot.service"
+    # echo "Description=Automatically generates an internet Hotspot when a valid ssid is not in range" >> "/tmp/autohotspot.service"
+    # echo "After=multi-user.target" >> "/tmp/autohotspot.service"
+    # echo "[Service]" >> "/tmp/autohotspot.service"
+    # echo "Type=oneshot" >> "/tmp/autohotspot.service"
+    # echo "RemainAfterExit=yes" >> "/tmp/autohotspot.service"
+    # echo "ExecStart=/usr/bin/autohotspotN" >> "/tmp/autohotspot.service"
+    # echo "[Install]" >> "/tmp/autohotspot.service"
+    # echo "WantedBy=multi-user.target" >> "/tmp/autohotspot.service"
+    # mv "/tmp/autohotspot.service" "/etc/systemd/system/" 1>/dev/null 2>> $log_file ||
+    #         logit "Failed to create autohotspot.service init" "WARNING"
+    # logit "Enabling Startup script."
+    # systemctl enable autohotspot.service 1>/dev/null 2>> $log_file &&
+    #     logit "Successfully enabled autohotspot.service" ||
+    #     logit "Failed to enable autohotspot.service" "WARNING"
     
     logit "Verify iw is installed on system."
     if [[ ! $(dpkg -l iw | tail -1 |cut -d" " -f1) == "ii" ]]; then

@@ -754,6 +754,7 @@ install_autohotspotn () {
 
     logit "Create/Configure hostapd.conf"
     convert_template hostapd.conf /etc/hostapd/hostapd.conf wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_country=${wlan_country}
+    sudo chmod +r /etc/hostapd/hostapd.conf 2>> $log_file || logit "Failed to make hostapd.conf readable - verify after install" "WARNING"
     
     logit "Making changes to /etc/hostapd/hostapd.conf"
     [[ -f "/etc/default/hostapd" ]] && mv "/etc/default/hostapd" "${bak_dir}" 

@@ -911,7 +911,7 @@ do_blue_config() {
     # create /etc/systemd/system/rfcomm.service to enable 
     # the Bluetooth serial port from systemctl
 
-    systemd_diff_update rfcomm.service
+    systemd_diff_update rfcomm
 
 # sudo cat <<EOF | sudo tee /etc/systemd/system/rfcomm.service > /dev/null
 # [Unit]

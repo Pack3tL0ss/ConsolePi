@@ -216,7 +216,7 @@ class ConsolePiMenu(Outlets):
             if len(self.error_msgs) > 0:
                 for msg in self.error_msgs:
                     x = ((74 - len(msg)) / 2 ) - 1
-                    print('*{}{}{}*'.format(' ' * int(x), msg, ' ' * x if x == int(x) else ' ' * (int(x) + 1)))
+                    print('*{}{}{}*'.format(' ' * int(x), msg, ' ' * int(x) if x == int(x) else ' ' * (int(x) + 1)))
                     print('=' * 74)
 
     def do_flow_pretty(self, flow):

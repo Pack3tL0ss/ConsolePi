@@ -911,18 +911,21 @@ do_blue_config() {
     # create /etc/systemd/system/rfcomm.service to enable 
     # the Bluetooth serial port from systemctl
 
-sudo cat <<EOF | sudo tee /etc/systemd/system/rfcomm.service > /dev/null
-[Unit]
-Description=RFCOMM service
-After=bluetooth.service
-Requires=bluetooth.service
+    systemd_diff_update rfcomm.service
 
-[Service]
-ExecStart=/usr/bin/rfcomm watch hci0 1 setsid /sbin/agetty -L rfcomm0 115200 vt100 -a blue
+# sudo cat <<EOF | sudo tee /etc/systemd/system/rfcomm.service > /dev/null
+# [Unit]
+# Description=RFCOMM service
+# After=bluetooth.service
+# Requires=bluetooth.service
 
-[Install]
-WantedBy=multi-user.target
-EOF
+# [Service]
+# ExecStart=/usr/bin/rfcomm watch hci0 1 setsid /sbin/agetty -L rfcomm0 115200 vt100 -a blue
+
+# [Install]
+# WantedBy=multi-user.target
+# EOF
+
 
     # enable the new rfcomm service
     sudo systemctl enable rfcomm 1>/dev/null 2>> $log_file  && logit "rfcomm systemd script enabled" || 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # --                                               ConsolePi Image Creation Script - Use at own Risk                                                         
-# --  Wade Wells - Jan, 8 2019                                                                                                                     
+# --  Wade Wells - Updated Aug 2019                                                                                                                     
 # --    !!! USE @ own risk - This could bork your system !!!                                                                                           
 # --                                                                                                                                             
 # --  This is a script I used to expedite testing.  It looks for a raspbian-lite image file in whatever directory you run the script from, if it doesn't find one
@@ -48,16 +48,25 @@
 # --  Enter a micro-sd card using a usb to micro-sd card adapter (script only works with usb to micro-sd adapters)
 # --  'sudo ./ConsolePi_image_creator.sh' When you are ready to flash the image
 
-# WLAN Pre-Configuration - change fist parameter to true and configure valid parameters for the remainder to pre-configure an SSID on the image
-configure_wpa_supplicant=false
+# -------------------- // CONFIGURATION \\ --------------------
+# -- WLAN (device will boot and look for the SSID) --
+configure_wpa_supplicant=false  # nothing is applied if this is false
 ssid='ExampleSSID'
 psk='ChangeMe!!'
 wlan_country="US"
 priority=0
 
-# This option Configures ConsolePi image to install on first boot automatically
+# -- Auto Launch ConsolePi installer when user logs in --
 auto_install=true
 
+# -- image selection --
+#   valid options are:
+#     'lite': Minimal image, no desktop environment
+#     'desktop': Image with desktop environment
+#     'full': Image with desktop and recommended software
+img_type='lite'
+
+# Function to collect user input
 get_input() {
     valid_input=false
     while ! $valid_input; do
@@ -142,15 +151,17 @@ main() {
     done
 
     # get raspbian-lite image if not in script dir
-    echo -e "\nGetting raspbian-lite image"
+    echo -e "\nGetting latest raspbian image (${img_type})"
     
     # Find out what current raspbian release is
-    cur_rel=$(curl -sIL https://downloads.raspberrypi.org/raspbian_lite_latest | 
-        grep -o -E "[0-9]{4}-[0-9]{2}-[0-9]{2}-raspbian-[a-z,A-Z]*-lite.zip" | head -1 | cut -d'.' -f1)
+    [ ! $img_type = 'desktop' ] && img_url="https://downloads.raspberrypi.org/raspbian_${img_type}_latest" ||
+        img_url="https://downloads.raspberrypi.org/raspbian_latest"
+    cur_rel=$(curl -sIL $img_url | 
+        grep -o -E "[0-9]{4}-[0-9]{2}-[0-9]{2}-raspbian-[a-z,A-Z]*.{1}[a-z]*.zip" | head -1 | cut -d'.' -f1)
     
     # Check to see if any images exist in script dir already
-    found_img_file=$(ls -lc *raspbian*-lite.img 2>>/dev/null | awk '{print $9}')
-    found_img_zip=$(ls -lc *raspbian*-lite.zip 2>>/dev/null | awk '{print $9}')
+    found_img_file=$(ls -lc *raspbian*.img 2>>/dev/null | awk '{print $9}')
+    found_img_zip=$(ls -lc *raspbian*.zip 2>>/dev/null | awk '{print $9}')
     # img_file=$(ls -lc "${found_img_file}.img" 2>>/dev/null | awk '{print $9}')
     
     # If img or zip raspbian-lite image exists in script dir see if it is current
@@ -186,12 +197,12 @@ main() {
         [[ $retry > 3 ]] && echo "Exceeded retries exiting " && exit 1
         echo "downloading image from raspberrypi.org.  Attempt: ${retry}"
         # curl -JLO https://downloads.raspberrypi.org/raspbian_lite_latest
-        wget -q https://downloads.raspberrypi.org/raspbian_lite_latest -O ${cur_rel}.zip
+        wget -q $img_url -O ${cur_rel}.zip
         do_unzip "${cur_rel}.zip"
         ((retry++))
     done
    
-    # Burn Raspian image to device (micro-sd)
+    # ---- // Burn Raspian image to device (micro-sd) \\ ----
     echo -e "\n\n!!! Last chance to abort !!!"
     prompt="About to burn '${img_file}' to ${my_usb}, Continue?" 
     get_input
@@ -225,9 +236,9 @@ main() {
         echo -e "Configuring wpa_supplicant.conf | defining ${ssid}"
         sudo echo "country=${wlan_country}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         sudo echo "network={" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "        ssid=\"${ssid}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "        psk=\"${psk}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        [[ $priority > 0 ]] && sudo echo "        priority=${priority}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+        sudo echo "    ssid=\"${ssid}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+        sudo echo "    psk=\"${psk}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+        [[ $priority > 0 ]] && sudo echo "    priority=${priority}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
     else
         echo -e "  ~ Script Option to pre-config psk ssid not enabled"

@@ -321,7 +321,7 @@ get_pi_info_pretty() {
         hw_array["b03111"]="Raspberry Pi 4 Model B  hw rev 1.1  2 GB  (Mfg by Sony)"
         hw_array["c03111"]="Raspberry Pi 4 Model B  hw rev 1.1  4 GB  (Mfg by Sony)"
     fi            
-    $compat_bash && echo echo ${hw_array["$1"]} || echo $1
+    $compat_bash && echo ${hw_array["$1"]} || echo $1
 }
 
 # Gather Some info about the Pi useful in triage of issues

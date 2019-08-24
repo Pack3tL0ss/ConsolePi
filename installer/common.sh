@@ -300,3 +300,9 @@ get_pi_info() {
 
     echo $version running on $cpu Revision: $rev
 }
+
+convert_template() {
+    /etc/ConsolePi/j2render.py "$@"
+    file_diff_update /tmp/${1} $2
+    rm /tmp/${1} >/dev/null 2>>$log_file
+}

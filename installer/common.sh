@@ -5,7 +5,7 @@
 # Last Update: June 4 2019
 
 # -- Installation Defaults --
-INSTALLER_VER=30
+INSTALLER_VER=32
 CFG_FILE_VER=5
 cur_dir=$(pwd)
 iam=$(who | awk '{print $1}')
@@ -349,4 +349,18 @@ convert_template() {
     /etc/ConsolePi/j2render.py "$@"
     file_diff_update /tmp/${1} $2
     rm /tmp/${1} >/dev/null 2>>$log_file
+}
+
+do_systemd_enable_load_start() {
+    status=$(sudo systemctl is-enabled $1 >/dev/null || echo unknown)
+    if [ $status == "disabled" ]; then
+        sudo systemctl enable $1 1>/dev/null 2>> $log_file  && logit "${1} systemd unit file enabled" || 
+                    logit "FAILED to enable ${1} systemd unit file" "WARNING"
+    elif [ $status == "unknown" ]; then
+        logit "$1 unit file not found check logs" "ERROR"  # exit installer
+    fi
+    # Will only exectue if systemd script enabled
+    sudo systemctl daemon-reload 2>> $log_file || logit "daemon-reload failed, check logs" "WARNING"
+    sudo systemctl stop $1 >/dev/null 2>&1
+    sudo systemctl start $1 1>/dev/null 2>> $log_file
 }

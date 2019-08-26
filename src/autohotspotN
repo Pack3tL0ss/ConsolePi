@@ -32,6 +32,15 @@ ethdev="eth0" #Ethernet port to use with IP tables
 
 IFSdef=$IFS
 cnt=0
+# Terminal coloring
+_norm='\e[0m'
+_bold='\033[1;32m'
+_blink='\e[5m'
+_red='\e[31m'
+_blue='\e[34m'
+_lred='\e[91m'
+_yellow='\e[33;1m'
+_green='\e[32m'
 #These four lines capture the wifi networks the RPi is setup to use
 wpassid=$(awk '/ssid="/{ print $0 }' /etc/wpa_supplicant/wpa_supplicant.conf | awk -F'ssid=' '{ print $2 }' ORS=',' | sed 's/\"/''/g' | sed 's/,$//')
 IFS=","

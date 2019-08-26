@@ -2,11 +2,11 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script Stage 2                                                       -- #
-# --  Wade Wells - Jul 2019                                                                                                                      -- #
+# --  Wade Wells - Aug 2019                                                                                                                      -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
-# --  For manual setup instructions and more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                -- #
+# --  For more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                                              -- #
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
@@ -47,7 +47,6 @@ get_config() {
         echo "wlan_country=\"US\"                        # regulatory domain for hotspot SSID" >> "${default_config}"
         echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
         echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
-        # echo 'api=true                                                      # API used so ConsolePis can update other DHCP Discovery' >> "${default_config}"
         echo 'power=false                                                    # Adds support for Power Outlet control' >> "${default_config}"
         echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
         header
@@ -134,8 +133,12 @@ update_config() {
     echo "wlan_country=\"${wlan_country}\"                                               # regulatory domain for hotspot SSID" >> "${default_config}"
     echo "cloud=${cloud}                                                      # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
     echo "cloud_svc=\"${cloud_svc}\"                                              # Future - only Google Drive / Google Sheets supported currently - must be \"gdrive\"" >> "${default_config}"
-    # echo "api=${api}                                                           # API used so ConsolePis can update other DHCP Discovery" >> "${default_config}"
     echo "power=${power}                                                     # Adds support for Power Outlet Control" >> "${default_config}"
+}
+
+# Update Config overrides: write any supported custom override variables back to file
+update_config_overrides() {
+    [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}                                                     # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
     echo "debug=${debug}                                                     # turns on additional debugging" >> "${default_config}"
 }
 
@@ -270,38 +273,15 @@ collect() {
         wlan_country=$result
     fi
 
-
     # -- cloud --
     if ! $selected_prompts || [ -z $cloud ]; then
         header
         [ -z $cloud ] && cloud=false
         user_input $cloud "Do you want to enable ConsolePi Cloud Sync with Gdrive"
         cloud=$result
-        cloud_svc="gdrive"
+        cloud_svc="gdrive" # only supporting gdrive for cloud sync
     fi
-
-    # TODO - FUTURE - Currently it's on, but not used
-    # -- api --
-    # header
-    # echo "ConsolePi has an API used for ConsolePis to exchange information"
-    # echo "This is used for the DHCP automated Discovery.  i.e.: "
-    # echo "    ConsolePiA acting as a hotspot"
-    # echo "    ConsolePiB Connects to ConsolePiA via Hotspot"
-    # echo "    ConsolePiA will automatically push/pull info to/from ConsolePiB via the API"
-    # echo "In this scenario you can connect to either ConsolePi and the consolepi-menu will display"
-    # echo "menu items for serial connections on both ConsolePi(s)"
-    # echo ''
-    # prompt="Do you want to enable ConsolePi API"
-    # user_input $api "${prompt}"
-    # api=$result
-
-    # Future gdrive google sheets is only one supported currently likely ever, no need as gdrive works
-    # -- cloud-svc --
-    # header
-    # prompt="What Cloud Service will you use"
-    # cloud_svc_menu $cloud_svc "${prompt}"
-    # cloud_svc=$result
-    
+   
     # -- power Control --
     if ! $selected_prompts || [ -z $power ]; then
         header
@@ -708,14 +688,8 @@ ovpn_graceful_shutdown() {
 }
 
 install_autohotspotn () {
-    # Can Remove portions of this and remove file in /usr/bin/ have pointed everything directly to the file in the repo
     process="AutoHotSpotN"
     logit "Install/Update AutoHotSpotN"
-    # file_diff_update ${src_dir}autohotspotN /usr/bin/autohotspotN
-    # [[ $? == 0 ]] && logit "Create/Update autohotspotN script Success" || logit "Failed to create autohotspotN script" "WARNING"
-        
-    # chmod +x /usr/bin/autohotspotN 1>/dev/null 2>> $log_file ||
-    #     logit "Failed to chmod autohotspotN script" "WARNING"
     
     systemd_diff_update autohotspot
     logit "Enabling Startup script."
@@ -724,8 +698,6 @@ install_autohotspotn () {
     logit "Failed to enable autohotspot.service" "WARNING"
 
     logit "Installing hostapd via apt."
-    # hostapd -v > /dev/null 2>&1
-    # if [ $? -gt 1 ]; then
     if ! $(which hostapd >/dev/null); then
         apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
             logit "hostapd install Success" ||
@@ -746,85 +718,43 @@ install_autohotspotn () {
     fi
     
     logit "disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)."
-    sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file && logit "hostapd.service unmasked" || logit "failed to unmask hostapd.service" "WARNING"
+    sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file && logit "ensured hostapd.service is unmasked" || logit "failed to unmask hostapd.service" "WARNING"
     sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file && res=$?
     sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file && ((res=$?+$res))
     [[ $res == 0 ]] && logit "hostapd and dnsmasq autostart disabled Successfully" ||
-        logit "An error occurred disabling hostapd and/or dnsmasq autostart" "WARNING"
+        logit "An error occurred disabling hostapd and/or dnsmasq autostart - verify after install" "WARNING"
 
     logit "Create/Configure hostapd.conf"
     convert_template hostapd.conf /etc/hostapd/hostapd.conf wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_country=${wlan_country}
     sudo chmod +r /etc/hostapd/hostapd.conf 2>> $log_file || logit "Failed to make hostapd.conf readable - verify after install" "WARNING"
     
-    logit "Making changes to /etc/hostapd/hostapd.conf"
-    [[ -f "/etc/default/hostapd" ]] && mv "/etc/default/hostapd" "${bak_dir}" 
-    echo "# Defaults for hostapd initscript" > "/tmp/hostapd"
-    echo "#" >> "/tmp/hostapd"
-    echo "# See /usr/share/doc/hostapd/README.Debian for information about alternative" >> "/tmp/hostapd"
-    echo "# methods of managing hostapd." >> "/tmp/hostapd"
-    echo "#" >> "/tmp/hostapd"
-    echo "# Uncomment and set DAEMON_CONF to the absolute path of a hostapd configuration" >> "/tmp/hostapd"
-    echo "# file and hostapd will be started during system boot. An example configuration" >> "/tmp/hostapd"
-    echo "# file can be found at /usr/share/doc/hostapd/examples/hostapd.conf.gz" >> "/tmp/hostapd"
-    echo "#" >> "/tmp/hostapd"
-    echo "DAEMON_CONF=\"/etc/hostapd/hostapd.conf\"" >> "/tmp/hostapd"
-    echo "" >> "/tmp/hostapd"
-    echo "# Additional daemon options to be appended to hostapd command:-" >> "/tmp/hostapd"
-    echo "#       -d   show more debug messages (-dd for even more)" >> "/tmp/hostapd"
-    echo "#       -K   include key data in debug messages" >> "/tmp/hostapd"
-    echo "#       -t   include timestamps in some debug messages" >> "/tmp/hostapd"
-    echo "#" >> "/tmp/hostapd"
-    echo "# Note that -B (daemon mode) and -P (pidfile) options are automatically" >> "/tmp/hostapd"
-    echo "# configured by the init.d script and must not be added to DAEMON_OPTS." >> "/tmp/hostapd"
-    echo "#" >> "/tmp/hostapd"
-    echo "#DAEMON_OPTS=\"\"" >> "/tmp/hostapd"
-    mv /tmp/hostapd /etc/default && \
-        logit "Changes to /etc/hostapd/hostapd.conf made successfully" ||
-        logit "Error making Changes to /etc/hostapd/hostapd.conf" "WARNING"
-    
-    logit "Verifying interface file."
-    int_line=`cat /etc/network/interfaces |grep -v '^$\|^\s*\#'`
-    if [[ ! "${int_line}" == "source-directory /etc/network/interfaces.d" ]]; then
-        echo "# interfaces(5) file used by ifup(8) and ifdown(8)" >> "/tmp/interfaces"
-        echo "# Please note that this file is written to be used with dhcpcd" >> "/tmp/interfaces"
-        echo "# For static IP, consult /etc/dhcpcd.conf and 'man dhcpcd.conf'" >> "/tmp/interfaces"
-        echo "# Include files from /etc/network/interfaces.d:" >> "/tmp/interfaces"
-        echo "source-directory /etc/network/interfaces.d" >> "/tmp/interfaces"
-        mv /etc/network/interfaces "${bak_dir}" 1>/dev/null 2>> $log_file ||
-            logit "Failed to backup original interfaces file" "WARNING"
-        mv "/tmp/interfaces" "/etc/network/" 1>/dev/null 2>> $log_file ||
-            logit "Failed to move interfaces file" "WARNING"
+    file_diff_update ${src_dir}hostapd /etc/default/hostapd
+    file_diff_update ${src_dir}interfaces /etc/network/interfaces
+
+    # update hosts file based on supplied variables - this comes into play for devices connected to hotspot (dnsmasq will be able to resolve hostname to wlan IP)
+    if [ -z $local_domain ]; then
+        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=${head -1 /etc/hostname}
+    else
+        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=${head -1 /etc/hostname} domain=${local_domain}
     fi
 
-    # logit "Creating Startup script."
-    # echo "[Unit]" > "/tmp/autohotspot.service"
-    # echo "Description=Automatically generates an internet Hotspot when a valid ssid is not in range" >> "/tmp/autohotspot.service"
-    # echo "After=multi-user.target" >> "/tmp/autohotspot.service"
-    # echo "[Service]" >> "/tmp/autohotspot.service"
-    # echo "Type=oneshot" >> "/tmp/autohotspot.service"
-    # echo "RemainAfterExit=yes" >> "/tmp/autohotspot.service"
-    # echo "ExecStart=/usr/bin/autohotspotN" >> "/tmp/autohotspot.service"
-    # echo "[Install]" >> "/tmp/autohotspot.service"
-    # echo "WantedBy=multi-user.target" >> "/tmp/autohotspot.service"
-    # mv "/tmp/autohotspot.service" "/etc/systemd/system/" 1>/dev/null 2>> $log_file ||
-    #         logit "Failed to create autohotspot.service init" "WARNING"
-    # logit "Enabling Startup script."
-    # systemctl enable autohotspot.service 1>/dev/null 2>> $log_file &&
-    #     logit "Successfully enabled autohotspot.service" ||
-    #     logit "Failed to enable autohotspot.service" "WARNING"
-    
     logit "Verify iw is installed on system."
-    if [[ ! $(dpkg -l iw | tail -1 |cut -d" " -f1) == "ii" ]]; then
+    which iw >/dev/null 2>&1 && iw_ver=$(iw --version 2>/dev/null | awk '{print $3}') || iw_ver=0
+    if [ $iw_ver == 0 ]; then
         logit "iw not found, Installing iw via apt."
-        ( apt-get -y install iw 1>/dev/null 2>> $log_file && logit "iw installed Successfully" &&  iw_inst=true ) || 
+        ( sudo apt-get -y install iw 1>/dev/null 2>> $log_file && logit "iw installed Successfully" ) || 
             logit "FAILED to install iw" "WARNING"
     else
-        logit "iw is already installed/current."
+        logit "iw $iw_ver already installed/current."
     fi
         
     logit "Enable IP-forwarding (/etc/sysctl.conf)"
+    if $(! grep -q net.ipv4.ip_forward=1 /etc/sysctl.conf); then
     sed -i '/^#net\.ipv4\.ip_forward=1/s/^#//g' /etc/sysctl.conf 1>/dev/null 2>> $log_file && logit "Enable IP-forwarding - Success" ||
         logit "FAILED to enable IP-forwarding verify /etc/sysctl.conf 'net.ipv4.ip_forward=1'" "WARNING"
+    else
+        logit "ip forwarding already enabled"
+    fi
     
     logit "${process} Complete"
     unset process
@@ -833,54 +763,14 @@ install_autohotspotn () {
 gen_dnsmasq_conf () {
     process="Configure dnsmasq"
     logit "Generating Files for dnsmasq."
-    echo "# dnsmasq configuration created by ConsolePi installer" > /tmp/dnsmasq.conf
-    echo "# modifications can be made but the 'dhcp-option-wlan0,3' line needs to exist" >> /tmp/dnsmasq.conf
-    echo "# for the default-gateway on/off based on eth0 status function to work" >> /tmp/dnsmasq.conf
-    echo "dhcp-script=/etc/ConsolePi/src/dhcp-trigger.py" >> /tmp/dnsmasq.conf
-    common_text="interface=wlan0\nbogus-priv\ndomain-needed\ndhcp-range=${wlan_dhcp_start},${wlan_dhcp_end},255.255.255.0,12h\ndhcp-option=wlan0,3\n"
-    echo -e "$common_text" >> /tmp/dnsmasq.conf
-    [[ -f "/etc/dnsmasq.conf" ]] && mv "/etc/dnsmasq.conf" $bak_dir && logit "Existing dnsmasq.conf backed up to originals folder"
-    mv "/tmp/dnsmasq.conf" "/etc/dnsmasq.conf" 1>/dev/null 2>> $log_file ||
-            logit "Failed to Deploy ConsolePi dnsmasq.conf configuration" "WARNING"
+    convert_template dnsmasq.conf /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
     unset process
 }
 
 dhcpcd_conf () {
     process="dhcpcd.conf"
     logit "configure dhcp client and static fallback"
-    [[ -f /etc/dhcpcd.conf ]] && sudo mv /etc/dhcpcd.conf $bak_dir
-    sudo cp /etc/ConsolePi/src/dhcpcd.conf /etc/dhcpcd.conf 1>/dev/null 2>> $log_file
-    res=$?
-    if [[ $res == 0 ]]; then
-        echo "" >> "/etc/dhcpcd.conf"
-        echo "# wlan static fallback profile" >> "/etc/dhcpcd.conf"
-        echo "profile static_wlan0" >> "/etc/dhcpcd.conf"
-        echo "static ip_address=${wlan_ip}/24" >> "/etc/dhcpcd.conf"
-        echo "" >> "/etc/dhcpcd.conf"
-        echo "# wired static fallback profile" >> "/etc/dhcpcd.conf"
-        echo "# defined - currently commented out/disabled" >> "/etc/dhcpcd.conf"
-        echo "profile static_eth0" >> "/etc/dhcpcd.conf"
-        echo "static ip_address=192.168.25.10/24" >> "/etc/dhcpcd.conf"
-        echo "static routers=192.168.25.1" >> "/etc/dhcpcd.conf"
-        echo "static domain_name_servers=1.0.0.1 8.8.8.8" >> "/etc/dhcpcd.conf"
-        echo "" >> "/etc/dhcpcd.conf"
-        echo "# Assign fallback to static profile on wlan0" >> "/etc/dhcpcd.conf"
-        echo "interface wlan0" >> "/etc/dhcpcd.conf"
-        echo "fallback static_wlan0" >> "/etc/dhcpcd.conf"
-        echo "# For ConsolePi Discovery via DHCP" >> "/etc/dhcpcd.conf"
-        echo 'vendorclassid "dhcpcd:ConsolePi"' >> "/etc/dhcpcd.conf"
-        echo "interface eth0" >> "/etc/dhcpcd.conf"
-        echo "# fallback static_eth0" >> "/etc/dhcpcd.conf"
-        echo "# For ConsolePi Discovery via DHCP" >> "/etc/dhcpcd.conf"
-        echo 'vendorclassid "dhcpcd:ConsolePi"' >> "/etc/dhcpcd.conf"
-        echo "" >> "/etc/dhcpcd.conf"
-        echo "#For AutoHotkeyN" >> "/etc/dhcpcd.conf"
-        echo "nohook wpa_supplicant" >> "/etc/dhcpcd.conf"
-        logit "Process Completed Successfully"
-    else
-        logit "Error Code (${res}) returned when attempting to mv dhcpcd.conf from ConsolePi src"
-        logit "Verify dhcpcd.conf and configure manually after install completes"
-    fi
+    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip}
     unset process
 }
 
@@ -888,39 +778,14 @@ do_blue_config() {
     process="Bluetooth Console"
     logit "${process} Starting"
     ## Some Sections of the bluetooth configuration from https://hacks.mozilla.org/2017/02/headless-raspberry-pi-configuration-over-bluetooth/
-    ## Edit /lib/systemd/system/bluetooth.service
-    sudo sed -i: 's|^Exec.*toothd$| \
-    ExecStart=/usr/lib/bluetooth/bluetoothd -C --noplugin=sap\
-    ExecStartPost=/usr/bin/sdptool add SP \
-    ExecStartPost=/bin/hciconfig hci0 piscan \
-    |g' /lib/systemd/system/bluetooth.service
+    file_diff_update ${src_dir}systemd/bluetooth.service /lib/systemd/system/bluetooth.service
 
     # create /etc/systemd/system/rfcomm.service to enable 
     # the Bluetooth serial port from systemctl
-
     systemd_diff_update rfcomm
 
-# sudo cat <<EOF | sudo tee /etc/systemd/system/rfcomm.service > /dev/null
-# [Unit]
-# Description=RFCOMM service
-# After=bluetooth.service
-# Requires=bluetooth.service
-
-# [Service]
-# ExecStart=/usr/bin/rfcomm watch hci0 1 setsid /sbin/agetty -L rfcomm0 115200 vt100 -a blue
-
-# [Install]
-# WantedBy=multi-user.target
-# EOF
-
-
     # enable the new rfcomm service
-    sudo systemctl enable rfcomm 1>/dev/null 2>> $log_file  && logit "rfcomm systemd script enabled" || 
-                logit "FAILED to enable rfcomm systemd script" "WARNING"
-
-    # start the rfcomm service
-    sudo systemctl stop rfcomm 1>/dev/null 2>> $log_file 
-    sudo systemctl start rfcomm 1>/dev/null 2>> $log_file 
+    do_systemd_enable_load_start rfcomm
        
     # add blue user and set to launch menu on login
     if [[ ! $(cat /etc/passwd | grep -o blue | sort -u) ]]; then
@@ -932,7 +797,7 @@ do_blue_config() {
     fi
     
     # add blue user to dialout group so they can access /dev/ttyUSB_ devices 
-    #   and consolepi group so they can access logs and data files for ConsolePi
+    #   and to consolepi group so they can access logs and data files for ConsolePi
     for group in dialout consolepi; do
         if [[ ! $(groups blue | grep -o $group) ]]; then
         sudo usermod -a -G $group blue 2>> $log_file && logit "BlueTooth User added to ${group} group" || 
@@ -941,6 +806,12 @@ do_blue_config() {
             logit "BlueTooth User already in ${group} group" 
         fi
     done
+
+    # Give Blue user limited sudo rights to consolepi-commands
+    [ ! -f /etc/sudoers.d/010_blue-consolepi ] &&
+        echo 'blue ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*' > /etc/sudoers.d/010_blue-consolepi && 
+        logit "BlueTooth User given sudo rights for consolepi-commands" || 
+        logit "FAILED to give Bluetooth user limited sudo rights" "WARNING"
 
     # Configure blue user default tty cols/rows
     if [[ ! $(sudo grep stty /home/blue/.bashrc) ]]; then
@@ -987,15 +858,15 @@ do_blue_config() {
 # Create or Update ConsolePi API startup service (systemd)
 do_consolepi_api() {
     process="Configure/Enable ConsolePi API (systemd)"
-    systemd_diff_update "consolepi-api"
+    systemd_diff_update consolepi-api
     unset process
 }
 
 # Create or Update ConsolePi mdns startup service (systemd)
 do_consolepi_mdns() {
     process="Configure/Enable ConsolePi mDNS services (systemd)"
-    systemd_diff_update "consolepi-mdnsreg"
-    systemd_diff_update "consolepi-mdnsbrowse"
+    systemd_diff_update consolepi-mdnsreg
+    systemd_diff_update consolepi-mdnsbrowse
     unset process
 }
 
@@ -1078,14 +949,13 @@ get_known_ssids() {
 
 do_consolepi_commands() {
     process="Remove old consolepi-commands from /usr/local/bin"
-    logit "${process} - Starting"
     if [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -ne 0 ]; then
         sudo rm /usr/local/bin/consolepi-* > /dev/null 2>&1
         sudo unlink /usr/local/bin/consolepi-* > /dev/null 2>&1
-    else
-        logit "None Found, we're good."   
+        [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -eq 0 ] &&
+            logit "Success - Removing convenience command links created by older version" ||
+            logit "Failure - Verify old consolepi-command scripts/symlinks were removed from /usr/local/bin after the install" "WARNING"  
     fi
-    logit "${process} - Complete"
 
     process="Update PATH for consolepi-commands"
     [ $(grep -c "consolepi-commands" /etc/profile) -eq 0 ] && 
@@ -1105,7 +975,7 @@ misc_stuff() {
 
 get_serial_udev() {
     process="Predictable Console Ports"
-    logit "${process} Starting."
+    logit "${process} Starting"
     header
     
     # -- if pre-stage file provided during install enable it --
@@ -1113,9 +983,7 @@ get_serial_udev() {
         found_path=$(get_staged_file_path "10-ConsolePi.rules")
         if [[ $found_path ]]; then
             logit "udev rules file found ${found_path} enabling provided udev rules"
-            # [[ -f /etc/udev/rules.d/10-ConsolePi.rules ]] && cp /etc/udev/rules.d/10-ConsolePi.rules $bak_dir
             if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
-                # logit "udev rules file found ${found_path} enabling provided udev rules"
                 file_diff_update $found_path /etc/udev/rules.d
             else
                 sudo cp $found_path /etc/udev/rules.d
@@ -1170,6 +1038,10 @@ post_install_msg() {
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mNext Steps/Info$*\033[m                                                                                                       *"
     echo "*                                                                                                                       *"
+    echo -e "* \033[1;32mCloud Sync:$*\033[m                                                                                                           *"
+    echo "*   if you plan to use cloud sync.  You will need to do some setup on the Google side and Authorize ConsolePi           *"
+    echo "*   refer to the GitHub for more details                                                                                *"
+    echo "*                                                                                                                       *"
     echo -e "* \033[1;32mOpenVPN:$*\033[m                                                                                                              *"
     echo "*   if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and ovpn_credentials files in    *"
     echo "*   /etc/openvpn/client.  Refer to the example ovpn file as there are a couple of lines specific to ConsolePi           *"
@@ -1177,9 +1049,9 @@ post_install_msg() {
     echo "*     You should \"sudo chmod 600 <filename>\" both of the files for added security                                       *"
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mser2net Usage:$*\033[m                                                                                                        *"
-    echo "*   Serial Ports are available starting with telnet port 8001 to 8005 incrementing with each adapter plugged in.        *"
-    echo "*   if you configured predictable ports for specific serial adapters those start with 7001 - (no max) label the         *"
-    echo "*   adapters appropriately.                                                                                             *"
+    echo "*   Serial Ports are available starting with telnet port 8001 (ttyUSB#) or 9001 (ttyACM#) incrementing with each        *"
+    echo "*   adapter plugged in.  if you configured predictable ports for specific serial adapters those start with 7001.        *"
+    echo "*   **OR** just launch the consolepi-menu for a menu w/ detected adapters                                               *"
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
     echo "*                                                                                                                       *"
@@ -1191,13 +1063,15 @@ post_install_msg() {
     echo "*   NOTE: The Console Menu is available from any shell session (bluetooth or SSH) via the consolepi-menu command        *"
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mLogging:$*\033[m                                                                                                              *"
-    echo "*   The bulk is sent to syslog. the tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest.      *"
+    echo "*   The bulk of logging for remote discovery, adapter detection cloud updates... end up in /var/log/ConsolePi/cloud.log *"
+    echo "*   The tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest in syslog                         *"
     echo "*   - openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn   *"
     echo "*   - pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log                *"
     echo "*   - An install log can be found in ${consolepi_dir}installer/install.log                                               *"
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mConsolePi Commands:$*\033[m                                                                                                   *"
-    echo "*   - consolepi-upgrade: upgrade consolepi. - using install script direct from repo | ser2net upgrade bypassed for now  *"
+    echo "*   **Refer to the GitHub for the most recent complete list**                                                           *"
+    echo "*   - consolepi-upgrade: upgrade ConsolePi. - supported update method.                                                  *"
     echo "*   - consolepi-addssids: Add additional known ssids. same as doing sudo /etc/ConsolePi/ssids.sh                        *"
     echo "*   - consolepi-addconsole: Configure serial adapter to telnet port rules. same as doing sudo /etc/ConsolePi/udev.sh    *"
     echo "*   - consolepi-menu: Launch Console Menu which will provide connection options for connected serial adapters           *"
@@ -1209,6 +1083,9 @@ post_install_msg() {
     echo "*       Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa.                 *"
     echo "*   - consolepi-bton: Make BlueTooth Discoverable and Pairable - this is the default behavior on boot.                  *"
     echo "*   - consolepi-btoff: Disable BlueTooth Discoverability.  You can still connect if previously paired.                  *"
+    echo "*   - consolepi-details: Refer to GitHub for usage, but in short dumps the data the ConsolePi would run with based      *"
+    echo "*       on configuration, discovery, etc.  Dumps everything if no args,                                                 *"
+    echo "*        valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail       *"
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${INSTALLER_VER}**************************************************************************************"
     echo -e "\n\n"
@@ -1228,13 +1105,14 @@ install2_main() {
     # pre_git_prep
     # gitConsolePi
     get_config
-    upgrade_prep
+    # upgrade_prep
     ! $bypass_verify && verify
     while ! $input; do
         collect
         verify
     done
     update_config
+    update_config_overrides
     if ! $upgrade; then
         chg_password
         set_hostname

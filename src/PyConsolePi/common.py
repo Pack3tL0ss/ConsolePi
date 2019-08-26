@@ -57,9 +57,9 @@ class ConsolePi_data:
         for key, value in config.items():
             if type(value) == str:
                 exec('self.{} = "{}"'.format(key, value))
-            elif type(value) == bool:
+            else:
                 exec('self.{} = {}'.format(key, value))
-                # from globals
+        # from globals
         for key, value in globals().items():
             if type(value) == str:
                 exec('self.{} = "{}"'.format(key, value))
@@ -85,33 +85,37 @@ class ConsolePi_data:
     def get_config_all(self):
         with open('/etc/ConsolePi/ConsolePi.conf', 'r') as config:
             for line in config:
-                if 'ConsolePi Configuration File ver' not in line:
-                    var = line.split("=")[0]
-                    value = line.split('#')[0]
-                    value = value.replace('{0}='.format(var), '')
-                    value = value.split('#')[0]
-                    if '"' in value:
-                        value = value.replace('"', '', 1)
-                        value = value.split('"')
-                        value = value[0]
-                    
-                    if 'true' in value.lower() or 'false' in value.lower():
-                        value = True if 'true' in value.lower() else False
-                        
-                    locals()[var] = value
+                var = line.split("=")[0]
+                value = line.split('#')[0]
+                value = value.replace('{0}='.format(var), '')
+                value = value.split('#')[0].replace(' ', '')
+                value = value.replace('\t', '')
+                if '"' in value:
+                    value = value.replace('"', '', 1)
+                    value = value.split('"')[0]
+                
+                if 'true' in value.lower() or 'false' in value.lower():
+                    value = True if 'true' in value.lower() else False
+                
+                if isinstance(value, str):
+                    try:
+                        value = int(value)
+                    except ValueError:
+                        pass
+                locals()[var] = value
         ret_data = locals()
-        ret_data.pop('config')
-        ret_data.pop('line')
+        for key in ['self', 'config', 'line', 'var', 'value']:
+            ret_data.pop(key)
         return ret_data
 
     # TODO run get_local in blocking thread abort additional calls if thread already running
     def get_local(self, do_print=True):
         log = self.log
-        # plog = self.plog
+        plog = self.plog
         context = pyudev.Context()
 
         # plog('Detecting Locally Attached Serial Adapters')
-        log.info('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
+        plog('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
 
         # -- Detect Attached Serial Adapters and linked power outlets if defined --
         final_tty_list = []
@@ -167,9 +171,10 @@ class ConsolePi_data:
                                 tty_dev.replace('/dev/', ''), tty_port, baud, dbits, parity.upper(), flow.upper()))
                             break
             else:
-                log.error('No ser2net.conf file found unable to extract port definition')
-                if do_print:
-                    print('No ser2net.conf file found unable to extract port definition')
+                plog('No ser2net.conf file found unable to extract port definition', level='error')
+                # log.error('No ser2net.conf file found unable to extract port definition')
+                # if do_print:
+                #     print('No ser2net.conf file found unable to extract port definition')
 
             if tty_port == 9999:
                 log.error('No ser2net.conf definition found for {}'.format(tty_dev))
@@ -179,7 +184,6 @@ class ConsolePi_data:
             else:
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
                         'parity': parity, 'flow': flow})       
-
         if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
             serial_list = self.get_outlet_data(serial_list)
 

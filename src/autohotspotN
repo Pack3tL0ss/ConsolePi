@@ -62,8 +62,9 @@ mac=()
 ssidsmac=("${ssids[@]}" "${mac[@]}") #combines ssid and MAC for checking
 
 get_ssid_details() {
+       wlan_ip_addr=$(wpa_cli -i $wifidev status | grep ip_address | cut -d'=' -f2)
        which iwgetid >/dev/null &&
-       echo -e "$1 connected to ${_green}$(iwgetid $wifidev -r)${_norm} on AP $(iwgetid $wifidev -a | awk '{print $4}') using $(iwgetid $wifidev -f|awk '{print $2}')" ||
+       echo -e "$1 connected to ${_green}$(iwgetid $wifidev -r)${_norm} with IP ${wlan_ip_addr} AP $(iwgetid $wifidev -a | awk '{print $4}') using $(iwgetid $wifidev -f|awk '{print $2}')" ||
        echo "$HOSTNAME is connected to a valid SSID"
 }
 

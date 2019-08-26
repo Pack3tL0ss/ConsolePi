@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+for svc in consolepi-mdnsbrowse consolepi-mdnsreg consolepi-api autohotspot ser2net; do 
+  echo -e "\n---------------- // STATUS OF ${svc}.service \\\\ ---------------"
+  systemctl status $svc              
+done
+
+[ ! -z $1 ] && [ $1 == 'log' ] &&
+  echo "---------------- // ERRORS from log file \\\\ ---------------" &&
+  cat /var/log/ConsolePi/cloud.log | grep -v INFO

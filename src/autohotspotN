@@ -34,7 +34,7 @@ IFS=","
 ssids=($wpassid)
 IFS=$IFSdef #reset back to defaults
 # Number of seconds the script will pause after wifi is enabled before checking to see if it successfully connected.
-wait_time=20
+[ -z $wlan_wait_time ] && wlan_wait_time=20
 
 
 #Note:If you only want to check for certain SSIDs

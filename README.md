@@ -48,13 +48,14 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
 # What's New
 - Added a What's New Section to the ReadMe and highlighted that I'm a smart ass by noting it in the What's New Section.
 - ConsolePi remote discovery via mdns, or sync to Google Drive
-- Power Outlet Control, via relay attached to GPIO.  Power on automatically when attempting to connect to console session (via consolepi-menu)
-- consolepi-menu adapter connection parameters (baud, flow, parity, data-bits) is now extracted from the associated definition in ser2net.conf if one exists, if it doesn't defaults are used (which can be changed via menu option c)
+- Power Outlet Control, via relay attached to GPIO or network connected tasmota flashed wifi smart-outlet.  Power on automatically when attempting to connect to console session (via `consolepi-menu`), or toggle via power sub-menu (`consolepi-menu`)
+- consolepi-menu adapter connection parameters (baud, flow, parity, data-bits) are now extracted from the associated definition in ser2net.conf if one exists, if it doesn't defaults are used (which can be changed via menu option c)
 - Added new option 's' to menu which allows you to connect to the shell on any reachable remote ConsolePis
 - Added new quick commands and an option to delete a remote ConsolePi from the local cloud cache via ```consolepi-remotes```
     <br>**8/19/2019**
 - remote connections are now established through proxy script, which will prompt/kill a previous hung session.
     - Bonus, the proxy script also adds support for auto-power-on for devices linked to outlets on the remote system (having them appear in a power sub-menu will come later once I build out the API further)
+-  Added override function for most system files involved... So Custom system files won't be backed up and replaced during `consolepi-upgrade`
 
 # Features
 
@@ -446,7 +447,10 @@ There are a few convenience commands created for ConsolePi during the automated 
 
 Use ```consolepi-upgrade``` to upgrade ConsolePi.  Simply doing a git pull *may* occasionally work, but there are a lot of system files, etc. outside of the ConsolePi folder that are occasionally updated, those changes are made via the upgrade script.
 
-> Note manual changes to some system files may be overwritten during upgrade.  If that occurs, the original modified file is stashed in the `ConsolePi/bak` directory.
+### Custom overrides
+ConsolePi configures a number of system files elsewhere on the system.  If there is a need to create a custom one-off it's possible to do so simply by creating a file with the same name in /etc/ConsolePi/src/overrides/ directory.  For example:  ConsolePi configures rfcomm.service to enable bluetooth connections.  During upgrade that file is compared to the src template/file, if there are differences the original is backed up to /etc/ConsolePi/bak and the src template/file is used.  If a file with the name rfcomm.service exists in the override directory (this can be an empty file, it just has to exist), the upgrade process will just skip it.  It's then up to the user to manage the contents of the overriden system file.
+
+> Note: The override process should have nearly 100% coverage, but that still needs to be verified (feature was just added).  It's best to backup any customizations to system files involved in ConsolePi functionality.
 
 # Tested Hardware / Software
 

@@ -376,13 +376,13 @@ convert_template() {
 }
 
 do_systemd_enable_load_start() {
-    status=$(systemctl is-enabled ssh 2>&1)
-    if [ $status == "disabled" ]; then
+    status=$(systemctl is-enabled $1 2>&1)
+    if [ "$status" == "disabled" ]; then
         sudo systemctl enable $1 1>/dev/null 2>> $log_file  && logit "${1} systemd unit file enabled" || 
                     logit "FAILED to enable ${1} systemd unit file" "WARNING"
-    elif [ $status == "enabled" ]; then
+    elif [ "$status" == "enabled" ]; then
         logit "$1 unit file already enabled"
-    elif [[ $status =~ "No such file or directory" ]]; then
+    elif [[ "$status" =~ "No such file or directory" ]]; then
         logit "$1 unit file not found" "ERROR" 
     fi
     # Will only exectue if systemd script enabled

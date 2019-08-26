@@ -52,6 +52,12 @@ mac=()
 
 ssidsmac=("${ssids[@]}" "${mac[@]}") #combines ssid and MAC for checking
 
+get_ssid_details() {
+       which iwgetid >/dev/null &&
+       echo "Now connected to $(iwgetid $wifidev -r) on AP $(iwgetid $wifidev -a | awk '{print $4}') using $(iwgetid $wifidev -f|awk '{print $2}')" ||
+       echo "$HOSTNAME is connected to a valid SSID"
+}
+
 createAdHocNetwork()
 {
     echo "Creating Hotspot"
@@ -96,7 +102,7 @@ ChkWifiUp()
                wpa_cli terminate "$wifidev" >/dev/null 2>&1
 	       createAdHocNetwork
        else
-              "Now connected to $(iwgetid $wifidev -r) on AP $(iwgetid $wifidev -a | awk '{print $4}') using $(iwgetid $wifidev -f|awk '{print $2}')"
+              get_ssid_details
 	fi
 }
 
@@ -219,7 +225,8 @@ then
               ChkWifiUp
        elif { wpa_cli -i "$wifidev" status | grep 'ip_address'; } >/dev/null 2>&1
        then #Already connected
-              echo "Wifi already connected to a network"
+              # echo "Wifi already connected to a network"
+              get_ssid_details
        else #ssid exists and no hotspot running connect to wifi network
               echo "Connecting to the WiFi Network"
               wpa_supplicant -B -i "$wifidev" -c /etc/wpa_supplicant/wpa_supplicant.conf >/dev/null 2>&1

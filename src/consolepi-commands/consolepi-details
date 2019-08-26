@@ -8,12 +8,17 @@ from consolepi.power import Outlets
 config = ConsolePi_data(do_print=False)
 
 hostname = config.hostname
-adapters = config.get_local(do_print=False)
-interfaces = config.get_if_ips()
+# adapters = config.get_local(do_print=False)
+adapters = config.adapters
+# interfaces = config.get_if_ips()
+interfaces = config.interfaces
 outlets = Outlets().get_outlets()
-remotes = config.get_local_cloud_file()
-details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'outlets': outlets, 'user': 'pi'}, 'remotes': remotes}
-        
+# remotes = config.get_local_cloud_file()
+remotes = config.remotes
+# details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'outlets': outlets, 'user': 'pi'}, 'remotes': remotes}
+details = config.local
+details['remotes'] = remotes
+
 if len(sys.argv) > 1:
     if sys.argv[1] == 'adapters':
         print(json.dumps(adapters, indent=4, sort_keys=True))

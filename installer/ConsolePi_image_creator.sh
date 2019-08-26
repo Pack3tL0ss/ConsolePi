@@ -56,9 +56,6 @@ psk='ChangeMe!!'
 wlan_country="US"
 priority=0
 
-# -- Auto Launch ConsolePi installer when user logs in --
-auto_install=true
-
 # -- image selection --
 #   valid options are:
 #     'lite': Minimal image, no desktop environment
@@ -66,6 +63,9 @@ auto_install=true
 #     'full': Image with desktop and recommended software
 img_type='lite'
 img_only=false # if true only burn the image.  No pre-staging will be done, even if the files exist.  The script will stop after the SD Card is flashed
+
+# -- Auto Launch ConsolePi installer when user logs in --
+auto_install=true
 
 # Function to collect user input
 get_input() {

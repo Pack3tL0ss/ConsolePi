@@ -51,7 +51,7 @@ get_config() {
         echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
         header
         echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
-        echo "which will prompt you for each value. Enter n to exit the script, so you can modify the"
+        echo "which will prompt you for each value. Enter n to exit the script so you can modify the"
         echo "defaults directly then re-run the script."
         echo
         prompt="Continue in Interactive mode"
@@ -733,9 +733,9 @@ install_autohotspotn () {
 
     # update hosts file based on supplied variables - this comes into play for devices connected to hotspot (dnsmasq will be able to resolve hostname to wlan IP)
     if [ -z $local_domain ]; then
-        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=${head -1 /etc/hostname}
+        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname)
     else
-        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=${head -1 /etc/hostname} domain=${local_domain}
+        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
     fi
 
     logit "Verify iw is installed on system."
@@ -788,7 +788,7 @@ do_blue_config() {
     do_systemd_enable_load_start rfcomm
        
     # add blue user and set to launch menu on login
-    if [[ ! $(cat /etc/passwd | grep -o blue | sort -u) ]]; then
+    if $(! grep -q ^blue:.* /etc/passwd); then
         echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue 1>/dev/null 2>> $log_file && 
         logit "BlueTooth User created" || 
         logit "FAILED to create Bluetooth user" "WARNING"
@@ -857,14 +857,14 @@ do_blue_config() {
 
 # Create or Update ConsolePi API startup service (systemd)
 do_consolepi_api() {
-    process="Configure/Enable ConsolePi API (systemd)"
+    process="ConsolePi API (systemd)"
     systemd_diff_update consolepi-api
     unset process
 }
 
 # Create or Update ConsolePi mdns startup service (systemd)
 do_consolepi_mdns() {
-    process="Configure/Enable ConsolePi mDNS services (systemd)"
+    process="ConsolePi mDNS (systemd)"
     systemd_diff_update consolepi-mdnsreg
     systemd_diff_update consolepi-mdnsbrowse
     unset process

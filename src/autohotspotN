@@ -156,11 +156,11 @@ do
                 echo "Network Not available, trying again" $j
                 j=$((j + 1))
                 sleep 2
-	elif echo "$ssidreplay" | grep "Read-only file system (-30)" >/dev/null 2>&1 ; then
+	elif echo "$ssidreply" | grep "Read-only file system (-30)" >/dev/null 2>&1 ; then
 		echo "Temporary Read only file system, trying again"
 		j=$((j + 1))
 		sleep 2
-	elif echo "$ssidreplay" | grep "Invalid exchange (-52)" >/dev/null 2>&1 ; then
+	elif echo "$ssidreply" | grep "Invalid exchange (-52)" >/dev/null 2>&1 ; then
 		echo "Invalid Exchange ~ Transient Error, trying again"
 		j=$((j + 1))
 		sleep 2

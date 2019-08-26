@@ -9,6 +9,7 @@ INSTALLER_VER=32
 CFG_FILE_VER=5
 cur_dir=$(pwd)
 iam=$(who | awk '{print $1}')
+tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"
 bak_dir="${consolepi_dir}bak/"
@@ -22,10 +23,19 @@ default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log" 
 final_log="/var/log/ConsolePi/install.log"
-boldon="\033[1;32m"
-boldoff="$*\033[m"
 cloud_cache="/etc/ConsolePi/cloud.data"
 override_dir="/etc/ConsolePi/src/override"
+
+# Terminal coloring
+_norm='\e[0m'
+_bold='\033[1;32m'
+_blink='\e[5m'
+_red='\e[31m'
+_blue='\e[34m'
+_lred='\e[91m'
+_yellow='\e[33;1m'
+_green='\e[32m'
+_cyan='\e[96m' # technically light cyan
 
 # vpn_dest=$(sudo grep -G "^remote\s.*" /etc/openvpn/client/ConsolePi.ovpn | awk '{print $2}')
 
@@ -44,53 +54,65 @@ ser2net_source_version="3.5.1"
 # ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-4.0.tar.gz/download"
 consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
-
+# header reqs 144 cols to display properly
 header() {
     clear
-    echo "                                                                                                                                                ";
-    echo "                                                                                                                                                ";
-    echo "        CCCCCCCCCCCCC                                                                     lllllll                   PPPPPPPPPPPPPPPPP     iiii  ";
-    echo "     CCC::::::::::::C                                                                     l:::::l                   P::::::::::::::::P   i::::i ";
-    echo "   CC:::::::::::::::C                                                                     l:::::l                   P::::::PPPPPP:::::P   iiii  ";
-    echo "  C:::::CCCCCCCC::::C                                                                     l:::::l                   PP:::::P     P:::::P        ";
-    echo " C:::::C       CCCCCC   ooooooooooo   nnnn  nnnnnnnn        ssssssssss      ooooooooooo    l::::l     eeeeeeeeeeee    P::::P     P:::::Piiiiiii ";
-    echo "C:::::C               oo:::::::::::oo n:::nn::::::::nn    ss::::::::::s   oo:::::::::::oo  l::::l   ee::::::::::::ee  P::::P     P:::::Pi:::::i ";
-    echo "C:::::C              o:::::::::::::::on::::::::::::::nn ss:::::::::::::s o:::::::::::::::o l::::l  e::::::eeeee:::::eeP::::PPPPPP:::::P  i::::i ";
-    echo "C:::::C              o:::::ooooo:::::onn:::::::::::::::ns::::::ssss:::::so:::::ooooo:::::o l::::l e::::::e     e:::::eP:::::::::::::PP   i::::i ";
-    echo "C:::::C              o::::o     o::::o  n:::::nnnn:::::n s:::::s  ssssss o::::o     o::::o l::::l e:::::::eeeee::::::eP::::PPPPPPPPP     i::::i ";
-    echo "C:::::C              o::::o     o::::o  n::::n    n::::n   s::::::s      o::::o     o::::o l::::l e:::::::::::::::::e P::::P             i::::i ";
-    echo "C:::::C              o::::o     o::::o  n::::n    n::::n      s::::::s   o::::o     o::::o l::::l e::::::eeeeeeeeeee  P::::P             i::::i ";
-    echo " C:::::C       CCCCCCo::::o     o::::o  n::::n    n::::nssssss   s:::::s o::::o     o::::o l::::l e:::::::e           P::::P             i::::i ";
-    echo "  C:::::CCCCCCCC::::Co:::::ooooo:::::o  n::::n    n::::ns:::::ssss::::::so:::::ooooo:::::ol::::::le::::::::e        PP::::::PP          i::::::i";
-    echo "   CC:::::::::::::::Co:::::::::::::::o  n::::n    n::::ns::::::::::::::s o:::::::::::::::ol::::::l e::::::::eeeeeeeeP::::::::P          i::::::i";
-    echo "     CCC::::::::::::C oo:::::::::::oo   n::::n    n::::n s:::::::::::ss   oo:::::::::::oo l::::::l  ee:::::::::::::eP::::::::P          i::::::i";
-    echo "        CCCCCCCCCCCCC   ooooooooooo     nnnnnn    nnnnnn  sssssssssss       ooooooooooo   llllllll    eeeeeeeeeeeeeePPPPPPPPPP          iiiiiiii";
-    echo "                                                                                                                                                ";
-    echo "                                                                                                                                                ";
+    if [ $tty_cols -gt 144 ]; then
+        echo "                                                                                                                                                ";
+        echo "                                                                                                                                                ";
+        echo -e "${_cyan}        CCCCCCCCCCCCC                                                                     lllllll                   ${_lred}PPPPPPPPPPPPPPPPP     iiii  ";
+        echo -e "${_cyan}     CCC::::::::::::C                                                                     l:::::l                   ${_lred}P::::::::::::::::P   i::::i ";
+        echo -e "${_cyan}   CC:::::::::::::::C                                                                     l:::::l                   ${_lred}P::::::PPPPPP:::::P   iiii  ";
+        echo -e "${_cyan}  C:::::CCCCCCCC::::C                                                                     l:::::l                   ${_lred}PP:::::P     P:::::P        ";
+        echo -e "${_cyan} C:::::C       CCCCCC   ooooooooooo   nnnn  nnnnnnnn        ssssssssss      ooooooooooo    l::::l     eeeeeeeeeeee    ${_lred}P::::P     P:::::Piiiiiii ";
+        echo -e "${_cyan}C:::::C               oo:::::::::::oo n:::nn::::::::nn    ss::::::::::s   oo:::::::::::oo  l::::l   ee::::::::::::ee  ${_lred}P::::P     P:::::Pi:::::i ";
+        echo -e "${_cyan}C:::::C              o:::::::::::::::on::::::::::::::nn ss:::::::::::::s o:::::::::::::::o l::::l  e::::::eeeee:::::ee${_lred}P::::PPPPPP:::::P  i::::i ";
+        echo -e "${_cyan}C:::::C              o:::::ooooo:::::onn:::::::::::::::ns::::::ssss:::::so:::::ooooo:::::o l::::l e::::::e     e:::::e${_lred}P:::::::::::::PP   i::::i ";
+        echo -e "${_cyan}C:::::C              o::::o     o::::o  n:::::nnnn:::::n s:::::s  ssssss o::::o     o::::o l::::l e:::::::eeeee::::::e${_lred}P::::PPPPPPPPP     i::::i ";
+        echo -e "${_cyan}C:::::C              o::::o     o::::o  n::::n    n::::n   s::::::s      o::::o     o::::o l::::l e:::::::::::::::::e ${_lred}P::::P             i::::i ";
+        echo -e "${_cyan}C:::::C              o::::o     o::::o  n::::n    n::::n      s::::::s   o::::o     o::::o l::::l e::::::eeeeeeeeeee  ${_lred}P::::P             i::::i ";
+        echo -e "${_cyan} C:::::C       CCCCCCo::::o     o::::o  n::::n    n::::nssssss   s:::::s o::::o     o::::o l::::l e:::::::e           ${_lred}P::::P             i::::i ";
+        echo -e "${_cyan}  C:::::CCCCCCCC::::Co:::::ooooo:::::o  n::::n    n::::ns:::::ssss::::::so:::::ooooo:::::ol::::::le::::::::e        ${_lred}PP::::::PP          i::::::i";
+        echo -e "${_cyan}   CC:::::::::::::::Co:::::::::::::::o  n::::n    n::::ns::::::::::::::s o:::::::::::::::ol::::::l e::::::::eeeeeeee${_lred}P::::::::P          i::::::i";
+        echo -e "${_cyan}     CCC::::::::::::C oo:::::::::::oo   n::::n    n::::n s:::::::::::ss   oo:::::::::::oo l::::::l  ee:::::::::::::e${_lred}P::::::::P          i::::::i";
+        echo -e "${_cyan}        CCCCCCCCCCCCC   ooooooooooo     nnnnnn    nnnnnn  sssssssssss       ooooooooooo   llllllll    eeeeeeeeeeeeee${_lred}PPPPPPPPPP          iiiiiiii";
+        echo -e "${_blue}                                                     https://github.com/Pack3tL0ss/ConsolePi${_norm}";
+        echo "                                                                                                                                                ";
+    else
+        echo -e "${_cyan}   ______                       __    ${_lred} ____  _ "
+        echo -e "${_cyan}  / ____/___  ____  _________  / /__  ${_lred}/ __ \(_)"
+        echo -e "${_cyan} / /   / __ \/ __ \/ ___/ __ \/ / _ \\\\${_lred}/ /_/ / / "
+        echo -e "${_cyan}/ /___/ /_/ / / / (__  ) /_/ / /  __${_lred}/ ____/ /  "
+        echo -e "${_cyan}\____/\____/_/ /_/____/\____/_/\___${_lred}/_/   /_/   "
+        echo -e "${_blue}  https://github.com/Pack3tL0ss/ConsolePi${_norm}"
+        echo -e ""
+    fi
 }
 
 # -- Logging function prints to terminal and log file assign value of process prior to calling logit --
 logit() {
-    # Logging Function: logit <process|string> <message|string> [<status|string>]
+    # Logging Function: logit <message|string> [<status|string>]
     # usage:
-    #   process="Install ConsolePi"
+    #   process="Install ConsolePi"  # Define prior to calling or UNDEFINED or last used will be displayed in the log
     #   logit "building package" <"WARNING">
+    # NOTE: Sending a status of "ERROR" results in the script exiting
+    #       default status is INFO if none provided.
     [ -z "$process" ] && process="UNDEFINED"
     message=$1                                      # 1st arg = the log message
+    [ -z "${2}" ] && status="INFO" || status=$2
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
-    if [[ -z "${2}" ]]; then                        # 2nd argument is status default to INFO
-        status="INFO"
-    else
-        status=$2
-        [[ "${status}" == "ERROR" ]] && fatal=true
+    if [[ "${status}" == "ERROR" ]]; then
+        fatal=true
+        status="${_red}${status}${_norm}"
+    elif [[ ! "${status}" == "INFO" ]]; then
+        status="${_yellow}${status}${_norm}"
     fi
     
     # Log to stdout and log-file
-    echo "$(date +"%b %d %T") ${process} [${status}] ${message}" | tee -a $log_file
+    echo -e "$(date +"%b %d %T") [${status}][${process}] ${message}" | tee -a $log_file
     # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
-        # move_log
-        echo "$(date +'%b %d %T') ${process} [${status}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
+        echo -e "$(date +'%b %d %T') [${status}][${process}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
     fi
 }
 
@@ -228,7 +250,7 @@ file_diff_update() {
     # -- If both files exist check if they are different --
     if [ -f ${override_dir}/${1##*/} ]; then
         override=true
-        logit "override file found for ${1}.service ... Skipping no changes will be made"
+        logit "override file found for ${1} ... Skipping no changes will be made"
     else
         override=false
         if [[ -f ${1} ]] && [[ -f ${2} ]]; then

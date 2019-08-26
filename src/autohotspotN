@@ -84,7 +84,8 @@ KillHotspot()
 ChkWifiUp()
 {
 	echo "Checking WiFi connection ok"
-        sleep $wlan_wait_time #give time for connection to be completed to router
+       echo "pausing $wlan_wait_time seconds to allow wpa_supplicant time to connect"
+       sleep $wlan_wait_time #give time for connection to be completed to router
 	if ! wpa_cli -i "$wifidev" status | grep 'ip_address' >/dev/null 2>&1
         then #Failed to connect to wifi (check your wifi settings, password etc)
 	       echo 'Wifi failed to connect, falling back to Hotspot.'

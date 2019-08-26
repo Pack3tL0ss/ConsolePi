@@ -56,7 +56,7 @@ if __name__ == '__main__':
             if config.power:  # pylint: disable=maybe-no-member
                 for dev in config.local[config.hostname]['adapters']:
                     if dev['dev'] == sys.argv[2]:
-                        outlet = dev['outlet'] if outlet in dev else None
+                        outlet = None if outlet not in dev else dev['outlet']
                         if outlet is not None and isinstance(outlet['is_on'], int) and outlet['is_on'] <= 1:
                             desired_state = 'on' if outlet['noff'] else 'off' # TODO Move noff logic to power.py
                             print('Ensuring ' + sys.argv[2] + ' is Powered On')

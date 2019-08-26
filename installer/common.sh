@@ -376,15 +376,17 @@ convert_template() {
 }
 
 do_systemd_enable_load_start() {
-    status=$(sudo systemctl is-enabled $1 >/dev/null || echo unknown)
+    status=$(systemctl is-enabled ssh 2>&1)
     if [ $status == "disabled" ]; then
         sudo systemctl enable $1 1>/dev/null 2>> $log_file  && logit "${1} systemd unit file enabled" || 
                     logit "FAILED to enable ${1} systemd unit file" "WARNING"
-    elif [ $status == "unknown" ]; then
-        logit "$1 unit file not found check logs" "ERROR"  # exit installer
+    elif [ $status == "enabled" ]; then
+        logit "$1 unit file already enabled"
+    elif [[ $status =~ "No such file or directory" ]]; then
+        logit "$1 unit file not found" "ERROR" 
     fi
     # Will only exectue if systemd script enabled
     sudo systemctl daemon-reload 2>> $log_file || logit "daemon-reload failed, check logs" "WARNING"
     sudo systemctl stop $1 >/dev/null 2>&1
-    sudo systemctl start $1 1>/dev/null 2>> $log_file
+    sudo systemctl start $1 1>/dev/null 2>> $log_file || logit "$1 failed to start, may be normal depending on service/hardware" "WARNING"
 }

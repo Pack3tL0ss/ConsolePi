@@ -219,7 +219,12 @@ systemd_diff_update() {
     # -- if systemd file doesn't exist or doesn't match copy and enable from the source directory
     if ! $override; then
         if [[ ! "$mdns_diff" = *"identical"* ]]; then
-            if [[ -f "/etc/ConsolePi/src/systemd/${1}.service" ]]; then 
+            if [[ -f "/etc/ConsolePi/src/systemd/${1}.service" ]]; then
+                if [ -f /etc/systemd/system/${1}.service ]; then
+                    sudo cp /etc/systemd/system/${1}.service "$bak_dir${1}.service.$(date +%F_%H%M)" 1>/dev/null 2>> $log_file &&
+                        logit "existing $1 unit file backed up to bak dir" || 
+                        logit "FAILED to backup existing $1 unit file" "WARNING"
+                fi
                 sudo cp /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system 1>/dev/null 2>> $log_file &&
                     logit "${1} systemd unit file created/updated" || 
                     logit "FAILED to create/update ${1} systemd service" "WARNING"
@@ -265,7 +270,7 @@ file_diff_update() {
         if [[ ! "$this_diff" = *"identical"* ]]; then
             if [[ -f ${1} ]]; then 
                 if [ -f ${2} ]; then        # if dest file exists but doesn't match stash in bak dir
-                    sudo cp $2 $bak_dir 1>/dev/null 2>> $log_file &&
+                    sudo cp $2 "$bak_dir${2##*/}.$(date +%F_%H%M)" 1>/dev/null 2>> $log_file &&
                         logit "${2} backed up to bak dir" || 
                         logit "FAILED to backup existing ${2}" "WARNING"
                 fi

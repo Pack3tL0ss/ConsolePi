@@ -135,6 +135,8 @@ git_ConsolePi() {
             logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "ERROR"
     fi
     [[ ! -d $bak_dir ]] && sudo mkdir $bak_dir
+    # change group ownership to consolepi
+    sudo chgrp -R consolepi /etc/ConsolePi || logit "Failed to chgrp for ConsolePi dir to consolepi group" "WARNING"
     unset process
 }
 
@@ -203,7 +205,7 @@ do_pyvenv() {
 # Configure ConsolePi logging directory and logrotate
 do_logging() {
     process="Configure Logging"
-    logit "Configure Logging in /var/log/ConsolePi - Other ConsolePi functions log to syslog"
+    logit "Configure Logging in /var/log/ConsolePi"
     
     # Create /var/log/ConsolePi dir if it doesn't exist
     if [[ ! -d "/var/log/ConsolePi" ]]; then
@@ -217,8 +219,8 @@ do_logging() {
     touch /var/log/ConsolePi/install.log || logit "Failed to create install log file" "WARNING"
 
     # Update permissions
-    sudo chgrp consolepi /var/log/ConsolePi/* || logit "Failed to update group for log file" "WARNING"
-    sudo chmod g+w /var/log/ConsolePi/* || logit "Failed to update group write privs" "WARNING"
+    sudo chgrp -R consolepi /var/log/ConsolePi || logit "Failed to update group for log file" "WARNING"
+    sudo chmod -R g+w /var/log/ConsolePi || logit "Failed to update group write privs" "WARNING"
 
     # move installer log from temp to it's final location
     if ! $upgrade; then
@@ -256,8 +258,8 @@ main() {
         remove_first_boot       # if autolaunch install is configured remove
         do_apt_update           # apt-get update the pi
         pre_git_prep            # process upgrade tasks required prior to git pull
-        git_ConsolePi            # git ConsolePi
-        do_pyvenv               # build python3 venv for ConsolePi
+        git_ConsolePi           # git clone or git pull ConsolePi
+        do_pyvenv               # build upgrade python3 venv for ConsolePi
         do_logging              # Configure logging and rotation
         get_install2            # get and import install2 functions
         install2_main           # Kick off install2 functions

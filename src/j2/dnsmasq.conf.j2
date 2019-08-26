@@ -1,0 +1,9 @@
+# dnsmasq configuration created by ConsolePi installer
+# modifications can be made but the 'dhcp-option-wlan0,3' line needs to exist
+# for the default-gateway on/off based on eth0 status function to work
+dhcp-script=/etc/ConsolePi/src/dhcp-trigger.py
+interface=wlan0
+bogus-priv
+domain-needed
+dhcp-range={{wlan_dhcp_start}},{{wlan_dhcp_end}}255.255.255.0,12h
+dhcp-option=wlan0,3

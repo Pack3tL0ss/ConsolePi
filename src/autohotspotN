@@ -63,7 +63,7 @@ ssidsmac=("${ssids[@]}" "${mac[@]}") #combines ssid and MAC for checking
 
 get_ssid_details() {
        which iwgetid >/dev/null &&
-       echo "$1 connected to ${_green}$(iwgetid $wifidev -r)${_norm} on AP $(iwgetid $wifidev -a | awk '{print $4}') using $(iwgetid $wifidev -f|awk '{print $2}')" ||
+       echo -e "$1 connected to ${_green}$(iwgetid $wifidev -r)${_norm} on AP $(iwgetid $wifidev -a | awk '{print $4}') using $(iwgetid $wifidev -f|awk '{print $2}')" ||
        echo "$HOSTNAME is connected to a valid SSID"
 }
 

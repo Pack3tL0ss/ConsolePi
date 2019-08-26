@@ -65,6 +65,7 @@ auto_install=true
 #     'desktop': Image with desktop environment
 #     'full': Image with desktop and recommended software
 img_type='lite'
+img_only=false # if true only burn the image.  No pre-staging will be done, even if the files exist.  The script will stop after the SD Card is flashed
 
 # Function to collect user input
 get_input() {
@@ -202,7 +203,7 @@ main() {
         ((retry++))
     done
    
-    # ---- // Burn Raspian image to device (micro-sd) \\ ----
+    # ----------------------------------- // Burn Raspian image to device (micro-sd) \\ -----------------------------------
     echo -e "\n\n!!! Last chance to abort !!!"
     prompt="About to burn '${img_file}' to ${my_usb}, Continue?" 
     get_input
@@ -210,6 +211,9 @@ main() {
     echo -e "\nNow Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"
     sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo -e "\n\n\033[1;32mImage written to flash - no Errors$*\033[m\n\n" || 
         ( echo -e "\n\n\033[1;32mError occurred burning image $*\033[m\n\n" && exit 1 )
+
+    # if img_only option set (=true) exit script now.
+    $img_only && echo 'image only option configured.  No Pre-Staging will be done, now exiting' && sync && exit 0
 
     # Create some mount-points if they don't exist already.  Script will remove them if it has to create them, they will remain if they were already there
     [[ ! -d /mnt/usb1 ]] && sudo mkdir /mnt/usb1 && usb1_existed=false || usb1_existed=true

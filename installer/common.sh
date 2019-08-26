@@ -221,7 +221,7 @@ systemd_diff_update() {
         if [[ ! "$mdns_diff" = *"identical"* ]]; then
             if [[ -f "/etc/ConsolePi/src/systemd/${1}.service" ]]; then 
                 sudo cp /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system 1>/dev/null 2>> $log_file &&
-                    logit "${1} systemd service created/updated" || 
+                    logit "${1} systemd unit file created/updated" || 
                     logit "FAILED to create/update ${1} systemd service" "WARNING"
                 sudo systemctl daemon-reload 1>/dev/null 2>> $log_file || logit "Failed to reload Daemons: ${1}" "WARNING"
                 if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
@@ -276,7 +276,7 @@ file_diff_update() {
                 fi
 
                 sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
-                    logit "${2} created/updated" || 
+                    logit "${2} Updated" || 
                     logit "FAILED to create/update ${2}" "WARNING"
             else
                 logit "${1} file not found in src directory.  git pull failed?" "WARNING"

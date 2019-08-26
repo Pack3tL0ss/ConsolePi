@@ -348,6 +348,8 @@ get_pi_info_pretty() {
 
 # Gather Some info about the Pi useful in triage of issues
 get_pi_info() {
+    # uname -a
+    # cat /etc/os-release
     ver_full=$(head -1 /etc/debian_version)
     ver=$(echo $ver_full | cut -d. -f1)
 

@@ -476,15 +476,16 @@ class ConsolePiMenu(Outlets):
                                 for dev in config.local[self.hostname]['adapters']:
                                     if menu_dev == dev['dev']:
                                         outlet = dev['outlet']
-                                        if outlet is not None and isinstance(outlet['is_on'], int) and outlet['is_on'] <= 1:
-                                            desired_state = 'on' if outlet['noff'] else 'off' # TODO Move noff logic to power.py
-                                            print('Ensuring ' + menu_dev + ' is Powered On')
-                                            r = self.do_toggle(outlet['type'], outlet['address'], desired_state=desired_state)
-                                            if isinstance(r, int) and r > 1:
-                                                print('Error operating linked outlet @ {}'.format(outlet['address']))
-                                                log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
-                                        else:
-                                            print('Linked Outlet @ {} returned an error during menu load. Skipping...'.format(outlet['address']))
+                                        if outlet is not None:
+                                            if isinstance(outlet['is_on'], int) and outlet['is_on'] <= 1:
+                                                desired_state = 'on' if outlet['noff'] else 'off' # TODO Move noff logic to power.py
+                                                print('Ensuring ' + menu_dev + ' is Powered On')
+                                                r = self.do_toggle(outlet['type'], outlet['address'], desired_state=desired_state)
+                                                if isinstance(r, int) and r > 1:
+                                                    print('Error operating linked outlet @ {}'.format(outlet['address']))
+                                                    log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
+                                            else:
+                                                print('Linked Outlet @ {} returned an error during menu load. Skipping...'.format(outlet['address']))
 
                         subprocess.run(c)
                     elif 'function' in menu_actions[ch]:

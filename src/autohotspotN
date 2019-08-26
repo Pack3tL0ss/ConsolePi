@@ -20,6 +20,10 @@
 # if the wired interface is down.  This is so you can connect
 # in a dual nic setup and not corrupt your routing table
 # with an invalid route
+
+# Supported override variables (define the variable in ConsolePi.conf to override with different value)
+# wlan_wait_time: The amount of time the script waits for connection to an SSID before reverting to hotspot
+
 [[ -f "/etc/ConsolePi/ConsolePi.conf" ]] && . "/etc/ConsolePi/ConsolePi.conf" || wlan_ip=10.99.99.1
 
 wifidev="wlan0" #device name to use. Default is wlan0.
@@ -91,6 +95,8 @@ ChkWifiUp()
 	       echo 'Wifi failed to connect, falling back to Hotspot.'
                wpa_cli terminate "$wifidev" >/dev/null 2>&1
 	       createAdHocNetwork
+       else
+              "Now connected to $(iwgetid $wifidev -r) on AP $(iwgetid $wifidev -a | awk '{print $4}') using $(iwgetid $wifidev -f|awk '{print $2}')"
 	fi
 }
 

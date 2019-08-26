@@ -159,13 +159,13 @@ do
 		echo "Temporary Read only file system, trying again"
 		j=$((j + 1))
 		sleep 2
-	elif ! echo "$ssidreply" | grep "resource busy (-16)"  >/dev/null 2>&1 ; then
-               echo "Device Available, checking SSid Results"
-		i=1
 	elif echo "$ssidreplay" | grep "Invalid exchange (-52)" >/dev/null 2>&1 ; then
 		echo "Invalid Exchange ~ Transient Error, trying again"
 		j=$((j + 1))
 		sleep 2
+	elif ! echo "$ssidreply" | grep "resource busy (-16)"  >/dev/null 2>&1 ; then
+               echo "Device Available, checking SSid Results"
+		i=1
 	else #see if device not busy in 2 seconds
                 echo "Device unavailable checking again, try " $j
 		j=$((j + 1))

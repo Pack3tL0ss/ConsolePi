@@ -62,7 +62,9 @@ priority=0
 #     'desktop': Image with desktop environment
 #     'full': Image with desktop and recommended software
 img_type='lite'
-img_only=false # if true only burn the image.  No pre-staging will be done, even if the files exist.  The script will stop after the SD Card is flashed
+
+# if img_only=true only burn the image and enable SSH (I run headless), no other pre-staging is done. This is for testing more commom install scenario
+img_only=false
 
 # -- Auto Launch ConsolePi installer when user logs in --
 auto_install=true
@@ -212,9 +214,6 @@ main() {
     sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo -e "\n\n\033[1;32mImage written to flash - no Errors$*\033[m\n\n" || 
         ( echo -e "\n\n\033[1;32mError occurred burning image $*\033[m\n\n" && exit 1 )
 
-    # if img_only option set (=true) exit script now.
-    $img_only && echo 'image only option configured.  No Pre-Staging will be done, now exiting' && sync && exit 0
-
     # Create some mount-points if they don't exist already.  Script will remove them if it has to create them, they will remain if they were already there
     [[ ! -d /mnt/usb1 ]] && sudo mkdir /mnt/usb1 && usb1_existed=false || usb1_existed=true
     [[ ! -d /mnt/usb2 ]] && sudo mkdir /mnt/usb2 && usb2_existed=false || usb2_existed=true
@@ -229,7 +228,10 @@ main() {
     sudo touch /mnt/usb1/ssh && echo -e " + SSH is now enabled" || echo ' - Error enabling SSH... script will continue anyway'
        
     # Done with boot partition unmount
-    sudo umount /mnt/usb1
+     sync && sudo umount /mnt/usb1
+
+    # if img_only option set (=true) exit script now.
+    $img_only && echo 'image only option configured.  No Pre-Staging will be done, now exiting' && exit 0
 
     echo -e "\nMounting System partition to Configure ConsolePi auto-install and copy over any pre-config files found in script dir"
     [[ ${my_usb} =~ "mmcblk" ]] && sudo mount /dev/${my_usb}p2 /mnt/usb2 || sudo mount /dev/${my_usb}2 /mnt/usb2

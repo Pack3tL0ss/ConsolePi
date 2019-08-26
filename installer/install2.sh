@@ -808,10 +808,11 @@ do_blue_config() {
     done
 
     # Give Blue user limited sudo rights to consolepi-commands
-    [ ! -f /etc/sudoers.d/010_blue-consolepi ] &&
+    if [ ! -f /etc/sudoers.d/010_blue-consolepi ]; then
         echo 'blue ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*' > /etc/sudoers.d/010_blue-consolepi && 
         logit "BlueTooth User given sudo rights for consolepi-commands" || 
         logit "FAILED to give Bluetooth user limited sudo rights" "WARNING"
+    fi
 
     # Configure blue user default tty cols/rows
     if [[ ! $(sudo grep stty /home/blue/.bashrc) ]]; then

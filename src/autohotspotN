@@ -84,7 +84,7 @@ KillHotspot()
 ChkWifiUp()
 {
 	echo "Checking WiFi connection ok"
-        sleep $wait_time #give time for connection to be completed to router
+        sleep $wlan_wait_time #give time for connection to be completed to router
 	if ! wpa_cli -i "$wifidev" status | grep 'ip_address' >/dev/null 2>&1
         then #Failed to connect to wifi (check your wifi settings, password etc)
 	       echo 'Wifi failed to connect, falling back to Hotspot.'
@@ -162,6 +162,10 @@ do
 	elif ! echo "$ssidreply" | grep "resource busy (-16)"  >/dev/null 2>&1 ; then
                echo "Device Available, checking SSid Results"
 		i=1
+	elif echo "$ssidreplay" | grep "Invalid exchange (-52)" >/dev/null 2>&1 ; then
+		echo "Invalid Exchange ~ Transient Error, trying again"
+		j=$((j + 1))
+		sleep 2
 	else #see if device not busy in 2 seconds
                 echo "Device unavailable checking again, try " $j
 		j=$((j + 1))

@@ -323,11 +323,11 @@ class ConsolePi_data:
         if response.ok:
             ret = json.loads(response.text)
             ret = ret['adapters']
-            log.info('[API] Adapters retrieved via API for Remote ConsolePi {}'.format(ip))
-            log.debug('[API] Response: \n{}'.format(json.dumps(ret, indent=4, sort_keys=True)))
+            log.info('[API RQST OUT] Adapters retrieved via API for Remote ConsolePi {}'.format(ip))
+            log.debug('[API RQST OUT] Response: \n{}'.format(json.dumps(ret, indent=4, sort_keys=True)))
         else:
             ret = response.status_code
-            log.error('[API] Failed to retrieve adapters via API for Remote ConsolePi {}\n{}:{}'.format(ip, ret, response.text))
+            log.error('[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi {}\n{}:{}'.format(ip, ret, response.text))
         return ret
 
 def set_perm(file):

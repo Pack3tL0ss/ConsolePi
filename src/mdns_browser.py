@@ -94,7 +94,7 @@ class MDNS_Browser:
     def run(self):
         log = self.log
         zeroconf = Zeroconf()
-        log.info("[MDNS DSCRY] Discovering ConsolePis via mdns")
+        log.info("[MDNS DSCVRY] Discovering ConsolePis via mdns")
         browser = ServiceBrowser(zeroconf, "_consolepi._tcp.local.", handlers=[self.on_service_state_change])  # pylint: disable=unused-variable
         return zeroconf
 

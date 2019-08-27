@@ -336,7 +336,7 @@ verify() {
     echo " ConsolePi Cloud Support:                                 $cloud"
     $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
     echo " ConsolePi Power Control Support:                         $power"
-    echo " tftp server:                                             $tftp"
+    echo " tftp server:                                             $tftpd"
     echo
     echo "----------------------------------------------------------------------------------------------------------------"
     echo

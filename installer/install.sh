@@ -220,7 +220,6 @@ do_logging() {
 
     # Update permissions
     sudo chgrp -R consolepi /var/log/ConsolePi || logit "Failed to update group for log file" "WARNING"
-    sudo chmod -R g+w /var/log/ConsolePi || logit "Failed to update group write privs" "WARNING"
 
     # move installer log from temp to it's final location
     if ! $upgrade; then

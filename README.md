@@ -56,6 +56,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
 - remote connections are now established through proxy script, which will prompt/kill a previous hung session.
     - Bonus, the proxy script also adds support for auto-power-on for devices linked to outlets on the remote system (having them appear in a power sub-menu will come later once I build out the API further)
 -  Added override function for most system files involved... So Custom system files won't be backed up and replaced during `consolepi-upgrade`
+-  Added option to install and configure a tftp server.
 
 # Features
 

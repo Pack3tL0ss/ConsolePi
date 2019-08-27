@@ -6,7 +6,7 @@
 
 # -- Installation Defaults --
 INSTALLER_VER=32
-CFG_FILE_VER=5
+CFG_FILE_VER=6
 cur_dir=$(pwd)
 iam=$(who | awk '{print $1}')
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')

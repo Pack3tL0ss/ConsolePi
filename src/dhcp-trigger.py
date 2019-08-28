@@ -38,7 +38,7 @@ try:
 except KeyError:
     vendor = None
 
-log.info('DHCP Client Connected ({}): iface: {}, mac: {}, ip: {}, vendor: {}'.format(add_del, iface, mac, ip, vendor))
+log.info('[DHCP LEASE] DHCP Client Connected ({}): iface: {}, mac: {}, ip: {}, vendor: {}'.format(add_del, iface, mac, ip, vendor))
 
 if vendor is not None and 'ConsolePi' in vendor:
     log.info('ConsolePi Discovered via DHCP')

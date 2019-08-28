@@ -171,16 +171,17 @@ class ConsolePi_data:
                                 tty_dev.replace('/dev/', ''), tty_port, baud, dbits, parity.upper(), flow.upper()))
                             break
             else:
-                plog('No ser2net.conf file found unable to extract port definition', level='error')
+                plog('[GET ADAPTERS] No ser2net.conf file found unable to extract port definition', level='error')
                 # log.error('No ser2net.conf file found unable to extract port definition')
                 # if do_print:
                 #     print('No ser2net.conf file found unable to extract port definition')
 
             if tty_port == 9999:
-                log.error('No ser2net.conf definition found for {}'.format(tty_dev))
-                serial_list.append({'dev': tty_dev, 'port': tty_port})
-                if do_print:
-                    print('No ser2net.conf definition found for {}'.format(tty_dev))
+                plog('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev), level='error')
+                # log.error('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev))
+                # serial_list.append({'dev': tty_dev, 'port': tty_port})
+                # if do_print:
+                #     print('No ser2net.conf definition found for {}'.format(tty_dev))
             else:
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
                         'parity': parity, 'flow': flow})       

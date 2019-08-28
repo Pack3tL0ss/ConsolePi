@@ -1,0 +1,10 @@
+[Unit]
+Description=ConsolePi WebConsole (Butterfly)
+After=networking.service
+
+[Service]
+ExecStart=/etc/ConsolePi/bin/butterfly.server.py 
+# ExecStart=/etc/ConsolePi/bin/butterfly.server.py --cmd="/etc/ConsolePi/src/consolepi-commands/consolepi-menu"
+
+[Install]
+WantedBy=network-online.target

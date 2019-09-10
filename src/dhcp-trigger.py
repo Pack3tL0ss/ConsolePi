@@ -20,7 +20,7 @@ from consolepi.common import ConsolePi_Log
 #     new_file.write(str(sys.argv[1:]) + '\n' + str(os.environ) + '\n')
 
 # -- Some Testing Stuff - eventually move to ztp.conf or oobm.conf file --
-match = ['2530', '3810']
+match = ['2530', '3810', '8320']
 
 cpi_log = ConsolePi_Log()
 log = cpi_log.log

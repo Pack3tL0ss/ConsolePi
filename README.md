@@ -57,6 +57,8 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
     - Bonus, the proxy script also adds support for auto-power-on for devices linked to outlets on the remote system (having them appear in a power sub-menu will come later once I build out the API further)
 -  Added override function for most system files involved... So Custom system files won't be backed up and replaced during `consolepi-upgrade`
 -  Added option to install and configure a tftp server.
+    <br>**9/10/2019**
+-  Menu will now allow user to purge host key from known hosts and retry connection when connecting to a remote ConsolePi who's SSH key has changed.
 
 # Features
 
@@ -155,7 +157,7 @@ Triggered by ConsolePi Acting as DHCP server (generally hotspot):
 
 ## ConsolePi API
 
-ConsolePi includes and API with the following available methods (All Are GET methods via http currently).
+ConsolePi includes an API with the following available methods (All Are GET methods via http currently).
 
 /api/v1.0/
 * adapters: returns list of local adapters

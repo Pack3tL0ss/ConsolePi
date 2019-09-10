@@ -487,7 +487,28 @@ class ConsolePiMenu(Outlets):
                                             else:
                                                 print('Linked Outlet @ {} returned an error during menu load. Skipping...'.format(outlet['address']))
 
-                        subprocess.run(c)
+                        result = subprocess.run(c, stderr=subprocess.PIPE)
+                        if result.returncode != 0:
+                            if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in result.stderr.decode('UTF-8'):
+                                print(result.stderr.decode('UTF-8'))
+                                while True:
+                                    try:
+                                        choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
+                                        if choice.lower() in ['y', 'yes']:
+                                            result = result.stderr.decode('UTF-8')
+                                            _cmd = shlex.split(result.split('remove with:\r\n')[1].split('\r\n')[0])
+                                            subprocess.run(_cmd)
+                                            print('\n')
+                                            subprocess.run(c)
+                                            break
+                                        elif choice.lower() in ['n', 'no']:
+                                            break
+                                        else:
+                                            print("\n!!! Invalid selection, please try again.\n")
+                                    except (KeyboardInterrupt, EOFError):
+                                        break
+                                    except ValueError:
+                                        print("\n!! Invalid selection, please try again.\n")
                     elif 'function' in menu_actions[ch]:
                         args = menu_actions[ch]['args']
                         # this is a lame hack but for the sake of time... for now

@@ -46,6 +46,7 @@ class ConsolePi_Log:
     def log_print(self, msg, level='info', end='\n'):
         getattr(self.log, level)(msg)
         if self.do_print:
+            msg = msg.split('] ', 1)[1] if ']' in msg else msg
             msg = '{}: {}'.format(level.upper(), msg) if level != 'info' else msg
             print(msg, end=end)
 
@@ -246,18 +247,23 @@ class ConsolePi_data:
     def update_local_cloud_file(self, remote_consoles=None, current_remotes=None, local_cloud_file=LOCAL_CLOUD_FILE):
         # NEW gets current remotes from file and updates with new
         log = self.log
-        if len(remote_consoles) > 0:
-            if os.path.isfile(local_cloud_file):
-                if current_remotes is None:
-                    current_remotes = self.get_local_cloud_file()
-                os.remove(local_cloud_file)
-
+        # print('remote_consoles: {}\ncurrent_remotes: {}'.format(remote_consoles, current_remotes))
+        # if len(remote_consoles) > 0:
+        if os.path.isfile(local_cloud_file):
+            if current_remotes is None:
+                current_remotes = self.get_local_cloud_file()
+                # os.remove(local_cloud_file)
+        # print('remote_consoles: {}\ncurrent_remotes: {}'.format(remote_consoles, current_remotes))
             # update current_remotes dict with data passed to function
             # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
+        if len(remote_consoles) > 0:
             if current_remotes is not None:
                 for _ in current_remotes:
                     if _ not in remote_consoles:
-                        remote_consoles[_] = current_remotes[_]
+                        if 'fail_cnt' in current_remotes[_] and current_remotes[_]['fail_cnt'] >= 2:
+                            pass
+                        else:
+                            remote_consoles[_] = current_remotes[_]
                     else:
                         # -- DEBUG --
                         log.debug('[CACHE UPD] \n--{}-- \n    remote rem_ip: {}\n    remote source: {}\n    remote upd_time: {}\n    cache rem_ip: {}\n    cache source: {}\n    cache upd_time: {}\n'.format(
@@ -270,8 +276,11 @@ class ConsolePi_data:
                             time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(current_remotes[_]['upd_time'])) if 'upd_time' in current_remotes[_] else None,
                             ))
                         # -- /DEBUG --
+                        # No Change Detected (data passed to function matches cache)
+                        if remote_consoles[_] == current_remotes[_]:
+                            log.info('[CACHE UPD] {} No Change in info detected'.format(_))
                         # only factor in existing data if source is not mdns
-                        if 'upd_time' in remote_consoles[_] or 'upd_time' in current_remotes[_]:
+                        elif 'upd_time' in remote_consoles[_] or 'upd_time' in current_remotes[_]:
                             if 'upd_time' in remote_consoles[_] and 'upd_time' in current_remotes[_]:
                                 if current_remotes[_]['upd_time'] > remote_consoles[_]['upd_time']:
                                     remote_consoles[_] = current_remotes[_]
@@ -298,13 +307,13 @@ class ConsolePi_data:
                                         remote_consoles[_]['adapters'] = current_remotes[_]['adapters']
                                         log.debug('[CACHE UPD] !!! Keeping Adapter data from cache as none provided in data set !!!')
         
-            with open(local_cloud_file, 'a') as new_file:
+            with open(local_cloud_file, 'w+') as new_file:
                 new_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
                 set_perm(local_cloud_file)
         else:
             log.warning('[CACHE UPD] cache update called with no data passed, doing nothing')
         
-        return remote_consoles
+        return remote_consoles if len(remote_consoles) > 0 else current_remotes
 
     def get_adapters_via_api(self, ip):
         log = self.log

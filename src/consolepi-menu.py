@@ -14,7 +14,7 @@ from threading import Thread
 # get ConsolePi imports
 from consolepi.common import check_reachable
 from consolepi.common import gen_copy_key
-from consolepi.gdrive import GoogleDrive
+# from consolepi.gdrive import GoogleDrive
 from consolepi.common import ConsolePi_data
 from consolepi.power import Outlets
 
@@ -89,7 +89,7 @@ class ConsolePiMenu(Outlets):
         print('Fetching Remote ConsolePis with attached Serial Adapters from local cache')
         log.info('[GET REM] Starting fetch from local cache')
 
-        if data is None:
+        if data is None or len(data) == 0:
             data = config.get_local_cloud_file()
 
         if config.hostname in data:
@@ -98,6 +98,7 @@ class ConsolePiMenu(Outlets):
 
         # Add remote commands to remote_consoles dict for each adapter
         update_cache = False
+        pop_list = []
         for remotepi in data:
             this = data[remotepi]
             print('  {} Found...  Checking reachability'.format(remotepi), end='')
@@ -122,9 +123,20 @@ class ConsolePiMenu(Outlets):
                 log.warning('[GET REM] Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
                 update_cache = True                
                 print(': !!! UNREACHABLE !!!', end='\n')
-                        
+                pop_list.append(remotepi)  # Remove Unreachable remote from cache
+        
         # update local cache if any ConsolePis found UnReachable
         if update_cache:
+            if len(pop_list) > 0:
+                 for remotepi in pop_list:
+                    if 'fail_cnt' in data[remotepi]:
+                        data[remotepi]['fail_cnt'] += 1
+                        if data[remotepi]['fail_cnt'] >= 3:
+                            removed = data.pop(remotepi)
+                            log.warning('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
+                                remotepi, removed['fail_cnt']))
+                    else:
+                        data[remotepi]['fail_cnt'] = 1
             data = config.update_local_cloud_file(data)
 
         return data
@@ -134,26 +146,30 @@ class ConsolePiMenu(Outlets):
         # pylint: disable=maybe-no-member
         remote_consoles = None
         config = self.config
+        log = config.log
+        plog = config.plog
         # Update Local Adapters
         if not rem_update:
-            print('Detecting Locally Attached Serial Adapters')
+            # plog('[MENU REFRESH] Detecting Locally Attached Serial Adapters')
             self.data['local'] = {self.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
-            config.log.info('Final Data set collected for {}: {}'.format(self.hostname, self.data['local']))
+            log.debug('Final Data set collected for {}: {}'.format(self.hostname, self.data['local']))
 
         # Get details from Google Drive - once populated will skip
         if self.do_cloud and not self.local_only:
             if config.cloud_svc == 'gdrive' and self.cloud is None:
+                from consolepi.gdrive import GoogleDrive
                 self.cloud = GoogleDrive(config.log, hostname=self.hostname)
+                log.info('[MENU REFRESH] Gdrive init')
 
             # Pass Local Data to update_sheet method get remotes found on sheet as return
             # update sheets function updates local_cloud_file
-            config.plog('Updating to/from {}'.format(config.cloud_svc))
+            plog('[MENU REFRESH] Updating to/from {}'.format(config.cloud_svc))
             remote_consoles = self.cloud.update_files(self.data['local'])
             if len(remote_consoles) > 0:
-                config.plog('Updating Local Cache with data from {}'.format(config.cloud_svc))
+                plog('[MENU REFRESH] Updating Local Cache with data from {}'.format(config.cloud_svc))
                 config.update_local_cloud_file(remote_consoles)
             else:
-                config.plog('No Remote ConsolePis found on {}'.format(config.cloud_svc))
+                plog('[MENU REFRESH] No Remote ConsolePis found on {}'.format(config.cloud_svc))
         else:
             if self.do_cloud:
                 print('Not Updating from {} due to connection failure'.format(config.cloud_svc))

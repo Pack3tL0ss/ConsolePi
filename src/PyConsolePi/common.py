@@ -6,6 +6,7 @@ import grp
 import json
 import socket
 import subprocess
+import shlex
 import threading
 import requests
 import time
@@ -363,7 +364,28 @@ def get_config(var):
     return var_out
 
 def bash_command(cmd):
-    subprocess.run(['/bin/bash', '-c', cmd])
+    result = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in result.stderr.decode('UTF-8'):
+            print('\n\n{}'.format(result.stderr.decode('UTF-8')))
+            while True:
+                try:
+                    choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
+                    if choice.lower() in ['y', 'yes']:
+                        result = result.stderr.decode('UTF-8').replace('ERROR: ', '')
+                        _cmd = shlex.split(result.split('remove with:\r\n')[1].split('\r\n')[0])
+                        subprocess.run(_cmd)
+                        print('\n')
+                        subprocess.run(['/bin/bash', '-c', cmd])
+                        break
+                    elif choice.lower() in ['n', 'no']:
+                        break
+                    else:
+                        print("\n!!! Invalid selection, please try again.\n")
+                except (KeyboardInterrupt, EOFError):
+                    break
+                except ValueError:
+                    print("\n!! Invalid selection, please try again.\n")
 
 
 def is_valid_ipv4_address(address):

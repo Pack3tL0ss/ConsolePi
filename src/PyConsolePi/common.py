@@ -83,7 +83,7 @@ class ConsolePi_data(Outlets):
             if os.path.isfile('/etc/ConsolePi/power.json'):
                 self.outlet_update()
             else:
-                self.outlets = False
+                self.power = False
                 self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')       
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()

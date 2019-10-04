@@ -79,11 +79,11 @@ class ConsolePi_data(Outlets):
         self.log = cpi_log.log
         self.plog = cpi_log.plog
         self.hostname = socket.gethostname()
-        if self.power:          # pylint: disable=maybe-no-member
-            if os.path.isfile('/etc/ConsolePi/power.json'):
+        if self.power:          # pylint: access-member-before-definition
+            if os.path.isfile(POWER_FILE):
                 self.outlet_update()
             else:
-                self.power = False
+                self.power = self.outlets = False
                 self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')       
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()

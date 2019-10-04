@@ -67,7 +67,7 @@ class ConsolePiMenu():
                     level='warning')
                 self.error_msgs.append('Outlet Control Disabled by Script - No power.json found')
                 config.power = False
-        if config.outlets:
+        if config.power and config.outlets:
             self.dli_exists = self.gpio_exists = self.tasmota_exists = self.linked_exists = False
             for outlet_group in config.outlets:
                 if config.outlets[outlet_group]['type'].lower() == 'dli':

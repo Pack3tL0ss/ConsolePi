@@ -792,7 +792,7 @@ class ConsolePiMenu():
         # -- General Menu Command Options --
         text = [' c. Change *default Serial Settings [{0} {1}{2}1 flow={3}] '.format(
             self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), ' h. Display picocom help']
-        if config.outlets is not None:
+        if config.power and config.outlets is not None:
             if self.linked_exists or self.gpio_exists or self.tasmota_exists:
                 text.append(' p. Power Control Menu')
             if self.dli_exists:

@@ -79,7 +79,7 @@ class ConsolePi_data(Outlets):
         self.log = cpi_log.log
         self.plog = cpi_log.plog
         self.hostname = socket.gethostname()
-        if self.outlets:
+        if self.power:          # pylint: disable=maybe-no-member
             if os.path.isfile('/etc/ConsolePi/power.json'):
                 self.outlet_update()
             else:

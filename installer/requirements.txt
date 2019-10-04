@@ -6,6 +6,7 @@ cffi>=1.9.1
 chardet>=3.0.4
 Click>=7.0
 cryptography>=1.7.1
+dlipower>=1.0.176
 Flask>=1.0.3
 google-api-python-client>=1.7.8
 google-auth>=1.6.3

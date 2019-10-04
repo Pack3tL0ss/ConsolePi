@@ -18,7 +18,7 @@ from .power import Outlets
 # Common Static Global Variables
 DNS_CHECK_FILES = ['/etc/resolv.conf', '/run/dnsmasq/resolv.conf']
 CONFIG_FILE = '/etc/ConsolePi/ConsolePi.conf'
-LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
+LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.json'
 CLOUD_LOG_FILE = '/var/log/ConsolePi/cloud.log'
 USER = 'pi' # currently not used, user pi is hardcoded using another user may have unpredictable results as it hasn't been tested
 HOME = str(Path.home())

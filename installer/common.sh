@@ -255,7 +255,7 @@ file_diff_update() {
     # -- If both files exist check if they are different --
     if [ -f ${override_dir}/${1##*/} ]; then
         override=true
-        logit "override file found for ${1} ... Skipping no changes will be made"
+        logit "override file found ${1} ... Skipping no changes will be made"
     else
         override=false
         if [[ -f ${1} ]] && [[ -f ${2} ]]; then
@@ -353,7 +353,7 @@ get_pi_info_pretty() {
 
 # Gather Some info about the Pi useful in triage of issues
 get_pi_info() {
-    # uname -a
+    process="Collect Pi Info"
     # cat /etc/os-release
     ver_full=$(head -1 /etc/debian_version)
     ver=$(echo $ver_full | cut -d. -f1)
@@ -371,7 +371,11 @@ get_pi_info() {
     cpu=$(cat /proc/cpuinfo | grep 'Hardware' | awk '{print $3}')
     rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}' | sed 's/^1000//')
     pretty=$(get_pi_info_pretty $rev)
-    echo -e "$version running on $cpu Revision: $rev\n    $pretty"
+    # echo -e "$version running on $cpu Revision: $rev\n    $pretty"
+    logit "$pretty"
+    logit "$version running on $cpu Revision: $rev"
+    logit "$(uname -a)"
+    unset process
 }
 
 convert_template() {

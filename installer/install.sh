@@ -28,14 +28,6 @@ remove_first_boot() {
         logit "Failed to remove first-boot verify /etc/rc.local" "WARNING"
 }
 
-get_pi_details() {
-    # Collect some details about the Pi for diagnostic if an issue is reported
-    process="Collect Pi Details"
-    logit "$(get_pi_info)"
-    unset process
-}
-
-
 do_apt_update() {
     header
     process="Update/Upgrade ConsolePi (apt)"
@@ -253,7 +245,7 @@ main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
         get_common              # get and import common functions script
-        get_pi_details          # Collect some version info for logging
+        get_pi_info             # (common.sh func) Collect some version info for logging
         remove_first_boot       # if autolaunch install is configured remove
         do_apt_update           # apt-get update the pi
         pre_git_prep            # process upgrade tasks required prior to git pull

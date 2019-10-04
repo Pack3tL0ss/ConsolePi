@@ -84,7 +84,7 @@ class ConsolePiMenu():
                     self.linked_exists = True
                 if self.dli_exists and self.gpio_exists and self.tasmota_exists and self.linked_exists:
                     break
-        if config.dli_failures:
+        if config.power and config.dli_failures:
             self.get_dli_outlets()   # Update error msg with failure
         self.DEBUG = config.debug
         self.menu_actions = {

@@ -3,7 +3,7 @@
 import json
 import sys
 from consolepi.common import ConsolePi_data
-from consolepi.power import Outlets
+# from consolepi.power import Outlets
 
 config = ConsolePi_data(do_print=False)
 
@@ -12,7 +12,7 @@ hostname = config.hostname
 adapters = config.adapters
 # interfaces = config.get_if_ips()
 interfaces = config.interfaces
-outlets = Outlets().get_outlets()
+outlets = config.outlets
 # remotes = config.get_local_cloud_file()
 remotes = config.remotes
 # details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'outlets': outlets, 'user': 'pi'}, 'remotes': remotes}

@@ -3,13 +3,12 @@
 from waitress import serve
 from flask import Flask, jsonify, request
 from consolepi.common import ConsolePi_data
-from consolepi.power import Outlets
 
 app = Flask(__name__)
 config = ConsolePi_data(do_print=False)
-outlets = Outlets()
+outlets = config.outlets
 log = config.log
-user = 'pi'
+user = config.USER # pylint: disable=maybe-no-member
 
 def log_request(route):
     log.info('[API RQST IN] {} Requesting -- {} -- Data via API'.format(request.remote_addr, route))

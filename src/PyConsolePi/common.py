@@ -9,8 +9,10 @@ import subprocess
 import threading
 import requests
 import time
+import shlex
 from pathlib import Path
 import pyudev
+from sys import stdin
 from .power import Outlets
 
 # Common Static Global Variables
@@ -50,9 +52,10 @@ class ConsolePi_Log:
             print(msg, end=end)
 
 
-class ConsolePi_data:
+class ConsolePi_data(Outlets):
 
     def __init__(self, log_file=CLOUD_LOG_FILE, do_print=True):
+        super().__init__(POWER_FILE)
         config = self.get_config_all()
         for key, value in config.items():
             if type(value) == str:
@@ -76,12 +79,27 @@ class ConsolePi_data:
         self.log = cpi_log.log
         self.plog = cpi_log.plog
         self.hostname = socket.gethostname()
+        self.outlet_update()
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()
-        # self.outlets = Outlets().outlet_data
         self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
         self.remotes = self.get_local_cloud_file()
-    
+        if stdin.isatty():
+            self.rows, self.cols = self.get_tty_size()
+
+    def get_tty_size(self):
+        size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
+        rows, cols = size.stdout.decode('UTF-8').split()
+        return int(rows), int(cols)
+
+    def outlet_update(self, upd_linked=False, refresh=False):
+        if not hasattr(self, 'outlets') or refresh:
+            _outlets = self.get_outlets(upd_linked=upd_linked)
+            self.outlets = _outlets['linked']
+            self.dli_failures = _outlets['failures']
+            self.dli_pwr = _outlets['dli_power']
+
+
     def get_config_all(self):
         with open('/etc/ConsolePi/ConsolePi.conf', 'r') as config:
             for line in config:
@@ -160,7 +178,7 @@ class ConsolePi_data:
                                         log.error('Invalid Value for data bits found in ser2net.conf: {}'.format(option))
                                         dbits = 8
                                 elif option in ['EVEN', 'ODD', 'NONE']:
-                                    parity = option[0].lower() # EVEN ODD NONE
+                                    parity = option[0].lower() # converts to e o n
                                 elif option in ['XONXOFF', 'RTSCTS']:
                                     if option == 'XONXOFF':
                                         flow = 'x'
@@ -186,31 +204,31 @@ class ConsolePi_data:
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
                         'parity': parity, 'flow': flow})       
         if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
-            serial_list = self.get_outlet_data(serial_list)
+            if self.outlets:
+                serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force get_outlets() line 200
 
         return serial_list
 
     # TODO Refactor make more efficient
-    def get_outlet_data(self, serial_list):
+    def map_serial2outlet(self, serial_list, outlets):
         log = self.log
-        outlet_data = Outlets().get_outlets()
         # print('Fetching Power Outlet Data')
         for dev in serial_list:
             # -- get linked outlet details if defined --
             outlet_dict = None
-            for o in outlet_data:
-                outlet = outlet_data[o]
+            for o in outlets:
+                outlet = outlets[o]
                 if outlet['linked']:
                     if dev['dev'] in outlet['linked_devs']:
                         log.info('[PWR OUTLETS] Found Outlet {} linked to {}'.format(o, dev['dev']))
-                        noff = True # default value
                         address = outlet['address']
                         if outlet['type'].upper() == 'GPIO':
                             address = int(outlet['address'])
-                            if 'noff' in outlet:
-                                noff = outlet['noff']
+                            noff = outlet['noff'] if 'noff' in outlet else None
+                        elif outlet['type'].lower() == 'dli':
+                            noff = True
                         outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on']}
-                        break
+                        # break
             dev['outlet'] = outlet_dict
 
         return serial_list
@@ -250,14 +268,17 @@ class ConsolePi_data:
             if os.path.isfile(local_cloud_file):
                 if current_remotes is None:
                     current_remotes = self.get_local_cloud_file()
-                os.remove(local_cloud_file)
+                # os.remove(local_cloud_file)
 
             # update current_remotes dict with data passed to function
             # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
             if current_remotes is not None:
                 for _ in current_remotes:
                     if _ not in remote_consoles:
-                        remote_consoles[_] = current_remotes[_]
+                        if 'fail_cnt' in current_remotes[_] and current_remotes[_]['fail_cnt'] >=2:
+                            pass
+                        else:
+                            remote_consoles[_] = current_remotes[_]
                     else:
                         # -- DEBUG --
                         log.debug('[CACHE UPD] \n--{}-- \n    remote rem_ip: {}\n    remote source: {}\n    remote upd_time: {}\n    cache rem_ip: {}\n    cache source: {}\n    cache upd_time: {}\n'.format(
@@ -298,8 +319,8 @@ class ConsolePi_data:
                                         remote_consoles[_]['adapters'] = current_remotes[_]['adapters']
                                         log.debug('[CACHE UPD] !!! Keeping Adapter data from cache as none provided in data set !!!')
         
-            with open(local_cloud_file, 'a') as new_file:
-                new_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
+            with open(local_cloud_file, 'w') as cloud_file:
+                cloud_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
                 set_perm(local_cloud_file)
         else:
             log.warning('[CACHE UPD] cache update called with no data passed, doing nothing')
@@ -330,12 +351,42 @@ class ConsolePi_data:
             ret = response.status_code
             log.error('[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi {}\n{}:{}'.format(ip, ret, response.text))
         return ret
+    
+    def canbeint(self, _str):
+        try: 
+            int(_str)
+            return True
+        except ValueError:
+            return False
+
+    def gen_copy_key(self, rem_ip=None, rem_user=USER):
+        hostname = self.hostname
+        # generate local key file if it doesn't exist
+        if not os.path.isfile(HOME + '/.ssh/id_rsa'):
+            print('\n\nNo Local ssh cert found, generating...')
+            bash_command('ssh-keygen -m pem -t rsa -C "{0}@{1}"'.format(rem_user, hostname))
+        rem_list = []
+        if rem_ip is not None and not isinstance(rem_ip, list):
+            rem_list.append(rem_ip)
+        else:
+            rem_list = []
+            for _ in sorted(self.remotes):
+                if 'rem_ip' in self.remotes[_] and self.remotes[_]['rem_ip'] is not None:
+                    rem_list.append(self.remotes[_]['rem_ip'])            
+        # copy keys to remote(s)
+        return_list = []
+        for _rem in rem_list:
+            print('\nAttempting to copy ssh cert to {}\n'.format(_rem))
+            ret = bash_command('ssh-copy-id {0}@{1}'.format(rem_user, _rem))
+            return_list.append('{}: {}'.format(_rem, ret))
+        return return_list
 
 def set_perm(file):
     gid = grp.getgrnam("consolepi").gr_gid
-    os.chown(file, 0, gid)
+    if os.geteuid() == 0:
+        os.chown(file, 0, gid)
 
-# Get Variables from Config
+# Get Individual Variables from Config
 def get_config(var):
     with open(CONFIG_FILE, 'r') as cfg:
         for line in cfg:
@@ -353,9 +404,39 @@ def get_config(var):
 
     return var_out
 
-def bash_command(cmd):
-    subprocess.run(['/bin/bash', '-c', cmd])
+def key_change_detector(cmd, stderr):
+    if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in stderr:
+        while True:
+            try:
+                choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
+                if choice.lower() in ['y', 'yes']:
+                    _cmd = shlex.split(stderr.split('remove with:\r\n')[1].split('\r\n')[0].replace('ERROR:   ', ''))
+                    subprocess.run(_cmd)
+                    print('\n')
+                    subprocess.run(cmd)
+                    break
+                elif choice.lower() in ['n', 'no']:
+                    break
+                else:
+                    print("\n!!! Invalid selection {} please try again.\n".format(choice))
+            except (KeyboardInterrupt, EOFError):
+                print('')
+                return 'Aborted last command based on user input'
+            except ValueError:
+                print("\n!! Invalid selection {} please try again.\n".format(choice))
+    elif 'All keys were skipped because they already exist on the remote system' in stderr:
+        return 'All keys were skipped because they already exist on the remote system'
 
+
+def bash_command(cmd):
+    # subprocess.run(['/bin/bash', '-c', cmd])
+    response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
+    _stderr = response.stderr.decode('UTF-8')
+    print(_stderr)
+    # print(response)
+    # if response.returncode != 0:
+    if _stderr:
+        return key_change_detector(getattr(response, 'args'), _stderr)
 
 def is_valid_ipv4_address(address):
     try:
@@ -414,17 +495,6 @@ def check_reachable(ip, port, timeout=2):
         if not reachable:
             break
     return reachable
-
-def gen_copy_key(rem_ip, rem_user='pi', hostname=None, copy=False):
-    if hostname is None:
-        hostname = socket.gethostname()
-    if not os.path.isfile(HOME + '/.ssh/id_rsa'):
-        print('\n\nNo Local ssh cert found, generating...')
-        bash_command('ssh-keygen -m pem -t rsa -C "{0}@{1}"'.format(rem_user, hostname))
-        copy = True
-    if copy:
-        print('\nAttempting to copy ssh cert to {}\n'.format(rem_ip))
-        bash_command('ssh-copy-id {0}@{1}'.format(rem_user, rem_ip))
 
 def user_input_bool(question):
     answer = input(question + '? (y/n): ').lower().strip()

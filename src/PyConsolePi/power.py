@@ -95,9 +95,9 @@ class Outlets:
                 outlet_data = None
         else:
             outlet_data = self.outlet_data['linked'] if 'linked' in self.outlet_data else None
-
+        
+        failures = {}
         if outlet_data is not None:
-            failures = {}
             dli_power = {} if 'dli_power' not in self.outlet_data else self.outlet_data['dli_power']
             for k in outlet_data:
                 outlet = outlet_data[k]

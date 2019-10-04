@@ -97,7 +97,7 @@ class ConsolePiMenu():
             's': self.rshell_menu,
             'x': self.exit
         }
-        if config.outlets:
+        if config.power and config.outlets:
             if self.linked_exists or self.gpio_exists or self.tasmota_exists:
                 self.menu_actions['p'] = self.power_menu
                 self.menu_actions['power_menu'] = self.power_menu

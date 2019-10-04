@@ -93,6 +93,7 @@ class Outlets:
                 outlet_data = json.loads(outlet_data)
             else:
                 outlet_data = None
+                return
         else:
             outlet_data = self.outlet_data['linked'] if 'linked' in self.outlet_data else None
         

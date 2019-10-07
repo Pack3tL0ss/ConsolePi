@@ -426,7 +426,7 @@ class ConsolePiMenu():
         elif section == 'body':
             max_len = 0
             blines = list(text) if isinstance(text, str) else text
-            pad = True if len(blines) + index > 9 else False
+            pad = True if len(blines) + index > 10 else False
             indent = l_offset + 4 if pad else l_offset + 3
             width_list = []
             for _line in blines:

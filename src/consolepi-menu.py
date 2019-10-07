@@ -90,13 +90,13 @@ class ConsolePiMenu():
         self.menu_actions = {
             'main_menu': self.main_menu,
             'c': self.con_menu,
-            'p': self.power_menu,
             'h': self.picocom_help,
-            'k': self.key_menu,
             'r': self.refresh,
-            's': self.rshell_menu,
             'x': self.exit
         }
+        if self.remotes_connected:
+            self.menu_actions['k'] = self.key_menu
+            self.menu_actions['r'] = self.rshell_menu
         if config.power and config.outlets:
             if self.linked_exists or self.gpio_exists or self.tasmota_exists:
                 self.menu_actions['p'] = self.power_menu

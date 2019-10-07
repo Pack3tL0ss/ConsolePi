@@ -94,9 +94,6 @@ class ConsolePiMenu():
             'r': self.refresh,
             'x': self.exit
         }
-        if self.remotes_connected:
-            self.menu_actions['k'] = self.key_menu
-            self.menu_actions['r'] = self.rshell_menu
         if config.power and config.outlets:
             if self.linked_exists or self.gpio_exists or self.tasmota_exists:
                 self.menu_actions['p'] = self.power_menu
@@ -798,6 +795,8 @@ class ConsolePiMenu():
             if self.dli_exists:
                 text.append(' d. [dli] Web Power Switch Menu')
         if self.remotes_connected:
+            self.menu_actions['k'] = self.key_menu
+            self.menu_actions['r'] = self.rshell_menu
             text.append(' k. Distribute SSH Key to Remote Hosts')
             text.append(' s. Remote Shell Menu (Connect to Remote ConsolePi Shell)')
         text.append(' r. Refresh')

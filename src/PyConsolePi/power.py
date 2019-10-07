@@ -2,6 +2,7 @@
 
 import json
 import time
+from sys import stdin
 from os import path
 
 import requests
@@ -76,7 +77,8 @@ class Outlets:
         dli web power switch.  returns an existing instance if it's already been instantiated.
         '''
         if address not in self._dli or not self._dli[address]:
-            print('[DLI] Getting Outlets {}'.format(address))
+            if stdin.isatty():
+                print('[DLI] Getting Outlets {}'.format(address))
             self._dli[address] = DLI(address, username, password)
             return self._dli[address], False
         else:

@@ -94,7 +94,7 @@ class ConsolePiMenu():
             'r': self.refresh,
             'x': self.exit
         }
-        if remotes_connected:
+        if self.remotes_connected:
             self.menu_actions['k'] = self.key_menu
             self.menu_actions['s'] = self.rshell_menu
         if config.power and config.outlets:

@@ -8,7 +8,7 @@ import shlex
 import subprocess
 import sys
 from collections import OrderedDict as od
-from threading import Thread
+import threading
 from halo import Halo
 # from consolepi.gdrive import GoogleDrive # <-- hidden import burried in refresh method of ConsolePiMenu Class
 
@@ -87,6 +87,7 @@ class ConsolePiMenu():
         if config.power and config.dli_failures:
             self.get_dli_outlets()   # Update error msg with failure
         self.DEBUG = config.debug
+        self.DEBUG = True
         self.menu_actions = {
             'main_menu': self.main_menu,
             'c': self.con_menu,
@@ -497,9 +498,7 @@ class ConsolePiMenu():
             'b': self.main_menu,
             'x': self.exit,
             'power_menu': self.power_menu,
-        }
-        if self.dli_exists:
-            menu_actions['d'] = self.dli_menu
+        }           
         choice = ''
         while choice.lower() not in ['x', 'b']:
             item = 1
@@ -511,8 +510,11 @@ class ConsolePiMenu():
                 os.system('clear')
 
             self.menu_formatting('header', text=' Power Control Menu ')
+            print('  enter item # to toggle power state on outlet')
+            print('  enter c + item # i.e. "c2" to cycle power on outlet')
 
             # Build menu items for each linked outlet
+            state_list = []
             for r in sorted(outlets):
                 outlet = outlets[r]
                 
@@ -528,6 +530,7 @@ class ConsolePiMenu():
                         for dli_port in outlet['is_on']:
                             _outlet = outlet['is_on'][dli_port]
                             _state = states[_outlet['state']]
+                            state_list.append(_outlet['state'])
                             for c in colors:
                                 _state = _state.replace('{{' + c + '}}', colors[c])
                             print(' {}. [{}] port {} ({})'.format(item, _state, dli_port, _outlet['name']))
@@ -554,6 +557,7 @@ class ConsolePiMenu():
                     # if ( isinstance(outlet['is_on'], int) and outlet['is_on'] <= 1 ) or isinstance(outlet['is_on'], bool):
                     if isinstance(outlet['is_on'], bool):
                         _state = states[outlet['is_on']]
+                        state_list.append(outlet['is_on'])
                         print('\n' + header + '\n     ' + '-' * (len(header) - 5))
                         for c in colors:
                             _state = _state.replace('{{' + c + '}}', colors[c])
@@ -581,9 +585,30 @@ class ConsolePiMenu():
                     else:
                         print('     !! Skipping {} as it returned an error: {}'.format(r, outlet['is_on']))
             
+            if item > 2:
+                print('')
+                if False in state_list:
+                    print(' all on:    Turn all outlets {}ON{}'.format(self.colors['green'], self.colors['norm']))
+                    menu_actions['all on'] = {
+                        'function': config.pwr_all, # pylint: disable=maybe-no-member
+                        'kwargs': {'outlets': outlets, 'desired_state': True}
+                        }
+                if True in state_list:
+                    print(' all off:   Turn all outlets {}OFF{}'.format(self.colors['red'], self.colors['norm']))
+                    menu_actions['all off'] = {
+                        'function': config.pwr_all, # pylint: disable=maybe-no-member
+                        'kwargs': {'outlets': outlets, 'desired_state': False}
+                        }
+                    print(' cycle all: Cycle all outlets {2}ON{1}{3}{0}OFF{1}{3}{2}ON{1}'.format(self.colors['red'], self.colors['norm'], self.colors['green'], u'\u00B7'))
+                    menu_actions['cycle all'] = {
+                        'function': config.pwr_all, # pylint: disable=maybe-no-member
+                        'kwargs': {'outlets': outlets, 'action': 'cycle'}
+                        }
+            
             text = [' b. Back', ' r. Refresh']
             if self.dli_exists and not calling_menu == 'dli_menu':
                 text.insert(0, ' d. [dli] Web Power Switch Menu')
+                menu_actions['d'] = self.dli_menu
             self.menu_formatting('footer', text=text)
             choice = input(" >>  ").lower()
             if choice not in ['b', 'r']:
@@ -611,6 +636,7 @@ class ConsolePiMenu():
             outer_body = []
             slines = []
             for dli in sorted(dli_dict):
+                state_dict = []
                 mlines = []
                 port_dict = dli_dict[dli]
                 # strip off all but hostname if address is fqdn
@@ -620,6 +646,7 @@ class ConsolePiMenu():
                 for port in port_dict:
                     pname = port_dict[port]['name']
                     cur_state = port_dict[port]['state']
+                    state_dict.append(cur_state)
                     to_state = not cur_state
                     on_pad = ' ' if cur_state else ''
                     mlines.append('[{}] {}{}{}'.format(
@@ -643,8 +670,48 @@ class ConsolePiMenu():
                         'key': 'dli_pwr'
                         }
                     index += 1
+                # add final entry for all operations
+                if True not in state_dict:
+                    _line = 'ALL {{green}}ON{{norm}}'
+                    desired_state = True
+                elif False not in state_dict:
+                    _line = 'ALL {{red}}OFF{{norm}}'
+                    desired_state = False
+                else:
+                    _line = 'ALL [on|off]. i.e. "{} off"'.format(index)
+                    desired_state = None
+                # build appropriate menu_actions item will represent ALL ON or ALL OFF if current state of all outlets is the inverse
+                # if there is a mix item#+on or item#+off will both be valid but item# alone will not.
+                if desired_state in [True, False]:
+                    menu_actions[str(index)] = {
+                        'function': config.pwr_toggle,
+                        'args': ['dli', dli],
+                        'kwargs': {'port': 'all', 'desired_state': desired_state},
+                        'key': 'dli_pwr'
+                        }
+                elif desired_state is None:
+                    for s in ['on', 'off']:
+                        desired_state = True if s == 'on' else False
+                        menu_actions[str(index) + ' ' + s] = {
+                        'function': config.pwr_toggle,
+                        'args': ['dli', dli],
+                        'kwargs': {'port': 'all', 'desired_state': desired_state},
+                        'key': 'dli_pwr'
+                        }
+                mlines.append(_line)
+                # Add cycle line if any outlets are currently ON
+                index += 1
+                if True in state_dict:
+                    mlines.append('Cycle ALL')
+                    menu_actions[str(index)] = {
+                        'function': config.pwr_cycle,
+                        'args': ['dli', dli],
+                        'kwargs': {'port': 'all'},
+                        'key': 'dli_pwr'
+                        }
                 index = start + 10
                 start += 10
+                
 
                 outer_body.append(mlines)   # list of lists where each list = printed menu lines
                 slines.append(host_short)   # list of strings index to index match with body list of lists
@@ -879,7 +946,7 @@ class ConsolePiMenu():
                                                         self.spin.succeed()
                                                 if isinstance(fail, bool) and not fail:
                                                     self.spin.succeed()
-                                                    Thread(target=config.outlet_update, kwargs={'refresh': True}).start()
+                                                    threading.Thread(target=config.outlet_update, kwargs={'refresh': True}).start()
                                                 elif fail is not None:
                                                     self.spin.fail('Error operating linked outlet {} @ {} ({})'.format(
                                                         menu_dev.replace('/dev/', ''), outlet['address'], r))
@@ -895,7 +962,7 @@ class ConsolePiMenu():
                                                     ))
                                                 if r:
                                                     self.spin.succeed()
-                                                    Thread(target=config.get_outlets).start()
+                                                    threading.Thread(target=config.get_outlets).start()
                                                 else:
                                                     self.spin.fail()
                                                     self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
@@ -919,46 +986,59 @@ class ConsolePiMenu():
                         args = menu_actions[ch]['args'] if 'args' in menu_actions[ch] else []
                         kwargs = menu_actions[ch]['kwargs'] if 'kwargs' in menu_actions[ch] else {}
                         response = menu_actions[ch]['function'](*args, **kwargs)
+                        print(response)
                         if calling_menu in ['power_menu', 'dli_menu']:
-                            _grp = menu_actions[ch]['key']
-                            _type = menu_actions[ch]['args'][0]
-                            _addr = menu_actions[ch]['args'][1]
-                            if _type == 'dli':
-                                host_short = _addr.split('.')[0] if '.' in _addr and not config.canbeint(_addr.split('.')[0]) else _addr
-                                _port = menu_actions[ch]['kwargs']['port']
-                                if isinstance(response, bool) and _port is not None:
+                            if menu_actions[ch]['function'].__name__ == 'pwr_all':
+                                self.get_dli_outlets(refresh=True, upd_linked=True)
+                            else:
+                                _grp = menu_actions[ch]['key']
+                                _type = menu_actions[ch]['args'][0]
+                                _addr = menu_actions[ch]['args'][1]
+                                if _type == 'dli':
+                                    host_short = _addr.split('.')[0] if '.' in _addr and not config.canbeint(_addr.split('.')[0]) else _addr
+                                    _port = menu_actions[ch]['kwargs']['port']
+                                    if isinstance(response, bool) and _port is not None:
+                                        if menu_actions[ch]['function'].__name__ == 'pwr_toggle':
+                                            threading.Thread(target=self.get_dli_outlets, kwargs={'upd_linked': True, 'refresh': True}, name='pwr_toggle_refresh').start()
+                                            if _grp in config.outlets:
+                                                config.outlets[_grp]['is_on'][_port]['state'] = response
+                                            elif _port != 'all':
+                                                config.dli_pwr[_addr][_port]['state'] = response
+                                            else:
+                                                for t in threading.enumerate():
+                                                    if t.name == 'pwr_toggle_refresh':
+                                                        t.join()
+                                                        break
+                                        elif menu_actions[ch]['function'].__name__ == 'pwr_cycle' and not response:
+                                            self.error_msgs.append('{} Port {} if Off.  Cycle is not valid'.format(host_short, _port))
+                                        elif menu_actions[ch]['function'].__name__ == 'pwr_rename':
+                                            if response:
+                                                _name = config._dli[_addr].name(_port)
+                                                if _grp in config.outlets:
+                                                    config.outlets[_grp]['is_on'][_port]['name'] = _name
+                                                else:
+                                                    threading.Thread(target=self.get_dli_outlets, kwargs={'upd_linked': True, 'refresh': True}).start()
+                                                config.dli_pwr[_addr][_port]['name'] = _name
+                                    elif isinstance(response, str) and _port is not None:
+                                        self.error_msgs.append(response)
+                                    elif isinstance(response, int):
+                                        if menu_actions[ch]['function'].__name__ == 'pwr_cycle' and _port == 'all':
+                                            if response != 200:
+                                                self.error_msgs.append('Error Response Returned {}'.format(response))
+                                        else: # This is a catch as for the most part I've tried to refactor so the pwr library returns port state on success (True/False)
+                                            if response in [200, 204]:
+                                                self.error_msgs.append('DEV NOTE: check pwr library ret=200 or 204')
+                                            else:
+                                                self.error_msgs.append('Error returned from dli {} when attempting to {} port {}'.format(
+                                                    host_short, menu_actions[ch]['function'].__name__, _port))
+                                else:   # type GPIO and tasmota
                                     if menu_actions[ch]['function'].__name__ == 'pwr_toggle':
                                         if _grp in config.outlets:
-                                            config.outlets[_grp]['is_on'][_port]['state'] = response
-                                        else:
-                                            Thread(target=self.get_dli_outlets, kwargs={'upd_linked': True, 'refresh': True}).start()
-                                        config.dli_pwr[_addr][_port]['state'] = response
+                                            config.outlets[_grp]['is_on'] = response if isinstance(response, bool) else None
                                     elif menu_actions[ch]['function'].__name__ == 'pwr_cycle' and not response:
                                         self.error_msgs.append('{} Port {} if Off.  Cycle is not valid'.format(host_short, _port))
                                     elif menu_actions[ch]['function'].__name__ == 'pwr_rename':
-                                        if response:
-                                            _name = config._dli[_addr].name(_port)
-                                            if _grp in config.outlets:
-                                                config.outlets[_grp]['is_on'][_port]['name'] = _name
-                                            else:
-                                                Thread(target=self.get_dli_outlets, kwargs={'upd_linked': True, 'refresh': True}).start()
-                                            config.dli_pwr[_addr][_port]['name'] = _name
-                                elif isinstance(response, str) and _port is not None:
-                                    self.error_msgs.append(response)
-                                else:
-                                    if response in [200, 204]:
-                                        self.error_msgs.append('DEV NOTE: check pwr library ret=200 or 204')
-                                    else:
-                                        self.error_msgs.append('Error returned from dli {} when attempting to {} port {}'.format(
-                                            host_short, menu_actions[ch]['function'].__name__, _port))
-                            else:   # type GPIO and tasmota
-                                if menu_actions[ch]['function'].__name__ == 'pwr_toggle':
-                                    if _grp in config.outlets:
-                                        config.outlets[_grp]['is_on'] = response if isinstance(response, bool) else None
-                                elif menu_actions[ch]['function'].__name__ == 'pwr_cycle' and not response:
-                                    self.error_msgs.append('{} Port {} if Off.  Cycle is not valid'.format(host_short, _port))
-                                elif menu_actions[ch]['function'].__name__ == 'pwr_rename':
-                                    self.error_msgs.append('rename not yet implemented for {} outlets'.format(_type))
+                                        self.error_msgs.append('rename not yet implemented for {} outlets'.format(_type))
                         elif calling_menu == 'key_menu':
                             if response:
                                 for _ in response:

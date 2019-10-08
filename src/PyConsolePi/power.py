@@ -4,6 +4,7 @@ import json
 import time
 from sys import stdin
 from os import path
+import threading
 
 import requests
 import RPi.GPIO as GPIO
@@ -176,11 +177,17 @@ class Outlets:
             }
         return self.outlet_data
 
-    def pwr_toggle(self, pwr_type, address, desired_state=None, port=None, noff=True):   # TODO refactor to pwr_toggle 
+    def pwr_toggle(self, pwr_type, address, desired_state=None, port=None, noff=True, noconfirm=False):   # TODO refactor to pwr_toggle 
+        if isinstance(desired_state, str):
+            desired_state = False if desired_state.lower() == 'off' else True
         def confirm(address=address, port=port, pwr_type=pwr_type):
             while True:
-                choice = input('Please Confirm: Power \033[1;31mOFF\033[0m {} outlet {}{}? (y/n)>> '.format(
-                    pwr_type, address, '' if port is None else ' Port: ' + str(port)))
+                if port != 'all':
+                    prompt = 'Please Confirm: Power \033[1;31mOFF\033[0m {} outlet {}{}? (y/n)>> '.format(
+                              pwr_type, address, '' if port is None else ' Port: ' + str(port))
+                else:
+                    prompt = 'Please Confirm: [{}] Power \033[1;31mOFF\033[0m *ALL* outlets? (y/n)>> '.format(address)
+                choice = input(prompt)
                 ch = choice.lower()
                 if ch in ['y', 'yes', 'n', 'no']:
                     if ch in ['n', 'no']:
@@ -189,7 +196,7 @@ class Outlets:
                         break
                 else:
                     print('Invalid Response: {}'.format(choice))
-        if desired_state is not None and not desired_state:
+        if desired_state is not None and not desired_state and not noconfirm:
             confirm()
         if pwr_type.lower() == 'dli':
             if port is not None:
@@ -204,15 +211,14 @@ class Outlets:
                     confirm()
                 GPIO.output(gpio, int(noff)) if not cur_state else GPIO.output(gpio, int(not noff))  # pylint: disable=maybe-no-member
             else:
-                desired_state = desired_state.lower()
-                GPIO.output(gpio, int(not noff)) if desired_state == 'off' else GPIO.output(gpio, int(noff)) # pylint: disable=maybe-no-member
+                GPIO.output(gpio, int(not noff)) if not desired_state else GPIO.output(gpio, int(noff)) # pylint: disable=maybe-no-member
             response = bool(GPIO.input(gpio)) if noff else not bool(GPIO.input(gpio)) # pylint: disable=maybe-no-member
         elif pwr_type.lower() == 'tasmota':
             # TODO power off confirm for tasmota
             if desired_state is None:
                 response = self.do_tasmota_cmd(address, 'toggle')
             else:
-                desired_state = desired_state.lower()
+                desired_state = 'on' if desired_state else 'off'
                 response = self.do_tasmota_cmd(address, desired_state)
         else:
             raise Exception('pwr_toggle: Invalid type ({}) or no name provided'.format(pwr_type))
@@ -268,6 +274,56 @@ class Outlets:
             raise Exception('pwr_rename: Invalid type ({}) or no name provided'.format(type))
         # print('pwr_rename response: {}'.format(response)) # Remove Debug Line
         return response
+
+    def pwr_all(self, outlets=None, action='toggle', desired_state=None):
+        if action == 'toggle' and desired_state is None:
+            return 'Error: desired final state must be provided'
+        def confirm():
+            while True:
+                prompt = 'Please Confirm: Power *ALL* Outlets \033[1;31mOFF\033[0m? (y/n)>> ' if action == 'toggle' else \
+                    'Please Confirm: Power Cycle *ALL* Powered \033[1;32mON\033[0m outlets? (y/n)>> '
+                choice = input(prompt)
+                ch = choice.lower()
+                if ch in ['y', 'yes', 'n', 'no']:
+                    if ch in ['n', 'no']:
+                        return 'Toggle \033[1;31mOFF\033[0m Aborted by user'
+                    else:
+                        break
+                else:
+                    print('Invalid Response: {}'.format(choice))
+        if outlets is None:
+            outlets = self.get_outlets
+        responses = []
+        if not desired_state:
+            confirm()
+        for grp in outlets:
+            outlet = outlets[grp]
+            noff = True if 'noff' not in outlet else outlet['noff']
+            if action == 'toggle':
+                responses.append(self.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
+                port=outlet['linked_ports'] if outlet['type'] == 'dli' and 'linked_ports' in outlet else None,
+                noff=noff, noconfirm=True)
+                )
+            elif action == 'cycle':
+                if outlet['type'] != 'dli':
+                    threading.Thread(target=self.pwr_cycle, args=[outlet['type'], outlet['address']], kwargs={'noff': noff}, name='cycle_{}'.format(outlet['address'])).start()
+                elif 'linked_ports' in outlet:
+                    if isinstance(outlet['linked_ports'], int):
+                        linked_ports = [outlet['linked_ports']]
+                    else:
+                        linked_ports = outlet['linked_ports']
+                    for p in linked_ports:
+                        threading.Thread(target=self.pwr_cycle, args=[outlet['type'], outlet['address']], kwargs={'port': p, 'noff': noff}, name='cycle_{}'.format(p)).start()
+        while True:
+            threads = 0
+            for t in threading.enumerate():
+                if 'cycle' in t.name:
+                    threads += 1
+            if threads == 0:
+                break
+
+        return responses
+
 
     # Does not appear to be used can prob remove
     def get_state(self, type, address, port=None):

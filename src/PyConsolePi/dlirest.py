@@ -271,7 +271,7 @@ class DLI:
                         log.error('[DLI] port {} provided in port list: {} is not valid')
             else:
                 log.error('[DLI] Invalid Value provided for port')
-        else:   # No toState provided set toState based on opposite of curState
+        elif toState is None:   # No toState provided set toState based on opposite of curState
             if isinstance(port, int):
                 curState = self.state(port)
                 toState = not curState

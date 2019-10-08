@@ -79,7 +79,7 @@ class ConsolePi_data(Outlets):
         self.log = cpi_log.log
         self.plog = cpi_log.plog
         self.hostname = socket.gethostname()
-        if self.power:          # pylint: access-member-before-definition
+        if self.power: # pylint: access-member-before-definition
             if os.path.isfile(POWER_FILE):
                 self.outlet_update()
             else:

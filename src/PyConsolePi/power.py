@@ -37,6 +37,7 @@ class Outlets:
             command = command.upper()
             if command in ['ON', 'OFF', 'TOGGLE']:
                 querystring = {"cmnd":"Power {}".format(command)}
+                cycle = False
             elif command == 'CYCLE':
                 cycle = True
             else:

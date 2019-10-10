@@ -335,7 +335,7 @@ class ConsolePiMenu():
                     _tot_width = []
 
         # -- if any footer lines are longer adjust _tot_width (which is the longest line from any section)
-        foot = self.menu_formatting('footer', text=footer, do_print=False)
+        foot = self.menu_formatting('footer', text=footer, do_print=False)[0]
         _foot_width = []
         for line in foot:
             _foot_width.append(len(line))

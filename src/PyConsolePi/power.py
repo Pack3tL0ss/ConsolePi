@@ -33,17 +33,18 @@ class Outlets:
             'cache-control': "no-cache"
             }
         
+        cycle = False
         if command is not None:
             command = command.upper()
             if command in ['ON', 'OFF', 'TOGGLE']:
                 querystring = {"cmnd":"Power {}".format(command)}
-                cycle = False
-            elif command == 'CYCLE':
+            elif command == 'CYCLE': # Power off if cycle is command, powered back on below
+                querystring = {"cmnd":"Power OFF"}
                 cycle = True
             else:
                 raise KeyError
-        else:
-            querystring = {"cmnd":"Power"}  # get status
+        else: # get status of port is default unless other command specified
+            querystring = {"cmnd":"Power"}
         
         def tasmota_req(*args, **kwargs):
             try:
@@ -65,8 +66,9 @@ class Outlets:
 
         r = tasmota_req()
         if cycle:
-            time.sleep(CYCLE_TIME)
             if not r:
+                time.sleep(CYCLE_TIME)
+                querystring = {"cmnd":"Power ON"}
                 r = tasmota_req()
             else:
                 print('Unexpected response, port returned on state expected off')

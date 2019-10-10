@@ -333,6 +333,13 @@ class ConsolePiMenu():
                     _begin = 0
                     _end = cols
                     _tot_width = []
+
+        # -- if any footer lines are longer adjust _tot_width (which is the longest line from any section)
+        foot = self.menu_formatting('footer', text=footer, do_print=False)
+        _foot_width = []
+        for line in foot:
+            _foot_width.append(len(line))
+        _tot_width = max(_foot_width) if max(_foot_width) > _tot_width else _tot_width
         
         if MIN_WIDTH < config.cols:
             _tot_width = MIN_WIDTH if _tot_width < MIN_WIDTH else _tot_width

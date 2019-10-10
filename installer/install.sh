@@ -2,22 +2,23 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script Stage 1                                                       -- #
-# --  Wade Wells - Jul, 2019                                                                                                                     -- #
+# --  Wade Wells (Pack3tL0ss)                                                                                                                    -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
-# --  For manual setup instructions and more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                -- #
+# --  For more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                                              -- #
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-branch="master"
+branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && sudo git status | head -1 | awk '{print $3}' && popd >/dev/null || echo "master")
 
 get_common() {
     wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
-    header 1>/dev/null
+    header 2>/dev/null && echo "FATAL ERROR: common.sh functions not available after import" && exit 1
+    [ $branch != "master" ] && logit "Running alternate branch: $branch"
 }
 
 remove_first_boot() {

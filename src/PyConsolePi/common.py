@@ -79,12 +79,14 @@ class ConsolePi_data(Outlets):
         self.log = cpi_log.log
         self.plog = cpi_log.plog
         self.hostname = socket.gethostname()
-        if self.power: # pylint: access-member-before-definition
+        self.error_msgs = []
+        if self.power: # pylint: disable=access-member-before-definition
             if os.path.isfile(POWER_FILE):
                 self.outlet_update()
             else:
                 self.power = self.outlets = False
-                self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')       
+                self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')
+                self.error_msgs.append('Powrer Outlet Control is enabled but no power.json defined - Disabling')    
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()
         self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
@@ -108,24 +110,25 @@ class ConsolePi_data(Outlets):
     def get_config_all(self):
         with open('/etc/ConsolePi/ConsolePi.conf', 'r') as config:
             for line in config:
-                var = line.split("=")[0]
-                value = line.split('#')[0]
-                value = value.replace('{0}='.format(var), '')
-                value = value.split('#')[0].replace(' ', '')
-                value = value.replace('\t', '')
-                if '"' in value:
-                    value = value.replace('"', '', 1)
-                    value = value.split('"')[0]
-                
-                if 'true' in value.lower() or 'false' in value.lower():
-                    value = True if 'true' in value.lower() else False
-                
-                if isinstance(value, str):
-                    try:
-                        value = int(value)
-                    except ValueError:
-                        pass
-                locals()[var] = value
+                if line[0] != '#':
+                    var = line.split("=")[0]
+                    value = line.split('#')[0]
+                    value = value.replace('{0}='.format(var), '')
+                    value = value.split('#')[0].replace(' ', '')
+                    value = value.replace('\t', '')
+                    if '"' in value:
+                        value = value.replace('"', '', 1)
+                        value = value.split('"')[0]
+                    
+                    if 'true' in value.lower() or 'false' in value.lower():
+                        value = True if 'true' in value.lower() else False
+                    
+                    if isinstance(value, str):
+                        try:
+                            value = int(value)
+                        except ValueError:
+                            pass
+                    locals()[var] = value
         ret_data = locals()
         for key in ['self', 'config', 'line', 'var', 'value']:
             ret_data.pop(key)

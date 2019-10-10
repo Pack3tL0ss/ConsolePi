@@ -366,7 +366,12 @@ class ConsolePiMenu():
         max_len = None
         colors = self.colors
 
-        # -- Adjust width if there is an error msg longer then the current width
+        # -- append any errors from config (ConsolePi_data object)
+        if config.error_msgs:
+            self.error_msgs += config.error_msgs
+            config.error_msgs = []
+
+        # -- Adjust width if there is an error msg longer then the current width            
         if self.error_msgs:
             _error_lens = []
             for _error in self.error_msgs:
@@ -413,9 +418,9 @@ class ConsolePiMenu():
 
             # --// ERRORs - append to footer \\-- #
             if len(self.error_msgs) > 0:
-                for msg in self.error_msgs:
-                    x = ((width - len(msg)) / 2 ) - 1
-                    mlines.append('*{}{}{}*'.format(' ' * int(x), msg, ' ' * int(x) if x == int(x) else ' ' * (int(x) + 1)))
+                for _error in self.error_msgs:
+                    x = ((width - len(_error)) / 2 ) - 1
+                    mlines.append('*{}{}{}*'.format(' ' * int(x), _error, ' ' * int(x) if x == int(x) else ' ' * (int(x) + 1)))
                 mlines.append('=' * width)
                 if do_print:
                     self.error_msgs = [] # clear error messages
@@ -583,7 +588,8 @@ class ConsolePiMenu():
                     # elif isinstance(outlet['is_on'], dict) and outlet['type'] == 'dli':
                     #     pass
                     else:
-                        print('     !! Skipping {} as it returned an error: {}'.format(r, outlet['is_on']))
+                        # print('     !! Skipping {} as it returned an error: {}'.format(r, outlet['is_on']))
+                        self.error_msgs.append('{} not displayed - Error: {}'.format(r, outlet['is_on']))
             
             if item > 2:
                 print('')
@@ -931,7 +937,7 @@ class ConsolePiMenu():
                                     if menu_dev == dev['dev']:
                                         outlet = dev['outlet']
                                         if outlet is not None:
-                                            desired_state = 'on'
+                                            desired_state = True
                                             self.spin.start('Ensuring ' + menu_dev.replace('/dev/', '') + ' is Powered On')
                                             # -- // DLI Auto Power On \\ --
                                             if outlet['type'] == 'dli':
@@ -946,7 +952,7 @@ class ConsolePiMenu():
                                                         self.spin.succeed()
                                                 if isinstance(fail, bool) and not fail:
                                                     self.spin.succeed()
-                                                    threading.Thread(target=config.outlet_update, kwargs={'refresh': True}).start()
+                                                    threading.Thread(target=config.outlet_update, kwargs={'refresh': True, 'upd_linked': True}).start()
                                                 elif fail is not None:
                                                     self.spin.fail('Error operating linked outlet {} @ {} ({})'.format(
                                                         menu_dev.replace('/dev/', ''), outlet['address'], r))
@@ -960,6 +966,9 @@ class ConsolePiMenu():
                                                     self.error_msgs.append('the return from {} {} was an int({})'.format(
                                                         outlet['type'], outlet['address'], r
                                                     ))
+                                                elif isinstance(r, int) and r > 1:
+                                                    self.spin.fail('outlet returned error {}'.format(r))
+                                                    r = False
                                                 if r:
                                                     self.spin.succeed()
                                                     threading.Thread(target=config.get_outlets).start()
@@ -967,8 +976,8 @@ class ConsolePiMenu():
                                                     self.spin.fail()
                                                     self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
                                                     log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
-                                        else:
-                                            print('Linked Outlet @ {} returned an error during menu load. Skipping...'.format(outlet['address']))
+                                        # else:
+                                        #     print('Linked Outlet returned an error during menu load. Skipping...')
 
                         try:
                             result = subprocess.run(c, stderr=subprocess.PIPE)
@@ -986,7 +995,6 @@ class ConsolePiMenu():
                         args = menu_actions[ch]['args'] if 'args' in menu_actions[ch] else []
                         kwargs = menu_actions[ch]['kwargs'] if 'kwargs' in menu_actions[ch] else {}
                         response = menu_actions[ch]['function'](*args, **kwargs)
-                        print(response)
                         if calling_menu in ['power_menu', 'dli_menu']:
                             if menu_actions[ch]['function'].__name__ == 'pwr_all':
                                 self.get_dli_outlets(refresh=True, upd_linked=True)
@@ -999,16 +1007,22 @@ class ConsolePiMenu():
                                     _port = menu_actions[ch]['kwargs']['port']
                                     if isinstance(response, bool) and _port is not None:
                                         if menu_actions[ch]['function'].__name__ == 'pwr_toggle':
+                                            self.spin.start('Request Sent, Refreshing Outlet States')
                                             threading.Thread(target=self.get_dli_outlets, kwargs={'upd_linked': True, 'refresh': True}, name='pwr_toggle_refresh').start()
                                             if _grp in config.outlets:
                                                 config.outlets[_grp]['is_on'][_port]['state'] = response
                                             elif _port != 'all':
                                                 config.dli_pwr[_addr][_port]['state'] = response
-                                            else:
+                                            else:  # dli toggle all
                                                 for t in threading.enumerate():
                                                     if t.name == 'pwr_toggle_refresh':
                                                         t.join()
+                                                        # toggle all returns True (ON) or False (OFF) if command successfully sent.  In reality the ports 
+                                                        # may not be in the  state yet, but dli is working it.  Update menu items to reflect end state
+                                                        for p in config.dli_pwr[_addr]:     
+                                                            config.dli_pwr[_addr][p]['state'] = response
                                                         break
+                                            self.spin.succeed()
                                         elif menu_actions[ch]['function'].__name__ == 'pwr_cycle' and not response:
                                             self.error_msgs.append('{} Port {} if Off.  Cycle is not valid'.format(host_short, _port))
                                         elif menu_actions[ch]['function'].__name__ == 'pwr_rename':
@@ -1036,7 +1050,7 @@ class ConsolePiMenu():
                                         if _grp in config.outlets:
                                             config.outlets[_grp]['is_on'] = response if isinstance(response, bool) else None
                                     elif menu_actions[ch]['function'].__name__ == 'pwr_cycle' and not response:
-                                        self.error_msgs.append('{} Port {} if Off.  Cycle is not valid'.format(host_short, _port))
+                                        self.error_msgs.append('Cycle is not valid for Outlets in the off state')
                                     elif menu_actions[ch]['function'].__name__ == 'pwr_rename':
                                         self.error_msgs.append('rename not yet implemented for {} outlets'.format(_type))
                         elif calling_menu == 'key_menu':

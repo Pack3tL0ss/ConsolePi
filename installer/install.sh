@@ -29,7 +29,6 @@ remove_first_boot() {
 }
 
 do_apt_update() {
-    header
     process="Update/Upgrade ConsolePi (apt)"
     logit "Update Sources"
     # Only update if initial install (no install.log) or if last update was not today

@@ -17,7 +17,7 @@ get_common() {
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
-    header 2>/dev/null && echo "FATAL ERROR: common.sh functions not available after import" && exit 1
+    header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
     [ $branch != "master" ] && logit "Running alternate branch: $branch"
 }
 

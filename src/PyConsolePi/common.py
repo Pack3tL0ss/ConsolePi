@@ -80,6 +80,7 @@ class ConsolePi_data(Outlets):
         self.plog = cpi_log.plog
         self.hostname = socket.gethostname()
         self.error_msgs = []
+        self.outlet_by_dev = None # defined in get_local --> map_serial2outlet
         if self.power: # pylint: disable=access-member-before-definition
             if os.path.isfile(POWER_FILE):
                 self.outlet_update()
@@ -93,6 +94,7 @@ class ConsolePi_data(Outlets):
         self.remotes = self.get_local_cloud_file()
         if stdin.isatty():
             self.rows, self.cols = self.get_tty_size()
+        self.display_con_settings = False
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
@@ -204,6 +206,7 @@ class ConsolePi_data(Outlets):
 
             if tty_port == 9999:
                 plog('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev), level='error')
+                self.display_con_settings = True
                 # log.error('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev))
                 # serial_list.append({'dev': tty_dev, 'port': tty_port})
                 # if do_print:
@@ -221,7 +224,10 @@ class ConsolePi_data(Outlets):
     def map_serial2outlet(self, serial_list, outlets):
         log = self.log
         # print('Fetching Power Outlet Data')
+        outlet_by_dev = {}
         for dev in serial_list:
+            if dev['dev'] not in outlet_by_dev:
+                outlet_by_dev[dev['dev']] = []
             # -- get linked outlet details if defined --
             outlet_dict = None
             for o in outlets:
@@ -232,13 +238,14 @@ class ConsolePi_data(Outlets):
                         address = outlet['address']
                         if outlet['type'].upper() == 'GPIO':
                             address = int(outlet['address'])
-                            noff = outlet['noff'] if 'noff' in outlet else None
-                        elif outlet['type'].lower() == 'dli':
-                            noff = True
-                        outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on']}
+                        noff = outlet['noff'] if 'noff' in outlet else True
+                        outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
+                        # outlet_by_dev[dev['dev']].append(outlet_dict)
+                        outlet_by_dev[dev['dev']].append(outlet_dict)
                         # break
             dev['outlet'] = outlet_dict
 
+        self.outlet_by_dev = outlet_by_dev
         return serial_list
 
     def get_if_ips(self):
@@ -306,6 +313,10 @@ class ConsolePi_data(Outlets):
                                     remote_consoles[_] = current_remotes[_]
                                     log.info('[CACHE UPD] {} Keeping existing data based on more current update time'.format(_))
                                 else: 
+                                    # -- fail_cnt persistence so Unreachable ConsolePi learned from Gdrive sync can still be flushed
+                                    # -- after 3 failed connection attempts.
+                                    if 'fail_cnt' not in remote_consoles[_] and 'fail_cnt' in current_remotes[_]:
+                                        remote_consoles[_]['fail_cnt'] = current_remotes[_]['fail_cnt']
                                     log.info('[CACHE UPD] {} Updating data from {} based on more current update time'.format(_, remote_consoles[_]['source']))
                             elif 'upd_time' in current_remotes[_]:
                                     remote_consoles[_] = current_remotes[_] 

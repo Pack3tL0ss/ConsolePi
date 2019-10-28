@@ -376,6 +376,7 @@ get_pi_info() {
     logit "$pretty"
     logit "$version running on $cpu Revision: $rev"
     logit "$(uname -a)"
+    dpkg -l | grep -q raspberrypi-ui && logit "Desktop version installed" || logit "Lite version installed"
     unset process
 }
 

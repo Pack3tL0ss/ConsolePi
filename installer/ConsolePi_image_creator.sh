@@ -64,7 +64,7 @@ priority=0
 img_type='lite'
 
 # if img_only=true only burn the image and enable SSH (I run headless), no other pre-staging is done. This is for testing more commom install scenario
-img_only=false
+img_only=true
 
 # -- Auto Launch ConsolePi installer when user logs in --
 auto_install=true
@@ -170,17 +170,19 @@ main() {
     # If img or zip raspbian-lite image exists in script dir see if it is current
     # if not prompt user to determine if they want to download current
     if [[ $found_img_file ]]; then
-        if [[ ! ${found_img_file%.img} == $cur_rel ]]; then
+#        if [[ ! ${found_img_file%.img} =~ $cur_rel ]]; then
+        if ! $(ls -lc | grep -q ${cur_rel}.img); then
             echo "${found_img_file%.img} found, but the latest available release is ${cur_rel}"
             prompt="Would you like to download and use the latest release? (${cur_rel}):"
             get_input
             $input || img_file=$found_img_file
         else
             echo "Using image ${found_img_file%.img}, found in $(pwd). It is the current release"
-            img_file=$found_img_file
+            img_file=${cur_rel}.img
         fi
     elif [[ $found_img_zip ]]; then
-        if [[ ! ${found_img_zip%.zip} == $cur_rel ]]; then
+#        if [[ ! ${found_img_zip%.zip} =~ $cur_rel ]]; then
+        if ! $(ls -lc | grep -q ${cur_rel}.zip); then
             echo "${found_img_zip%.zip} found, but the latest available release is ${cur_rel}"
             prompt="Would you like to download and use the latest release? (${cur_rel}):"
             get_input

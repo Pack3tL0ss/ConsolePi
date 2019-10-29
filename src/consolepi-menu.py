@@ -321,9 +321,14 @@ class ConsolePiMenu():
                     _iter_start_stop.append([_begin, _end])
                     break
             else:   # width of this # of cols too wide for screen reduce col count
+                reduce_cols = True
                 if 2 * ( cols - 1 ) < max(_tot_width) - config.cols < 5 * ( cols - 1 ):
-                    col_pad = 2
-                else:
+                    if col_pad != 2:
+                        col_pad = 2
+                        reduce_cols = False
+                    else:
+                        pass # reduce_cols = True
+                if reduce_cols:
                     cols -= 1
                     _begin = 0
                     _end = cols
@@ -366,7 +371,7 @@ class ConsolePiMenu():
                 if cols > 1:
                     print('') # When multiple cols adds a 2nd \n below row of entries other than last row
         self.menu_formatting('footer', text=footer, width=_tot_width, do_print=True)
-        print(_tot_width, config.cols, config.rows)
+        # print(_tot_width, config.cols, config.rows)
 
 
     def menu_formatting(self, section, sub=None, text=None, width=MIN_WIDTH,

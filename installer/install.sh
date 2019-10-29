@@ -213,6 +213,7 @@ do_logging() {
     sudo chgrp -R consolepi /var/log/ConsolePi || logit "Failed to update group for log file" "WARNING"
     if [ ! $(stat -c "%a" /var/log/ConsolePi/cloud.log) == 664 ]; then
         sudo chmod g+w /var/log/ConsolePi/* || logit "Failed to make log files group writable" "WARNING"
+    fi
 
     # move installer log from temp to it's final location
     if ! $upgrade; then

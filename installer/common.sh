@@ -23,7 +23,7 @@ default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log" 
 final_log="/var/log/ConsolePi/install.log"
-cloud_cache="/etc/ConsolePi/cloud.data"
+cloud_cache="/etc/ConsolePi/cloud.json"
 override_dir="/etc/ConsolePi/src/override"
 
 # Terminal coloring

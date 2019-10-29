@@ -336,7 +336,8 @@ class ConsolePiMenu():
                         _tot_width = []
                     else:
                         self.DEBUG = True
-                        self.error_msgs.append('tty too small for menu - screen clearing disabled')
+                        self.error_msgs.append('tty too small for menu')
+                        self.error_msgs.append('screen clearing disabled')
                         _iter_start_stop = []
                         _tot_width = []
                         # this essentially builds a single column TODO simplify this

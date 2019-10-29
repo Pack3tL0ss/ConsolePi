@@ -397,7 +397,8 @@ class ConsolePi_data(Outlets):
         for _rem in rem_list:
             print('\nAttempting to copy ssh cert to {}\n'.format(_rem))
             ret = bash_command('ssh-copy-id {0}@{1}'.format(rem_user, _rem))
-            return_list.append('{}: {}'.format(_rem, ret))
+            if ret is not None:
+                return_list.append('{}: {}'.format(_rem, ret))
         return return_list
 
 def set_perm(file):

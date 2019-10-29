@@ -10,6 +10,7 @@ import sys
 from collections import OrderedDict as od
 import threading
 from halo import Halo
+from log_symbols import LogSymbols as log_sym
 # from consolepi.gdrive import GoogleDrive # <-- hidden import burried in refresh method of ConsolePiMenu Class
 
 # --// ConsolePi imports \\--
@@ -45,7 +46,10 @@ class ConsolePiMenu():
                 config.plog('failed to connect to {}, operating in local only mode'.format(config.cloud_svc), level='warning')
                 self.error_msgs.append('failed to connect to {} - operating in local only mode'.format(config.cloud_svc))
                 self.local_only = True
-
+        self.log_sym_error = log_sym.ERROR.value
+        self.log_sym_warn = log_sym.WARNING.value
+        self.log_sym_success = log_sym.SUCCESS.value
+        self.log_sym_info = log_sym.INFO.value
         self.go = True
         self.baud = 9600
         self.data_bits = 8
@@ -87,14 +91,15 @@ class ConsolePiMenu():
         if config.power and config.dli_failures:
             self.get_dli_outlets()   # Update error msg with failure
         self.DEBUG = config.debug
-        self.DEBUG = True
+        # self.DEBUG = True
         self.menu_actions = {
             'main_menu': self.main_menu,
-            'c': self.con_menu,
             'h': self.picocom_help,
             'r': self.refresh,
             'x': self.exit
         }
+        if config.display_con_settings:
+            self.menu_actions['c'] = self.con_menu
         if config.power and config.outlets:
             if self.linked_exists or self.gpio_exists or self.tasmota_exists:
                 self.menu_actions['p'] = self.power_menu
@@ -143,9 +148,11 @@ class ConsolePiMenu():
         pop_list = []
         for remotepi in data:
             this = data[remotepi]
-            print('  {} Found...  Checking reachability'.format(remotepi), end='')
+            # print('  {} Found...  Checking reachability'.format(remotepi), end='')
+            self.spin.start('  {} Found...  Checking reachability'.format(remotepi))
             if 'rem_ip' in this and this['rem_ip'] is not None and check_reachable(this['rem_ip'], 22):
-                print(': Success', end='\n')
+                # print(': Success', end='\n')
+                self.spin.succeed()
                 log.info('[GET REM] Found {0} in Local Cache, reachable via {1}'.format(remotepi, this['rem_ip']))
                 #this['adapters'] = build_adapter_commands(this)
             else:
@@ -154,7 +161,8 @@ class ConsolePiMenu():
                     if _ip not in self.ip_list:
                         if check_reachable(_ip, 22):
                             this['rem_ip'] = _ip
-                            print(': Success', end='\n')
+                            # print(': Success', end='\n')
+                            self.spin.succeed()
                             log.info('[GET REM] Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
                             #this['adapters'] = build_adapter_commands(this)
                             break  # Stop Looping through interfaces we found a reachable one
@@ -165,7 +173,8 @@ class ConsolePiMenu():
                 log.warning('[GET REM] Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
                 self.error_msgs.append('Cached Remote \'{}\' is unreachable'.format(remotepi))
                 update_cache = True                
-                print(': !!! UNREACHABLE !!!', end='\n')
+                # print(': !!! UNREACHABLE !!!', end='\n')
+                self.spin.fail()
                 pop_list.append(remotepi)  # Remove Unreachable remote from cache
         
         # update local cache if any ConsolePis found UnReachable
@@ -178,7 +187,7 @@ class ConsolePiMenu():
                             removed = data.pop(remotepi)
                             log.warning('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
                                 remotepi, removed['fail_cnt']))
-                            self.error_msgs.append('Unreachable \'{}\' removed from local cache'.format(remotepi))   
+                            self.error_msgs.append('Unreachable \'{}\' removed from local cache after 3 failed attempts to connect'.format(remotepi))   
                     else:
                         data[remotepi]['fail_cnt'] = 1
             data = config.update_local_cloud_file(data)
@@ -224,20 +233,6 @@ class ConsolePiMenu():
 
         # Update Remote data with data from local_cloud cache
         self.data['remote'] = self.get_remote(data=remote_consoles, refresh=True)
-
-    # -- Deprecated function will return this ConsolePis data if consolepi-menu called with an argument (if arg is data of calling ConsolePi it's read in)
-    def update_from_remote(self, rem_data):
-        config = self.config
-        log = config.log
-        rem_data = ast.literal_eval(rem_data)
-        if isinstance(rem_data, dict):
-            log.info('Remote Update Received via ssh: {}'.format(rem_data))
-            cache_data = config.get_local_cloud_file()
-            for host in rem_data:
-                cache_data[host] = rem_data[host]
-            log.info('Updating Local Cloud Cache with data recieved from {}'.format(host))
-            config.update_local_cloud_file(cache_data)
-            self.refresh(rem_update=True)
 
     # =======================
     #     MENUS FUNCTIONS
@@ -358,12 +353,20 @@ class ConsolePiMenu():
             for _ in range(long):
                 for x in _iters:
                     _ii = _iters.index(x)
-                    print('{:{_len}}{}'.format(next(x, ''), pad if _ii < cols else '', _len=wide[_ii]),
-                        end='\n' if _ii + _begin + 1 == _end or _ii == cols - 1 else '')
+                    if _ii + _begin + 1 == _end or _ii == cols - 1:
+                        this_pad = ''
+                        this_end = '\n'
+                    else:
+                        this_pad = pad
+                        this_end = ''
+                    print('{:{_len}}{}'.format(next(x, ''), this_pad, _len=wide[_ii]), end=this_end)
+#                    print('{:{_len}}{}'.format(next(x, ''), pad if _ii < cols else '', _len=wide[_ii]),
+#                        end='\n' if _ii + _begin + 1 == _end or _ii == cols - 1 else '')
             if _end != len(body['sections']):
                 if cols > 1:
                     print('') # When multiple cols adds a 2nd \n below row of entries other than last row
         self.menu_formatting('footer', text=footer, width=_tot_width, do_print=True)
+        print(_tot_width, config.cols, config.rows)
 
 
     def menu_formatting(self, section, sub=None, text=None, width=MIN_WIDTH,
@@ -426,8 +429,8 @@ class ConsolePiMenu():
             # --// ERRORs - append to footer \\-- #
             if len(self.error_msgs) > 0:
                 for _error in self.error_msgs:
-                    x = ((width - len(_error)) / 2 ) - 1
-                    mlines.append('*{}{}{}*'.format(' ' * int(x), _error, ' ' * int(x) if x == int(x) else ' ' * (int(x) + 1)))
+                    x = ((width - (len(_error) + 2)) / 2 ) - 1 # _error + 3 is for log_sym
+                    mlines.append('*{}{} {}{}*'.format(' ' * int(x),self.log_sym_warn, _error, ' ' * int(x) if x == int(x) else ' ' * (int(x) + 1)))
                 mlines.append('=' * width)
                 if do_print:
                     self.error_msgs = [] # clear error messages
@@ -651,7 +654,7 @@ class ConsolePiMenu():
             for dli in sorted(dli_dict):
                 state_dict = []
                 mlines = []
-                port_dict = dli_dict[dli]
+                port_dict = dli_dict[dli] # pylint: disable=unsubscriptable-object
                 # strip off all but hostname if address is fqdn
                 host_short = dli.split('.')[0] if '.' in dli and not config.canbeint(dli.split('.')[0]) else dli
 
@@ -867,8 +870,11 @@ class ConsolePiMenu():
                 slines.append('[Remote] {} @ {}'.format(host, rem[host]['rem_ip']))   # list of strings index to index match with body list of lists
 
         # -- General Menu Command Options --
-        text = [' c. Change *default Serial Settings [{0} {1}{2}1 flow={3}] '.format(
-            self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]), ' h. Display picocom help']
+        text = []
+        if config.display_con_settings: # pylint disable=no-member
+            text.append(' c. Change *default Serial Settings [{0} {1}{2}1 flow={3}] '.format(
+                self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]))
+        text.append(' h. Display picocom help')
         if config.power and config.outlets is not None:
             if self.linked_exists or self.gpio_exists or self.tasmota_exists:
                 text.append(' p. Power Control Menu')
@@ -938,6 +944,8 @@ class ConsolePiMenu():
                         
                         # -- // AUTO POWER ON LINKED OUTLETS \\ --
                         if config.power:  # pylint: disable=maybe-no-member
+                            # TODO use new config.outlet_by_dev
+                            # TODO remove /dev/ from power.json (don't require /dev/)
                             if '/dev/' in c[1] or ( len(c) >= 4 and '/dev/' in c[3] ):
                                 menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[1]
                                 for dev in config.local[self.hostname]['adapters']:
@@ -945,28 +953,56 @@ class ConsolePiMenu():
                                         outlet = dev['outlet']
                                         if outlet is not None:
                                             desired_state = True
-                                            self.spin.start('Ensuring ' + menu_dev.replace('/dev/', '') + ' is Powered On')
+                                            # self.spin.start('Ensuring ' + menu_dev.replace('/dev/', '') + ' is Powered On')
+                                            # linked_ports = [ '{}:{}'.format(port, outlet['is_on'][port]['name']) for port in outlet['is_on'] ] if isinstance(outlet['is_on'], dict) else ''
+                                            # if linked_ports:
+                                            #     msg = ''
+                                            #     for p in linked_ports:
+                                            #         msg += p + ', '
+                                            #     linked_ports = msg.rstrip(', ')
+                                            # self.spin.start('Ensuring linked outlet(s): [{}]:{} {} ~ powered on'.format(
+                                            #     outlet['type'], outlet['address'], linked_ports))
                                             # -- // DLI Auto Power On \\ --
                                             if outlet['type'] == 'dli':
-                                                fail = False
+                                                need_update = False
+                                                _addr = outlet['address']
+                                                host_short = _addr.split('.')[0] if '.' in _addr and not config.canbeint(_addr.split('.')[0]) else _addr
                                                 for p in outlet['is_on']:
+                                                    # fail = False
+                                                    self.spin.start('Ensuring linked outlet: [{}]:{} port: {}({}) is powered on'.format(
+                                                        outlet['type'], host_short, p, outlet['is_on'][p]['name']))
                                                     if not outlet['is_on'][p]['state']:
                                                         r = config.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state, port=p)
-                                                        if not r or not isinstance(r, bool):
-                                                            fail = True
+                                                        if isinstance(r, bool):
+                                                            if r:
+                                                                self.spin.succeed()
+                                                                need_update = True
+                                                            else:
+                                                                self.spin.fail()
+                                                        else:
+                                                            self.spin.fail('Error operating linked outlet {} @ {} ({})'.format(
+                                                                menu_dev.replace('/dev/', ''), outlet['address'], r))
+                                                            log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
+                                                            self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
+                                                        # if not r or not isinstance(r, bool):
+                                                        #     fail = True
                                                     else:
-                                                        fail = None
-                                                        self.spin.succeed()
-                                                if isinstance(fail, bool) and not fail:
-                                                    self.spin.succeed()
-                                                    threading.Thread(target=config.outlet_update, kwargs={'refresh': True, 'upd_linked': True}).start()
-                                                elif fail is not None:
-                                                    self.spin.fail('Error operating linked outlet {} @ {} ({})'.format(
-                                                        menu_dev.replace('/dev/', ''), outlet['address'], r))
-                                                    log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
-                                                    self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
+                                                        # if fail is not None: # ensure spin.success is only hit once
+                                                            self.spin.succeed() # port is already on
+                                                        # fail = None
+                                                # if isinstance(fail, bool) and not fail:
+                                                #     self.spin.succeed()
+                                                if need_update:
+                                                    threading.Thread(target=config.outlet_update, kwargs={'refresh': True, 'upd_linked': True}, name='auto_pwr_refresh_dli').start()
+                                                # elif fail is not None:
+                                                #     self.spin.fail('Error operating linked outlet {} @ {} ({})'.format(
+                                                #         menu_dev.replace('/dev/', ''), outlet['address'], r))
+                                                #     log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
+                                                #     self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
                                             # -- // GPIO & TASMOTA Auto Power On \\ --
                                             else:
+                                                self.spin.start('Ensuring linked outlet: [{}]:{} is powered on'.format(
+                                                        outlet['type'], outlet['address']))
                                                 r = config.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
                                                     noff=outlet['noff'] if outlet['type'].upper() == 'GPIO' else True)
                                                 if not isinstance(r, bool) and isinstance(r, int) and r <= 1:
@@ -978,7 +1014,7 @@ class ConsolePiMenu():
                                                     r = False
                                                 if r:
                                                     self.spin.succeed()
-                                                    threading.Thread(target=config.get_outlets).start()
+                                                    threading.Thread(target=config.get_outlets, name='auto_pwr_refresh_' + outlet['type']).start()
                                                 else:
                                                     self.spin.fail()
                                                     self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
@@ -1038,7 +1074,7 @@ class ConsolePiMenu():
                                                 if _grp in config.outlets:
                                                     config.outlets[_grp]['is_on'][_port]['name'] = _name
                                                 else:
-                                                    threading.Thread(target=self.get_dli_outlets, kwargs={'upd_linked': True, 'refresh': True}).start()
+                                                    threading.Thread(target=self.get_dli_outlets, kwargs={'upd_linked': True, 'refresh': True}, name='pwr_rename_refresh').start()
                                                 config.dli_pwr[_addr][_port]['name'] = _name
                                     elif isinstance(response, str) and _port is not None:
                                         self.error_msgs.append(response)
@@ -1259,15 +1295,16 @@ class ConsolePiMenu():
 
 # Main Program
 if __name__ == "__main__":
-    # DEPRECATED - USING API: If script is called with an argument (any argument) simply prints details for this ConsolePi
-    # used if ConsolePi is detected as DHCP client on another ConsolePi (for non internet connected cluster)
-    
+    # if argument passed to menu load the class and print the argument (used to print variables/debug)    
     if len(sys.argv) > 1:
-        menu = ConsolePiMenu(bypass_remote=True, do_print=False)
-        # threading doesn't work ssh process terminates
-        # threading.Thread(target=menu.update_from_remote, args=(sys.argv[1])).start()
-        menu.update_from_remote(sys.argv[1])
-        print(menu.data['local'])
+        menu = ConsolePiMenu(bypass_remote=True, do_print=True)
+        config = menu.config
+        var_in = sys.argv[1].replace('self', 'menu')
+        exec('var  = ' + var_in)
+        if isinstance(var, (dict, list)):                    # pylint: disable=undefined-variable
+            print(json.dumps(var, indent=4, sort_keys=True)) # pylint: disable=undefined-variable
+        else:
+            print(var)                                       # pylint: disable=undefined-variable
     else:
         # Launch main menu
         menu = ConsolePiMenu()

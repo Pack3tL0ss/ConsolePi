@@ -329,17 +329,31 @@ class ConsolePiMenu():
                     else:
                         pass # reduce_cols = True
                 if reduce_cols:
-                    cols -= 1
-                    _begin = 0
-                    _end = cols
-                    _tot_width = []
+                    if cols > 1:
+                        cols -= 1
+                        _begin = 0
+                        _end = cols
+                        _tot_width = []
+                    else:
+                        self.DEBUG = True
+                        self.error_msgs.append('tty too small for menu - screen clearing disabled')
+                        _iter_start_stop = []
+                        _tot_width = []
+                        # this essentially builds a single column TODO simplify this
+                        for x in range(0, len(body['sections'])):
+                            _iter_start_stop.append([x, x + 1])
+                            _tot_width.append(sum(body['width'][x:x + 1]) + (col_pad * (cols - 1)))
+                            next
+                        break
 
         # -- if any footer lines are longer adjust _tot_width (which is the longest line from any section)
         foot = self.menu_formatting('footer', text=footer, do_print=False)[0]
         _foot_width = []
         for line in foot:
             _foot_width.append(len(line))
-        _tot_width = max(_foot_width) if max(_foot_width) > _tot_width else _tot_width
+        if isinstance(_tot_width, int): # TODO refactor
+            _tot_width = [_tot_width]
+        _tot_width = max(_foot_width) if max(_foot_width) > max(_tot_width) else max(_tot_width)
         
         if MIN_WIDTH < config.cols:
             _tot_width = MIN_WIDTH if _tot_width < MIN_WIDTH else _tot_width

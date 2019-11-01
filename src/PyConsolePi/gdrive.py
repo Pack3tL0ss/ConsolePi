@@ -30,12 +30,12 @@ class GoogleDrive:
     def auth(self):
         if self.creds is None:
             self.creds = self.get_credentials()
+        if self.sheets_svc is None:
+            self.sheets_svc = discovery.build('sheets', 'v4', credentials=self.creds)
         if self.file_id is None:
             self.file_id = self.get_file_id()
             if self.file_id is None:
                 self.file_id = self.create_sheet()
-        if self.sheets_svc is None:
-            self.sheets_svc = discovery.build('sheets', 'v4', credentials=self.creds)
 
     # Google sheets API credentials - used to update config on Google Drive
     def get_credentials(self):

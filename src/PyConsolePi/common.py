@@ -6,6 +6,7 @@ import grp
 import json
 import socket
 import subprocess
+import shlex
 import threading
 import requests
 import time
@@ -48,6 +49,7 @@ class ConsolePi_Log:
     def log_print(self, msg, level='info', end='\n'):
         getattr(self.log, level)(msg)
         if self.do_print:
+            msg = msg.split('] ', 1)[1] if ']' in msg else msg
             msg = '{}: {}'.format(level.upper(), msg) if level != 'info' else msg
             print(msg, end=end)
 
@@ -305,6 +307,7 @@ class ConsolePi_data(Outlets):
 
             # update current_remotes dict with data passed to function
             # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
+        if len(remote_consoles) > 0:
             if current_remotes is not None:
                 for _ in current_remotes:
                     if _ not in remote_consoles:
@@ -324,8 +327,11 @@ class ConsolePi_data(Outlets):
                             time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(current_remotes[_]['upd_time'])) if 'upd_time' in current_remotes[_] else None,
                             ))
                         # -- /DEBUG --
+                        # No Change Detected (data passed to function matches cache)
+                        if remote_consoles[_] == current_remotes[_]:
+                            log.info('[CACHE UPD] {} No Change in info detected'.format(_))
                         # only factor in existing data if source is not mdns
-                        if 'upd_time' in remote_consoles[_] or 'upd_time' in current_remotes[_]:
+                        elif 'upd_time' in remote_consoles[_] or 'upd_time' in current_remotes[_]:
                             if 'upd_time' in remote_consoles[_] and 'upd_time' in current_remotes[_]:
                                 if current_remotes[_]['upd_time'] > remote_consoles[_]['upd_time']:
                                     remote_consoles[_] = current_remotes[_]

@@ -85,7 +85,7 @@ class ConsolePiMenu():
                     self.error_msgs.append('Outlet Control Disabled by Script - Invalid \'type\' in power.json')
                     config.power = False
                     break
-                if config.outlets[outlet_group]['linked']:
+                if 'linked_devs' in config.outlets[outlet_group] and config.outlets[outlet_group]['linked_devs']:
                     self.linked_exists = True
                 if self.dli_exists and self.gpio_exists and self.tasmota_exists and self.linked_exists:
                     break
@@ -591,7 +591,7 @@ class ConsolePiMenu():
                 # print('\n' + header + '\n     ' + '-' * (len(header) - 5))
                 # -- // DLI OUTLET MENU LINE(s) \\ --
                 if outlet['type'].lower() == 'dli':
-                    if outlet['is_on']:     # Avoid orphan header when no outlets are linked to a defined dli
+                    if 'linked_ports' in outlet and outlet['linked_ports'] and outlet['is_on']:     # Avoid orphan header when no outlets are linked to a defined dli
                         print('\n' + header + '\n     ' + '-' * (len(header) - 5))
                         for dli_port in outlet['is_on']:
                             _outlet = outlet['is_on'][dli_port]
@@ -1110,7 +1110,8 @@ class ConsolePiMenu():
                                                 else:  # dli toggle all
                                                     for t in threading.enumerate():
                                                         if t.name == 'pwr_toggle_refresh':
-                                                            t.join()
+                                                            t.join()    # if refresh thread is running join ~ wait for it to complete. # TODO Don't think this works or below 
+                                                                        # wouldn't have been necessary.
                                                             # toggle all returns True (ON) or False (OFF) if command successfully sent.  In reality the ports 
                                                             # may not be in the  state yet, but dli is working it.  Update menu items to reflect end state
                                                             for p in config.dli_pwr[_addr]:     

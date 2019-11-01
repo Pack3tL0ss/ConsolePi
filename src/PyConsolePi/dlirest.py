@@ -333,36 +333,14 @@ class DLI:
                 toState = 'ON' if toState else 'OFF'
                 if self.rest:
                     url=self.base_url + '/outlet?a=' + toState
-                    r = self.verify_session(url)
-                    print('DEBUG: toggle response {}'.format(r))
-                    # r = self.dli.get(url=self.base_url + '/outlet?a=' + toState)
-                    # # -- check to see if session expired --
-                    # if r.content.decode('UTF-8').split('URL=')[1].split('"')[0] != '/index.htm':
-                    #     log.debug('[DLI VRFY SESSION] Session appears expired for {}. Renewing {}'.format(self.fqdn))
-                    #     self.dli = self.get_session(self.dli.auth.username, self.dli.auth.password, fqdn=self.fqdn)
-                    #     r = self.dli.get(url=self.base_url + '/outlet?a=' + toState)
-                    # if r.content.decode('UTF-8').split('URL=')[1].split('"')[0] != '/index.htm':
-                    #     ret_val = 400
-                    # else:
-                    #     ret_val = r.status_code # TODO Log Error if not 200
+                    ret_val = self.verify_session(url)
                 else:
                     r = self.dli.geturl(url='outlet?a=' + toState)
                     ret_val = 200 if r is not None else 400
             elif func.lower() == 'cycle':
                 if self.rest:
                     url = '{}/outlet?a=CCL'.format(self.base_url)
-                    r = self.verify_session(url)
-                    print('DEBUG: cycle response {}'.format(r))
-                    # r = self.dli.get(url)
-                    # # -- check to see if session expired --
-                    # if r.content.decode('UTF-8').split('URL=')[1].split('"')[0] != '/index.htm':
-                    #     log.debug('[DLI VRFY SESSION] Session appears expired for {}. Renewing {}'.format(self.fqdn))
-                    #     self.dli = self.get_session(self.dli.auth.username, self.dli.auth.password, fqdn=self.fqdn)
-                    #     r = self.dli.get(url)
-                    # if r.content.decode('UTF-8').split('URL=')[1].split('"')[0] != '/index.htm':
-                    #     ret_val = 400
-                    # else:
-                    #     ret_val = r.status_code # TODO Log Error if not 200
+                    ret_val = self.verify_session(url)
                 else:
                     r = self.dli.geturl(url='outlet?a=CCL')
                     ret_val = 200 if r is not None else 400
@@ -385,7 +363,7 @@ class DLI:
                 else:
                     ret_val.append(r)
                 sleep(SEQUENCE_DELAY)
-            log.info('DLI {}] Return values for ports: {} = {}'.format(func, port, ret_val))
+            log.debug('DLI {}] Return values for ports: {} = {}'.format(func, port, ret_val))
             ret_val = list(dict.fromkeys(ret_val)) # get rid of all duplicates
             if len(ret_val) == 1:
                 ret_val = ret_val[0]
@@ -402,6 +380,10 @@ class DLI:
             return 'An Error occured {}'.format(ret_val)
 
     def verify_session(self, url):
+        '''perform http get operation against dli if the response indicates the session is expired get a new session and retry.
+        
+        Used by new rest capable dli web power switches, for all operations, given no API method is available for all operations.
+        '''
         log = self.log
         retry = 0
         while retry < 3:
@@ -417,11 +399,11 @@ class DLI:
                     log.error('[DLI VRFY SESSION] call to ' + url + 'returned ' + str(ret_val))
                     print('[DLI VRFY SESSION] call to ' + url + 'returned ' + str(ret_val))
                 break
-            if r.content.decode('UTF-8').split('URL=')[1].split('"')[0] != '/index.htm':
-                log.warn('[DLI VRFY SESSION] Unable to Renew Session for {}'.format(self.fqdn))
-                ret_val = 400
             retry += 1
-            print('DEBUG: ret_val in verify_session: {}'.format(ret_val))
+
+        if r.content.decode('UTF-8').split('URL=')[1].split('"')[0] != '/index.htm':
+            log.warn('[DLI VRFY SESSION] Unable to Renew Session for {}'.format(self.fqdn))
+            ret_val = 400
 
         return ret_val
 

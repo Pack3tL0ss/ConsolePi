@@ -308,13 +308,13 @@ class ConsolePi_data:
                                         remote_consoles[_]['adapters'] = current_remotes[_]['adapters']
                                         log.debug('[CACHE UPD] !!! Keeping Adapter data from cache as none provided in data set !!!')
         
-            with open(local_cloud_file, 'w+') as new_file:
-                new_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
+            with open(local_cloud_file, 'w') as cloud_file:
+                cloud_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
                 set_perm(local_cloud_file)
         else:
             log.warning('[CACHE UPD] cache update called with no data passed, doing nothing')
         
-        return remote_consoles if len(remote_consoles) > 0 else current_remotes
+        return remote_consoles
 
     def get_adapters_via_api(self, ip):
         log = self.log

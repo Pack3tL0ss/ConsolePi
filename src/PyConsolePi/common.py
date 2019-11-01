@@ -252,7 +252,7 @@ class ConsolePi_data(Outlets):
             outlet_dict = None
             for o in outlets:
                 outlet = outlets[o]
-                if outlet['linked']:
+                if 'linked_devs' in outlet and outlet['linked_devs']:
                     if dev['dev'] in outlet['linked_devs']:
                         log.info('[PWR OUTLETS] Found Outlet {} linked to {}'.format(o, dev['dev']))
                         address = outlet['address']
@@ -260,9 +260,16 @@ class ConsolePi_data(Outlets):
                             address = int(outlet['address'])
                         noff = outlet['noff'] if 'noff' in outlet else True
                         outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
+                        # TODO This should only keep 1 outlet per adapter in the adapters dict, refactor as below to allow list of outlets or dict with grp as key
+                        # this_outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
+                        # if outlet_dict is None:
+                        #     outlet_dict = this_outlet_dict
+                        # else:
+                        #     outlet_dict[o] = this_outlet_dict
                         # outlet_by_dev[dev['dev']].append(outlet_dict)
                         outlet_by_dev[dev['dev']].append(outlet_dict)
                         # break
+
             dev['outlet'] = outlet_dict
 
         self.outlet_by_dev = outlet_by_dev

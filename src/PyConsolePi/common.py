@@ -10,14 +10,16 @@ import shlex
 import threading
 import requests
 import time
+import shlex
 from pathlib import Path
 import pyudev
+from sys import stdin
 from .power import Outlets
 
 # Common Static Global Variables
 DNS_CHECK_FILES = ['/etc/resolv.conf', '/run/dnsmasq/resolv.conf']
 CONFIG_FILE = '/etc/ConsolePi/ConsolePi.conf'
-LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.data'
+LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.json'
 CLOUD_LOG_FILE = '/var/log/ConsolePi/cloud.log'
 USER = 'pi' # currently not used, user pi is hardcoded using another user may have unpredictable results as it hasn't been tested
 HOME = str(Path.home())
@@ -52,9 +54,10 @@ class ConsolePi_Log:
             print(msg, end=end)
 
 
-class ConsolePi_data:
+class ConsolePi_data(Outlets):
 
     def __init__(self, log_file=CLOUD_LOG_FILE, do_print=True):
+        super().__init__(POWER_FILE)
         config = self.get_config_all()
         for key, value in config.items():
             if type(value) == str:
@@ -78,33 +81,67 @@ class ConsolePi_data:
         self.log = cpi_log.log
         self.plog = cpi_log.plog
         self.hostname = socket.gethostname()
+        self.error_msgs = []
+        self.outlet_by_dev = None # defined in get_local --> map_serial2outlet
+        self.outlet_failures = {}
+        if self.power: # pylint: disable=access-member-before-definition
+            if os.path.isfile(POWER_FILE):
+                self.outlet_update()
+            else:
+                self.power = self.outlets = False
+                self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')
+                self.error_msgs.append('Powrer Outlet Control is enabled but no power.json defined - Disabling')    
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()
-        # self.outlets = Outlets().outlet_data
         self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
         self.remotes = self.get_local_cloud_file()
-    
+        if stdin.isatty():
+            self.rows, self.cols = self.get_tty_size()
+        self.display_con_settings = False
+
+    def get_tty_size(self):
+        size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
+        rows, cols = size.stdout.decode('UTF-8').split()
+        return int(rows), int(cols)
+
+    def outlet_update(self, upd_linked=False, refresh=False):
+        '''
+        Called by init and consolepi-menu refresh
+        '''
+        if not hasattr(self, 'outlets') or refresh:
+            _outlets = self.get_outlets(upd_linked=upd_linked, failures=self.outlet_failures)
+            self.outlets = _outlets['linked']
+            self.outlet_failures = _outlets['failures']
+            self.dli_pwr = _outlets['dli_power']
+            # print(self.outlets, '\n\n') ## DEBUG
+            # print(self.dli_failures, '\n\n') ## DEBUG
+            # print(self.dli_pwr, '\n\n') ## DEBUG
+        # else: ##DEBUG
+        #     print('DEBUG\n', json.dumps(self.outlets, indent=4))
+
+
     def get_config_all(self):
         with open('/etc/ConsolePi/ConsolePi.conf', 'r') as config:
             for line in config:
-                var = line.split("=")[0]
-                value = line.split('#')[0]
-                value = value.replace('{0}='.format(var), '')
-                value = value.split('#')[0].replace(' ', '')
-                value = value.replace('\t', '')
-                if '"' in value:
-                    value = value.replace('"', '', 1)
-                    value = value.split('"')[0]
-                
-                if 'true' in value.lower() or 'false' in value.lower():
-                    value = True if 'true' in value.lower() else False
-                
-                if isinstance(value, str):
-                    try:
-                        value = int(value)
-                    except ValueError:
-                        pass
-                locals()[var] = value
+                if line[0] != '#':
+                    var = line.split("=")[0]
+                    value = line.split('#')[0]
+                    value = value.replace('{0}='.format(var), '')
+                    value = value.split('#')[0].replace(' ', '')
+                    value = value.replace('\t', '')
+                    if '"' in value:
+                        value = value.replace('"', '', 1)
+                        value = value.split('"')[0]
+                    
+                    if 'true' in value.lower() or 'false' in value.lower():
+                        value = True if 'true' in value.lower() else False
+                    
+                    if isinstance(value, str):
+                        try:
+                            value = int(value)
+                        except ValueError:
+                            pass
+                    locals()[var] = value
         ret_data = locals()
         for key in ['self', 'config', 'line', 'var', 'value']:
             ret_data.pop(key)
@@ -117,7 +154,9 @@ class ConsolePi_data:
         context = pyudev.Context()
 
         # plog('Detecting Locally Attached Serial Adapters')
-        plog('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
+        log.info('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
+        if stdin.isatty():
+            self.spin.start('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
 
         # -- Detect Attached Serial Adapters and linked power outlets if defined --
         final_tty_list = []
@@ -162,7 +201,7 @@ class ConsolePi_data:
                                         log.error('Invalid Value for data bits found in ser2net.conf: {}'.format(option))
                                         dbits = 8
                                 elif option in ['EVEN', 'ODD', 'NONE']:
-                                    parity = option[0].lower() # EVEN ODD NONE
+                                    parity = option[0].lower() # converts to e o n
                                 elif option in ['XONXOFF', 'RTSCTS']:
                                     if option == 'XONXOFF':
                                         flow = 'x'
@@ -180,6 +219,7 @@ class ConsolePi_data:
 
             if tty_port == 9999:
                 plog('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev), level='error')
+                self.display_con_settings = True
                 # log.error('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev))
                 # serial_list.append({'dev': tty_dev, 'port': tty_port})
                 # if do_print:
@@ -188,33 +228,44 @@ class ConsolePi_data:
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
                         'parity': parity, 'flow': flow})       
         if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
-            serial_list = self.get_outlet_data(serial_list)
-
+            if self.outlets:
+                serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force get_outlets() line 200
+        
+        if stdin.isatty():
+            if len(serial_list) > 0:
+                self.spin.succeed('[GET ADAPTERS] Detecting Locally Attached Serial Adapters\n\t' \
+                    'Found {} Locally attached serial adapters'.format(len(serial_list))) #\GET ADAPTERS
+            else:
+                self.spin.warn('[GET ADAPTERS] Detecting Locally Attached Serial Adapters\n\tNo Locally attached serial adapters found')
+        
         return serial_list
 
     # TODO Refactor make more efficient
-    def get_outlet_data(self, serial_list):
+    def map_serial2outlet(self, serial_list, outlets):
         log = self.log
-        outlet_data = Outlets().get_outlets()
         # print('Fetching Power Outlet Data')
+        outlet_by_dev = {}
         for dev in serial_list:
+            if dev['dev'] not in outlet_by_dev:
+                outlet_by_dev[dev['dev']] = []
             # -- get linked outlet details if defined --
             outlet_dict = None
-            for o in outlet_data:
-                outlet = outlet_data[o]
+            for o in outlets:
+                outlet = outlets[o]
                 if outlet['linked']:
                     if dev['dev'] in outlet['linked_devs']:
                         log.info('[PWR OUTLETS] Found Outlet {} linked to {}'.format(o, dev['dev']))
-                        noff = True # default value
                         address = outlet['address']
                         if outlet['type'].upper() == 'GPIO':
                             address = int(outlet['address'])
-                            if 'noff' in outlet:
-                                noff = outlet['noff']
-                        outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on']}
-                        break
+                        noff = outlet['noff'] if 'noff' in outlet else True
+                        outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
+                        # outlet_by_dev[dev['dev']].append(outlet_dict)
+                        outlet_by_dev[dev['dev']].append(outlet_dict)
+                        # break
             dev['outlet'] = outlet_dict
 
+        self.outlet_by_dev = outlet_by_dev
         return serial_list
 
     def get_if_ips(self):
@@ -248,20 +299,19 @@ class ConsolePi_data:
     def update_local_cloud_file(self, remote_consoles=None, current_remotes=None, local_cloud_file=LOCAL_CLOUD_FILE):
         # NEW gets current remotes from file and updates with new
         log = self.log
-        # print('remote_consoles: {}\ncurrent_remotes: {}'.format(remote_consoles, current_remotes))
-        # if len(remote_consoles) > 0:
-        if os.path.isfile(local_cloud_file):
-            if current_remotes is None:
-                current_remotes = self.get_local_cloud_file()
+        if len(remote_consoles) > 0:
+            if os.path.isfile(local_cloud_file):
+                if current_remotes is None:
+                    current_remotes = self.get_local_cloud_file()
                 # os.remove(local_cloud_file)
-        # print('remote_consoles: {}\ncurrent_remotes: {}'.format(remote_consoles, current_remotes))
+
             # update current_remotes dict with data passed to function
             # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
         if len(remote_consoles) > 0:
             if current_remotes is not None:
                 for _ in current_remotes:
                     if _ not in remote_consoles:
-                        if 'fail_cnt' in current_remotes[_] and current_remotes[_]['fail_cnt'] >= 2:
+                        if 'fail_cnt' in current_remotes[_] and current_remotes[_]['fail_cnt'] >=2:
                             pass
                         else:
                             remote_consoles[_] = current_remotes[_]
@@ -287,6 +337,10 @@ class ConsolePi_data:
                                     remote_consoles[_] = current_remotes[_]
                                     log.info('[CACHE UPD] {} Keeping existing data based on more current update time'.format(_))
                                 else: 
+                                    # -- fail_cnt persistence so Unreachable ConsolePi learned from Gdrive sync can still be flushed
+                                    # -- after 3 failed connection attempts.
+                                    if 'fail_cnt' not in remote_consoles[_] and 'fail_cnt' in current_remotes[_]:
+                                        remote_consoles[_]['fail_cnt'] = current_remotes[_]['fail_cnt']
                                     log.info('[CACHE UPD] {} Updating data from {} based on more current update time'.format(_, remote_consoles[_]['source']))
                             elif 'upd_time' in current_remotes[_]:
                                     remote_consoles[_] = current_remotes[_] 
@@ -340,12 +394,43 @@ class ConsolePi_data:
             ret = response.status_code
             log.error('[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi {}\n{}:{}'.format(ip, ret, response.text))
         return ret
+    
+    def canbeint(self, _str):
+        try: 
+            int(_str)
+            return True
+        except ValueError:
+            return False
+
+    def gen_copy_key(self, rem_ip=None, rem_user=USER):
+        hostname = self.hostname
+        # generate local key file if it doesn't exist
+        if not os.path.isfile(HOME + '/.ssh/id_rsa'):
+            print('\n\nNo Local ssh cert found, generating...')
+            bash_command('ssh-keygen -m pem -t rsa -C "{0}@{1}"'.format(rem_user, hostname))
+        rem_list = []
+        if rem_ip is not None and not isinstance(rem_ip, list):
+            rem_list.append(rem_ip)
+        else:
+            rem_list = []
+            for _ in sorted(self.remotes):
+                if 'rem_ip' in self.remotes[_] and self.remotes[_]['rem_ip'] is not None:
+                    rem_list.append(self.remotes[_]['rem_ip'])            
+        # copy keys to remote(s)
+        return_list = []
+        for _rem in rem_list:
+            print('\nAttempting to copy ssh cert to {}\n'.format(_rem))
+            ret = bash_command('ssh-copy-id {0}@{1}'.format(rem_user, _rem))
+            if ret is not None:
+                return_list.append('{}: {}'.format(_rem, ret))
+        return return_list
 
 def set_perm(file):
     gid = grp.getgrnam("consolepi").gr_gid
-    os.chown(file, 0, gid)
+    if os.geteuid() == 0:
+        os.chown(file, 0, gid)
 
-# Get Variables from Config
+# Get Individual Variables from Config
 def get_config(var):
     with open(CONFIG_FILE, 'r') as cfg:
         for line in cfg:
@@ -363,30 +448,39 @@ def get_config(var):
 
     return var_out
 
-def bash_command(cmd):
-    result = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
-    if result.returncode != 0:
-        if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in result.stderr.decode('UTF-8'):
-            print('\n\n{}'.format(result.stderr.decode('UTF-8')))
-            while True:
-                try:
-                    choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
-                    if choice.lower() in ['y', 'yes']:
-                        result = result.stderr.decode('UTF-8').replace('ERROR: ', '')
-                        _cmd = shlex.split(result.split('remove with:\r\n')[1].split('\r\n')[0])
-                        subprocess.run(_cmd)
-                        print('\n')
-                        subprocess.run(['/bin/bash', '-c', cmd])
-                        break
-                    elif choice.lower() in ['n', 'no']:
-                        break
-                    else:
-                        print("\n!!! Invalid selection, please try again.\n")
-                except (KeyboardInterrupt, EOFError):
+def key_change_detector(cmd, stderr):
+    if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in stderr:
+        while True:
+            try:
+                choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
+                if choice.lower() in ['y', 'yes']:
+                    _cmd = shlex.split(stderr.split('remove with:\r\n')[1].split('\r\n')[0].replace('ERROR:   ', ''))
+                    subprocess.run(_cmd)
+                    print('\n')
+                    subprocess.run(cmd)
                     break
-                except ValueError:
-                    print("\n!! Invalid selection, please try again.\n")
+                elif choice.lower() in ['n', 'no']:
+                    break
+                else:
+                    print("\n!!! Invalid selection {} please try again.\n".format(choice))
+            except (KeyboardInterrupt, EOFError):
+                print('')
+                return 'Aborted last command based on user input'
+            except ValueError:
+                print("\n!! Invalid selection {} please try again.\n".format(choice))
+    elif 'All keys were skipped because they already exist on the remote system' in stderr:
+        return 'All keys were skipped because they already exist on the remote system'
 
+
+def bash_command(cmd):
+    # subprocess.run(['/bin/bash', '-c', cmd])
+    response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
+    _stderr = response.stderr.decode('UTF-8')
+    print(_stderr)
+    # print(response)
+    # if response.returncode != 0:
+    if _stderr:
+        return key_change_detector(getattr(response, 'args'), _stderr)
 
 def is_valid_ipv4_address(address):
     try:
@@ -445,17 +539,6 @@ def check_reachable(ip, port, timeout=2):
         if not reachable:
             break
     return reachable
-
-def gen_copy_key(rem_ip, rem_user='pi', hostname=None, copy=False):
-    if hostname is None:
-        hostname = socket.gethostname()
-    if not os.path.isfile(HOME + '/.ssh/id_rsa'):
-        print('\n\nNo Local ssh cert found, generating...')
-        bash_command('ssh-keygen -m pem -t rsa -C "{0}@{1}"'.format(rem_user, hostname))
-        copy = True
-    if copy:
-        print('\nAttempting to copy ssh cert to {}\n'.format(rem_ip))
-        bash_command('ssh-copy-id {0}@{1}'.format(rem_user, rem_ip))
 
 def user_input_bool(question):
     answer = input(question + '? (y/n): ').lower().strip()

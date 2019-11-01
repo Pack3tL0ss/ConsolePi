@@ -636,7 +636,7 @@ sub_check_vpn_config(){
                 logit "Added Pointer to on-up script in ConsolePi.ovpn" || logit "Failed to Add Pointer to on-up script in ConsolePi.ovpn" "WARNING"
             else
                 sudo sed -i '/up\s\"\/etc\/ConsolePi\/.*/c\up \"\/etc\/ConsolePi\/src\/dhcpcd.exit-hook OVPN\"' /etc/openvpn/client/ConsolePi.ovpn &&
-                logit "Succesfully Updated ovpn up Pointer" || logit "Failed to update ovpn up pointer" "WARNING"
+                logit "Succesfully Verified/Updated ovpn up Pointer" || logit "Failed to update ovpn up pointer" "WARNING"
             fi
         fi
     fi

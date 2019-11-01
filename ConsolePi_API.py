@@ -3,13 +3,12 @@
 from waitress import serve
 from flask import Flask, jsonify, request
 from consolepi.common import ConsolePi_data
-from consolepi.power import Outlets
 
 app = Flask(__name__)
 config = ConsolePi_data(do_print=False)
-outlets = Outlets()
+outlets = config.outlets
 log = config.log
-user = 'pi'
+user = config.USER # pylint: disable=maybe-no-member
 
 def log_request(route):
     log.info('[API RQST IN] {} Requesting -- {} -- Data via API'.format(request.remote_addr, route))
@@ -19,12 +18,12 @@ def get_adapters():
     log_request('adapters')
     return jsonify({'adapters': config.get_local(do_print=False)})
 
-@app.route('/api/v1.0/remcache', methods=['GET'])
+@app.route('/api/v1.0/remotes', methods=['GET'])
 def get_cache():
     log_request('remcache')
     return jsonify({'remotes': config.get_local_cloud_file()})
 
-@app.route('/api/v1.0/ifaces', methods=['GET'])
+@app.route('/api/v1.0/interfaces', methods=['GET'])
 def get_ifaces():
     log_request('ifaces')
     return jsonify({'interfaces': config.get_if_ips()})
@@ -32,7 +31,7 @@ def get_ifaces():
 @app.route('/api/v1.0/outlets', methods=['GET'])
 def get_outlets():
     log_request('outlets')
-    return jsonify(outlets.get_outlets())
+    return jsonify(config.get_outlets())
 
 @app.route('/api/v1.0/details', methods=['GET'])
 def get_details():

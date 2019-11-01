@@ -2,22 +2,22 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script Stage 1                                                       -- #
-# --  Wade Wells - Jul, 2019                                                                                                                     -- #
+# --  Wade Wells (Pack3tL0ss)                                                                                                                    -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
-# --  For manual setup instructions and more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                -- #
+# --  For more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                                              -- #
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-branch="master"
+branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && sudo git status | head -1 | awk '{print $3}' && popd >/dev/null || echo "master")
 
 get_common() {
     wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
-    header 1>/dev/null
+    header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
 }
 
 remove_first_boot() {
@@ -28,16 +28,7 @@ remove_first_boot() {
         logit "Failed to remove first-boot verify /etc/rc.local" "WARNING"
 }
 
-get_pi_details() {
-    # Collect some details about the Pi for diagnostic if an issue is reported
-    process="Collect Pi Details"
-    logit "$(get_pi_info)"
-    unset process
-}
-
-
 do_apt_update() {
-    header
     process="Update/Upgrade ConsolePi (apt)"
     logit "Update Sources"
     # Only update if initial install (no install.log) or if last update was not today
@@ -220,6 +211,11 @@ do_logging() {
 
     # Update permissions
     sudo chgrp -R consolepi /var/log/ConsolePi || logit "Failed to update group for log file" "WARNING"
+    if [ ! $(stat -c "%a" /var/log/ConsolePi/cloud.log) == 664 ]; then
+        sudo chmod g+w /var/log/ConsolePi/* && 
+            logit "Logging Permissions Updated (group writable)" || 
+            logit "Failed to make log files group writable" "WARNING"
+    fi
 
     # move installer log from temp to it's final location
     if ! $upgrade; then
@@ -253,7 +249,7 @@ main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
         get_common              # get and import common functions script
-        get_pi_details          # Collect some version info for logging
+        get_pi_info             # (common.sh func) Collect some version info for logging
         remove_first_boot       # if autolaunch install is configured remove
         do_apt_update           # apt-get update the pi
         pre_git_prep            # process upgrade tasks required prior to git pull

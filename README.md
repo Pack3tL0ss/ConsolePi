@@ -29,6 +29,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
           - [Power Control Setup](#power-control-setup)
               - [GPIO Connected Relays](#gpio-connected-relays)
               - [WiFi Smart Outlets (tasmota)](#wifi-smart-outlets-tasmota)
+              - [DLI Web/Ethernet Power Switch](#dli-webethernet-power-switch)
  - [Installation](#installation)
      - [Automated Installation](#1-automated-installation)
      - [Semi-Automatic Install](#2-semi-automatic-install)
@@ -40,6 +41,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
          - [SSH / BlueTooth (`consolepi-menu`)](#ssh--bluetooth)
       - [Convenience Commands](#convenience-commands)
       - [Upgrading ConsolePi](#upgrading-consolepi)
+          - [Custom overrides](#custom-overrides)
  - [Tested Hardware/Software](#tested-hardware--software)
  - [ConsolePi @ Work! (Image Gallery)](#consolepi-@-work)
  - [Credits](#credits)
@@ -57,8 +59,14 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
     - Bonus, the proxy script also adds support for auto-power-on for devices linked to outlets on the remote system (having them appear in a power sub-menu will come later once I build out the API further)
 -  Added override function for most system files involved... So Custom system files won't be backed up and replaced during `consolepi-upgrade`
 -  Added option to install and configure a tftp server.
-    <br>**9/10/2019**
+    <br>**9/10/2019 ~ MAJOR UPDATE**
 -  Menu will now allow user to purge host key from known hosts and retry connection when connecting to a remote ConsolePi who's SSH key has changed.
+-  Menu Auto-sizing with multiple cols based on terminal size.  Currently will place multiple remotes in different Cols if warranted (still 1 col if enough space vertically).
+- Added Support for Digital Loggers Web Power Switches (both the newer ones with API and older models).  Separate menu for DLI outlets, the existing power menu remains for linked outlets (The existing power menu will evolve, still considering best options for how to display defined but not linked, different types, etc.)
+- Incorporated spinners from [Halo](https://github.com/manrajgrover/halo) during load and update operations.
+- Any information or error messages now display in an information pane that populates the bottom of the menu if any errors are encountered
+- Changed URI for a couple of API methods (so all match the key field in the dict they reference)
+- lots of other little tweaks
 
 # Features
 
@@ -153,7 +161,7 @@ Triggered by ConsolePi Acting as DHCP server (generally hotspot):
 
  - Read The [Google Drive Setup](readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
 
-   ###### If you are configuring multiple ConsolePis to use this cluster, you should consider using the [Flash-Card imaging script](#3.-automated-flash-card-imaging-with-auto-install-on-boot).  Once You've installed the first ConsolePi, leverage the Automated flash-card imaging script to pre-stage the micro-sd cards for the other ConsolePis you will be creating.  This script is handy, if duplicating the install across multiple ConsolePis.  It can pre-stage the entire configuration and cut out some install time.
+   #### If you are configuring multiple ConsolePis to use this cluster, you should consider using the [Flash-Card imaging script](#3.-automated-flash-card-imaging-with-auto-install-on-boot).  Once You've installed the first ConsolePi, leverage the Automated flash-card imaging script to pre-stage the micro-sd cards for the other ConsolePis you will be creating.  This script is handy, if duplicating the install across multiple ConsolePis.  It can pre-stage the entire configuration and cut out some install time.
 
 ## ConsolePi API
 
@@ -161,24 +169,25 @@ ConsolePi includes an API with the following available methods (All Are GET meth
 
 /api/v1.0/
 * adapters: returns list of local adapters
-* remcache: returns the local cloud cache
-* ifaces: returns interface / IP details
+* remotes: returns the local cloud cache
+* interfaces: returns interface / IP details
 * outlets: returns details for defined outlets (power control function)
 * details: full json representing all local details for the ConsolePi   
 
 The API is used by ConsolePi when mdns doesn't have the head-room for all of the data.  When this occurs, the remote will advertise via mdns without it's adapter data, the local ConsolePi will detect the adapter data was stripped out and request it via the API.
 
-> The API is currently unsecured, it uses http, and Auth is not implemented yet.  It currently only supports GET requests, and doens't return any sensitive data.  
+> The API is currently unsecured, it uses http, and Auth is not implemented yet.  It currently only supports GET requests.  With dli power switch support being added there is now some sensitive data (creds for dli) available from the API.  Making securing it more of a priority, but be aware it's not currently secured. See the [DLI Web/Ethernet Power Switch](#dli-webethernet-power-switch) section for info on disabling the API if warranted in your environment.
 
 ## Power Control
 
-- The Power Control Function allows you to control power to external outlets.  Currently ConsolePi supports:
+The Power Control Function allows you to control power to external outlets.  ConsolePi supports:
+  - [digital Loggers](https://www.digital-loggers.com/index.html) Ethernet Power Switch/Web Power Switch (including older models lacking rest API).
   - External relays controlled by ConsolePi GPIO ( Like this one [Digital-Loggers IoT Relay](https://dlidirect.com/products/iot-power-relay) ).
   - [Tasmota](https://blakadder.github.io/templates/) flashed WiFi smart [outlets](https://blakadder.github.io/templates/) (i.e. SonOff S31).  These are low cost outlets based on ESP8266 microcontrollers.
-  > Tasmota was chosen because it allows for local control without reliance on a cloud service.  So your 'kit' can include a small relatively portable smart outlet which can be programmed to connect to the ConsolePi hotspot.  Then ConsolePi can control that outlet even if an internet connection is not available.
-- If the function is enabled and outlets are defined, an option in `consolepi-menu` will be presented allowing access to a sub-menu where those outlets can be controlled (toggle power on/off).
+      > Tasmota was chosen because it allows for local control without reliance on a cloud service.  So your 'kit' can include a small relatively portable smart outlet which can be programmed to connect to the ConsolePi hotspot.  Then ConsolePi can control that outlet even if an internet connection is not available.
+- If the function is enabled and outlets are defined, an option in `consolepi-menu` will be presented allowing access to a sub-menu where those outlets can be controlled (toggle power on/off, cycle, rename(rename only implemented for dli power switch outlets currently)).
 - Outlets can be linked to Console Adapter(s) (best if the adapter is pre-defined using `consolepi-addconsole`).  If there is a link defined between the outlet and the adapter, anytime you initiate a connection to the adapter via `consolepi-menu` ConsolePi will ensure the outlet is powered on.  Otherwise if the link is defined you can connect to a device and power it on, simply by initiating the connection from the menu (*does not apply when connecting via TELNET*).
-    > The power sub-menu **currently** only appears in the menu on the ConsolePi where the outlets are defined.  The auto-power-on when connecting to an adapter linked to an outlet works for both local and remote connections (establishing a connection to an adapter on a remote ConsolePi (clustering / cloud-sync function) via another ConsolePis menu)
+    > The power sub-menu **currently** only appears in the menu on the ConsolePi where the outlets are defined (Menu does not display outlets defined on remote ConsolePis).  The auto-power-on when connecting to an adapter linked to an outlet works for both local and remote connections (establishing a connection to an adapter on a remote ConsolePi (clustering / cloud-sync function) via another ConsolePis menu)
 
 ### Power Control Setup
 
@@ -199,21 +208,62 @@ The file should look something like this:
         "linked": true,
         "linked_devs": ["/dev/Orange6_Home_7006"]
         },
+    "switching_lab": {
+        "type": "GPIO",
+        "address": 19,
+        "noff": true,
+        "linked": false,
+        "linked_devs": []
+        },
+    "labpower1": {
+        "type": "dli",
+        "address": "labpower1.example.com",
+        "username": "apiuser",
+        "password": "redacted",
+        "linked": true,
+        "linked_ports": [5, 6],
+        "linked_devs": ["/dev/FT4232H_port1"]
+        },
+    "labpower2": {
+        "type": "dli",
+        "address": "labpower2.example.com",
+        "username": "apiuser",
+        "password": "redacted",
+        "linked": true,
+        "linked_ports": 8,
+        "linked_devs": ["/dev/FT4232H_port2", "/dev/Aruba6300"]
+        },
+    "dli_with_no_linked_outlets": {
+        "type": "dli",
+        "address": "10.0.30.71",
+        "username": "apiuser",
+        "password": "redacted"
+        }
 }
 ```
+The example above assumes you have udev rules assigning aliases ('Aruba2930F_cloud-lab', 'SDBranchGW1_cloud-lab' ...) to specific adapters (You can use `consolepi-addconsole` to accomplish this with most adapters.).
+
+> You could link the root devices i.e. /dev/ttyUSB0 or /dev/ttyACM0 to an outlet.  This will work if there is no alias configured for the adapter.  The predictable aliases just ensure the outlet is linked to a specific physical adapter, where the root devices essentially links the outlet to whichever adapter was plugged in first.  In either case the function only powers ON the outlet automatically.  It will **not** power OFF a device. The power sub-menu provides full on|off|cycle|rename capabilities for the ports.
+
 
 The schema or explanation of fields:
 ```
 {
-  "unique_name_for_outlet": [required, string] ... this is how the outlet is described in the power sub-menu {
-    "type": [required, valid values = "GPIO" or "tasmota"],
-    "address": [required, integer(GPIO pin (BCM numbering)) if type is "GPIO" OR string(ip address) if type is "tasmota"],
+  "unique_name_for_outlet_grp": [required, string] ... this is how the outlet is described in the power sub-menu 
+  {
+    "type": [required, valid values = "GPIO" or "tasmota"]
+    "address": [required, integer(GPIO pin (BCM numbering)) if type is "GPIO" OR string(ip address) if type is "tasmota"]
     "noff": [required for type GPIO, bool] ... indicates if outlet is normally off (true) or normally on (false)
+    "username": [required for dli, str] username used to access the dli
+    "password": [required for dli, str] password used to access the dli
     "linked": [required, bool] ... indicates if outlet is linked to serial adapters (true) or not (false)
-    "linked_devs": [required if linked = true, list of strings defining linked serial adapters (include /dev/)] 
+    "linked_devs": [required if linked, list of str] each str in the list specifies a linked serial adapter (include /dev/)
+    "linked_ports": [required if dli and is linked (has linked_devs), list of int], The Ports on the dli that are linked to the adapter(s).
   }
 }
 ```
+> NOTE: The Power Menu and how outlets are defined will continue to evolve.  The schema will change in the future.  Still thinking through it but thougt is to define the outlets under 1 key, with outlet_names, then define adapter linkages under a separate key (outlet-groups).  Add Group level operations `all on` ... etc.
+
 #### GPIO Connected Relays
 - For GPIO controlled relays: The trigger on the relay should be connected to GPIO ports.  Trigger(+) to one of the GPIO pins, Trigger(-) to one of the GPIO ground pins.
 - ConsolePi expects the GPIO number not the Board pin # in `power.json`.  For example given the GPIO layout for the Raspberry Pi below.  Board Pin # 7 = GPIO 4.  `power.json` should be populated with 4.
@@ -253,9 +303,47 @@ Then your power.json file should look something like this:
         }
 }
 ```
-The above assumes you have udev rules assigning aliases ('Aruba2930F_cloud-lab' and 'SDBranchGW1_cloud-lab') to specific adapters (You can use `consolepi-addconsole` to accomplish this with most adapters.)
 
-> You could link the root devices i.e. /dev/ttyUSB0 or /dev/ttyACM0 to an outlet.  This will work if there is no alias configured for the adapter.  The predictable aliases just ensure the outlet is linked to a specific physical adapter, where the root devices essentially link the outlet to whichever adapter was plugged in first.  In either case the function only powers on the outlet automatically.  It will not power off a device, that has to be done via the power sub-menu.
+#### DLI Web/Ethernet Power Switch
+
+**!!! SECURITY NOTE !!!**<br>
+The API is currently not secured (http no authorization required).  That will change, but in the meantime be aware if adding dli power switches the creds are accessible via the API in plain-text.  You can stop and disable the API with `sudo systemctl stop consolepi-api && sudo systemctl disable consolepi-api` if this is a concern.  Be aware you'll need to re-issue the commands after any `consolepi-upgrade`.
+
+Just add the definition for the dli in power.json which should look something like this:
+```
+{
+    "labpower1": {
+        "type": "dli",
+        "address": "labpower1.example.com",
+        "username": "apiuser",
+        "password": "redacted",
+        "linked": true,
+        "linked_ports": [5, 6],
+        "linked_devs": ["/dev/2530IAP"]
+        },
+    "labpower2": {
+        "type": "dli",
+        "address": "labpower2.example.com",
+        "username": "apiuser",
+        "password": "redacted",
+        "linked": true,
+        "linked_ports": 8,
+        "linked_devs": ["/dev/2530IAP", "/dev/Aruba6300"]
+        },
+    "dli_with_no_linked_outlets": {
+        "type": "dli",
+        "address": "10.0.30.71",
+        "username": "apiuser",
+        "password": "redacted"
+        }
+}
+
+```
+**The Above Example highlight different options**
+- Outlet Group "labpower1" has multiple ports linked to a single adapter.  Both ports would be powered on when connecting to that adapter.
+- Outlet Group "labpower2" has a single port linked to multiple adapters.  Connecting to either adapter via the menu will result in the port being powered
+- The last Outlet Group defines the dli, but has no linkages.  This outlet group won't appear in the power menu invoked by 'p', but dlis have thier own dedicated menu 'd' that displays all ports on the dli.
+- Notice `/dev/2530IAP` is linked in 2 different outlet groups, meaning a connection to 2530IAP will power on labpower1 port 5 and 6, as well as, labpower2 port 8.
 
 # Installation
 
@@ -453,7 +541,7 @@ Use ```consolepi-upgrade``` to upgrade ConsolePi.  Simply doing a git pull *may*
 ### Custom overrides
 ConsolePi configures a number of system files elsewhere on the system.  If there is a need to create a custom one-off it's possible to do so simply by creating a file with the same name in /etc/ConsolePi/src/overrides/ directory.  For example:  ConsolePi configures rfcomm.service to enable bluetooth connections.  During upgrade that file is compared to the src template/file, if there are differences the original is backed up to /etc/ConsolePi/bak and the src template/file is used.  If a file with the name rfcomm.service exists in the override directory (this can be an empty file, it just has to exist), the upgrade process will just skip it.  It's then up to the user to manage the contents of the overriden system file.
 
-> Note: The override process should have nearly 100% coverage, but that still needs to be verified (feature was just added).  It's best to backup any customizations to system files involved in ConsolePi functionality.
+> Note: The override process should have nearly 100% coverage, but that still needs to be verified.  It's best to backup any customizations to system files involved in ConsolePi functionality.
 
 # Tested Hardware / Software
 

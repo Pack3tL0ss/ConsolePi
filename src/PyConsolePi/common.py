@@ -81,6 +81,7 @@ class ConsolePi_data(Outlets):
         self.hostname = socket.gethostname()
         self.error_msgs = []
         self.outlet_by_dev = None # defined in get_local --> map_serial2outlet
+        self.outlet_failures = {}
         if self.power: # pylint: disable=access-member-before-definition
             if os.path.isfile(POWER_FILE):
                 self.outlet_update()
@@ -102,11 +103,19 @@ class ConsolePi_data(Outlets):
         return int(rows), int(cols)
 
     def outlet_update(self, upd_linked=False, refresh=False):
+        '''
+        Called by init and consolepi-menu refresh
+        '''
         if not hasattr(self, 'outlets') or refresh:
-            _outlets = self.get_outlets(upd_linked=upd_linked)
+            _outlets = self.get_outlets(upd_linked=upd_linked, failures=self.outlet_failures)
             self.outlets = _outlets['linked']
-            self.dli_failures = _outlets['failures']
+            self.outlet_failures = _outlets['failures']
             self.dli_pwr = _outlets['dli_power']
+            # print(self.outlets, '\n\n') ## DEBUG
+            # print(self.dli_failures, '\n\n') ## DEBUG
+            # print(self.dli_pwr, '\n\n') ## DEBUG
+        # else: ##DEBUG
+        #     print('DEBUG\n', json.dumps(self.outlets, indent=4))
 
 
     def get_config_all(self):
@@ -143,7 +152,9 @@ class ConsolePi_data(Outlets):
         context = pyudev.Context()
 
         # plog('Detecting Locally Attached Serial Adapters')
-        plog('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
+        log.info('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
+        if stdin.isatty():
+            self.spin.start('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
 
         # -- Detect Attached Serial Adapters and linked power outlets if defined --
         final_tty_list = []
@@ -217,7 +228,14 @@ class ConsolePi_data(Outlets):
         if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
             if self.outlets:
                 serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force get_outlets() line 200
-
+        
+        if stdin.isatty():
+            if len(serial_list) > 0:
+                self.spin.succeed('[GET ADAPTERS] Detecting Locally Attached Serial Adapters\n\t' \
+                    'Found {} Locally attached serial adapters'.format(len(serial_list))) #\GET ADAPTERS
+            else:
+                self.spin.warn('[GET ADAPTERS] Detecting Locally Attached Serial Adapters\n\tNo Locally attached serial adapters found')
+        
         return serial_list
 
     # TODO Refactor make more efficient

@@ -1,14 +1,16 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import json
-import time
-from sys import stdin
-from os import path
 import threading
+import time
+from collections import OrderedDict as od
+from os import path
+from sys import stdin
 
 import requests
 import RPi.GPIO as GPIO
 from consolepi.dlirest import DLI
+from halo import Halo
 
 TIMING = False
 CYCLE_TIME = 3
@@ -18,6 +20,7 @@ class Outlets:
     def __init__(self, power_file='/etc/ConsolePi/power.json', log=None):
         # pylint: disable=maybe-no-member
         self.power_file = power_file
+        self.spin = Halo(spinner='dots')
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         self._dli = {}
@@ -26,6 +29,41 @@ class Outlets:
 
 
     def do_tasmota_cmd(self, address, command=None):
+        '''
+        Perform Operation on Tasmota outlet:
+        params:
+            address: IP or resolvable hostname
+            command: 
+                True | 'ON': power the outlet on
+                False | 'OFF': power the outlet off
+                'Toggle': Toggle the outlet
+                'cycle': Cycle Power on outlets that are powered On
+        TODO: Right now this method does not verify if port is currently in an ON state
+            before allowing 'cycle', resulting in it powering on the port consolepi-menu
+            verifies status before allowing the command, but *may* be that other outlet
+            are handled by this library.. check & make consistent
+        TODO: remove int returns and always return string on error for consistency
+        '''
+        # sub to make the api call to the tasmota device
+        def tasmota_req(*args, **kwargs):
+            try:
+                response = requests.request("GET", url, headers=headers, params=querystring, timeout=1)
+                if response.status_code == 200:
+                    if json.loads(response.text)['POWER'] == 'ON':
+                        _response = True
+                    elif json.loads(response.text)['POWER'] == 'OFF':
+                        _response = False
+                    else:
+                        _response = 'invalid state returned {}'.format(response.text)
+                else:
+                    _response = '[{}] error returned {}'.format(response.status_code, response.text)
+            except requests.exceptions.Timeout:
+                _response = 408
+            except requests.exceptions.RequestException:
+                _response = 404
+            return _response
+        # -------- END SUB --------
+
         url = 'http://' + address + '/cm'
         headers = {
             'Cache-Control': "no-cache",
@@ -35,6 +73,9 @@ class Outlets:
         
         cycle = False
         if command is not None:
+            if isinstance(command, bool):
+                command = 'ON' if command else 'OFF'
+            
             command = command.upper()
             if command in ['ON', 'OFF', 'TOGGLE']:
                 querystring = {"cmnd":"Power {}".format(command)}
@@ -43,26 +84,8 @@ class Outlets:
                 cycle = True
             else:
                 raise KeyError
-        else: # get status of port is default unless other command specified
+        else: # if no command specified return the status of the port
             querystring = {"cmnd":"Power"}
-        
-        def tasmota_req(*args, **kwargs):
-            try:
-                response = requests.request("GET", url, headers=headers, params=querystring, timeout=1)
-                if response.status_code == 200:
-                    if json.loads(response.text)['POWER'] == 'ON':
-                        out_state = True
-                    elif json.loads(response.text)['POWER'] == 'OFF':
-                        out_state = False
-                    else:
-                        out_state = 'invalid state returned {}'.format(response.text)
-                else:
-                    out_state = '[{}] error returned {}'.format(response.status_code, response.text)
-            except requests.exceptions.Timeout:
-                out_state = 408
-            except requests.exceptions.RequestException:
-                out_state = 404
-            return out_state
 
         r = tasmota_req()
         if cycle:
@@ -75,36 +98,58 @@ class Outlets:
                 return 404
         return r
 
+    # @Halo(text='Loading', spinner='dots')
     def load_dli(self, address, username, password):
         '''
         Returns instace of DLI class if class has not been instantiated for the provided 
         dli web power switch.  returns an existing instance if it's already been instantiated.
+        returns True if class already loaded or False if class was instantiated during this call
         '''
         if address not in self._dli or not self._dli[address]:
+            # -- // Load the DLI \\--
             if stdin.isatty():
-                print('[DLI] Getting Outlets {}'.format(address))
+                self.spin.start('[DLI] Getting Outlets {}'.format(address))
+                # print('[DLI] Getting Outlets {}'.format(address))
             self._dli[address] = DLI(address, username, password)
-            return self._dli[address], False
+
+            # --// Return Pass or fail based on reachability \\--
+            if not self._dli[address].reachable:
+                if stdin.isatty():
+                    self.spin.fail()
+                return None, None
+            else:
+                if stdin.isatty():
+                    self.spin.succeed()
+                return self._dli[address], False
+
+        # --// DLI Already Loaded \\--
         else:
             return self._dli[address], True
 
-    def get_outlets(self, upd_linked=False):
+    def get_outlets(self, upd_linked=False, failures={}):
         '''
         Get Outlet details
+        params:
+            upd_linked: True will update just the linked ports, False is for dli and will update
+                all ports for the dli.
+            failures: when refreshing outlets pass in previous failures so they can be re-tried
         '''
         if not self.outlet_data:
             if path.isfile(self.power_file):
                 with open (self.power_file, 'r') as _power_file:
                     outlet_data = _power_file.read()
-                outlet_data = json.loads(outlet_data)
+                outlet_data = json.loads(outlet_data, object_pairs_hook=od)
             else:
                 outlet_data = None
                 return
         else:
             outlet_data = self.outlet_data['linked'] if 'linked' in self.outlet_data else None
+            if failures: # re-attempt connection to failed power controllers on refresh
+                outlet_data = {**outlet_data, **failures}
+
         
         failures = {}
-        if outlet_data is not None:
+        if outlet_data is not None: # Nothing in power.json or file doesn't exist
             dli_power = {} if 'dli_power' not in self.outlet_data else self.outlet_data['dli_power']
             for k in outlet_data:
                 outlet = outlet_data[k]
@@ -115,13 +160,18 @@ class Outlets:
                 elif outlet['type'] == 'tasmota':
                     response = self.do_tasmota_cmd(outlet['address'])
                     outlet['is_on'] = response
+                    if response not in [0, 1, True, False]:
+                        failures[k] = outlet_data[k]
+                        failures[k]['error'] = '[PWR-TASMOTA {}:{}] Returned Error - Removed'.format(
+                            k, failures[k]['address']) 
                 elif outlet['type'].lower() == 'dli':
                     if TIMING:
                         dbg_line = '------------------------ // NOW PROCESSING {} \\\\ ------------------------'.format(k)
                         print('\n{}'.format('=' * len(dbg_line)))
                         print('{}\n{}\n{}'.format(dbg_line, outlet_data[k], '-' * len(dbg_line)))
                         print('{}'.format('=' * len(dbg_line)))
-                    all_good = True
+                    # - Check the power.json data for some required information
+                    all_good = True # initial value
                     for _ in ['address', 'username', 'password']:
                         if _ not in outlet or outlet[_] is None:
                             all_good = False
@@ -131,7 +181,9 @@ class Outlets:
                             break
                     if all_good:
                         (this_dli, _update) = self.load_dli(outlet['address'], outlet['username'], outlet['password'])
-                        if this_dli.dli is None:
+                        # (this_dli, _update) = None, None if outlet is None else self.load_dli(outlet['address'], outlet['username'], outlet['password'])
+                        if this_dli is None or this_dli.dli is None:
+                        # if this_dli.dli is None:
                             failures[k] = outlet_data[k]
                             failures[k]['error'] = '[PWR-DLI {}] {} Unreachable - Removed'.format(k, failures[k]['address']) 
                             # failures[k] = outlet
@@ -143,7 +195,9 @@ class Outlets:
                             if _update:
                                 if not upd_linked:
                                     dli_power[outlet['address']] = this_dli.get_dli_outlets()
-                                    if 'linked_ports' in outlet and outlet['linked_ports'] is not None:
+                                    if not dli_power[outlet['address']]:
+                                        all_good = False
+                                    if all_good and 'linked_ports' in outlet and outlet['linked_ports'] is not None:
                                         _p = outlet['linked_ports']
                                         if isinstance(_p, int):
                                             outlet['is_on'] = {_p: this_dli.outlets[_p]}
@@ -152,11 +206,21 @@ class Outlets:
                                             for _ in _p:
                                                 outlet['is_on'][_] = dli_power[outlet['address']][_]
                                 else:
-                                    if 'linked_ports' in outlet and outlet['linked_ports'] is not None:
+                                    if 'linked_ports' in outlet and outlet['linked_ports']:
                                         _p = outlet['linked_ports']
                                         outlet['is_on'] = this_dli[_p]
-                                        for _ in outlet['is_on']:
-                                            dli_power[outlet['address']][_] = outlet['is_on'][_]
+                                        # TODO not actually using the error returned this turned into a hot mess
+                                        if isinstance(outlet['is_on'], dict) and not outlet['is_on']:
+                                            all_good = False
+                                        # update dli_power for the refreshed ports
+                                        else:
+                                            for _ in outlet['is_on']:
+                                                dli_power[outlet['address']][_] = outlet['is_on'][_]
+
+                                # handle error connecting to dli during refresh - when connect worked on menu launch
+                                if not all_good:
+                                    failures[k] = outlet_data[k]
+                                    failures[k]['error'] = '[PWR-DLI {}] {} Unreachable - Removed'.format(k, failures[k]['address'])
                             else:
                                 dli_power[outlet['address']] = this_dli.outlets
                                 if 'linked_ports' in outlet and outlet['linked_ports'] is not None:
@@ -170,9 +234,14 @@ class Outlets:
                             if TIMING:
                                 print('[TIMING] this_dli.outlets: {}'.format(time.time() - xstart)) # TIMING
 
+        # Move failed outlets from the keys that populate the menu to the 'failures' key
+        # failures are displayed in the footer section of the menu, then re-tried on refresh
         for _dev in failures:
             print(failures[_dev]['error'])
-            del outlet_data[_dev]
+            if _dev in outlet_data:
+                del outlet_data[_dev]
+            if failures[_dev]['address'] in dli_power:
+                del dli_power[failures[_dev]['address']]
         self.outlet_data = {
             'linked': outlet_data,
             'failures': failures,
@@ -181,60 +250,82 @@ class Outlets:
         return self.outlet_data
 
     def pwr_toggle(self, pwr_type, address, desired_state=None, port=None, noff=True, noconfirm=False):   # TODO refactor to pwr_toggle 
-        if isinstance(desired_state, str):
+        '''
+        Parms:
+            noconfirm: bypasses confirmation on off operation used by pwr_all helper as it will get confirmation
+        returns: Bool representing resulting port state (True = ON)
+        '''
+        # --// Prep some Stuff \\--
+        if isinstance(desired_state, str): # menu should be passing in True/False no on off now.
             desired_state = False if desired_state.lower() == 'off' else True
-        def confirm(address=address, port=port, pwr_type=pwr_type):
-            while True:
-                if port != 'all':
-                    prompt = 'Please Confirm: Power \033[1;31mOFF\033[0m {} outlet {}{}? (y/n)>> '.format(
-                              pwr_type, address, '' if port is None else ' Port: ' + str(port))
-                else:
-                    prompt = 'Please Confirm: [{}] Power \033[1;31mOFF\033[0m *ALL* outlets? (y/n)>> '.format(address)
-                choice = input(prompt)
-                ch = choice.lower()
-                if ch in ['y', 'yes', 'n', 'no']:
-                    if ch in ['n', 'no']:
-                        return 'Toggle \033[1;31mOFF\033[0m Aborted by user'
-                    else:
-                        break
-                else:
-                    print('Invalid Response: {}'.format(choice))
-        if desired_state is not None and not desired_state and not noconfirm:
-            confirm()
+            print('dev_note: pwr_toggle passed str not bool for desired_state check calling function {}'.format(desired_state))
+            time.sleep(5)
+
+        # if port != 'all':
+        #     prompt = 'Please Confirm: Power \033[1;31mOFF\033[0m {} outlet {}{}? (y/n)>> '.format(
+        #         pwr_type, address, '' if port is None else ' Port: ' + str(port))
+        # else:
+        #     prompt = 'Please Confirm: [{}] Power \033[1;31mOFF\033[0m *ALL* outlets? (y/n)>> '.format(address)
+        
+        # if desired_state is not None and not desired_state and not noconfirm:
+        #     conf_res = self.confirm(prompt)
+        #     if not conf_res:
+        #         return conf_res
+        
+        # -- // Toggle dli web power switch port \\ --
         if pwr_type.lower() == 'dli':
             if port is not None:
                 response = self._dli[address].toggle(port, toState=desired_state)
             else:
                 raise Exception('pwr_toggle: port must be provided for outlet type dli')
+            
+        # -- // Toggle GPIO port \\ --
         elif pwr_type.upper() == 'GPIO':
             gpio = address
+            # get current state and determine inverse if toggle called with no desired_state specified
             if desired_state is None:
                 cur_state = bool(GPIO.input(gpio)) if noff else not bool(GPIO.input(gpio)) # pylint: disable=maybe-no-member
-                if cur_state:   # if port is on prompt for confirmation prior to power off
-                    confirm()
-                GPIO.output(gpio, int(noff)) if not cur_state else GPIO.output(gpio, int(not noff))  # pylint: disable=maybe-no-member
-            else:
-                GPIO.output(gpio, int(not noff)) if not desired_state else GPIO.output(gpio, int(noff)) # pylint: disable=maybe-no-member
+                desired_state = not cur_state
+
+            # if desired_state is not None and not desired_state and not noconfirm:
+            #     conf_res = self.confirm(prompt)
+            #     if not conf_res: # indicates an abort by user
+            #         return conf_res
+            if desired_state:
+                GPIO.output(gpio, int(noff)) # pylint: disable=maybe-no-member
+            else: 
+                GPIO.output(gpio, int(not noff))  # pylint: disable=maybe-no-member
             response = bool(GPIO.input(gpio)) if noff else not bool(GPIO.input(gpio)) # pylint: disable=maybe-no-member
+
+        # -- // Toggle TASMOTA port \\ --
         elif pwr_type.lower() == 'tasmota':
-            # TODO power off confirm for tasmota
             if desired_state is None:
-                response = self.do_tasmota_cmd(address, 'toggle')
-            else:
-                desired_state = 'on' if desired_state else 'off'
-                response = self.do_tasmota_cmd(address, desired_state)
+                desired_state = not self.do_tasmota_cmd(address)
+            # desired_state = 'on' if desired_state else 'off'
+            # if not desired_state and not noconfirm:
+            #     conf_res = self.confirm(prompt)
+            #     if not conf_res:
+            #         return conf_res
+            response = self.do_tasmota_cmd(address, desired_state)
+
         else:
             raise Exception('pwr_toggle: Invalid type ({}) or no name provided'.format(pwr_type))
-        # print('pwr_toggle response: {}'.format(response)) # Remove Debug Line
         return response
 
     def pwr_cycle(self, pwr_type, address, port=None, noff=True):
+        '''
+        returns Bool True = Power Cycle success, False Not performed Outlet OFF
+            TODO Check error handling if unreachable
+        '''
         pwr_type = pwr_type.lower()
+        # --// CYCLE DLI PORT \\--
         if pwr_type == 'dli':
             if port is not None:
                 response = self._dli[address].cycle(port)
             else:
                 raise Exception('pwr_cycle: port must be provided for outlet type dli')
+
+        # --// CYCLE GPIO PORT \\--
         elif pwr_type == 'gpio':
             # normally off states are normal 0:off 1:on - if not normally off it's reversed 0:on 1:off
             # pylint: disable=maybe-no-member
@@ -244,13 +335,17 @@ class Outlets:
                 GPIO.output(gpio, int(not noff))
                 time.sleep(CYCLE_TIME)
                 GPIO.output(gpio, int(noff))
-                response = (bool(GPIO.input(gpio)))
-                response = not response if noff else response
+                response = bool(GPIO.input(gpio))
+                response = response if noff else not response
             else:
                 response = False
+
+        # --// CYCLE TASMOTA PORT \\--
         elif pwr_type == 'tasmota':
-            response = self.do_tasmota_cmd(address, 'cycle')
-        # print('pwr_cycle response: {}'.format(response)) # Remove Debug Line
+            response = self.do_tasmota_cmd(address)
+            if response:  # Only Cycle if outlet is currently ON
+                response = self.do_tasmota_cmd(address, 'cycle')
+
         return response
 
     def pwr_rename(self, type, address, name=None, port=None):
@@ -279,51 +374,58 @@ class Outlets:
         return response
 
     def pwr_all(self, outlets=None, action='toggle', desired_state=None):
+        '''
+        Returns List of responses representing state of outlet after exec
+            Valid response is Bool where True = ON
+            Errors are returned in str format
+        '''
         if action == 'toggle' and desired_state is None:
-            return 'Error: desired final state must be provided'
-        def confirm():
-            while True:
-                prompt = 'Please Confirm: Power *ALL* Outlets \033[1;31mOFF\033[0m? (y/n)>> ' if action == 'toggle' else \
-                    'Please Confirm: Power Cycle *ALL* Powered \033[1;32mON\033[0m outlets? (y/n)>> '
-                choice = input(prompt)
-                ch = choice.lower()
-                if ch in ['y', 'yes', 'n', 'no']:
-                    if ch in ['n', 'no']:
-                        return 'Toggle \033[1;31mOFF\033[0m Aborted by user'
-                    else:
-                        break
-                else:
-                    print('Invalid Response: {}'.format(choice))
+            return 'Error: desired final state must be provided' # should never hit this
+
+        # if action == 'toggle':
+        #     prompt = 'Please Confirm: Power *ALL* Outlets \033[1;31mOFF\033[0m? (y/n)>> '
+        # else:
+        #     prompt = 'Please Confirm: Power Cycle *ALL* Powered \033[1;32mON\033[0m outlets? (y/n)>> '
+
         if outlets is None:
             outlets = self.get_outlets
         responses = []
-        if not desired_state:
-            confirm()
-        for grp in outlets:
-            outlet = outlets[grp]
-            noff = True if 'noff' not in outlet else outlet['noff']
-            if action == 'toggle':
-                responses.append(self.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
-                port=outlet['linked_ports'] if outlet['type'] == 'dli' and 'linked_ports' in outlet else None,
-                noff=noff, noconfirm=True)
-                )
-            elif action == 'cycle':
-                if outlet['type'] != 'dli':
-                    threading.Thread(target=self.pwr_cycle, args=[outlet['type'], outlet['address']], kwargs={'noff': noff}, name='cycle_{}'.format(outlet['address'])).start()
-                elif 'linked_ports' in outlet:
-                    if isinstance(outlet['linked_ports'], int):
-                        linked_ports = [outlet['linked_ports']]
-                    else:
-                        linked_ports = outlet['linked_ports']
-                    for p in linked_ports:
-                        threading.Thread(target=self.pwr_cycle, args=[outlet['type'], outlet['address']], kwargs={'port': p, 'noff': noff}, name='cycle_{}'.format(p)).start()
-        while True:
-            threads = 0
-            for t in threading.enumerate():
-                if 'cycle' in t.name:
-                    threads += 1
-            if threads == 0:
-                break
+        # get user confirmation if pwr_all operation will turn OFF ports
+        # conf_res = True if desired_state else self.confirm(prompt)
+        conf_res = True # Temp remove ... moving confirmation to menu
+        if conf_res:       
+            # Loop through all linked outlets
+            for grp in outlets:
+                outlet = outlets[grp]
+                noff = True if 'noff' not in outlet else outlet['noff']
+                if action == 'toggle':
+                    responses.append(self.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
+                    port=outlet['linked_ports'] if outlet['type'] == 'dli' and 'linked_ports' in outlet else None,
+                    noff=noff, noconfirm=True)
+                    )
+                elif action == 'cycle':
+                    if outlet['type'] != 'dli':
+                        threading.Thread(target=self.pwr_cycle, args=[outlet['type'], outlet['address']], kwargs={'noff': noff}, name='cycle_{}'.format(outlet['address'])).start()
+                    elif 'linked_ports' in outlet:
+                        if isinstance(outlet['linked_ports'], int):
+                            linked_ports = [outlet['linked_ports']]
+                        else:
+                            linked_ports = outlet['linked_ports']
+                        for p in linked_ports:
+                            # Start a thread for each port run in parallel
+                            # menu status for (linked) power menu is updated on load
+                            threading.Thread(target=self.pwr_cycle, args=[outlet['type'], outlet['address']], kwargs={'port': p, 'noff': noff}, name='cycle_{}'.format(p)).start()
+
+            # Wait for all threads to complete
+            while True:
+                threads = 0
+                for t in threading.enumerate():
+                    if 'cycle' in t.name:
+                        threads += 1
+                if threads == 0:
+                    break
+        # else:
+        #     responses = ['PWR {} ALL Operation aborted by user'.format(action)]
 
         return responses
 
@@ -342,6 +444,21 @@ class Outlets:
                 response = 'ERROR no port provided for dli port'
 
         return response
+
+    def confirm(self, prompt, action='Toggle'):
+        '''
+        returns Bool: False = User aborted operation
+        '''
+        while True:
+            choice = input(prompt)
+            ch = choice.lower()
+            if ch in ['y', 'yes', 'n', 'no']:
+                if ch in ['n', 'no']:
+                    return '{} {{red}}OFF{{norm}} Aborted by user'.format(action)
+                else:
+                    return True
+            else:
+                print('Invalid Response: {}'.format(choice))
 
 if __name__ == '__main__':
     pwr = Outlets('/etc/ConsolePi/power.json')

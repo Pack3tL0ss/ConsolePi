@@ -92,7 +92,6 @@ class ConsolePiMenu():
         if config.power and config.outlet_failures:
             self.get_dli_outlets()   # Update error msg with failure
         self.DEBUG = config.debug
-        self.DEBUG = True ################## REMOVE DEBUG ONLY #############################
         self.menu_actions = {
             'main_menu': self.main_menu,
             'h': self.picocom_help,

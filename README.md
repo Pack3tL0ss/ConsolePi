@@ -176,7 +176,7 @@ ConsolePi includes an API with the following available methods (All Are GET meth
 
 The API is used by ConsolePi when mdns doesn't have the head-room for all of the data.  When this occurs, the remote will advertise via mdns without it's adapter data, the local ConsolePi will detect the adapter data was stripped out and request it via the API.
 
-> The API is currently unsecured, it uses http, and Auth is not implemented yet.  It currently only supports GET requests.  With dli power switch support being added there is now some sensitive data (creds for dli) available from the API.  Making securing it more of a priority, but be aware it's not currently secured. See the [DLI Web/Ethernet Power Switch](#dli-webethernet-power-switch) section for info on disabling the API if warranted in your environment.
+> The API is currently unsecured, it uses http, and Auth is not implemented yet.  It currently only supports GET requests and doesn't provide any sensitive (credential) data.
 
 ## Power Control
 
@@ -305,9 +305,6 @@ Then your power.json file should look something like this:
 ```
 
 #### DLI Web/Ethernet Power Switch
-
-**!!! SECURITY NOTE !!!**<br>
-The API is currently not secured (http no authorization required).  That will change, but in the meantime be aware if adding dli power switches the creds are accessible via the API in plain-text.  You can stop and disable the API with `sudo systemctl stop consolepi-api && sudo systemctl disable consolepi-api` if this is a concern.  Be aware you'll need to re-issue the commands after any `consolepi-upgrade`.
 
 Just add the definition for the dli in power.json which should look something like this:
 ```

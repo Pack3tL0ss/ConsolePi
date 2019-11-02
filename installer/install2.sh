@@ -292,10 +292,12 @@ collect() {
         user_input $power "${prompt}"
         power=$result
         if $power; then
-            echo -e "\nCurrently to support Power Control you need to populate /etc/ConsolePi/power.json manually" 
-            echo -e "You can copy and edit power.json.example.  Ensure you follow proper json format\n"
-            echo -e "\nConsolePi currently supports Control of GPIO controlled Power Outlets(relays) and IP connected"
-            echo -e "outlets running tasmota firmware.  See GitHub for more details."
+            echo -e "\nTo Complete Power Control Setup you need to populate /etc/ConsolePi/power.json" 
+            echo -e "You can copy and edit power.json.example.  Ensure you follow proper json format"
+            echo -e "\nI Suggest you verify your JSON using an online validator such as https://codebeautify.org/jsonvalidator"
+            echo -e "\nConsolePi currently supports Control of GPIO controlled Power Outlets (relays), IP connected"
+            echo -e "outlets running tasmota firmware, and digital-loggers web/ethernet Power Switches."
+            echo -e "See GitHub for more details.\n"
             read -n 1 -p "Press any key to continue"
         fi
     fi
@@ -407,7 +409,7 @@ set_hostname() {
             # add wlan hotspot IP to hostfile for DHCP connected clients to resolve this host
             wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)
             [ $wlan_hostname_exists == 0 ] && echo "$wlan_ip       $newhost" >> /etc/hosts
-            sudo sed -i "s/$hostn/$newhost/g" /etc/hostname
+            sed -i "s/$hostn/$newhost/g" /etc/hostname
             
             logit "New hostname set $newhost"
         fi

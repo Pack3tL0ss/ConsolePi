@@ -98,24 +98,6 @@ get_config() {
     hotspot_dhcp_range
     unset process
 }
- 
-# -- deprecated safe to remove --
-# Process Changes that are required after the existing config is read in when doing upgrade
-upgrade_prep() {
-    # Update Config to include values for Cloud Config Function
-    if [[ -f "${default_config}" ]]; then
-        # process="ConsolePi-Upgrade-Prep (Config Updates)"
-        # [ -z "$cloud" ] && cloud=false &&
-        #     echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}" &&
-        #         logit "Updated Existing Config to support new Cloud Features.  Refer to gitHub for instructions on setup"
-        # [ -z "$cloud_svc" ] && cloud_svc="gdrive" &&
-        #     echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
-        [ -z "$debug" ] && debug=false &&
-            echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
-    else
-        logit "Error Configuration defaults not found. Unable to Upgrade to new version verify config includes cloud variables when complete" "WARNING"
-    fi
-}
 
 # Update Config file with Collected values
 update_config() {
@@ -646,7 +628,7 @@ sub_check_vpn_config(){
 
 install_ovpn() {
     process="OpenVPN"
-    logit "Install OpenVPN"
+    ! $upgrade && logit "Install OpenVPN" || logit "Verify OpenVPN is installed"
     ovpn_ver=$(openvpn --version 2>/dev/null| head -1 | awk '{print $2}')
     if [[ -z $ovpn_ver ]]; then
         sudo apt-get -y install openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN installed Successfully" || logit "FAILED to install OpenVPN" "WARNING"
@@ -1142,7 +1124,6 @@ install2_main() {
     # pre_git_prep
     # gitConsolePi
     get_config
-    # upgrade_prep
     ! $bypass_verify && verify
     while ! $input; do
         collect

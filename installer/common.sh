@@ -2,10 +2,9 @@
 
 # Common functions used by ConsolePi's various scripts
 # Author: Wade Wells
-# Last Update: June 4 2019
 
 # -- Installation Defaults --
-INSTALLER_VER=33
+INSTALLER_VER=34
 CFG_FILE_VER=6
 cur_dir=$(pwd)
 iam=$(who | awk '{print $1}')
@@ -185,7 +184,6 @@ user_input_bool() {
     valid_response=false
     while ! $valid_response; do
         read -ep "${prompt}? (Y/N): " response
-        logger -t DEBUG $response - $valid_response
         response=${response,,}    # tolower
         if [[ "$response" =~ ^(yes|y)$ ]]; then
             response=true && valid_response=true
@@ -195,7 +193,7 @@ user_input_bool() {
             valid_response=false
         fi
     done
-    logger -t DEBUG $response - $valid_response
+
     echo $response
 }
 

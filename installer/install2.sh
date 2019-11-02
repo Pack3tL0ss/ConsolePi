@@ -383,8 +383,8 @@ set_hostname() {
             done
 
             # change hostname in /etc/hosts & /etc/hostname
-            sudo sed -i "s/$hostn/$newhost/g" /etc/hosts
-            sudo sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
+            sed -i "s/$hostn/$newhost/g" /etc/hosts
+            sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
             # change hostname via command
             hostname "$newhost" 1>&2 2>>/dev/null
             [ $? -gt 0 ] && logit "Error returned from hostname command" "WARNING"

@@ -6,9 +6,9 @@ from consolepi.common import ConsolePi_data
 
 app = Flask(__name__)
 config = ConsolePi_data(do_print=False)
-outlets = config.outlets
+# outlets = config.outlets
 log = config.log
-user = config.USER # pylint: disable=maybe-no-member
+user = config.USER # pylint: disable=maybe-no-member        
 
 def log_request(route):
     log.info('[API RQST IN] {} Requesting -- {} -- Data via API'.format(request.remote_addr, route))
@@ -31,7 +31,14 @@ def get_ifaces():
 @app.route('/api/v1.0/outlets', methods=['GET'])
 def get_outlets():
     log_request('outlets')
-    return jsonify(config.get_outlets())
+    # -- Collect Outlet Details remove sensitive data --
+    outlets = config.get_outlets()
+    if outlets and 'linked' in outlets:
+        for grp in outlets['linked']:
+            for x in ['username', 'password']:
+                if x in outlets['linked'][grp]:
+                    del outlets['linked'][grp][x]
+    return jsonify(outlets)
 
 @app.route('/api/v1.0/details', methods=['GET'])
 def get_details():

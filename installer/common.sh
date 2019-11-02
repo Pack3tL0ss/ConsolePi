@@ -7,7 +7,7 @@
 INSTALLER_VER=34
 CFG_FILE_VER=6
 cur_dir=$(pwd)
-iam=$(who | awk '{print $1}')
+iam=$(who -m |  awk '{print $1}')
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"

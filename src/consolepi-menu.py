@@ -1063,7 +1063,7 @@ class ConsolePiMenu():
                             result = subprocess.run(c, stderr=subprocess.PIPE)
                             _stderr = result.stderr.decode('UTF-8')
                             if _stderr:
-                                print(_stderr)
+                                print('\n' + _stderr.replace('ERROR: ', ''))
                                 _error = key_change_detector(c, _stderr) # pylint: disable=maybe-no-member
                                 if _error:
                                     self.error_msgs.append(_error)

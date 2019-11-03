@@ -79,6 +79,7 @@ Push() {
 StashNewIP() {
     logger -t puship \[StashNewIP\] $interface IP change detected from ${last_ip:-undefined} to $new_ip_address
     echo $new_ip_address > /tmp/$interface      # Place newip in tmp file for safe keeping new bind after carrier lost results in nul $old_ip_address being passed from dhcpcd so stashing it
+    echo $new_domain_name >> /tmp/$interface    # Stash new domain, used by HotSpot feature. HotSpot DHCP Server passes this domain to hotspot clients if exists
     echo $(date +'%s') >> /tmp/$interface       # TimeStamp not currently used but can be to put a cap on push frequency if something started causing a lot of them
 }
 
@@ -88,7 +89,7 @@ OldGetCurrentIP() {
     eth0_ip=`ip addr show dev eth0 2>/dev/null | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
     wlan0_ip=`ip addr show dev wlan0 | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
     tun0_ip=`ip addr show dev tun0 2>/dev/null | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
-            xgw=`netstat -rn |grep '^0.0.0.0\s*'$xgw_part|cut -d: -f2| awk '{print $2}'`
+            xgw=`netstat -rn |grep '^0.0.0.0\s*'|cut -d: -f2| awk '{print $2}'`
 }
 
 GetCurrentIP() {
@@ -98,7 +99,7 @@ GetCurrentIP() {
         this_ip=`ip addr show dev $interface | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
         [ ${#this_ip} -gt 0 ] && interfaces[$interface]=$this_ip                
     done
-    xgw=`netstat -rn |grep '^0.0.0.0\s*'$xgw_part|cut -d: -f2| awk '{print $2}'`
+    xgw=`netstat -rn |grep '^0.0.0.0\s*'|cut -d: -f2| awk '{print $2}'`
 }
 
 # >> Check Connectivity to net or VPN <<

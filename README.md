@@ -500,25 +500,22 @@ There are a few convenience commands created for ConsolePi during the automated 
     
     
 
-  ```consolepi-menu``` also accepts a single argument "sh".  Which will launch the original consolepi-menu created in bash.  It's been crippled so it only displays local connections, it loads a bit faster because it's local only, and doens't need to import any modules as the new full-featured Python based menu does.  This is currently the default menu that launches when connecting via bluetooth.  Although if connecting to a RaspberryPi Zero you may find it more favorable based on load time.
+  > ```consolepi-menu``` also accepts a single argument "sh".  Which will launch the original consolepi-menu created in bash.  It's been crippled so it only displays local connections, it loads a bit faster because it's local only, and doens't need to import any modules as the new full-featured Python based menu does.  This is currently the default menu that launches when connecting via bluetooth.  Although if connecting to a RaspberryPi Zero you may find it more favorable based on load time.
+
 - **consolepi-upgrade**:  Upgrades ConsolePi:  **Required method to properly update ConsolePi**.  *Currently bypasses upgrade of ser2net (it's compiled from source).*
 
 - **consolepi-remotes**: Displays the formatted contents of the local cloud cache.  This command accepts an optional case sensitive argument: Hostname of the remote ConsolePi.  If a hostname is provided only data for that host will be displayed (if it exists in the local cache, if it doesn't exist the entire cache is dispayed).  
 
-    This command can also be used to remove a remote from the local cache by using the argument 'del' followed by the hostname.  i.e. `consolepi-remote del ConsolePi0` will delete ConsolePi0 from the local cache.
-- **consolepi-details**: Displays full details of all data ConsolePi collects/generates.  With multiple available arguments.
-
-    ```consolepi-details``` : Displays all collected data
-
-    ```consolepi-details [<remote consolepi hostname>]``` : Displays data for the specified remote ConsolePi only (from the local cloud cache)
+    > This command can also be used to remove a remote from the local cache by using the argument 'del' followed by the hostname.  i.e. `consolepi-remote del ConsolePi0` will delete ConsolePi0 from the local cache.
     
-    ```consolepi-details adapters``` : Displays all data collected for discocered adapters connected directly to ConsolePi (USB to Serial Adapters)
-
-    ```consolepi-details interfaces``` : Displays interface data
-
-    ```consolepi-details relays``` : Displays power relay data
-
-    ```consolepi-details remotes``` : Displays data for remote ConsolePis from the local cloud cache
+- **consolepi-details**: Displays full details of all data ConsolePi collects/generates.  With multiple available arguments.
+    - ```consolepi-details``` : Displays all collected data
+    - ```consolepi-details local``` : Same as above but without data for remote ConsolePis
+    - ```consolepi-details [<remote consolepi hostname>]``` : Displays data for the specified remote ConsolePi only (from the local cloud cache)
+    - ```consolepi-details adapters``` : Displays all data collected for discocered adapters connected directly to ConsolePi (USB to Serial Adapters)
+    - ```consolepi-details interfaces``` : Displays interface data
+    - ```consolepi-details outlets``` : Displays power outlet data
+    - ```consolepi-details remotes``` : Displays data for remote ConsolePis from the local cloud cache
 
 - **consolepi-addssids**:  Automates the creation of additional SSIDs which ConsolePi will attempt to connect to on boot.  Currently only supports psk and open SSIDs, but may eventually be improved to automate creation of other SSID types.
 - **consolepi-addconsole**: Automates the process of detecting USB to serial adapters so friendly names can be defined for them (used in `consolepi-menu`) and mapping them to specific TELNET ports.  It does this by collecting the data required to create a udev rule.  It then creates the udev rule starting with the next available port (if rules already exist).

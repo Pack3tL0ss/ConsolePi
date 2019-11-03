@@ -455,7 +455,7 @@ class ConsolePiMenu():
                 width_list.append(_line_len)
                 mlines.append(_line)
                 index += 1
-            max_len = max(width_list)
+            max_len = 0 if not width_list else max(width_list)
             if sub:
                 # -- Add sub lines to top of menu item section --
                 x = ((max_len - len(sub)) / 2 ) - (l_offset + (indent/2))

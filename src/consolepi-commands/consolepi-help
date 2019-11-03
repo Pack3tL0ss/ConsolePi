@@ -77,7 +77,8 @@ def help_from_md():
             mdout.write(line)
 
     # cmd = "mdv -t 630.2337 -u h -x -f 'There are a few convenience commands created for ConsolePi during the automated install:39' /etc/ConsolePi/README.md"
-    cmd = '/etc/ConsolePi/venv/bin/mdv -t 630.2337 -u h -x /tmp/help.md | more'
+    # cmd = '/usr/bin/env bash -c /etc/ConsolePi/venv/bin/mdv -t 630.2337 -u h -x /tmp/help.md | more'
+    cmd = '/usr/bin/env bash -c "/etc/ConsolePi/venv/bin/mdv -t 630.2337 -u h -x /tmp/help.md | more"'
     subprocess.run(['bash', '-c', '. /etc/ConsolePi/installer/common.sh; header'])
     print('\n The Following is extracted from the readme.\n\n')
     subprocess.run(shlex.split(cmd))

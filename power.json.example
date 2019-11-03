@@ -11,5 +11,29 @@
         "noff": true,
         "linked": true,
         "linked_devs": ["/dev/8325T"]
+        },
+    "labpower1": {
+        "type": "dli",
+        "address": "labpower1.example.com",
+        "username": "apiuser",
+        "password": "redacted"
+        },
+    "labpower2": {
+        "type": "dli",
+        "address": "labpower2.example.com",
+        "username": "admin",
+        "password": "redacted",
+        "linked": true,
+        "linked_ports": [1, 2, 3]
+        "linked_devs": ["/dev/3810", "/dev/2930M"]
+        },
+    "stagepower": {
+        "type": "dli",
+        "address": "stagepower.example.com",
+        "username": "admin",
+        "password": "redacted",
+        "linked": true,
+        "linked_ports": [3, 8],
+        "linked_devs": ["/dev/FT4232H_port2"]
         }
 }

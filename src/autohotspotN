@@ -130,7 +130,8 @@ ChkWiredState()
        [ -f /var/lib/dhcpcd*/dhcpcd-${ethdev}.lease ] && wired_lease=true || wired_lease=false   
        # If ethdev is up and has a lease, pass the same domain to WLAN clients on the hotspot
        if $eth0_up && $wired_lease; then 
-              eth0_dom=$(sed "$(expr $(grep -a -n "$HOSTNAME" /var/lib/dhcpcd*/*${ethdev}.lease | cut -f1 -d:) + 1)q;d" /var/lib/dhcpcd*/*${ethdev}.lease | cut -f1 -d\*)
+              # eth0_dom=$(sed "$(expr $(grep -a -n "$HOSTNAME" /var/lib/dhcpcd*/*${ethdev}.lease | cut -f1 -d:) + 1)q;d" /var/lib/dhcpcd*/*${ethdev}.lease | cut -f1 -d\*)
+              [ -f /tmp/$ethdev ] && eth0_dom=$(sed '2,2!d' /tmp/$ethdev) || echo [ConsolePi-AutoHotSpot] $ethdev tmp file not found
               [ ${#eth0_dom} -gt 3 ] && valid_dom=true || valid_dom=false 
               if $valid_dom; then
                      sed -i "/domain=/s/.*/domain=${eth0_dom}/" /etc/dnsmasq.conf &&

@@ -1,0 +1,86 @@
+#!/etc/ConsolePi/venv/bin/python3
+
+import subprocess
+import shlex
+
+colors = { # Bold with normal foreground
+            'green': '\033[1;32m',
+            'red': '\033[1;31m',
+            'yellow': '\033[1;33m',
+            'norm': '\033[0m'
+        }
+
+header = 'ConsolePi Help / Convenience Commands'
+subs = ['Most Used Commands', 'Other Commands', 'Primarily Used for Dev']
+mlines = [
+    [
+        'consolepi-menu: Launches ConsolePi Console Menu, which will display connection options for all detected serial adapters, ' \
+            'as well as those found on any discovered remote ConsolePis.\n\tA Power Sub-menu is also provided if the Power Control ' \
+            'function is enabled.',
+        'consolepi-upgrade: Upgrades ConsolePi ~ Required method to properly update ConsolePi.'
+        'consolepi-addconsole: Automates the process of detecting USB to serial adapters so friendly names can be defined for them (used in `consolepi-menu`) and mapping them to specific TELNET ports.  It does this by collecting the data required to create a udev rule.  It then creates the udev rule starting with the next available port (if rules already exist).',
+        'consolepi-addssid: Automates the creation of additional SSIDs which ConsolePi will attempt to connect to on boot.  If no SSIDs are in range ConsolePi will fallback to HotSpot mode.'
+    ],
+    [
+        'consolepi-testhotspot: Toggles (Disables/Enables) the SSIDs ConsolePi is configured to connect to as a client before falling back to hotspot mode.  This is done to aid in testing hotspot mode.  After toggling the SSIDs run consolepi-autohotspot to trigger a change in state.',
+        'consolepi-pbtest: Used to test PushBullet ~ simulates an IP address change by calling the script responsible for sending the PB messages and passing in a random IP to force a notification.' \
+            '\n\tCan Also be used to test automatic OpenVPN function by passing in a bogus domain as the first argument.  \'consolepi-pbtest blah\'',
+        'consolepi-killvpn: gracefully terminates the OpenVPN tunnel if established.',
+        'consolepi-bton: Make ConsolePi Discoverable via BlueTooth (Default Behavior on boot)'
+        'consolepi-btoff: Stop advertising via BlueTooth.  Previously paired devices will still be able to Pair.'
+    ],
+    [
+        'consolepi-browse: Runs the mdns browser script which runs as a daemon in the background by default.  When ran via this command it will display any ConsolePis discovered on the network along with the data being advertised by that remote ConsolePi.'
+    ]
+]
+
+def get_tty_size():
+    size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
+    rows, cols = size.stdout.decode('UTF-8').split()
+    return int(rows), int(cols)
+
+def show_help():
+    rows, cols = get_tty_size()
+    width = cols if cols < 144 else 144
+    print('=' * width)
+    a = b = width / 2
+    a = width - len(header)
+    b = (a/2) - 2
+    c = int(b) if b == int(b) else int(b) + 1
+    print(' {0} {1} {2}'.format('-' * int(b), header, '-' * c))
+    print('=' * width)
+
+    for section in mlines:
+        for line in section:
+            print(subs[section.index(line)])
+            print('-' * 40)
+            print(line)
+        print('\n\n')
+
+# show_help()
+
+def help_from_md():
+    md = []
+    with open('/etc/ConsolePi/README.md', 'r') as readme:
+        capture = False
+        for line in readme:
+            if '## **Convenience Commands:**' in line:
+                capture = True
+            elif '# Tested Hardware / Software' in line:
+                capture = False
+                break
+            if capture:
+                md.append(line)
+                
+    with open('/tmp/help.md', 'w') as mdout:
+        for line in md:
+            mdout.write(line)
+
+    # cmd = "mdv -t 630.2337 -u h -x -f 'There are a few convenience commands created for ConsolePi during the automated install:39' /etc/ConsolePi/README.md"
+    cmd = '/etc/ConsolePi/venv/bin/mdv -t 630.2337 -u h -x /tmp/help.md'
+    subprocess.run(['bash', '-c', '. /etc/ConsolePi/installer/common.sh; header'])
+    print('\n The Following is extracted from the readme.\n\n')
+    subprocess.run(shlex.split(cmd))
+    # subprocess.run(['mdv', '-t', '630.2337', '-u', 'h', '-x', '/tmp/help.md'])
+
+help_from_md()

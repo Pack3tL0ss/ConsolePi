@@ -491,8 +491,8 @@ There are a few convenience commands created for ConsolePi during the automated 
 
     - Connection options for locally attached serial adapters
     - Connection options for serial adapters connected to remote ConsolePis (discovered via mdns or cloud-sync as described [here](#consolepi-cluster--cloud-config))
-    - sub-menu to automate distribution of ssh keys to remote ConsolePis.<br>
-      >*Distributing SSH keys allows you to securely connect to the remote adapter seemlessly without the need to enter a password.*
+    - sub-menu to automate distribution of ssh keys to remote ConsolePis.
+      > *Distributing SSH keys allows you to securely connect to the remote adapter seemlessly without the need to enter a password.*
     - Remote Shell sub-menu, providing options to ssh directly to the shell of one of the remote ConsolePis
     - Power Control sub-menu if power relays have been defined (as described [here](#power-control))
     - Refresh option: If Cloud-Sync is enabled ConsolePi only reaches out to the cloud when the refresh option is used, *NOT* during initial menu-load.  Refresh will detect any new serail adapters directly attahced, as well as connect to Gdrive to sync.
@@ -512,7 +512,7 @@ There are a few convenience commands created for ConsolePi during the automated 
     - ```consolepi-details``` : Displays all collected data
     - ```consolepi-details local``` : Same as above but without data for remote ConsolePis
     - ```consolepi-details [<remote consolepi hostname>]``` : Displays data for the specified remote ConsolePi only (from the local cloud cache)
-    - ```consolepi-details adapters``` : Displays all data collected for discocered adapters connected directly to ConsolePi (USB to Serial Adapters)
+    - ```consolepi-details adapters``` : Displays all data collected for discovered adapters connected directly to ConsolePi (USB to Serial Adapters)
     - ```consolepi-details interfaces``` : Displays interface data
     - ```consolepi-details outlets``` : Displays power outlet data
     - ```consolepi-details remotes``` : Displays data for remote ConsolePis from the local cloud cache

@@ -455,5 +455,5 @@ if __name__ == '__main__':
     pwr = Outlets('/etc/ConsolePi/power.json')
     outlets = pwr.get_outlets()
     print(json.dumps(outlets, indent=4, sort_keys=True))
-    upd = pwr.get_outlets(upd_linked=True)
-    print(json.dumps(upd, indent=4, sort_keys=True))
+    # upd = pwr.get_outlets(upd_linked=True)
+    # print(json.dumps(upd, indent=4, sort_keys=True))

@@ -234,7 +234,7 @@ class Outlets:
         # Move failed outlets from the keys that populate the menu to the 'failures' key
         # failures are displayed in the footer section of the menu, then re-tried on refresh
         for _dev in failures:
-            print(failures[_dev]['error'])
+            # print(failures[_dev]['error'])
             if _dev in outlet_data:
                 del outlet_data[_dev]
             if failures[_dev]['address'] in dli_power:

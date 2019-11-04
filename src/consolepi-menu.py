@@ -496,6 +496,7 @@ class ConsolePiMenu():
 
             # --// ERRORs - append to footer \\-- #
             if len(self.error_msgs) > 0:
+                self.error_msgs = list(dict.fromkeys(self.error_msgs))  # Remove Duplicates only occurs when menu launches direct to Power menu
                 for _error in self.error_msgs:
                     error_len, _error = self.format_line(_error)
                     # x = ((width - (len(_error) + 2)) / 2 ) - 1 # _error + 3 is for log_sym
@@ -576,6 +577,7 @@ class ConsolePiMenu():
             self.menu_formatting('header', text=' Power Control Menu ')
             print('  enter item # to toggle power state on outlet')
             print('  enter c + item # i.e. "c2" to cycle power on outlet')
+            print('')
 
             # Build menu items for each linked outlet
             state_list = []
@@ -586,18 +588,18 @@ class ConsolePiMenu():
                 if isinstance(outlet['address'], str):
                     _address = outlet['address'].split('.')[0] if '.' in outlet['address'] and not config.canbeint(outlet['address'].split('.')[0]) else outlet['address']
 
-                header = '     [{}] {}{}'.format(outlet['type'], r, ' @ ' + _address if outlet['type'].lower() == 'dli' else '')
-                # print('\n' + header + '\n     ' + '-' * (len(header) - 5))
+                # header = '     [{}] {}{}'.format(outlet['type'], r, ' @ ' + _address if outlet['type'].lower() == 'dli' else '')
                 # -- // DLI OUTLET MENU LINE(s) \\ --
                 if outlet['type'].lower() == 'dli':
                     if 'linked_ports' in outlet and outlet['linked_ports'] and outlet['is_on']:     # Avoid orphan header when no outlets are linked to a defined dli
-                        print('\n' + header + '\n     ' + '-' * (len(header) - 5))
+                        # print('\n' + header + '\n     ' + '-' * (len(header) - 5))
                         for dli_port in outlet['is_on']:
                             _outlet = outlet['is_on'][dli_port]
                             _state = states[_outlet['state']]
                             state_list.append(_outlet['state'])
                             _state = self.format_line(_state)[1]
-                            print(' {}. [{}] port {} ({})'.format(item, _state, dli_port, _outlet['name']))
+                            # print(' {}. [{}] port {} ({})'.format(item, _state, dli_port, _outlet['name']))
+                            print(' {}. [{}] {} ({} Port:{})'.format(item, _state, _outlet['name'], _address, dli_port))
                             menu_actions[str(item)] = {
                                 'function': config.pwr_toggle,
                                 'args': [outlet['type'], outlet['address']],
@@ -626,7 +628,7 @@ class ConsolePiMenu():
                     if isinstance(outlet['is_on'], bool):
                         _state = states[outlet['is_on']]
                         state_list.append(outlet['is_on'])
-                        print('\n' + header + '\n     ' + '-' * (len(header) - 5))
+                        # print('\n' + header + '\n     ' + '-' * (len(header) - 5))
                         _state = self.format_line(_state)[1]
                         print(' {}. [{}] {}'.format(item, _state, r))
                         menu_actions[str(item)] = {
@@ -855,6 +857,16 @@ class ConsolePiMenu():
         item = 1
         if not self.DEBUG:
             os.system('clear')
+
+        # Launch to Power Menu if no adapters or remotes are found
+        if not loc and not rem and config.power and config.outlets:
+                self.error_msgs.append('use option "b" to access main menu options')
+                self.error_msgs.append('No Adapters Found, Outlets Found... Launching to Power Menu')
+                if self.dli_exists and not self.linked_exists:
+                    self.exec_menu('dli_menu')
+                else:
+                    self.exec_menu('power_menu')
+                
 
         # TODO # >> Clean this up, make sub to do this on both local and remote
         # Build menu items for each locally connected serial adapter

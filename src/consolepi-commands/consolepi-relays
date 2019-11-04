@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-/etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/venv/lib/python3.5/site-packages/consolepi/relay.py 
+/etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/venv/lib/python3*/site-packages/consolepi/power.py

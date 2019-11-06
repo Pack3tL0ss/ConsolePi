@@ -68,6 +68,7 @@ for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev|grep 'ttyUSB\|ttyA
                 read -e -p 'What alias (descriptive name) do you want to use for this adapter?: ' alias
                 echo -e '\n'
             fi
+            alias=${alias// /_}  # replace any spaces with underscroes as udev doesn't allow spaces in symlinks
             [[ "${alias}" == "auto" ]] && auto_name=true && alias="ConsolePi"
             $auto_name && $alias+="_${port}"
 

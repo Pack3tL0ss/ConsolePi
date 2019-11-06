@@ -15,8 +15,10 @@ def main():
     remote_consoles = cloud.update_files(data)
 
     # Send remotes learned from cloud file to local cache
-    if len(remote_consoles) > 0:
+    if remote_consoles and 'Gdrive-Error:' not in remote_consoles:
         config.update_local_cloud_file(remote_consoles)
+    elif 'Gdrive-Error:' in remote_consoles:
+        log.info('[CLOUD TRIGGER (IP)]: Cloud Update Failed {}'.format(remote_consoles))
 
 
 if __name__ == '__main__':

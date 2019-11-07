@@ -86,11 +86,11 @@ class ConsolePi_data(Outlets):
         self.error_msgs = []
         self.outlet_by_dev = None # defined in get_local --> map_serial2outlet
         self.outlet_failures = {}
+        self.power = self.outlets = False
         if self.power: # pylint: disable=access-member-before-definition
             if os.path.isfile(POWER_FILE):
                 self.outlet_update()
             else:
-                self.power = self.outlets = False
                 self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')
                 self.error_msgs.append('Powrer Outlet Control is enabled but no power.json defined - Disabling')    
         self.adapters = self.get_local(do_print=do_print)
@@ -117,8 +117,6 @@ class ConsolePi_data(Outlets):
                 self.outlets = _outlets['linked']
                 self.outlet_failures = _outlets['failures']
                 self.dli_pwr = _outlets['dli_power']
-            else:
-                self.outlets = self.outlet_failures = self.dli_pwr = None
 
 
     def get_config_all(self):

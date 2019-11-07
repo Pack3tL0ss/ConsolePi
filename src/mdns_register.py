@@ -139,6 +139,7 @@ class MDNS_Register:
 
         if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member
             cloud = GoogleDrive(log)
+
         remote_consoles = cloud.update_files(data)
 
         # Send remotes learned from cloud file to local cache

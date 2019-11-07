@@ -111,17 +111,12 @@ class ConsolePi_data(Outlets):
         '''
         Called by init and consolepi-menu refresh
         '''
-        if not hasattr(self, 'outlets') or refresh:
-            _outlets = self.get_outlets(upd_linked=upd_linked, failures=self.outlet_failures)
-            self.outlets = _outlets['linked']
-            self.outlet_failures = _outlets['failures']
-            self.dli_pwr = _outlets['dli_power']
-            # print(self.outlets, '\n\n') ## DEBUG
-            # print(self.dli_failures, '\n\n') ## DEBUG
-            # print(self.dli_pwr, '\n\n') ## DEBUG
-        # else: ##DEBUG
-        #     print('DEBUG\n', json.dumps(self.outlets, indent=4))
-
+        if self.power:
+            if not hasattr(self, 'outlets') or refresh:
+                _outlets = self.get_outlets(upd_linked=upd_linked, failures=self.outlet_failures)
+                self.outlets = _outlets['linked']
+                self.outlet_failures = _outlets['failures']
+                self.dli_pwr = _outlets['dli_power']
 
     def get_config_all(self):
         with open('/etc/ConsolePi/ConsolePi.conf', 'r') as config:

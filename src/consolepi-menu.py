@@ -224,6 +224,10 @@ class ConsolePiMenu():
                 for _dev in config.local[config.hostname]['adapters']:
                     if _dev['dev'] in ['/dev/' + from_name, from_name]:
                         _dev['dev'] = '/dev/' + to_name # TODO Strip the /dev/ once verified no ill effects
+                        _dev['baud'] = self.baud
+                        _dev['flow'] = self.flow
+                        _dev['parity'] = self.parity
+                        _dev['dbits'] = self.data_bits
                 self.data['local'] = config.local
                 self.udev_pending = True    # toggle for exit function if they exit directly from rename memu
 

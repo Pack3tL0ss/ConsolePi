@@ -131,7 +131,7 @@ class ConsolePiMenu():
         from_name = from_name.replace('/dev/', '')
         config = self.config
         c = self.colors
-        error = None
+        error = False
         c_from_name = '{}{}{}'.format(c['red'], from_name, c['norm'])
 
         ser2net_parity = {
@@ -160,48 +160,58 @@ class ConsolePiMenu():
                 use_def = user_input_bool(' Use default connection values [9600 8N1 No Flow Cntrl]')
                 if not use_def:
                     self.con_menu(rename=True)
-                    # 9600 NONE 1STOPBIT 8DATABITS XONXOFF LOCAL -RTSCTS
-                    # 9600 8DATABITS NONE 1STOPBIT banner
-                    print(self.baud, self.data_bits, self.parity, self.flow)
                 context = pyudev.Context()
                 _tty = pyudev.Devices.from_name(context, 'tty', from_name)
                 
-                udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{}", ATTRS{{idProduct}}=="{}", ' \
-                    'ATTRS{{serial}}=="{}", SYMLINK+="{}"'.format(
-                        _tty.get('ID_VENDOR_ID'), _tty.get('ID_MODEL_ID'), _tty.get('ID_SERIAL_SHORT'), to_name))
-                
-                if os.path.isfile(config.RULES_FILE):   # pylint: disable=maybe-no-member
-                    with open(config.RULES_FILE) as x:  # pylint: disable=maybe-no-member
-                        for line in x:
-                            found = True if '# END ConsolePi Rules' in line else False
-                                
+                id_prod = _tty.get('ID_MODEL_ID')
+                id_serial = _tty.get('ID_SERIAL_SHORT')
+                id_vendor = _tty.get('ID_VENDOR_ID')
 
-                if config.root:
-                    udev_line = udev_line + '\n' + '# END ConsolePi Rules\n'
-                    if found:
-                        cmd = "sed -i 's/# END ConsolePi Rules/{}/' {}".format(udev_line, config.RULES_FILE) # pylint: disable=maybe-no-member
-                        error = bash_command(cmd)
-                        if error:
-                            return error
-                    else:
-                        with open(config.RULES_FILE, 'a') as r:  # pylint: disable=maybe-no-member
-                            r.write(udev_line)
+                if id_prod and id_serial and id_vendor:
 
-                    if os.path.isfile(config.SER2NET_FILE):  # pylint: disable=maybe-no-member
-                        ports = [re.findall(r'^(7[0-9]{3}):telnet',line) for line in open(config.SER2NET_FILE)]  # pylint: disable=maybe-no-member
-                        next_port = max(ports)[0]
-                        next_port = '7001' if not next_port else next_port
+                    udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{}", ATTRS{{idProduct}}=="{}", ' \
+                        'ATTRS{{serial}}=="{}", SYMLINK+="{}"'.format(
+                            id_vendor, id_prod, id_serial, to_name))
+                    
+                    if os.path.isfile(config.RULES_FILE):   # pylint: disable=maybe-no-member
+                        with open(config.RULES_FILE) as x:  # pylint: disable=maybe-no-member
+                            for line in x:
+                                found = True if '# END ConsolePi Rules' in line else False
+                                    
 
-                        ser2net_line = ('{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} 1STOPBIT {flow} banner'.format(
-                            telnet_port=next_port,
-                            alias=to_name,
-                            baud=self.baud,
-                            dbits=self.data_bits,
-                            parity=ser2net_parity[self.parity],
-                            flow=ser2net_flow[self.flow]))
+                    if config.root:
+                        udev_line = udev_line + '\n' + '# END ConsolePi Rules\n'
+                        if found:
+                            cmd = "sed -i 's/# END ConsolePi Rules/{}/' {}".format(udev_line, config.RULES_FILE) # pylint: disable=maybe-no-member
+                            error = bash_command(cmd)
+                            if error:
+                                return error
+                        else:
+                            with open(config.RULES_FILE, 'a') as r:  # pylint: disable=maybe-no-member
+                                r.write(udev_line)
 
-                        with open(config.SER2NET_FILE, 'a') as s:  # pylint: disable=maybe-no-member
-                            s.write(ser2net_line)
+                        if os.path.isfile(config.SER2NET_FILE):  # pylint: disable=maybe-no-member
+                            ports = [re.findall(r'^(7[0-9]{3}):telnet',line) for line in open(config.SER2NET_FILE)]  # pylint: disable=maybe-no-member
+                            next_port = max(ports)[0]
+                            next_port = '7001' if not next_port else next_port
+
+                            ser2net_line = ('{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} 1STOPBIT {flow} banner'.format(
+                                telnet_port=next_port,
+                                alias=to_name,
+                                baud=self.baud,
+                                dbits=self.data_bits,
+                                parity=ser2net_parity[self.parity],
+                                flow=ser2net_flow[self.flow]))
+
+                            with open(config.SER2NET_FILE, 'a') as s:  # pylint: disable=maybe-no-member
+                                s.write(ser2net_line)
+
+                else:
+                    print(' This Device Does not present a serial # so it can not be permanantly added via this function.')
+                    resp = user_input_bool(' You can rename the adapter for the duration of this menu session.  Would you like to do that')
+                    if not resp:
+                        error = 'Unable to add udev rule adapter missing details'
+
                 
             else:
                 for _file in _files:
@@ -608,7 +618,7 @@ class ConsolePiMenu():
                 errors = [] 
                 [errors.append(e) for e in self.error_msgs if e not in errors] # Remove Duplicates only occurs when menu launches direct to Power menu
                 for _error in errors:
-                    error_len, _error = self.format_line(_error)
+                    error_len, _error = self.format_line(_error.strip())    # remove trail and leading spaces for error msgs
                     # x = ((width - (len(_error) + 2)) / 2 ) - 1 # _error + 3 is for log_sym
                     x = ((width - error_len) / 2 ) - 1
                     # mlines.append('*{}{}  {}{}*'.format(' ' * int(x),self.log_sym_warn, _error, ' ' * int(x) if x == int(x) else ' ' * (int(x) + 1)))

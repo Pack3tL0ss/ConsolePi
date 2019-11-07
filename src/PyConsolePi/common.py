@@ -21,6 +21,8 @@ DNS_CHECK_FILES = ['/etc/resolv.conf', '/run/dnsmasq/resolv.conf']
 CONFIG_FILE = '/etc/ConsolePi/ConsolePi.conf'
 LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.json'
 CLOUD_LOG_FILE = '/var/log/ConsolePi/cloud.log'
+RULES_FILE = '/etc/udev/rules.d/10-ConsolePi.rules'
+SER2NET_FILE = '/etc/ser2net.conf'
 USER = 'pi' # currently not used, user pi is hardcoded using another user may have unpredictable results as it hasn't been tested
 HOME = str(Path.home())
 POWER_FILE = '/etc/ConsolePi/power.json'
@@ -98,6 +100,7 @@ class ConsolePi_data(Outlets):
         if stdin.isatty():
             self.rows, self.cols = self.get_tty_size()
         self.display_con_settings = False
+        self.root = True if os.geteuid() == 0 else False
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
@@ -108,17 +111,12 @@ class ConsolePi_data(Outlets):
         '''
         Called by init and consolepi-menu refresh
         '''
-        if not hasattr(self, 'outlets') or refresh:
-            _outlets = self.get_outlets(upd_linked=upd_linked, failures=self.outlet_failures)
-            self.outlets = _outlets['linked']
-            self.outlet_failures = _outlets['failures']
-            self.dli_pwr = _outlets['dli_power']
-            # print(self.outlets, '\n\n') ## DEBUG
-            # print(self.dli_failures, '\n\n') ## DEBUG
-            # print(self.dli_pwr, '\n\n') ## DEBUG
-        # else: ##DEBUG
-        #     print('DEBUG\n', json.dumps(self.outlets, indent=4))
-
+        if self.power:
+            if not hasattr(self, 'outlets') or refresh:
+                _outlets = self.get_outlets(upd_linked=upd_linked, failures=self.outlet_failures)
+                self.outlets = _outlets['linked']
+                self.outlet_failures = _outlets['failures']
+                self.dli_pwr = _outlets['dli_power']
 
     def get_config_all(self):
         with open('/etc/ConsolePi/ConsolePi.conf', 'r') as config:
@@ -150,7 +148,7 @@ class ConsolePi_data(Outlets):
     # TODO run get_local in blocking thread abort additional calls if thread already running
     def get_local(self, do_print=True):
         log = self.log
-        plog = self.plog
+        # plog = self.plog
         context = pyudev.Context()
 
         # plog('Detecting Locally Attached Serial Adapters')
@@ -212,13 +210,17 @@ class ConsolePi_data(Outlets):
                                 tty_dev.replace('/dev/', ''), tty_port, baud, dbits, parity.upper(), flow.upper()))
                             break
             else:
-                plog('[GET ADAPTERS] No ser2net.conf file found unable to extract port definition', level='error')
+                msg = '[GET ADAPTERS] No ser2net.conf file found unable to extract port definition'
+                log.error(msg)
+                self.error_msgs.append(msg)
                 # log.error('No ser2net.conf file found unable to extract port definition')
                 # if do_print:
                 #     print('No ser2net.conf file found unable to extract port definition')
 
             if tty_port == 9999:
-                plog('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev), level='error')
+                msg = '[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev)
+                log.error(msg)
+                self.error_msgs.append(msg)
                 self.display_con_settings = True
                 # log.error('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev))
                 # serial_list.append({'dev': tty_dev, 'port': tty_port})
@@ -312,8 +314,8 @@ class ConsolePi_data(Outlets):
                     current_remotes = self.get_local_cloud_file()
                 # os.remove(local_cloud_file)
 
-            # update current_remotes dict with data passed to function
-            # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
+        # update current_remotes dict with data passed to function
+        # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
         if len(remote_consoles) > 0:
             if current_remotes is not None:
                 for _ in current_remotes:
@@ -333,7 +335,7 @@ class ConsolePi_data(Outlets):
                             current_remotes[_]['source'] if 'source' in current_remotes[_] else None,
                             time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(current_remotes[_]['upd_time'])) if 'upd_time' in current_remotes[_] else None,
                             ))
-                        # -- /DEBUG --
+                        # -- END DEBUG --
                         # No Change Detected (data passed to function matches cache)
                         if remote_consoles[_] == current_remotes[_]:
                             log.info('[CACHE UPD] {} No Change in info detected'.format(_))
@@ -347,7 +349,7 @@ class ConsolePi_data(Outlets):
                                     # -- fail_cnt persistence so Unreachable ConsolePi learned from Gdrive sync can still be flushed
                                     # -- after 3 failed connection attempts.
                                     if 'fail_cnt' not in remote_consoles[_] and 'fail_cnt' in current_remotes[_]:
-                                        remote_consoles[_]['fail_cnt'] = current_remotes[_]['fail_cnt']
+                                        remote_consoles[_]['fail_cnt'] = {self.hostname: current_remotes[_]['fail_cnt']}
                                     log.info('[CACHE UPD] {} Updating data from {} based on more current update time'.format(_, remote_consoles[_]['source']))
                             elif 'upd_time' in current_remotes[_]:
                                     remote_consoles[_] = current_remotes[_] 
@@ -476,14 +478,17 @@ def key_change_detector(cmd, stderr):
             except ValueError:
                 print("\n!! Invalid selection {} please try again.\n".format(choice))
     elif 'All keys were skipped because they already exist on the remote system' in stderr:
-        return 'All keys were skipped because they already exist on the remote system'
+        return 'skipped: keys already exist on the remote system'
+    else:
+        return stderr   # return value that was passed in
 
 
-def bash_command(cmd):
+def bash_command(cmd, do_print=False):
     # subprocess.run(['/bin/bash', '-c', cmd])
     response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
     _stderr = response.stderr.decode('UTF-8')
-    print(_stderr)
+    if do_print:
+        print(_stderr)
     # print(response)
     # if response.returncode != 0:
     if _stderr:
@@ -548,7 +553,10 @@ def check_reachable(ip, port, timeout=2):
     return reachable
 
 def user_input_bool(question):
-    answer = input(question + '? (y/n): ').lower().strip()
+    try:
+        answer = input(question + '? (y/n): ').lower().strip()
+    except KeyboardInterrupt:
+        return False
     while not(answer == "y" or answer == "yes" or \
               answer == "n" or answer == "no"):
         print("Input yes or no")

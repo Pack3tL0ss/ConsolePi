@@ -117,6 +117,9 @@ class ConsolePi_data(Outlets):
                 self.outlets = _outlets['linked']
                 self.outlet_failures = _outlets['failures']
                 self.dli_pwr = _outlets['dli_power']
+            else:
+                self.outlets = self.outlet_failures = self.dli_pwr = None
+
 
     def get_config_all(self):
         with open('/etc/ConsolePi/ConsolePi.conf', 'r') as config:

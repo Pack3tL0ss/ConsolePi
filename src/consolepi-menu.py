@@ -132,6 +132,7 @@ class ConsolePiMenu():
         config = self.config
         c = self.colors
         error = False
+        use_def = True
         c_from_name = '{}{}{}'.format(c['red'], from_name, c['norm'])
 
         ser2net_parity = {
@@ -148,7 +149,7 @@ class ConsolePiMenu():
         # -- Collect desired name from user
         try:
             to_name = input(' [rename {}]: Provide desired name: '.format(c_from_name))
-            to_name = to_name.replace('/dev/', '') # strip /dev/ if they thought they needed to include it
+            to_name = to_name.strip('/dev/') # strip /dev/ if they thought they needed to include it
             to_name = to_name.replace(' ', '_') # replace any spaces with _ as not allowed (udev rule symlink)
         except KeyboardInterrupt:
             return 'Rename Aborted based on User Input'
@@ -211,8 +212,8 @@ class ConsolePiMenu():
                     print(' This Device Does not present a serial # so it can not be permanantly added via this function.')
                     resp = user_input_bool(' You can rename the adapter for the duration of this menu session.  Would you like to do that')
                     if not resp:
-                        error = 'Unable to add udev rule adapter missing details'
-
+                        error = ['Unable to add udev rule adapter missing details', 'idVendor={}, idProduct={}, serial#={}'.format(
+                            id_vendor, id_prod, id_serial)]
                 
             else:
                 for _file in _files:
@@ -223,12 +224,14 @@ class ConsolePiMenu():
 
             if not error:
                 for _dev in config.local[config.hostname]['adapters']:
-                    if _dev['dev'] in ['/dev/' + from_name, from_name]:
+                    if _dev['dev'].strip('/dev/') == from_name:
                         _dev['dev'] = '/dev/' + to_name # TODO Strip the /dev/ once verified no ill effects
-                        _dev['baud'] = self.baud
-                        _dev['flow'] = self.flow
-                        _dev['parity'] = self.parity
-                        _dev['dbits'] = self.data_bits
+                        if not use_def:
+                            _dev['baud'] = self.baud
+                            _dev['flow'] = self.flow
+                            _dev['parity'] = self.parity
+                            _dev['dbits'] = self.data_bits
+                        break
                 self.data['local'] = config.local
                 self.udev_pending = True    # toggle for exit function if they exit directly from rename memu
 
@@ -997,7 +1000,7 @@ class ConsolePiMenu():
 
             # Generate Menu Line
             menu_line = '{} [{}{} {}{}1]'.format(
-                this_dev.replace('/dev/', ''), def_indicator, baud, dbits, parity[0].upper())
+                this_dev.strip('/dev/'), def_indicator, baud, dbits, parity[0].upper())
             if flow != 'n' and flow in flow_pretty:
                 menu_line += ' {}'.format(flow_pretty[flow])
             mlines.append(menu_line)

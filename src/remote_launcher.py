@@ -16,7 +16,7 @@ def find_procs_by_name(name, dev):
     ppid = None
     for p in psutil.process_iter(attrs=["name", "cmdline"]):
         if name == p.info['name'] and dev in p.info['cmdline']:
-            ppid = p.ppid()
+            ppid = p.pid if p.ppid() == 1 else p.ppid()
     return ppid
 
 def terminate_process(pid):

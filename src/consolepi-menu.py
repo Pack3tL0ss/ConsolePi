@@ -157,7 +157,8 @@ class ConsolePiMenu():
         if user_input_bool(' Please Confirm Rename {} --> {}'.format(c_from_name, c_to_name)):
             _files = [config.SER2NET_FILE, config.RULES_FILE] # pylint: disable=maybe-no-member
             if 'ttyUSB' in from_name or 'ttyACM' in from_name:
-                use_def = user_input_bool(' Use default connection values [9600 8N1 No Flow Cntrl]')
+                use_def = user_input_bool(' Use default connection values [{} {}{}1 Flow: {}]'.format(
+                    self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]))
                 if not use_def:
                     self.con_menu(rename=True)
                 context = pyudev.Context()
@@ -180,7 +181,7 @@ class ConsolePiMenu():
                                     
 
                     if config.root:
-                        udev_line = udev_line + '\n' + '# END ConsolePi Rules\n'
+                        udev_line = udev_line + '\\n# END ConsolePi Rules\\n'
                         if found:
                             cmd = "sed -i 's/# END ConsolePi Rules/{}/' {}".format(udev_line, config.RULES_FILE) # pylint: disable=maybe-no-member
                             error = bash_command(cmd)
@@ -192,7 +193,7 @@ class ConsolePiMenu():
 
                         if os.path.isfile(config.SER2NET_FILE):  # pylint: disable=maybe-no-member
                             ports = [re.findall(r'^(7[0-9]{3}):telnet',line) for line in open(config.SER2NET_FILE)]  # pylint: disable=maybe-no-member
-                            next_port = max(ports)[0]
+                            next_port = max(ports)[0] + 1
                             next_port = '7001' if not next_port else next_port
 
                             ser2net_line = ('{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} 1STOPBIT {flow} banner'.format(

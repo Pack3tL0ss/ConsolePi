@@ -484,6 +484,8 @@ def error_handler(cmd, stderr):
                     print("\n!! Invalid selection {} please try again.\n".format(choice))
         elif 'All keys were skipped because they already exist on the remote system' in stderr:
             return 'skipped: keys already exist on the remote system'
+        elif '/usr/bin/ssh-copy-id: INFO:' in stderr:
+            pass # no need to re-display these
         else:
             return stderr   # return value that was passed in
     # Handle hung sessions always returncode=1 doesn't always present stderr

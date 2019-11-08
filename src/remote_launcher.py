@@ -52,6 +52,7 @@ if __name__ == '__main__':
                     break
                 except psutil.NoSuchProcess:
                     ppid = find_procs_by_name(sys.argv[1], sys.argv[2])
+                retry += 1
         
         if ppid is None:
             # if power feature enabled and adapter linked - ensure outlet is on

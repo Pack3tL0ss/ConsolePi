@@ -31,7 +31,7 @@ class MDNS_Register:
     def build_info(self, squash=None, local_adapters=None):
         config = self.config
         hostname = self.hostname
-        local_adapters = local_adapters if local_adapters is not None else config.local
+        local_adapters = local_adapters if local_adapters is not None else config.get_local()
         # local_adapters = config.get_local(do_print=False)
         log = config.log
         if_ips = config.get_if_ips()

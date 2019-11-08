@@ -3,21 +3,23 @@
 import ast
 import json
 import os
+import re
 import readline
 import shlex
 import subprocess
 import sys
-from collections import OrderedDict as od
 import threading
-from halo import Halo
-from log_symbols import LogSymbols as log_sym #Enum
+from collections import OrderedDict as od
+
 import pyudev
-import re
+# --// ConsolePi imports \\--
+from consolepi.common import (ConsolePi_data, bash_command, check_reachable,
+                              error_handler, user_input_bool)
+from halo import Halo
+from log_symbols import LogSymbols as log_sym  # Enum
+
 # from consolepi.gdrive import GoogleDrive # <-- hidden import burried in refresh method of ConsolePiMenu Class
 
-# --// ConsolePi imports \\--
-from consolepi.common import (ConsolePi_data, check_reachable,
-                              key_change_detector, user_input_bool, bash_command)
 
 rem_user = 'pi'
 rem_pass = None
@@ -106,10 +108,8 @@ class ConsolePiMenu():
         if config.power and config.outlets:
             if self.linked_exists or self.gpio_exists or self.tasmota_exists:
                 self.menu_actions['p'] = self.power_menu
-                self.menu_actions['power_menu'] = self.power_menu
             if self.dli_exists:
                 self.menu_actions['d'] = self.dli_menu
-                self.menu_actions['dli_menu'] = self.dli_menu
         if not config.root:
             self.error_msgs.append('Running without sudo privs ~ Results may vary!')
             self.error_msgs.append('Use consolepi-menu to launch menu')
@@ -1225,9 +1225,9 @@ class ConsolePiMenu():
                         try:
                             result = subprocess.run(c, stderr=subprocess.PIPE)
                             _stderr = result.stderr.decode('UTF-8')
-                            if _stderr:
-                                print('\n' + _stderr.replace('ERROR: ', ''))
-                                _error = key_change_detector(c, _stderr) # pylint: disable=maybe-no-member
+                            if _stderr or result.returncode == 1:
+                                # print('\n' + _stderr.replace('ERROR: ', ''))
+                                _error = error_handler(c, _stderr) # pylint: disable=maybe-no-member
                                 if _error:
                                     self.error_msgs.append(_error)
                         except KeyboardInterrupt:
@@ -1460,8 +1460,7 @@ class ConsolePiMenu():
                 if ch == 'b':
                     break
                 else:
-                    # valid = self.exec_menu(choice, actions=menu_actions, calling_menu='con_menu')
-                    resp = menu_actions[ch]() # currently not doing anything with resp
+                    menu_actions[ch]() # lower menu's return values could parse and store if decide to use this for something other than rename
 
             except KeyError as e:
                 if choice:

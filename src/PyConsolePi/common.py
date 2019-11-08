@@ -459,31 +459,39 @@ def get_config(var):
 
     return var_out
 
-def key_change_detector(cmd, stderr):
-    if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in stderr:
-        while True:
-            try:
-                choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
-                if choice.lower() in ['y', 'yes']:
-                    _cmd = shlex.split(stderr.split('remove with:\r\n')[1].split('\r\n')[0].replace('ERROR:   ', ''))
-                    subprocess.run(_cmd)
-                    print('\n')
-                    subprocess.run(cmd)
-                    break
-                elif choice.lower() in ['n', 'no']:
-                    break
-                else:
-                    print("\n!!! Invalid selection {} please try again.\n".format(choice))
-            except (KeyboardInterrupt, EOFError):
-                print('')
-                return 'Aborted last command based on user input'
-            except ValueError:
-                print("\n!! Invalid selection {} please try again.\n".format(choice))
-    elif 'All keys were skipped because they already exist on the remote system' in stderr:
-        return 'skipped: keys already exist on the remote system'
-    else:
-        return stderr   # return value that was passed in
-
+def error_handler(cmd, stderr):
+    if stderr and 'FATAL: cannot lock /dev/' not in stderr:
+        # Handle key change Error
+        if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in stderr:
+            print(stderr.replace('ERROR: ', ''))
+            while True:
+                try:
+                    choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
+                    if choice.lower() in ['y', 'yes']:
+                        _cmd = shlex.split(stderr.split('remove with:\r\n')[1].split('\r\n')[0].replace('ERROR:   ', ''))
+                        subprocess.run(_cmd)
+                        print('\n')
+                        subprocess.run(cmd)
+                        break
+                    elif choice.lower() in ['n', 'no']:
+                        break
+                    else:
+                        print("\n!!! Invalid selection {} please try again.\n".format(choice))
+                except (KeyboardInterrupt, EOFError):
+                    print('')
+                    return 'Aborted last command based on user input'
+                except ValueError:
+                    print("\n!! Invalid selection {} please try again.\n".format(choice))
+        elif 'All keys were skipped because they already exist on the remote system' in stderr:
+            return 'skipped: keys already exist on the remote system'
+        else:
+            return stderr   # return value that was passed in
+    # Handle hung sessions always returncode=1 doesn't always present stderr
+    elif cmd[0] == 'picocom':
+        if kill_hung_session(cmd[1]):
+            subprocess.run(cmd)
+        else:
+            return 'User Abort or Failure to kill existing session to {}'.format(cmd[1].replace('/dev/', ''))
 
 def bash_command(cmd, do_print=False):
     # subprocess.run(['/bin/bash', '-c', cmd])
@@ -494,7 +502,7 @@ def bash_command(cmd, do_print=False):
     # print(response)
     # if response.returncode != 0:
     if _stderr:
-        return key_change_detector(getattr(response, 'args'), _stderr)
+        return error_handler(getattr(response, 'args'), _stderr)
 
 def is_valid_ipv4_address(address):
     try:
@@ -573,7 +581,8 @@ def find_procs_by_name(name, dev):
     ppid = None
     for p in psutil.process_iter(attrs=["name", "cmdline"]):
         if name == p.info['name'] and dev in p.info['cmdline']:
-            ppid = p.pid if p.ppid() == 1 else p.ppid()
+            ppid = p.pid # if p.ppid() == 1 else p.ppid()
+            break
     return ppid
 
 def terminate_process(pid):
@@ -586,3 +595,25 @@ def terminate_process(pid):
         else:
             break
         x += 1
+
+def kill_hung_session(dev):
+    ppid = find_procs_by_name('picocom', dev)
+    retry = 0
+    msg = '\n{} appears to be in use (may be a previous hung session).\nDo you want to Terminate the existing session'.format(dev.replace('/dev/', ''))
+    if ppid is not None and user_input_bool(msg):
+        while ppid is not None and retry < 3:
+            print('An Existing session is already established to {}.  Terminating process {}'.format(dev.replace('/dev/', ''), ppid))
+            try:
+                terminate_process(ppid)
+                time.sleep(3)
+                ppid = find_procs_by_name('picocom', dev)
+            except PermissionError:
+                print('PermissionError: session is locked by user with higher priv. can not kill')
+                break
+            except psutil.AccessDenied:
+                print('AccessDenied: Session is locked by user with higher priv. can not kill')
+                break
+            except psutil.NoSuchProcess:
+                ppid = find_procs_by_name('picocom', dev)
+            retry += 1
+    return ppid is None

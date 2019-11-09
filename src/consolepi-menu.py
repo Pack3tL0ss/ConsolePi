@@ -76,8 +76,8 @@ class ConsolePiMenu():
                     level='warning')
                 self.error_msgs.append('Outlet Control Disabled by Script - No power.json found')
                 config.power = False
+        self.dli_exists = self.gpio_exists = self.tasmota_exists = self.linked_exists = False
         if config.power and config.outlets:
-            self.dli_exists = self.gpio_exists = self.tasmota_exists = self.linked_exists = False
             for outlet_group in config.outlets:
                 if config.outlets[outlet_group]['type'].lower() == 'dli':
                     self.dli_exists = True
@@ -129,7 +129,7 @@ class ConsolePiMenu():
 
 
     def do_rename_adapter(self, from_name):
-        from_name = from_name.replace('/dev/', '')
+        from_name = from_name.strip('/dev/')
         config = self.config
         c = self.colors
         error = False
@@ -171,22 +171,28 @@ class ConsolePiMenu():
                 id_vendor = _tty.get('ID_VENDOR_ID')
 
                 if id_prod and id_serial and id_vendor:
-
-                    udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{}", ATTRS{{idProduct}}=="{}", ' \
-                        'ATTRS{{serial}}=="{}", SYMLINK+="{}"'.format(
-                            id_vendor, id_prod, id_serial, to_name))
                     
                     found = False # init
                     if os.path.isfile(config.RULES_FILE):   # pylint: disable=maybe-no-member
                         with open(config.RULES_FILE) as x:  # pylint: disable=maybe-no-member
                             for line in x:
+                                if '# Start ConsolePi Rules' in line:
+                                    goto = next(x, None)
                                 if '# END ConsolePi Rules' in line:
                                     found = True
                                     break
+                                
+                        goto = goto.split('GOTO=')[1].replace('"', '').strip() if 'GOTO=' in goto else None
+                    
+                    udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{}", ATTRS{{idProduct}}=="{}", ' \
+                        'ATTRS{{serial}}=="{}", SYMLINK+="{}"'.format(
+                            id_vendor, id_prod, id_serial, to_name))
+                    if goto:
+                        udev_line = '{}, GOTO="{}"'.format(udev_line, goto)
 
                     if config.root:
                         if found:
-                            udev_line = udev_line + '\\n# END ConsolePi Rules\\n'
+                            udev_line = '{}\\n# END ConsolePi Rules\\n'.format(udev_line)
                             cmd = "sed -i 's/# END ConsolePi Rules/{}/' {}".format(udev_line, config.RULES_FILE) # pylint: disable=maybe-no-member
                             print(cmd)
                             error = bash_command(cmd)

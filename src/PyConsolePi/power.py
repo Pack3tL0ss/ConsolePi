@@ -80,7 +80,7 @@ class Outlets:
             if command in ['ON', 'OFF', 'TOGGLE']:
                 querystring = {"cmnd":"Power {}".format(command)}
             elif command == 'CYCLE': # Power off if cycle is command, powered back on below
-                if tasmota_req(params={"cmnd":"Power"}):
+                if tasmota_req(querystring={"cmnd":"Power"}):
                     querystring = {"cmnd":"Power OFF"}
                     cycle = True
                 else:
@@ -91,11 +91,11 @@ class Outlets:
             querystring = {"cmnd":"Power"}
 
         # -- // Send Request to TASMOTA \\ --
-        r = tasmota_req(params=querystring)
+        r = tasmota_req(querystring=querystring)
         if cycle:
             if not r:
                 time.sleep(CYCLE_TIME)
-                r = tasmota_req(params={"cmnd":"Power ON"})
+                r = tasmota_req(querystring={"cmnd":"Power ON"})
             else:
                 return 'Unexpected response, port returned on state expected off'
         return r

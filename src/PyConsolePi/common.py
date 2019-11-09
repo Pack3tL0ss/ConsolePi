@@ -615,9 +615,9 @@ def kill_hung_session(dev):
             retry += 1
     return ppid is None
 
-def get_attached_adapters():
+def detect_adapters():
     """Detect Locally Attached Adapters.
-    
+
     Returns
     -------
     dict

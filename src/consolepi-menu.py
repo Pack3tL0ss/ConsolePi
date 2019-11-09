@@ -127,6 +127,7 @@ class ConsolePiMenu():
             False: '{{red}}OFF{{norm}}'
         }
 
+
     def do_rename_adapter(self, from_name):
         from_name = from_name.replace('/dev/', '')
         config = self.config
@@ -175,26 +176,30 @@ class ConsolePiMenu():
                         'ATTRS{{serial}}=="{}", SYMLINK+="{}"'.format(
                             id_vendor, id_prod, id_serial, to_name))
                     
+                    found = False # init
                     if os.path.isfile(config.RULES_FILE):   # pylint: disable=maybe-no-member
                         with open(config.RULES_FILE) as x:  # pylint: disable=maybe-no-member
                             for line in x:
-                                found = True if '# END ConsolePi Rules' in line else False
-                                    
+                                if '# END ConsolePi Rules' in line:
+                                    found = True
+                                    break
 
                     if config.root:
-                        udev_line = udev_line + '\\n# END ConsolePi Rules\\n'
                         if found:
+                            udev_line = udev_line + '\\n# END ConsolePi Rules\\n'
                             cmd = "sed -i 's/# END ConsolePi Rules/{}/' {}".format(udev_line, config.RULES_FILE) # pylint: disable=maybe-no-member
+                            print(cmd)
                             error = bash_command(cmd)
                             if error:
                                 return error
                         else:
+                            print('not_Found')
                             with open(config.RULES_FILE, 'a') as r:  # pylint: disable=maybe-no-member
                                 r.write(udev_line)
 
                         if os.path.isfile(config.SER2NET_FILE):  # pylint: disable=maybe-no-member
                             ports = [re.findall(r'^(7[0-9]{3}):telnet',line) for line in open(config.SER2NET_FILE)]  # pylint: disable=maybe-no-member
-                            next_port = max(ports)[0] + 1
+                            next_port = int(max(ports)[0]) + 1
                             next_port = '7001' if not next_port else next_port
 
                             ser2net_line = ('{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} 1STOPBIT {flow} banner'.format(
@@ -217,7 +222,7 @@ class ConsolePiMenu():
                 
             else:
                 for _file in _files:
-                    cmd = 'sudo sed -i "s/{0}/{1}/g" {2} && grep -q "{1}" {2} && [ $(grep -c "{0}" {2}) -eq 0 ]'.format(from_name, to_name, _file)
+                    cmd = 'sudo sed -i "s/{0}:/{1}:/g" {2} && grep -q "{1}:" {2} && [ $(grep -c "{0}:" {2}) -eq 0 ]'.format(from_name, to_name, _file)
                     error = bash_command(cmd)
                     if error:
                         return [error.split('\n'), 'Failed to change {} --> {} in {}'.format(from_name, to_name, _file)]
@@ -1043,13 +1048,14 @@ class ConsolePiMenu():
                     self.exec_menu(choice, actions=menu_actions, calling_menu='rename_menu')
 
         # trigger refresh udev and restart ser2net after rename
-        cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
-        with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
-            error = bash_command(cmd)
-        if not error:
-            self.udev_pending = False
-        else:
-            return error
+        if self.udev_pending:
+            cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
+            with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
+                error = bash_command(cmd)
+            if not error:
+                self.udev_pending = False
+            else:
+                return error
 
     def main_menu(self):
         loc = self.data['local'][self.hostname]['adapters']

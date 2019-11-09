@@ -47,7 +47,7 @@ class Outlets:
         # sub to make the api call to the tasmota device
         def tasmota_req(*args, **kwargs):
             try:
-                response = requests.request("GET", url, headers=headers, params=querystring, timeout=1)
+                response = requests.request("GET", url, headers=headers, params=querystring, timeout=3)
                 if response.status_code == 200:
                     if json.loads(response.text)['POWER'] == 'ON':
                         _response = True
@@ -58,9 +58,9 @@ class Outlets:
                 else:
                     _response = '[{}] error returned {}'.format(response.status_code, response.text)
             except requests.exceptions.Timeout:
-                _response = 408
-            except requests.exceptions.RequestException:
-                _response = 404
+                _response = 'Reqest Timed Out'
+            except requests.exceptions.RequestException as e:
+                _response = 'Exception Occured: {}'.format(e)
             return _response
         # -------- END SUB --------
 
@@ -80,22 +80,24 @@ class Outlets:
             if command in ['ON', 'OFF', 'TOGGLE']:
                 querystring = {"cmnd":"Power {}".format(command)}
             elif command == 'CYCLE': # Power off if cycle is command, powered back on below
-                querystring = {"cmnd":"Power OFF"}
-                cycle = True
+                if tasmota_req(querystring={"cmnd":"Power"}):
+                    querystring = {"cmnd":"Power OFF"}
+                    cycle = True
+                else:
+                    return 'Cycle is only valid for ports that are Currently ON'
             else:
                 raise KeyError
         else: # if no command specified return the status of the port
             querystring = {"cmnd":"Power"}
 
-        r = tasmota_req()
+        # -- // Send Request to TASMOTA \\ --
+        r = tasmota_req(querystring=querystring)
         if cycle:
             if not r:
                 time.sleep(CYCLE_TIME)
-                querystring = {"cmnd":"Power ON"}
-                r = tasmota_req()
+                r = tasmota_req(querystring={"cmnd":"Power ON"})
             else:
-                print('Unexpected response, port returned on state expected off')
-                return 404
+                return 'Unexpected response, port returned on state expected off'
         return r
 
     # @Halo(text='Loading', spinner='dots')

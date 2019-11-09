@@ -614,3 +614,35 @@ def kill_hung_session(dev):
                 ppid = find_procs_by_name('picocom', dev)
             retry += 1
     return ppid is None
+
+def get_attached_adapters():
+    """Detect Locally Attached Adapters.
+    
+    Returns
+    -------
+    dict
+        udev alias/symlink if defined/found as key or root device if not. 
+        /dev/ is stripped: (ttyUSB0 | AP515).  Each device has it's attrs
+        in a dict.
+    """
+    context = pyudev.Context()
+
+    devs = {}
+    for _dev in context.list_devices(subsystem='tty', ID_BUS='usb'):
+        for alias in _dev['DEVLINKS'].split():
+            if '/dev/serial/by-' not in alias:
+                dev_name = alias.strip('/dev/')
+                break
+            else:
+                dev_name = _dev['DEVNAME'].strip('/dev/')
+        devs[dev_name] = \
+                {
+                    'id_prod': _dev.get('ID_MODEL'),
+                    'id_serial': _dev.get('ID_SERIAL_SHORT'),
+                    'id_ifnum': _dev.get('ID_USB_INTERFACE_NUM'),
+                    'id_vendor': _dev.get('ID_VENDOR_ID'),
+                    'id_path': _dev.get('ID_PATH')
+                }
+
+    return devs
+

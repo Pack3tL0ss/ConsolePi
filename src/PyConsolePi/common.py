@@ -346,7 +346,7 @@ class ConsolePi_data(Outlets):
                                     # -- fail_cnt persistence so Unreachable ConsolePi learned from Gdrive sync can still be flushed
                                     # -- after 3 failed connection attempts.
                                     if 'fail_cnt' not in remote_consoles[_] and 'fail_cnt' in current_remotes[_]:
-                                        remote_consoles[_]['fail_cnt'] = {self.hostname: current_remotes[_]['fail_cnt']}
+                                        remote_consoles[_]['fail_cnt'] = current_remotes[_]['fail_cnt']
                                     log.info('[CACHE UPD] {} Updating data from {} based on more current update time'.format(_, remote_consoles[_]['source']))
                             elif 'upd_time' in current_remotes[_]:
                                     remote_consoles[_] = current_remotes[_] 

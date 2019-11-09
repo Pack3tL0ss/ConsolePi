@@ -154,7 +154,7 @@ class Outlets:
             for k in outlet_data:
                 outlet = outlet_data[k]
                 if outlet['type'].upper() == 'GPIO':
-                    noff = outlet['noff']
+                    noff = True if 'noff' not in outlet else outlet['noff'] # default normally off to True if not provided
                     GPIO.setup(outlet['address'], GPIO.OUT)  # pylint: disable=maybe-no-member
                     outlet['is_on'] = bool(GPIO.input(outlet['address'])) if noff else not bool(GPIO.input(outlet['address'])) # pylint: disable=maybe-no-member
                 elif outlet['type'] == 'tasmota':

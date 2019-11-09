@@ -87,13 +87,13 @@ class ConsolePi_data(Outlets):
         self.error_msgs = []
         self.outlet_by_dev = None # defined in get_local --> map_serial2outlet
         self.outlet_failures = {}
-        self.power = self.outlets = False
-        if self.power: # pylint: disable=access-member-before-definition
+        if self.power: # pylint: disable=maybe-no-member
             if os.path.isfile(POWER_FILE):
                 self.outlet_update()
             else:
                 self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')
-                self.error_msgs.append('Powrer Outlet Control is enabled but no power.json defined - Disabling')    
+                self.error_msgs.append('Powrer Outlet Control is enabled but no power.json defined - Disabling')
+        self.outlets = None if not self.power or not os.path.isfile(POWER_FILE) else self.outlets # pylint: disable=maybe-no-member
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()
         self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
@@ -112,7 +112,7 @@ class ConsolePi_data(Outlets):
         '''
         Called by init and consolepi-menu refresh
         '''
-        if self.power:
+        if self.power: # pylint: disable=maybe-no-member
             if not hasattr(self, 'outlets') or refresh:
                 _outlets = self.get_outlets(upd_linked=upd_linked, failures=self.outlet_failures)
                 self.outlets = _outlets['linked']
@@ -211,29 +211,24 @@ class ConsolePi_data(Outlets):
                             log.info('[GET ADAPTERS] Found {0} TELNET port: {1} [{2} {3}{4}1, flow: {5}]'.format(
                                 tty_dev.replace('/dev/', ''), tty_port, baud, dbits, parity.upper(), flow.upper()))
                             break
-            else:
+            else:   # No ser2net.conf file found
                 msg = '[GET ADAPTERS] No ser2net.conf file found unable to extract port definition'
                 log.error(msg)
                 self.error_msgs.append(msg)
-                # log.error('No ser2net.conf file found unable to extract port definition')
-                # if do_print:
-                #     print('No ser2net.conf file found unable to extract port definition')
+                self.display_con_settings = True
 
             if tty_port == 9999:
                 msg = '[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev)
                 log.error(msg)
                 self.error_msgs.append(msg)
                 self.display_con_settings = True
-                # log.error('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev))
-                # serial_list.append({'dev': tty_dev, 'port': tty_port})
-                # if do_print:
-                #     print('No ser2net.conf definition found for {}'.format(tty_dev))
             else:
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
-                        'parity': parity, 'flow': flow})       
-        if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
-            if self.outlets:
-                serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force get_outlets() line 200
+                        'parity': parity, 'flow': flow})
+                            
+        # if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
+        if self.outlets:
+            serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force get_outlets() line 200
         
         if stdin.isatty():
             if len(serial_list) > 0:

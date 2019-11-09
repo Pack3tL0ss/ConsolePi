@@ -46,6 +46,7 @@ class Outlets:
         '''
         # sub to make the api call to the tasmota device
         def tasmota_req(*args, **kwargs):
+            querystring = kwargs['querystring']
             try:
                 response = requests.request("GET", url, headers=headers, params=querystring, timeout=3)
                 if response.status_code == 200:

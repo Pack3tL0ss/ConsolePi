@@ -27,7 +27,6 @@ parameter_dict = parse_args()
 templateLoader = jinja2.FileSystemLoader(searchpath="/etc/ConsolePi/src/j2/")
 templateEnv = jinja2.Environment(loader=templateLoader)
 template = templateEnv.get_template(sys.argv[1] + '.j2')
-# outputText = template.render(wlan_ssid='ConsolePi', wlan_psk='hpIMC!!!', wlan_country='US')
 outputText = template.render(parameter_dict)
 template.stream(parameter_dict).dump('/tmp/{}'.format(sys.argv[1]))
 

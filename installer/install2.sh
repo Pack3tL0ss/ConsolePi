@@ -332,9 +332,9 @@ verify() {
 }
 
 chg_password() {
-    if [[ $iam == "pi" ]]; then 
+    if [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then 
         header
-        echo "You are logged in as pi, the default user."
+        echo "You are logged in as pi, and the default password for the 'pi' user has not been changed"
         prompt="Do You want to change the password for user pi"
         response=$(user_input_bool)
         if $response; then

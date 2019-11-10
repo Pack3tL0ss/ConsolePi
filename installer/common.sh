@@ -379,7 +379,7 @@ get_pi_info() {
 }
 
 convert_template() {
-    /etc/ConsolePi/j2render.py "$@"
+    /etc/ConsolePi/src/j2render.py "$@"
     file_diff_update /tmp/${1} $2
     rm /tmp/${1} >/dev/null 2>>$log_file
 }

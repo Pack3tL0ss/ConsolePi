@@ -15,6 +15,7 @@ from pathlib import Path
 import pyudev
 import psutil
 from sys import stdin
+import serial
 from .power import Outlets
 
 # Common Static Global Variables
@@ -61,6 +62,29 @@ class ConsolePi_data(Outlets):
 
     def __init__(self, log_file=CLOUD_LOG_FILE, do_print=True):
         super().__init__(POWER_FILE)
+
+        # init ConsolePi.conf values
+        self.cfg_file_ver = None
+        self.push = None
+        self.push_all = None
+        self.push_api_key = None
+        self.push_iden = None
+        self.ovpn_enable = None
+        self.vpn_check_ip = None
+        self.net_check_ip = None
+        self.local_domain = None
+        self.wlan_ip = None
+        self.wlan_ssid = None
+        self.wlan_psk = None
+        self.wlan_country = None
+        self.cloud = None
+        self.cloud_svc = None
+        self.power = None
+        self.tftpd = None
+        self.debug = None
+
+        # build attributes from ConsolePi.conf values
+        # and GLOBAL variables
         config = self.get_config_all()
         for key, value in config.items():
             if type(value) == str:
@@ -78,6 +102,7 @@ class ConsolePi_data(Outlets):
                 for _ in value:
                     x.append(_)
                 exec('self.{} = {}'.format(key, x))
+
         self.do_print = do_print
         self.log_file = log_file
         cpi_log = ConsolePi_Log(log_file=log_file, do_print=do_print, debug=self.debug) # pylint: disable=maybe-no-member
@@ -100,8 +125,8 @@ class ConsolePi_data(Outlets):
         self.remotes = self.get_local_cloud_file()
         if stdin.isatty():
             self.rows, self.cols = self.get_tty_size()
-        self.display_con_settings = False
         self.root = True if os.geteuid() == 0 else False
+        self.new_adapters = detect_adapters()
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
@@ -145,6 +170,7 @@ class ConsolePi_data(Outlets):
         ret_data = locals()
         for key in ['self', 'config', 'line', 'var', 'value']:
             ret_data.pop(key)
+
         return ret_data
 
     # TODO run get_local in blocking thread abort additional calls if thread already running
@@ -176,6 +202,7 @@ class ConsolePi_data(Outlets):
         for tty_dev in final_tty_list:
             tty_port = 9999 # using 9999 as an indicator there was no def for the device.
             flow = 'n' # default if no value found in file
+            # serial_list.append({tty_dev: {'port': tty_port}}) # PLACEHOLDER FOR REFACTOR with dev name as key
             # -- extract defined TELNET port and connection parameters from ser2net.conf --
             if os.path.isfile('/etc/ser2net.conf'):
                 with open('/etc/ser2net.conf', 'r') as cfg:
@@ -215,13 +242,14 @@ class ConsolePi_data(Outlets):
                 msg = '[GET ADAPTERS] No ser2net.conf file found unable to extract port definition'
                 log.error(msg)
                 self.error_msgs.append(msg)
-                self.display_con_settings = True
+                serial_list.append({'dev': tty_dev, 'port': tty_port})
 
             if tty_port == 9999:
-                msg = '[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev)
+                msg = '[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev.strip('/dev/'))
                 log.error(msg)
                 self.error_msgs.append(msg)
-                self.display_con_settings = True
+                self.error_msgs.append('Use option \'c\' to change connection settings for ' + tty_dev.strip('/dev/'))
+                serial_list.append({'dev': tty_dev, 'port': tty_port})
             else:
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
                         'parity': parity, 'flow': flow})
@@ -346,7 +374,7 @@ class ConsolePi_data(Outlets):
                                     # -- fail_cnt persistence so Unreachable ConsolePi learned from Gdrive sync can still be flushed
                                     # -- after 3 failed connection attempts.
                                     if 'fail_cnt' not in remote_consoles[_] and 'fail_cnt' in current_remotes[_]:
-                                        remote_consoles[_]['fail_cnt'] = {self.hostname: current_remotes[_]['fail_cnt']}
+                                        remote_consoles[_]['fail_cnt'] = current_remotes[_]['fail_cnt']
                                     log.info('[CACHE UPD] {} Updating data from {} based on more current update time'.format(_, remote_consoles[_]['source']))
                             elif 'upd_time' in current_remotes[_]:
                                     remote_consoles[_] = current_remotes[_] 
@@ -490,7 +518,7 @@ def error_handler(cmd, stderr):
         else:
             return 'User Abort or Failure to kill existing session to {}'.format(cmd[1].replace('/dev/', ''))
 
-def bash_command(cmd, do_print=False):
+def bash_command(cmd, do_print=False, eval_errors=True):
     # subprocess.run(['/bin/bash', '-c', cmd])
     response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
     _stderr = response.stderr.decode('UTF-8')
@@ -498,8 +526,9 @@ def bash_command(cmd, do_print=False):
         print(_stderr)
     # print(response)
     # if response.returncode != 0:
-    if _stderr:
-        return error_handler(getattr(response, 'args'), _stderr)
+    if eval_errors:
+        if _stderr:
+            return error_handler(getattr(response, 'args'), _stderr)
 
 def is_valid_ipv4_address(address):
     try:
@@ -614,3 +643,86 @@ def kill_hung_session(dev):
                 ppid = find_procs_by_name('picocom', dev)
             retry += 1
     return ppid is None
+
+def detect_adapters(key=None):
+    """Detect Locally Attached Adapters.
+
+    Returns
+    -------
+    dict
+        udev alias/symlink if defined/found as key or root device if not. 
+        /dev/ is stripped: (ttyUSB0 | AP515).  Each device has it's attrs
+        in a dict.
+    """
+    context = pyudev.Context()
+
+    devs = {'by_name': {}, 'dup_ser': {}}
+    for _dev in context.list_devices(subsystem='tty', ID_BUS='usb'):
+        root_dev = _dev['DEVNAME'].strip('/dev/')
+        for alias in _dev['DEVLINKS'].split():
+            if '/dev/serial/by-' not in alias:
+                dev_name = alias.strip('/dev/')
+                break
+            else:
+                dev_name = root_dev
+                
+                
+        devs['by_name'][dev_name] = \
+                {
+                    'id_prod': _dev.get('ID_MODEL_ID'),
+                    'id_model': _dev.get('ID_MODEL'),
+                    'id_vendorid': _dev.get('ID_VENDOR_ID'),
+                    'id_vendor': _dev.get('ID_VENDOR'),
+                    'id_serial': _dev.get('ID_SERIAL_SHORT'),
+                    'id_ifnum': _dev.get('ID_USB_INTERFACE_NUM'),
+                    'id_path': _dev.get('ID_PATH'),
+                    'root_dev': True if dev_name == root_dev else False
+                }
+        _ser = devs['by_name'][dev_name]['id_serial']
+        if _ser in devs['dup_ser']:
+            devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
+            devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
+        else:
+            devs['dup_ser'][_ser] = {
+                'id_prod': devs['by_name'][dev_name]['id_prod'],
+                'id_model': devs['by_name'][dev_name]['id_model'],
+                'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
+                'id_vendor': devs['by_name'][dev_name]['id_vendor'],
+                'id_paths': [devs['by_name'][dev_name]['id_path']],
+                'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
+                }
+
+    del_list = []
+    for _ser in devs['dup_ser'] :
+        if len(devs['dup_ser'][_ser]['id_paths']) == 1:
+            del_list.append(_ser)
+
+    if del_list:
+        for i in del_list:
+            del devs['dup_ser'][i]
+
+    return devs if key is None else devs['by_name'][key.strip('/dev/')]
+
+def get_serial_prompt(dev, commands=None, **kwargs):
+    dev = '/dev/' + dev if '/dev/' not in dev else dev
+    ser = serial.Serial(dev, timeout=1, **kwargs)
+
+    # before writing anything, ensure there is nothing in the buffer
+    if ser.inWaiting() > 0:
+        ser.flushInput()
+
+    # send the commands:
+    ser.write(b'\r')
+    if commands:
+        for cmd in commands:
+            ser.write(bytes(cmd, 'UTF-8'))
+    # read the response, guess a length that is more than the message
+    msg = ser.read(2048)
+    return msg.decode('UTF-8')
+
+def json_print(obj):
+    print(json.dumps(obj, indent=4, sort_keys=True))
+
+def format_eof(file):
+    cmd = 'sed -i -e :a -e {} {}'.format('\'/^\\n*$/{$d;N;};/\\n$/ba\'', file)
+    return bash_command(cmd, eval_errors=False)

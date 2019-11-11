@@ -117,7 +117,6 @@ class ConsolePi_data(Outlets):
                 self.outlet_update()
             else:
                 self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')
-                self.error_msgs.append('Powrer Outlet Control is enabled but no power.json defined - Disabling')
         self.outlets = None if not self.power or not os.path.isfile(POWER_FILE) else self.outlets # pylint: disable=maybe-no-member
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()

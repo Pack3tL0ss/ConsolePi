@@ -165,31 +165,45 @@ main() {
     # Check to see if any images exist in script dir already
     found_img_file=$(ls -lc *raspbian*.img 2>>/dev/null | awk '{print $9}')
     found_img_zip=$(ls -lc *raspbian*.zip 2>>/dev/null | awk '{print $9}')
+    readarray -t found_img_files <<<"$found_img_file"
+    readarray -t found_img_zips <<<"$found_img_zip"
     # img_file=$(ls -lc "${found_img_file}.img" 2>>/dev/null | awk '{print $9}')
     
     # If img or zip raspbian-lite image exists in script dir see if it is current
     # if not prompt user to determine if they want to download current
     if [[ $found_img_file ]]; then
 #        if [[ ! ${found_img_file%.img} =~ $cur_rel ]]; then
-        if ! $(ls -lc | grep -q ${cur_rel}.img); then
-            echo "${found_img_file%.img} found, but the latest available release is ${cur_rel}"
+        # if ! $(ls -lc | grep -q ${cur_rel}.img); then
+        if [[ ! " ${found_img_files[@]} " =~ " ${cur_rel}.img " ]]; then
+            echo "the following images were found:"
+            idx = 1
+            for i in ${found_img_files[@]}; do echo ${idx}. ${i} && ((idx=$idx+1));  done
+            echo -e "\nbut the current release is $cur_rel"
+            # echo "${found_img_zip%.zip} found, but the latest available release is ${cur_rel}"
             prompt="Would you like to download and use the latest release? (${cur_rel}):"
+            # echo "${found_img_file%.img} found, but the latest available release is ${cur_rel}"
+            # prompt="Would you like to download and use the latest release? (${cur_rel}):"
             get_input
-            $input || img_file=$found_img_file
+            $input || img_file=$found_img_file # selecting no won't likely won't work right now
         else
-            echo "Using image ${found_img_file%.img}, found in $(pwd). It is the current release"
+            echo "Using image ${cur_rel%.img}, found in $(pwd). It is the current release"
             img_file=${cur_rel}.img
         fi
     elif [[ $found_img_zip ]]; then
 #        if [[ ! ${found_img_zip%.zip} =~ $cur_rel ]]; then
-        if ! $(ls -lc | grep -q ${cur_rel}.zip); then
-            echo "${found_img_zip%.zip} found, but the latest available release is ${cur_rel}"
+        # if ! $(ls -lc | grep -q ${cur_rel}.zip); then
+        if [[ ! " ${found_img_zips[@]} " =~ " ${cur_rel}.zip " ]]; then
+            echo "the following images were found:"
+            idx = 1
+            for i in ${found_img_zips[@]}; do echo ${idx}. ${i} && ((idx=$idx+1));  done
+            echo -e "\nbut the current release is $cur_rel"
+            # echo "${found_img_zip%.zip} found, but the latest available release is ${cur_rel}"
             prompt="Would you like to download and use the latest release? (${cur_rel}):"
             get_input
-            $input || do_unzip $found_img_zip #img_file assigned in do_unzip
+            $input || do_unzip $found_img_zip ## selecting no won't likely won't work right now # img_file assigned in do_unzip
         else
-            echo "Using ${found_img_zip} found in $(pwd). It is the current release"
-            do_unzip $found_img_zip
+            echo "Using ${cur_rel} found in $(pwd). It is the current release"
+            do_unzip ${cur_rel}.zip
             #img_file assigned in do_unzip
         fi
     else

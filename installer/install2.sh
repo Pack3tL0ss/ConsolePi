@@ -486,6 +486,14 @@ misc_imports(){
                 fi
         fi
 
+        # -- power.json --
+        if $power && [[ -d ${stage_dir}power.json ]]; then 
+            found_path=${stage_dir}power.json
+            mv $found_path $consolepi_dir 2>> $log_file &&
+            logit "Found power control definitions @ ${found_path} Moving into $consolepi_dir"  ||
+            logit "Error occurred moving your ${found_path} into $consolepi_dir " "WARNING"
+        fi
+
     fi
     unset process
 }
@@ -985,11 +993,25 @@ do_tftpd_server() {
 }
 
 misc_stuff() {
-    process="Set Keyboard Layout"
-    logit "${process} - Starting"
-    sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard && logit "KeyBoard Layout changed to ${wlan_country,,}"
-    logit "${process} - Complete"
-    unset process
+    if [ ${wlan_country^^} == "US" ]; then
+        process="Set Keyboard Layout"
+        logit "${process} - Starting"
+        sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard && logit "KeyBoard Layout changed to ${wlan_country,,}"
+        logit "${process} - Success" || logit "${process} - Failed ~ verify contents of /etc/default/keyboard" "WARNING"
+        unset process
+    fi
+
+    # -- set locale -- # if US haven't verified others use same code as wlan_country
+    if [ ${wlan_country^^} == "US" ]; then
+        process="Set locale"
+        logit "${process} - Starting"
+        sudo sed -i "s/GB/${wlan_country^^}/g" /etc/default/locale && logit "all locale vars changed to en_${wlan_country^^}.UTF-8" &&
+        grep -q LANGUAGE= /etc/default/locale || echo LANGUAGE=en_${wlan_country^^}.UTF-8 >> /etc/default/locale
+        grep -q LC_ALL= /etc/default/locale || echo LC_ALL=en_${wlan_country^^}.UTF-8 >> /etc/default/locale
+        ! $(grep -q GB /etc/default/locale) && grep -q LANGUAGE= /etc/default/locale && grep -q LC_ALL= /etc/default/locale &&
+            logit "${process} - Success" || logit "${process} - Failed ~ verify contents of /etc/default/locale" "WARNING"
+        unset process
+    fi
 }
 
 get_serial_udev() {

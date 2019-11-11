@@ -110,7 +110,7 @@ class ConsolePi_data(Outlets):
         self.plog = cpi_log.plog
         self.hostname = socket.gethostname()
         self.error_msgs = []
-        self.outlet_by_dev = None # defined in get_local --> map_serial2outlet
+        self.outlet_by_dev = {} # defined in get_local --> map_serial2outlet
         self.outlet_failures = {}
         if self.power: # pylint: disable=maybe-no-member
             if os.path.isfile(POWER_FILE):

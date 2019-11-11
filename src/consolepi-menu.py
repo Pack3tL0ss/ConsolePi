@@ -3,19 +3,23 @@
 import ast
 import json
 import os
+import re
 import readline
 import shlex
 import subprocess
 import sys
-from collections import OrderedDict as od
 import threading
+from collections import OrderedDict as od
+
+import pyudev
+# --// ConsolePi imports \\--
+from consolepi.common import (ConsolePi_data, bash_command, check_reachable, json_print, format_eof, get_serial_prompt,
+                              error_handler, user_input_bool, detect_adapters)
 from halo import Halo
-from log_symbols import LogSymbols as log_sym #Enum
+from log_symbols import LogSymbols as log_sym  # Enum
+
 # from consolepi.gdrive import GoogleDrive # <-- hidden import burried in refresh method of ConsolePiMenu Class
 
-# --// ConsolePi imports \\--
-from consolepi.common import (ConsolePi_data, check_reachable,
-                              key_change_detector, user_input_bool)
 
 rem_user = 'pi'
 rem_pass = None
@@ -51,6 +55,7 @@ class ConsolePiMenu():
         self.log_sym_warn = log_sym.WARNING.value
         self.log_sym_success = log_sym.SUCCESS.value
         self.log_sym_info = log_sym.INFO.value
+        self.log_sym_2bang = '\033[1;33m!!\033[0m'
         self.go = True
         self.baud = 9600
         self.data_bits = 8
@@ -72,8 +77,8 @@ class ConsolePiMenu():
                     level='warning')
                 self.error_msgs.append('Outlet Control Disabled by Script - No power.json found')
                 config.power = False
+        self.dli_exists = self.gpio_exists = self.tasmota_exists = self.linked_exists = False
         if config.power and config.outlets:
-            self.dli_exists = self.gpio_exists = self.tasmota_exists = self.linked_exists = False
             for outlet_group in config.outlets:
                 if config.outlets[outlet_group]['type'].lower() == 'dli':
                     self.dli_exists = True
@@ -99,15 +104,19 @@ class ConsolePiMenu():
             'x': self.exit
         }
         self.http_codes = {404: 'Not Found', 408: 'Request Timed Out - UNREACHABLE'}
-        if config.display_con_settings:
-            self.menu_actions['c'] = self.con_menu
+        self.display_con_settings = False
+        # if self.display_con_settings:
+        #     self.menu_actions['c'] = self.con_menu
         if config.power and config.outlets:
             if self.linked_exists or self.gpio_exists or self.tasmota_exists:
                 self.menu_actions['p'] = self.power_menu
-                self.menu_actions['power_menu'] = self.power_menu
             if self.dli_exists:
                 self.menu_actions['d'] = self.dli_menu
-                self.menu_actions['dli_menu'] = self.dli_menu
+        if not config.root:
+            self.error_msgs.append('Running without sudo privs ~ Results may vary!')
+            self.error_msgs.append('Use consolepi-menu to launch menu')
+        self.udev_pending = False
+        
 
         self.colors = { # Bold with normal foreground
             'green': '\033[1;32m',
@@ -119,6 +128,231 @@ class ConsolePiMenu():
             True: '{{green}}ON{{norm}}',
             False: '{{red}}OFF{{norm}}'
         }
+
+
+    def do_rename_adapter(self, from_name):
+        from_name = from_name.strip('/dev/')
+        config = self.config
+        c = self.colors
+        error = False
+        use_def = True
+        c_from_name = '{}{}{}'.format(c['red'], from_name, c['norm'])
+
+        ser2net_parity = {
+            'n': 'NONE',
+            'e': 'EVEN',
+            'o': 'ODD'
+        }
+        ser2net_flow = {
+            'n': '',
+            'x': ' -XONXOFF',
+            'y': ' -RTSCTS'
+        }
+
+        def do_ser2net_line(to_name=None, baud=self.baud, dbits=self.data_bits, parity=ser2net_parity[self.parity], flow=ser2net_flow[self.flow]):
+            if os.path.isfile(config.SER2NET_FILE):  # pylint: disable=maybe-no-member
+                ports = [re.findall(r'^(7[0-9]{3}):telnet',line) for line in open(config.SER2NET_FILE)]  # pylint: disable=maybe-no-member
+                next_port = int(max(ports)[0]) + 1
+                next_port = '7001' if not next_port else next_port
+
+            else:
+                res = bash_command('sudo cp /etc/ConsolePi/src/ser2net.conf /etc/')
+                if res:
+                    return res
+                else:
+                    next_port = '7001'
+
+            ser2net_line = ('\n{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} 1STOPBIT {flow} banner'.format(
+            telnet_port=next_port,
+            alias=to_name,
+            baud=baud,
+            dbits=dbits,
+            parity=parity,
+            flow=flow))
+
+            format_eof(config.SER2NET_FILE) # pylint: disable=maybe-no-member
+            with open(config.SER2NET_FILE, 'a+') as s:  # pylint: disable=maybe-no-member
+                s.write(ser2net_line)
+
+
+        def add_to_udev(udev_line, section_marker, label=None):
+            found = ser_label_exists = get_next = False # init
+            if os.path.isfile(config.RULES_FILE):   # pylint: disable=maybe-no-member
+                with open(config.RULES_FILE) as x:  # pylint: disable=maybe-no-member
+                    for line in x:
+                        if line.strip() == udev_line.strip():
+                            return # Line is already in file Nothing to do.
+                        if get_next:
+                            goto = line
+                            get_next = False
+                        if section_marker.replace(' END', '') in line:
+                            get_next = True
+                        elif section_marker in line:
+                            found = True
+                        elif label and 'LABEL="{}"'.format(label) in line:
+                            ser_label_exists = True
+
+                    last_line = line
+                        
+                goto = goto.split('GOTO=')[1].replace('"', '').strip() if 'GOTO=' in goto else None
+                if goto is None:
+                    goto = last_line.strip().strip('LABEL=').replace('"', '') if 'LABEL=' in last_line else None
+            else:
+                error = bash_command('sudo cp /etc/ConsolePi/src/10-ConsolePi.rules /etc/udev/rules.d/')
+                found = True
+                goto = 'END'
+
+            if goto and 'GOTO=' not in udev_line:
+                udev_line = '{}, GOTO="{}"'.format(udev_line, goto)
+            
+            if label and not ser_label_exists:
+                udev_line = 'LABEL="{}"\\n{}'.format(label, udev_line)
+            
+            # -- // UPDATE RULES FILE WITH FORMATTED LINE \\ --
+            if found:
+                udev_line = '{}\\n{}'.format(udev_line, section_marker)
+                cmd = "sed -i 's/{}/{}/' {}".format(section_marker, udev_line, config.RULES_FILE) # pylint: disable=maybe-no-member
+                error = bash_command(cmd)
+                if error:
+                    return error
+            else: # Not Using new 10-ConsolePi.rules template
+                if section_marker == '# END BYSERIAL-DEVS':
+                    with open(config.RULES_FILE, 'a') as r:  # pylint: disable=maybe-no-member
+                        r.write(udev_line)
+                else:
+                    return 'Unable to Add Line, please use the new 10.ConsolePi.rules found in src dir and\n' \
+                        'add you\'re current rules to the BYSERIAL-DEVS section.'
+
+
+        # -- Collect desired name from user
+        try:
+            to_name = None
+            while not to_name:
+                to_name = input(' [rename {}]: Provide desired name: '.format(c_from_name))
+            to_name = to_name.strip('/dev/') # strip /dev/ if they thought they needed to include it
+            to_name = to_name.replace(' ', '_') # replace any spaces with _ as not allowed (udev rule symlink)
+        except KeyboardInterrupt:
+            return 'Rename Aborted based on User Input'
+        c_to_name = '{}{}{}'.format(c['green'], to_name, c['norm'])
+
+        if user_input_bool(' Please Confirm Rename {} --> {}'.format(c_from_name, c_to_name)):
+            _files = [config.SER2NET_FILE, config.RULES_FILE] # pylint: disable=maybe-no-member
+            if 'ttyUSB' in from_name or 'ttyACM' in from_name:
+                use_def = user_input_bool(' Use default connection values [{} {}{}1 Flow: {}]'.format(
+                    self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]))
+                if not use_def:
+                    self.con_menu(rename=True)
+
+                # context = pyudev.Context()
+                # _tty = pyudev.Devices.from_name(context, 'tty', from_name)
+                
+                # id_prod = _tty.get('ID_MODEL_ID')
+                # id_serial = _tty.get('ID_SERIAL_SHORT')
+                # id_vendor = _tty.get('ID_VENDOR_ID')
+
+                # Collect locally attached adapters (new func)
+                devs = detect_adapters()
+                if from_name in devs['by_name']:
+                    _tty = devs['by_name'][from_name]
+                    id_prod = _tty['id_prod']
+                    id_model = _tty['id_model'] # pylint: disable=unused-variable
+                    id_vendorid = _tty['id_vendorid']
+                    id_vendor = _tty['id_vendor'] # pylint: disable=unused-variable
+                    id_serial = _tty['id_serial']
+                    id_ifnum = _tty['id_ifnum']
+                    id_path = _tty['id_path']
+                    root_dev = _tty['root_dev']
+                else:
+                    return 'ERROR: Adapter no longer found'
+
+                if not root_dev:
+                    return 'Did you really create an alias using with  ttyUSB or ttyACM in it (same as root devices)? Rename failed cause you\'re silly'
+
+                if id_prod and id_serial and id_vendorid:
+
+                    if id_serial not in devs['dup_ser']:
+                        
+                        udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{}", ATTRS{{idProduct}}=="{}", ' \
+                            'ATTRS{{serial}}=="{}", SYMLINK+="{}"'.format(
+                                id_vendorid, id_prod, id_serial, to_name))
+
+                        error = None
+                        while not error:
+                            error = add_to_udev(udev_line, '# END BYSERIAL-DEVS')
+                            error = do_ser2net_line(to_name=to_name)
+                            break
+                    
+                    else:   # Multi-Port Adapter with presenting same serial for all ports (different ports)
+                        # SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", ATTRS{serial}=="FT4213OP", GOTO="FT4213OP"
+                        udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", ' \
+                            'ATTRS{{serial}}=="{2}", GOTO="{2}"'.format(
+                                id_vendorid, id_prod, id_serial))
+                        
+                        error = None
+                        while not error:
+                            error = add_to_udev(udev_line, '# END BYPORT-POINTERS')
+                            # ENV{ID_USB_INTERFACE_NUM}=="00", SYMLINK+="FT4232H_port1", GOTO="END"
+                            udev_line = ('ENV{{ID_USB_INTERFACE_NUM}}=="{}", SYMLINK+="{}"'.format(
+                                    id_ifnum, to_name))
+                            error = add_to_udev(udev_line, '# END BYPORT-DEVS', label=id_serial)
+                            error = do_ser2net_line(to_name=to_name)
+                            break
+
+
+                else: # -- Adapter missing details (most likely serial#) --
+                    config.log.warn('[ADD ADAPTER] Unable to add udev rule: idVendor={}, idProduct={}, serial#={}'.format(
+                                id_vendorid, id_prod, id_serial))
+                    print(''' 
+                        This Device Does not present a serial # (LAME!).  So the adapter itself can\'t be uniquely identified.
+                        If the adapter will remain plugged into the same port (directly or on HUB).  The name / alias can be
+                        mapped to the USB port.  Any adapter or device for that matter that is plugged into this port will
+                        use this alias.
+
+                        Alternatively We can just do a non-persistent rename, which will go away once the you exit the menu.
+                     
+                        ''')
+
+                    do_bypath = user_input_bool(' Permanently map an alias to the USB port')
+                    if not do_bypath:
+                        do_temp = user_input_bool(' Give the Adapter a non persistent name for the duration of this menu session')
+                        if do_temp:
+                            pass # by not setting an error the name will be updated below
+                        else:
+                            error = ['Unable to add udev rule adapter missing details', 'idVendor={}, idProduct={}, serial#={}'.format(
+                                id_vendorid, id_prod, id_serial)]
+                    else:
+                        udev_line = ('SUBSYSTEM=="tty", ENV{ID_PATH}=="{}", SYMLINK+="{}"'.format(id_path, to_name))
+                        # TODO add line with vendor & model - need lame ass adapter with no serial to test
+                        #   This would at least limit the alias to that vendor/model adapter.
+
+            else:   # renaming previously named port.  
+                for _file in _files:
+                    cmd = 'sudo sed -i "s/{0}{3}/{1}{3}/g" {2} && grep -q "{1}{3}" {2} && [ $(grep -c "{0}{3}" {2}) -eq 0 ]'.format(
+                        from_name,
+                        to_name,
+                        _file,
+                        ':' if 'ser2net.conf' in _file else ''
+                        )
+                    error = bash_command(cmd)
+                    if error:
+                        return [error.split('\n'), 'Failed to change {} --> {} in {}'.format(from_name, to_name, _file)]
+
+            if not error:
+                for _dev in config.local[config.hostname]['adapters']:
+                    if _dev['dev'].strip('/dev/') == from_name:
+                        _dev['dev'] = '/dev/' + to_name # TODO Strip the /dev/ once verified no ill effects
+                        if not use_def:
+                            _dev['baud'] = self.baud
+                            _dev['flow'] = self.flow
+                            _dev['parity'] = self.parity
+                            _dev['dbits'] = self.data_bits
+                        break
+                self.data['local'] = config.local
+                self.udev_pending = True    # toggle for exit function if they exit directly from rename memu
+
+        else:
+            return 'Aborted based on user input'
+
 
     def get_dli_outlets(self, refresh=False, upd_linked=False, key='outlets'):
         # pylint: disable=maybe-no-member
@@ -180,7 +414,8 @@ class ConsolePiMenu():
 
             if this['rem_ip'] is None:
                 log.warning('[GET REM] Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
-                self.error_msgs.append('Cached Remote \'{}\' is unreachable'.format(remotepi))
+                if 'fail_cnt' in data[remotepi] and data[remotepi]['fail_cnt'] < 2: # Removal Error will display no need for both
+                    self.error_msgs.append('Cached Remote \'{}\' is unreachable'.format(remotepi))
                 self.spin.fail()
                 pop_list.append(remotepi)  # Remove Unreachable remote from cache
         
@@ -189,19 +424,20 @@ class ConsolePiMenu():
             if len(pop_list) > 0:
                 for remotepi in pop_list:
                     if 'fail_cnt' in data[remotepi]:
-                        data[remotepi]['fail_cnt'] += 1
-                        if data[remotepi]['fail_cnt'] >= 3: # remove from local cache after 3 failures (cloud or mdns will repopulate if discovered)
-                            removed = data.pop(remotepi)
-                            log.warning('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
-                                remotepi, removed['fail_cnt']))
-                            self.error_msgs.append('Unreachable \'{}\' removed from local cache after 3 failed attempts to connect'.format(remotepi))   
+                            data[remotepi]['fail_cnt'] += 1
+                            if data[remotepi]['fail_cnt'] >= 3: # remove from local cache after 3 failures (cloud or mdns will repopulate if discovered)
+                                removed = data.pop(remotepi)
+                                log.warning('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
+                                    remotepi, removed['fail_cnt']))
+                                self.error_msgs.append('{} removed from local cache after 3 failed attempts to connect'.format(remotepi))
                     else:
                         data[remotepi]['fail_cnt'] = 1
             data = config.update_local_cloud_file(data)
 
         return data
 
-    # Update ConsolePi.csv on Google Drive and pull any data for other ConsolePis
+    # Update with Data from ConsolePi.csv on Gdrive and local cache populated by mdns.  Update Gdrive with our data
+    # TODO rem_update deprecated and can be removed
     def refresh(self, rem_update=False):
         # pylint: disable=maybe-no-member
         remote_consoles = None
@@ -212,13 +448,16 @@ class ConsolePiMenu():
         # Update Local Adapters
         if not rem_update:
             # plog('[MENU REFRESH] Detecting Locally Attached Serial Adapters')
-            self.data['local'] = {self.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
+            config.local = {self.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
+            self.data['local'] = config.local
             log.debug('Final Data set collected for {}: {}'.format(self.hostname, self.data['local']))
 
         # Get details from Google Drive - once populated will skip
         if self.do_cloud and not self.local_only:
             if config.cloud_svc == 'gdrive' and self.cloud is None:
-                from consolepi.gdrive import GoogleDrive
+                # burried import until I find out why this import takes so @#%$@#% long.  Not imported until 1st refresh is called
+                with Halo(text='Loading Google Drive Library', spinner='dots1'):
+                    from consolepi.gdrive import GoogleDrive
                 self.cloud = GoogleDrive(config.log, hostname=self.hostname)
                 log.info('[MENU REFRESH] Gdrive init')
 
@@ -227,9 +466,13 @@ class ConsolePiMenu():
             _msg = '[MENU REFRESH] Updating to/from {}'.format(config.cloud_svc)
             log.info(_msg)
             self.spin.start(_msg)
+            # -- // SYNC DATA WITH GDRIVE \\ --
             remote_consoles = self.cloud.update_files(self.data['local'])
-            if remote_consoles:
+            if remote_consoles and 'Gdrive-Error:' not in remote_consoles:
                 self.spin.succeed(_msg + '\n\tFound {} Remotes via Gdrive Sync'.format(len(remote_consoles)))
+            elif 'Gdrive-Error:' in remote_consoles:
+                self.spin.fail('{}\n\t{} {}'.format(_msg, self.log_sym_error, remote_consoles))
+                self.error_msgs.append(remote_consoles) # display error returned from gdrive module
             else:
                 self.spin.warn(_msg + '\n\tNo Remotes Found via Gdrive Sync')
             if len(remote_consoles) > 0:
@@ -239,7 +482,7 @@ class ConsolePiMenu():
                 config.update_local_cloud_file(remote_consoles)
                 self.spin.succeed(_msg)
             else:
-                plog('[MENU REFRESH] No Remote ConsolePis found on {}'.format(config.cloud_svc))
+                plog('[MENU REFRESH] No Remote ConsolePis found on {}'.format(config.cloud_svc), level='warning')
         else:
             if self.do_cloud:
                 print('Not Updating from {} due to connection failure'.format(config.cloud_svc))
@@ -291,7 +534,7 @@ class ConsolePiMenu():
         All of this is used to format the header/footer width and to ensure consistent formatting
         during print of multiple columns
         '''
-        body = list(body) if isinstance(body[0], str) else body
+        body = [body] if isinstance(body[0], str) else body
         i = 0
         item = start = 1
         for _section in body:
@@ -491,17 +734,19 @@ class ConsolePiMenu():
                         mlines.append('{}{}'.format(_t[0], _t[1].rjust(width - len(_t[0]))))
                     else:
                         mlines.append(text)
-            mlines.append(' x. exit\n')
+            mlines.append(' x.  exit\n')
             mlines.append('=' * width)
 
             # --// ERRORs - append to footer \\-- #
             if len(self.error_msgs) > 0:
-                for _error in self.error_msgs:
-                    error_len, _error = self.format_line(_error)
+                errors = [] 
+                [errors.append(e) for e in self.error_msgs if e not in errors] # Remove Duplicates only occurs when menu launches direct to Power menu
+                for _error in errors:
+                    error_len, _error = self.format_line(_error.strip())    # remove trail and leading spaces for error msgs
                     # x = ((width - (len(_error) + 2)) / 2 ) - 1 # _error + 3 is for log_sym
-                    x = ((width - error_len) / 2 ) - 1
+                    x = ((width - (error_len + 4)) / 2 )
                     # mlines.append('*{}{}  {}{}*'.format(' ' * int(x),self.log_sym_warn, _error, ' ' * int(x) if x == int(x) else ' ' * (int(x) + 1)))
-                    mlines.append('{}{}{}{}{}'.format(self.log_sym_warn, ' ' * int(x), _error, ' ' * int(x) if x == int(x) else ' ' * (int(x) + 1), self.log_sym_warn))
+                    mlines.append('{}{}{}{}{}'.format(self.log_sym_2bang, ' ' * int(x), _error, ' ' * int(x) if x == int(x) else ' ' * (int(x) + 1), self.log_sym_2bang))
                 mlines.append('=' * width)
                 if do_print:
                     self.error_msgs = [] # clear error messages after print
@@ -576,6 +821,7 @@ class ConsolePiMenu():
             self.menu_formatting('header', text=' Power Control Menu ')
             print('  enter item # to toggle power state on outlet')
             print('  enter c + item # i.e. "c2" to cycle power on outlet')
+            print('')
 
             # Build menu items for each linked outlet
             state_list = []
@@ -586,18 +832,18 @@ class ConsolePiMenu():
                 if isinstance(outlet['address'], str):
                     _address = outlet['address'].split('.')[0] if '.' in outlet['address'] and not config.canbeint(outlet['address'].split('.')[0]) else outlet['address']
 
-                header = '     [{}] {}{}'.format(outlet['type'], r, ' @ ' + _address if outlet['type'].lower() == 'dli' else '')
-                # print('\n' + header + '\n     ' + '-' * (len(header) - 5))
+                # header = '     [{}] {}{}'.format(outlet['type'], r, ' @ ' + _address if outlet['type'].lower() == 'dli' else '')
                 # -- // DLI OUTLET MENU LINE(s) \\ --
                 if outlet['type'].lower() == 'dli':
                     if 'linked_ports' in outlet and outlet['linked_ports'] and outlet['is_on']:     # Avoid orphan header when no outlets are linked to a defined dli
-                        print('\n' + header + '\n     ' + '-' * (len(header) - 5))
+                        # print('\n' + header + '\n     ' + '-' * (len(header) - 5))
                         for dli_port in outlet['is_on']:
                             _outlet = outlet['is_on'][dli_port]
                             _state = states[_outlet['state']]
                             state_list.append(_outlet['state'])
                             _state = self.format_line(_state)[1]
-                            print(' {}. [{}] port {} ({})'.format(item, _state, dli_port, _outlet['name']))
+                            # print(' {}. [{}] port {} ({})'.format(item, _state, dli_port, _outlet['name']))
+                            print(' {}. [{}] {} ({} Port:{})'.format(item, _state, _outlet['name'], _address, dli_port))
                             menu_actions[str(item)] = {
                                 'function': config.pwr_toggle,
                                 'args': [outlet['type'], outlet['address']],
@@ -626,7 +872,7 @@ class ConsolePiMenu():
                     if isinstance(outlet['is_on'], bool):
                         _state = states[outlet['is_on']]
                         state_list.append(outlet['is_on'])
-                        print('\n' + header + '\n     ' + '-' * (len(header) - 5))
+                        # print('\n' + header + '\n     ' + '-' * (len(header) - 5))
                         _state = self.format_line(_state)[1]
                         print(' {}. [{}] {}'.format(item, _state, r))
                         menu_actions[str(item)] = {
@@ -671,7 +917,7 @@ class ConsolePiMenu():
                         'kwargs': {'outlets': outlets, 'action': 'cycle'}
                         }
             
-            text = [' b. Back', ' r. Refresh']
+            text = [' b.  Back', ' r.  Refresh']
             if self.dli_exists and not calling_menu == 'dli_menu':
                 text.insert(0, ' d. [dli] Web Power Switch Menu')
                 menu_actions['d'] = self.dli_menu
@@ -784,12 +1030,12 @@ class ConsolePiMenu():
 
             header = 'DLI Web Power Switch'
             footer = [
-                ' b. Back{{r}}menu # alone will toggle the port,',
-                ' r. Refresh{{r}}c# to cycle or r# to rename [i.e. \'c1\']'
+                ' b.  Back{{r}}menu # alone will toggle the port,',
+                ' r.  Refresh{{r}}c# to cycle or r# to rename [i.e. \'c1\']'
             ]
             if (not calling_menu == 'power_menu' and config.outlets) and (self.gpio_exists or self.tasmota_exists or self.linked_exists):
                 menu_actions['p'] = self.power_menu
-                footer.insert(0, ' p. Power Control Menu (linked, GPIO, tasmota)')
+                footer.insert(0, ' p.  Power Control Menu (linked, GPIO, tasmota)')
             # for dli menu remove in tasmota errors
             # self.error_msgs = [self.error_msgs.remove(_error) for _error in self.error_msgs if 'TASMOTA' in _error]
             for _error in self.error_msgs:
@@ -834,17 +1080,16 @@ class ConsolePiMenu():
                     item += 1
             
             # -- add option to loop through all remotes and deploy keys --
-            print('\n a. Send SSH key to *all* remotes listed above')
+            print('\n a.  Send SSH key to *all* remotes listed above')
             menu_actions['a'] = {'function': config.gen_copy_key, \
             'kwargs': {'rem_user': rem_user}}
         
-            self.menu_formatting('footer', text=' b. Back')
+            self.menu_formatting('footer', text=' b.  Back')
             choice = input(" >>  ")
             
             self.exec_menu(choice, actions=menu_actions, calling_menu='key_menu')
 
-    def main_menu(self):
-        loc = self.data['local'][self.hostname]['adapters']
+    def gen_adapter_lines(self, adapters, item=1, remote=False, host=None, rename=False):
         rem = self.data['remote']
         config = self.config
         flow_pretty = {
@@ -852,16 +1097,9 @@ class ConsolePiMenu():
             'h': 'RTS/CTS',
             'n': 'NONE'
         }
-        item = 1
-        if not self.DEBUG:
-            os.system('clear')
-
-        # TODO # >> Clean this up, make sub to do this on both local and remote
-        # Build menu items for each locally connected serial adapter
-        outer_body = []
-        slines = []
+        menu_actions = {}
         mlines = []
-        for _dev in sorted(loc, key = lambda i: i['port']):
+        for _dev in sorted(adapters, key = lambda i: i['port']):
             this_dev = _dev['dev']
             try:
                 def_indicator = ''
@@ -870,23 +1108,114 @@ class ConsolePiMenu():
                 flow = _dev['flow']
                 parity = _dev['parity']
             except KeyError:
-                def_indicator = '*'
+                def_indicator = '**'
                 baud = self.baud
                 flow = self.flow
                 dbits = self.data_bits
                 parity = self.parity
+                self.display_con_settings = True
 
             # Generate Menu Line
-            menu_line = '{} [{}{} {}{}1]'.format(
-                this_dev.replace('/dev/', ''), def_indicator, baud, dbits, parity[0].upper())
+            menu_line = '{} {}[{} {}{}1]'.format(
+                this_dev.strip('/dev/'), def_indicator, baud, dbits, parity[0].upper())
             if flow != 'n' and flow in flow_pretty:
                 menu_line += ' {}'.format(flow_pretty[flow])
             mlines.append(menu_line)
 
-            # Generate Command executed for Menu Line
-            _cmd = 'picocom {0} -b{1} -f{2} -d{3} -p{4}'.format(this_dev, baud, flow, dbits, parity)
-            self.menu_actions[str(item)] = {'cmd': _cmd}
+            if not remote:
+                if not rename:
+                    # -- // LOCAL ADAPTERS \\ --
+                    # Generate Command executed for Menu Line
+                    _cmd = 'picocom {0} -b{1} -f{2} -d{3} -p{4}'.format(this_dev, baud, flow, dbits, parity)
+                    menu_actions[str(item)] = {'cmd': _cmd}
+                else:
+                    menu_actions[str(item)] = {'function': self.do_rename_adapter, 'args': [this_dev]}
+                    menu_actions['s' + str(item)] = {'function': self.show_adapter_details, 'args': [this_dev]}
+            else:
+                # -- // REMOTE ADAPTERS \\ --
+                _cmd = 'ssh -t {0}@{1} "{2} picocom {3} -b{4} -f{5} -d{6} -p{7}"'.format(
+                    rem[host]['user'], rem[host]['rem_ip'], config.REM_LAUNCH, _dev['dev'], baud, flow, dbits, parity) # pylint: disable=maybe-no-member
+                menu_actions[str(item)] = {'cmd': _cmd} 
             item += 1
+
+        return mlines, menu_actions, item
+
+    def show_adapter_details(self, adapter):
+        config = self.config
+        dev_name = adapter.strip('/dev/')
+        _dev = config.new_adapters['by_name'][dev_name]
+        print( ' --- Details For {} --- '.format(dev_name))
+        for k in sorted(_dev.keys()):
+            print('{}: {}'.format(k, _dev[k]))
+        print('')
+        with Halo(text='Prompt Displayed on Port: ', spinner='dots1', placement='right'):
+            p = get_serial_prompt(adapter)
+            e = self.format_line('{{red}}No text was rcvd from port{{norm}}')[1]
+        print('Prompt Displayed on Port: {}'.format(p if p else e))
+        
+        input('\nPress Any Key To Continue\n')
+
+
+    def rename_menu(self):
+        # config = self.config
+        choice = ''
+        menu_actions = {}
+        while choice not in ['b']:
+            loc = self.data['local'][self.hostname]['adapters']
+            if not self.DEBUG:
+                os.system('clear')               
+
+            slines = []
+            mlines, menu_actions, item = self.gen_adapter_lines(loc, rename=True) # pylint: disable=unused-variable
+            slines.append('Select Adapter to Rename')   # list of strings index to index match with body list of lists
+            foot = [
+                ' s#. prepend s to the menu-item to show details for the port i.e. \'s1\'',
+                '',
+                ' b.  Back'
+            ]
+            self.print_mlines(mlines, header='Rename Local Adapters',footer=foot, subs=slines, do_format=False)
+            menu_actions['x'] = self.exit
+
+            choice = input(" >>  ").lower()
+            if choice in menu_actions:
+                if not choice == 'b':
+                    self.exec_menu(choice, actions=menu_actions, calling_menu='rename_menu')
+            else:
+                if choice and choice != 'b':
+                    self.error_msgs.append('Invalid Selection \'{}\''.format(choice))
+
+        # trigger refresh udev and restart ser2net after rename
+        if self.udev_pending:
+            cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
+            with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
+                error = bash_command(cmd)
+            if not error:
+                self.udev_pending = False
+            else:
+                return error
+
+    def main_menu(self):
+        loc = self.data['local'][self.hostname]['adapters']
+        rem = self.data['remote']
+        config = self.config
+        if not self.DEBUG:
+            os.system('clear')
+
+        # Launch to Power Menu if no adapters or remotes are found
+        if not loc and not rem and config.power and config.outlets:
+                self.error_msgs.append('No Adapters Found, Outlets Found... Launching to Power Menu')
+                self.error_msgs.append('use option "b" to access main menu options')
+                if self.dli_exists and not self.linked_exists:
+                    self.exec_menu('dli_menu')
+                else:
+                    self.exec_menu('power_menu')
+                
+        # Build menu items for each locally connected serial adapter
+        outer_body = []
+        slines = []
+        mlines, menu_actions, item = self.gen_adapter_lines(loc)
+        if menu_actions:
+            self.menu_actions = {**self.menu_actions, **menu_actions}
 
         outer_body.append(mlines)   # list of lists where each list = printed menu lines
         slines.append('[LOCAL] Directly Connected')   # Sub-headers: list of strings index to index match with outer_body list of lists
@@ -895,53 +1224,34 @@ class ConsolePiMenu():
         for host in sorted(rem):
             if rem[host]['rem_ip'] is not None and len(rem[host]['adapters']) > 0:
                 self.remotes_connected = True
-                mlines = []
-                for _dev in sorted(rem[host]['adapters'], key = lambda i: i['port']):
-                    try:
-                        def_indicator = ''
-                        baud = _dev['baud']
-                        dbits = _dev['dbits']
-                        flow = _dev['flow']
-                        parity = _dev['parity']
-                    except KeyError:
-                        def_indicator = '*'
-                        baud = self.baud
-                        flow = self.flow
-                        dbits = self.data_bits
-                        parity = self.parity
-
-                    # Generate Menu Line
-                    menu_line = '{} [{}{} {}{}1]'.format(
-                        _dev['dev'].replace('/dev/', ''), def_indicator, baud, dbits, parity[0].upper())
-                    if flow != 'n' and flow in flow_pretty:
-                        menu_line += ' {}'.format(flow_pretty[flow])
-                    mlines.append(menu_line)
-                    # pylint: disable=maybe-no-member
-                    _cmd = 'ssh -t {0}@{1} "{2} picocom {3} -b{4} -f{5} -d{6} -p{7}"'.format(
-                                 rem[host]['user'], rem[host]['rem_ip'], config.REM_LAUNCH, _dev['dev'], baud, flow, dbits, parity)
-                    self.menu_actions[str(item)] = {'cmd': _cmd} 
-                    item += 1
+                mlines, menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item, remote=True, host=host)
+                if menu_actions:
+                    self.menu_actions = {**self.menu_actions, **menu_actions}
 
                 outer_body.append(mlines)   # list of lists where each list = printed menu lines
                 slines.append('[Remote] {} @ {}'.format(host, rem[host]['rem_ip']))   # list of strings index to index match with body list of lists
 
         # -- General Menu Command Options --
         text = []
-        if config.display_con_settings: # pylint disable=no-member
-            text.append(' c. Change *default Serial Settings [{0} {1}{2}1 flow={3}] '.format(
+        if self.display_con_settings: # pylint disable=no-member
+            text.append(' c.  Change default Serial Settings **[{0} {1}{2}1 flow={3}] '.format(
                 self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]))
-        text.append(' h. Display picocom help')
+            self.menu_actions['c'] = self.con_menu
+        text.append(' h.  Display picocom help')
         if config.power and config.outlets is not None:
             if self.linked_exists or self.gpio_exists or self.tasmota_exists:
-                text.append(' p. Power Control Menu')
+                text.append(' p.  Power Control Menu')
             if self.dli_exists:
-                text.append(' d. [dli] Web Power Switch Menu')
+                text.append(' d.  [dli] Web Power Switch Menu')
         if self.remotes_connected:
             self.menu_actions['k'] = self.key_menu
             self.menu_actions['s'] = self.rshell_menu
-            text.append(' k. Distribute SSH Key to Remote Hosts')
-            text.append(' s. Remote Shell Menu (Connect to Remote ConsolePi Shell)')
-        text.append(' r. Refresh')
+            text.append(' k.  Distribute SSH Key to Remote Hosts')
+            text.append(' s.  Remote Shell Menu (Connect to Remote ConsolePi Shell)')
+        if loc: # and config.root:
+            text.append(' rn. Rename Local Adapters')
+            self.menu_actions['rn'] = self.rename_menu
+        text.append(' r.  Refresh')
 
         self.print_mlines(outer_body, header='ConsolePi Serial Menu', footer=text, subs=slines, do_format=False)
         
@@ -972,7 +1282,7 @@ class ConsolePiMenu():
                     menu_actions[str(item)] = {'cmd': _cmd}
                     item += 1
 
-            text = ' b. Back'
+            text = ' b.  Back'
             self.menu_formatting('footer', text=text)
             choice = input(" >>  ")
             self.exec_menu(choice, actions=menu_actions, calling_menu='rshell_menu')
@@ -1062,9 +1372,9 @@ class ConsolePiMenu():
                         try:
                             result = subprocess.run(c, stderr=subprocess.PIPE)
                             _stderr = result.stderr.decode('UTF-8')
-                            if _stderr:
-                                print('\n' + _stderr.replace('ERROR: ', ''))
-                                _error = key_change_detector(c, _stderr) # pylint: disable=maybe-no-member
+                            if _stderr or result.returncode == 1:
+                                # print('\n' + _stderr.replace('ERROR: ', ''))
+                                _error = error_handler(c, _stderr) # pylint: disable=maybe-no-member
                                 if _error:
                                     self.error_msgs.append(_error)
                         except KeyboardInterrupt:
@@ -1154,10 +1464,12 @@ class ConsolePiMenu():
                                             self.error_msgs.append('Cycle is not valid for Outlets in the off state')
                                         elif menu_actions[ch]['function'].__name__ == 'pwr_rename':
                                             self.error_msgs.append('rename not yet implemented for {} outlets'.format(_type))
-                            elif calling_menu == 'key_menu':
+                            elif calling_menu in['key_menu', 'rename_menu']:
                                 if response:
+                                    response = [response] if isinstance(response, str) else response
                                     for _ in response:
-                                        self.error_msgs.append(_)
+                                        if _: # strips empty lines
+                                            self.error_msgs.append(_)
                         else:   # not confirmed
                             self.error_msgs.append('Operation Aborted by User')
                 elif menu_actions[ch].__name__ in ['power_menu', 'dli_menu']:
@@ -1272,81 +1584,93 @@ class ConsolePiMenu():
         return confirmed, spin_text, name
 
     # Connection SubMenu
-    def con_menu(self, valid=False):
+    def con_menu(self, rename=False):
         menu_actions = {
-            'main_menu': self.main_menu,
-            'con_menu': self.con_menu,
             '1': self.baud_menu,
             '2': self.data_bits_menu,
             '3': self.parity_menu,
             '4': self.flow_menu,
-            'b': self.main_menu,
+            'b': self.main_menu if not rename else self.do_rename_adapter, # not called
             'x': self.exit
         }
-        while not valid:
+        while True:
             self.menu_formatting('header', text=' Connection Settings Menu ')
             print(' 1. Baud [{}]'.format(self.baud))
             print(' 2. Data Bits [{}]'.format(self.data_bits))
             print(' 3. Parity [{}]'.format(self.parity_pretty[self.parity]))
             print(' 4. Flow [{}]'.format(self.flow_pretty[self.flow]))
-            text = ' b. Back'
+            text = ' b.  Back'
             self.menu_formatting('footer', text=text)
             choice = input(" >>  ")
-            valid = self.exec_menu(choice, actions=menu_actions, calling_menu='con_menu')
-        # return
+            ch = choice.lower()
+            try:
+                if ch == 'b':
+                    break
+                else:
+                    menu_actions[ch]() # lower menu's return values could parse and store if decide to use this for something other than rename
+
+            except KeyError as e:
+                if choice:
+                    self.error_msgs.append(e)
+        return
 
     # Baud Menu
     def baud_menu(self):
         config = self.config
         menu_actions = od([
-            ('main_menu', self.main_menu),
-            ('con_menu', self.con_menu),
-            ('baud_menu', self.baud_menu),
             ('1', 300),
             ('2', 1200),
             ('3', 9600),
             ('4', 19200),
             ('5', 57600),
             ('6', 115200),
-            ('c', 'custom'),
-            ('b', self.con_menu),
-            ('x', self.exit)
+            ('c', 'custom')
         ])
+        text = ' b.  Back'
         std_baud = [110, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200, 128000, 256000]
+
         while True:
+            # -- Print Baud Menu --
             self.menu_formatting('header', text=' Select Desired Baud Rate ')
 
             for key in menu_actions:
-                if not callable(menu_actions[key]):
-                    print(' {0}. {1}'.format(key, menu_actions[key]))
+                # if not callable(menu_actions[key]):
+                _cur_baud = menu_actions[key]
+                print(' {0}. {1}'.format(key, _cur_baud if _cur_baud != self.baud else '[{}]'.format(_cur_baud)))
 
-            text = ' b. Back'
             self.menu_formatting('footer', text=text)
             choice = input(" Baud >>  ")
             ch = choice.lower()
+
+            # -- Evaluate Response --
             try:
-                if type(menu_actions[ch]) == int:
-                    self.baud = menu_actions[ch]
-                    menu_actions['con_menu']()
-                elif ch == 'c':
+                if ch == 'c':
                     while True:
                         self.baud = input(' Enter Desired Baud Rate >>  ')
                         if not config.canbeint(self.baud):
                             print('Invalid Entry {}'.format(self.baud))
                         elif int(self.baud) not in std_baud:
                             _choice = input(' {} is not a standard baud rate are you sure? (y/n) >> '.format(self.baud)).lower()
-                            if _choice in ['y', 'yes']:
+                            if not _choice in ['y', 'yes']:
                                 break
                         else:
                             break
-                    menu_actions['con_menu']()
+                    # menu_actions['con_menu']()
+                elif ch == 'b':
+                    break # return to con_menu
+                elif ch == 'x':
+                    self.exit()
+                # elif type(menu_actions[ch]) == int:
                 else:
-                    menu_actions[ch]()
+                    self.baud = menu_actions[ch]
                     break
+                    # menu_actions['con_menu']()
             except KeyError as e:
-                self.error_msgs.append('Invalid selection {} please try again.'.format(e))
+                if choice:
+                    self.error_msgs.append('Invalid selection {} please try again.'.format(e))
                 # menu_actions['baud_menu']()
-        return
+
+        return self.baud
 
     # Data Bits Menu
     def data_bits_menu(self):
@@ -1354,11 +1678,11 @@ class ConsolePiMenu():
         while not valid:
             self.menu_formatting('header', text=' Enter Desired Data Bits ')
             print(' Default 8, Current {}, Valid range 5-8'.format(self.data_bits))
-            self.menu_formatting('footer', text=' b. Back')
+            self.menu_formatting('footer', text=' b.  Back')
             choice = input(' Data Bits >>  ')
             try:
                 if choice.lower() == 'x':
-                    sys.exit(0)
+                    self.exit()
                 elif choice.lower() == 'b':
                     valid = True
                 elif int(choice) >= 5 and int(choice) <= 8:
@@ -1367,9 +1691,10 @@ class ConsolePiMenu():
                 else:
                     self.error_msgs.append('Invalid selection {} please try again.'.format(choice))
             except ValueError:
-                self.error_msgs.append('Invalid selection {} please try again.'.format(choice))
-        self.con_menu()
-        return
+                if choice:
+                    self.error_msgs.append('Invalid selection {} please try again.'.format(choice))
+        # self.con_menu()
+        return self.data_bits
 
     def parity_menu(self):
         def print_menu():
@@ -1378,7 +1703,7 @@ class ConsolePiMenu():
             print(' 1. None')
             print(' 2. Odd')
             print(' 3. Even')
-            text = ' b. Back'
+            text = ' b.  Back'
             self.menu_formatting('footer', text=text)
         valid = False
         while not valid:
@@ -1395,11 +1720,12 @@ class ConsolePiMenu():
             elif choice == 'b':
                 pass
             elif choice == 'x':
-                sys.exit(0)
+                self.exit()
             else:
                 valid = False
-                self.error_msgs.append('Invalid selection {} please try again.'.format(choice))
-        self.con_menu()
+                if choice:
+                    self.error_msgs.append('Invalid selection {} please try again.'.format(choice))
+        return self.parity
 
     def flow_menu(self):
         def print_menu():
@@ -1408,7 +1734,7 @@ class ConsolePiMenu():
             print(' 1. No Flow Control (default)')
             print(' 2. Xon/Xoff (software)')
             print(' 3. RTS/CTS (hardware)')
-            text = ' b. Back'
+            text = ' b.  Back'
             self.menu_formatting('footer', text=text)
         valid = False
         while not valid:
@@ -1424,14 +1750,18 @@ class ConsolePiMenu():
                 elif choice == '3':
                     self.flow = 'h'
                 elif choice == 'b':
-                    self.con_menu()
+                    # self.con_menu()
+                    pass
                 elif choice == 'x':
                     self.exit()
                 else:
-                    self.error_msgs.append('Invalid selection {} please try again.'.format(choice))
+                    if choice:
+                        self.error_msgs.append('Invalid selection {} please try again.'.format(choice))
             except Exception as e:
-                self.error_msgs.append('Invalid selection {} please try again.'.format(e))
-        self.exec_menu('c', calling_menu='flow_menu')
+                if choice:
+                    self.error_msgs.append('Invalid selection {} please try again.'.format(e))
+        # self.exec_menu('c', calling_menu='flow_menu')
+        return self.flow
 
     # Back to main menu
     def back(self):
@@ -1448,6 +1778,14 @@ class ConsolePiMenu():
                         config._dli[address].dli.close()
                     else:
                         config._dli[address].dli.session.close()
+        # - if exit directly from rename menu after performing a rename trigger / reload udev
+        if self.udev_pending:
+            cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
+            with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
+                error = bash_command(cmd)
+            if error:
+                print(error)
+        
         sys.exit(0)
 
 # =======================

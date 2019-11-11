@@ -1,5 +1,5 @@
 #!/bin/bash
-#version 0.95-4-N/HS-I ConsolePi Rev 1.3
+#version 0.95-4-N/HS-I ConsolePi Rev 1.5
 
 #You may share this script on the condition a reference to RaspberryConnect.com 
 #must be included in copies or derivatives of this script. 
@@ -17,9 +17,19 @@
 #Add chkWiredState function
 # chkWiredState modifies the dnsmasq DHCP server configuration
 # So the hotspot will provide an IP with no default gateway
-# if the wired interface is down.  This is so you can connect
+# if the wired interface is down.  It also cheks the domain
+# provided to the wired interface via DHCP and provides that
+# same domain to hotspot clients.
+
+# The default-gateway bit is done so you can connect
 # in a dual nic setup and not corrupt your routing table
 # with an invalid route
+
+# Passing on the domain the the hostpot users is primarily done
+# for auto-openvpn which will not initiate a connection if the
+# ConsolePi is connected to your home network.  So it's primarily
+# for me during dev to prevent openvpn from starting while I'm testing
+# stuff i.e. ConsolePi connected to ConsolePi
 
 # Supported override variables (define the variable in ConsolePi.conf to override with different value)
 # wlan_wait_time: The amount of time the script waits for connection to an SSID before reverting to hotspot
@@ -130,17 +140,24 @@ ChkWiredState()
        [ -f /var/lib/dhcpcd*/dhcpcd-${ethdev}.lease ] && wired_lease=true || wired_lease=false   
        # If ethdev is up and has a lease, pass the same domain to WLAN clients on the hotspot
        if $eth0_up && $wired_lease; then 
-              # eth0_dom=$(sed "$(expr $(grep -a -n "$HOSTNAME" /var/lib/dhcpcd*/*${ethdev}.lease | cut -f1 -d:) + 1)q;d" /var/lib/dhcpcd*/*${ethdev}.lease | cut -f1 -d\*)
-              [ -f /tmp/$ethdev ] && eth0_dom=$(sed '2,2!d' /tmp/$ethdev) || echo [ConsolePi-AutoHotSpot] $ethdev tmp file not found
-              [ ${#eth0_dom} -gt 3 ] && valid_dom=true || valid_dom=false 
-              if $valid_dom; then
-                     sed -i "/domain=/s/.*/domain=${eth0_dom}/" /etc/dnsmasq.conf &&
-                     echo Active Lease Found on $ethdev with domain $eth0_dom using same for HotSpot clients ||
-                     echo [ERROR AutoHotSpotN:ChkWiredState] Failed to Configure Domain $eth0_dom for HostSpot clients
-              else
-                     echo A lease was found for $ethdev but no Domain was provided Removing Domain for HotSpot clients
-                     sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf
-              fi
+            # eth0_dom=$(sed "$(expr $(grep -a -n "$HOSTNAME" /var/lib/dhcpcd*/*${ethdev}.lease | cut -f1 -d:) + 1)q;d" /var/lib/dhcpcd*/*${ethdev}.lease | cut -f1 -d\*)
+            [ -f /tmp/$ethdev ] && eth0_dom=$(grep 'domain=' /tmp/$ethdev) || echo [ConsolePi-AutoHotSpot] $ethdev tmp file not found
+            [ ${#eth0_dom} -gt 9 ] && valid_dom=true || valid_dom=false
+            if $valid_dom; then
+                if ! $(grep -q 'domain=' /etc/dnsmasq.conf); then
+                    sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' /etc/dnsmasq.conf # make sure EoF has \n 
+                        echo "${eth0_dom}" >> /etc/dnsmasq.conf &&
+                        use_eth_dom=true || use_eth_dom=false
+                else
+                     sed -i "/domain=/s/.*/${eth0_dom}/" /etc/dnsmasq.conf && 
+                     use_eth_dom=true || use_eth_dom=false
+                fi
+                $use_eth_dom && echo Active Lease Found on $ethdev with $eth0_dom using same for HotSpot clients ||
+                echo [ERROR AutoHotSpotN:ChkWiredState] Failed to Configure Domain $eth0_dom for HostSpot clients
+            else
+                echo A lease was found for $ethdev but no Domain was provided Removing Domain for HotSpot clients
+                sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf
+            fi
        fi
 
        if ! $eth0_up || ! $wired_lease; then

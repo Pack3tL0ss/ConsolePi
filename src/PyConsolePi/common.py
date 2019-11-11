@@ -13,7 +13,9 @@ import time
 import shlex
 from pathlib import Path
 import pyudev
+import psutil
 from sys import stdin
+import serial
 from .power import Outlets
 
 # Common Static Global Variables
@@ -21,6 +23,8 @@ DNS_CHECK_FILES = ['/etc/resolv.conf', '/run/dnsmasq/resolv.conf']
 CONFIG_FILE = '/etc/ConsolePi/ConsolePi.conf'
 LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.json'
 CLOUD_LOG_FILE = '/var/log/ConsolePi/cloud.log'
+RULES_FILE = '/etc/udev/rules.d/10-ConsolePi.rules'
+SER2NET_FILE = '/etc/ser2net.conf'
 USER = 'pi' # currently not used, user pi is hardcoded using another user may have unpredictable results as it hasn't been tested
 HOME = str(Path.home())
 POWER_FILE = '/etc/ConsolePi/power.json'
@@ -58,6 +62,29 @@ class ConsolePi_data(Outlets):
 
     def __init__(self, log_file=CLOUD_LOG_FILE, do_print=True):
         super().__init__(POWER_FILE)
+
+        # init ConsolePi.conf values
+        self.cfg_file_ver = None
+        self.push = None
+        self.push_all = None
+        self.push_api_key = None
+        self.push_iden = None
+        self.ovpn_enable = None
+        self.vpn_check_ip = None
+        self.net_check_ip = None
+        self.local_domain = None
+        self.wlan_ip = None
+        self.wlan_ssid = None
+        self.wlan_psk = None
+        self.wlan_country = None
+        self.cloud = None
+        self.cloud_svc = None
+        self.power = None
+        self.tftpd = None
+        self.debug = None
+
+        # build attributes from ConsolePi.conf values
+        # and GLOBAL variables
         config = self.get_config_all()
         for key, value in config.items():
             if type(value) == str:
@@ -75,6 +102,7 @@ class ConsolePi_data(Outlets):
                 for _ in value:
                     x.append(_)
                 exec('self.{} = {}'.format(key, x))
+
         self.do_print = do_print
         self.log_file = log_file
         cpi_log = ConsolePi_Log(log_file=log_file, do_print=do_print, debug=self.debug) # pylint: disable=maybe-no-member
@@ -84,20 +112,20 @@ class ConsolePi_data(Outlets):
         self.error_msgs = []
         self.outlet_by_dev = None # defined in get_local --> map_serial2outlet
         self.outlet_failures = {}
-        if self.power: # pylint: disable=access-member-before-definition
+        if self.power: # pylint: disable=maybe-no-member
             if os.path.isfile(POWER_FILE):
                 self.outlet_update()
             else:
-                self.power = self.outlets = False
                 self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')
-                self.error_msgs.append('Powrer Outlet Control is enabled but no power.json defined - Disabling')    
+        self.outlets = None if not self.power or not os.path.isfile(POWER_FILE) else self.outlets # pylint: disable=maybe-no-member
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()
         self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
         self.remotes = self.get_local_cloud_file()
         if stdin.isatty():
             self.rows, self.cols = self.get_tty_size()
-        self.display_con_settings = False
+        self.root = True if os.geteuid() == 0 else False
+        self.new_adapters = detect_adapters()
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
@@ -108,16 +136,12 @@ class ConsolePi_data(Outlets):
         '''
         Called by init and consolepi-menu refresh
         '''
-        if not hasattr(self, 'outlets') or refresh:
-            _outlets = self.get_outlets(upd_linked=upd_linked, failures=self.outlet_failures)
-            self.outlets = _outlets['linked']
-            self.outlet_failures = _outlets['failures']
-            self.dli_pwr = _outlets['dli_power']
-            # print(self.outlets, '\n\n') ## DEBUG
-            # print(self.dli_failures, '\n\n') ## DEBUG
-            # print(self.dli_pwr, '\n\n') ## DEBUG
-        # else: ##DEBUG
-        #     print('DEBUG\n', json.dumps(self.outlets, indent=4))
+        if self.power: # pylint: disable=maybe-no-member
+            if not hasattr(self, 'outlets') or refresh:
+                _outlets = self.get_outlets(upd_linked=upd_linked, failures=self.outlet_failures)
+                self.outlets = _outlets['linked']
+                self.outlet_failures = _outlets['failures']
+                self.dli_pwr = _outlets['dli_power']
 
 
     def get_config_all(self):
@@ -145,12 +169,13 @@ class ConsolePi_data(Outlets):
         ret_data = locals()
         for key in ['self', 'config', 'line', 'var', 'value']:
             ret_data.pop(key)
+
         return ret_data
 
     # TODO run get_local in blocking thread abort additional calls if thread already running
     def get_local(self, do_print=True):
         log = self.log
-        plog = self.plog
+        # plog = self.plog
         context = pyudev.Context()
 
         # plog('Detecting Locally Attached Serial Adapters')
@@ -176,6 +201,7 @@ class ConsolePi_data(Outlets):
         for tty_dev in final_tty_list:
             tty_port = 9999 # using 9999 as an indicator there was no def for the device.
             flow = 'n' # default if no value found in file
+            # serial_list.append({tty_dev: {'port': tty_port}}) # PLACEHOLDER FOR REFACTOR with dev name as key
             # -- extract defined TELNET port and connection parameters from ser2net.conf --
             if os.path.isfile('/etc/ser2net.conf'):
                 with open('/etc/ser2net.conf', 'r') as cfg:
@@ -211,25 +237,25 @@ class ConsolePi_data(Outlets):
                             log.info('[GET ADAPTERS] Found {0} TELNET port: {1} [{2} {3}{4}1, flow: {5}]'.format(
                                 tty_dev.replace('/dev/', ''), tty_port, baud, dbits, parity.upper(), flow.upper()))
                             break
-            else:
-                plog('[GET ADAPTERS] No ser2net.conf file found unable to extract port definition', level='error')
-                # log.error('No ser2net.conf file found unable to extract port definition')
-                # if do_print:
-                #     print('No ser2net.conf file found unable to extract port definition')
+            else:   # No ser2net.conf file found
+                msg = '[GET ADAPTERS] No ser2net.conf file found unable to extract port definition'
+                log.error(msg)
+                self.error_msgs.append(msg)
+                serial_list.append({'dev': tty_dev, 'port': tty_port})
 
             if tty_port == 9999:
-                plog('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev), level='error')
-                self.display_con_settings = True
-                # log.error('[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev))
-                # serial_list.append({'dev': tty_dev, 'port': tty_port})
-                # if do_print:
-                #     print('No ser2net.conf definition found for {}'.format(tty_dev))
+                msg = '[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev.strip('/dev/'))
+                log.error(msg)
+                self.error_msgs.append(msg)
+                self.error_msgs.append('Use option \'c\' to change connection settings for ' + tty_dev.strip('/dev/'))
+                serial_list.append({'dev': tty_dev, 'port': tty_port})
             else:
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
-                        'parity': parity, 'flow': flow})       
-        if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
-            if self.outlets:
-                serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force get_outlets() line 200
+                        'parity': parity, 'flow': flow})
+                            
+        # if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
+        if self.outlets:
+            serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force get_outlets() line 200
         
         if stdin.isatty():
             if len(serial_list) > 0:
@@ -312,8 +338,8 @@ class ConsolePi_data(Outlets):
                     current_remotes = self.get_local_cloud_file()
                 # os.remove(local_cloud_file)
 
-            # update current_remotes dict with data passed to function
-            # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
+        # update current_remotes dict with data passed to function
+        # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
         if len(remote_consoles) > 0:
             if current_remotes is not None:
                 for _ in current_remotes:
@@ -333,7 +359,7 @@ class ConsolePi_data(Outlets):
                             current_remotes[_]['source'] if 'source' in current_remotes[_] else None,
                             time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(current_remotes[_]['upd_time'])) if 'upd_time' in current_remotes[_] else None,
                             ))
-                        # -- /DEBUG --
+                        # -- END DEBUG --
                         # No Change Detected (data passed to function matches cache)
                         if remote_consoles[_] == current_remotes[_]:
                             log.info('[CACHE UPD] {} No Change in info detected'.format(_))
@@ -455,39 +481,53 @@ def get_config(var):
 
     return var_out
 
-def key_change_detector(cmd, stderr):
-    if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in stderr:
-        while True:
-            try:
-                choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
-                if choice.lower() in ['y', 'yes']:
-                    _cmd = shlex.split(stderr.split('remove with:\r\n')[1].split('\r\n')[0].replace('ERROR:   ', ''))
-                    subprocess.run(_cmd)
-                    print('\n')
-                    subprocess.run(cmd)
-                    break
-                elif choice.lower() in ['n', 'no']:
-                    break
-                else:
-                    print("\n!!! Invalid selection {} please try again.\n".format(choice))
-            except (KeyboardInterrupt, EOFError):
-                print('')
-                return 'Aborted last command based on user input'
-            except ValueError:
-                print("\n!! Invalid selection {} please try again.\n".format(choice))
-    elif 'All keys were skipped because they already exist on the remote system' in stderr:
-        return 'All keys were skipped because they already exist on the remote system'
+def error_handler(cmd, stderr):
+    if stderr and 'FATAL: cannot lock /dev/' not in stderr:
+        # Handle key change Error
+        if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in stderr:
+            print(stderr.replace('ERROR: ', ''))
+            while True:
+                try:
+                    choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
+                    if choice.lower() in ['y', 'yes']:
+                        _cmd = shlex.split(stderr.split('remove with:\r\n')[1].split('\r\n')[0].replace('ERROR:   ', ''))
+                        subprocess.run(_cmd)
+                        print('\n')
+                        subprocess.run(cmd)
+                        break
+                    elif choice.lower() in ['n', 'no']:
+                        break
+                    else:
+                        print("\n!!! Invalid selection {} please try again.\n".format(choice))
+                except (KeyboardInterrupt, EOFError):
+                    print('')
+                    return 'Aborted last command based on user input'
+                except ValueError:
+                    print("\n!! Invalid selection {} please try again.\n".format(choice))
+        elif 'All keys were skipped because they already exist on the remote system' in stderr:
+            return 'skipped: keys already exist on the remote system'
+        elif '/usr/bin/ssh-copy-id: INFO:' in stderr:
+            pass # no need to re-display these
+        else:
+            return stderr   # return value that was passed in
+    # Handle hung sessions always returncode=1 doesn't always present stderr
+    elif cmd[0] == 'picocom':
+        if kill_hung_session(cmd[1]):
+            subprocess.run(cmd)
+        else:
+            return 'User Abort or Failure to kill existing session to {}'.format(cmd[1].replace('/dev/', ''))
 
-
-def bash_command(cmd):
+def bash_command(cmd, do_print=False, eval_errors=True):
     # subprocess.run(['/bin/bash', '-c', cmd])
     response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
     _stderr = response.stderr.decode('UTF-8')
-    print(_stderr)
+    if do_print:
+        print(_stderr)
     # print(response)
     # if response.returncode != 0:
-    if _stderr:
-        return key_change_detector(getattr(response, 'args'), _stderr)
+    if eval_errors:
+        if _stderr:
+            return error_handler(getattr(response, 'args'), _stderr)
 
 def is_valid_ipv4_address(address):
     try:
@@ -548,7 +588,10 @@ def check_reachable(ip, port, timeout=2):
     return reachable
 
 def user_input_bool(question):
-    answer = input(question + '? (y/n): ').lower().strip()
+    try:
+        answer = input(question + '? (y/n): ').lower().strip()
+    except KeyboardInterrupt:
+        return False
     while not(answer == "y" or answer == "yes" or \
               answer == "n" or answer == "no"):
         print("Input yes or no")
@@ -557,3 +600,128 @@ def user_input_bool(question):
         return True
     else:
         return False
+
+def find_procs_by_name(name, dev):
+    "Return a list of processes matching 'name'."
+    ppid = None
+    for p in psutil.process_iter(attrs=["name", "cmdline"]):
+        if name == p.info['name'] and dev in p.info['cmdline']:
+            ppid = p.pid # if p.ppid() == 1 else p.ppid()
+            break
+    return ppid
+
+def terminate_process(pid):
+    p = psutil.Process(pid)
+    x = 0
+    while x < 2:
+        p.terminate()
+        if p.status() != 'Terminated':
+            p.kill()
+        else:
+            break
+        x += 1
+
+def kill_hung_session(dev):
+    ppid = find_procs_by_name('picocom', dev)
+    retry = 0
+    msg = '\n{} appears to be in use (may be a previous hung session).\nDo you want to Terminate the existing session'.format(dev.replace('/dev/', ''))
+    if ppid is not None and user_input_bool(msg):
+        while ppid is not None and retry < 3:
+            print('An Existing session is already established to {}.  Terminating process {}'.format(dev.replace('/dev/', ''), ppid))
+            try:
+                terminate_process(ppid)
+                time.sleep(3)
+                ppid = find_procs_by_name('picocom', dev)
+            except PermissionError:
+                print('PermissionError: session is locked by user with higher priv. can not kill')
+                break
+            except psutil.AccessDenied:
+                print('AccessDenied: Session is locked by user with higher priv. can not kill')
+                break
+            except psutil.NoSuchProcess:
+                ppid = find_procs_by_name('picocom', dev)
+            retry += 1
+    return ppid is None
+
+def detect_adapters(key=None):
+    """Detect Locally Attached Adapters.
+
+    Returns
+    -------
+    dict
+        udev alias/symlink if defined/found as key or root device if not. 
+        /dev/ is stripped: (ttyUSB0 | AP515).  Each device has it's attrs
+        in a dict.
+    """
+    context = pyudev.Context()
+
+    devs = {'by_name': {}, 'dup_ser': {}}
+    for _dev in context.list_devices(subsystem='tty', ID_BUS='usb'):
+        root_dev = _dev['DEVNAME'].strip('/dev/')
+        for alias in _dev['DEVLINKS'].split():
+            if '/dev/serial/by-' not in alias:
+                dev_name = alias.strip('/dev/')
+                break
+            else:
+                dev_name = root_dev
+                
+                
+        devs['by_name'][dev_name] = \
+                {
+                    'id_prod': _dev.get('ID_MODEL_ID'),
+                    'id_model': _dev.get('ID_MODEL'),
+                    'id_vendorid': _dev.get('ID_VENDOR_ID'),
+                    'id_vendor': _dev.get('ID_VENDOR'),
+                    'id_serial': _dev.get('ID_SERIAL_SHORT'),
+                    'id_ifnum': _dev.get('ID_USB_INTERFACE_NUM'),
+                    'id_path': _dev.get('ID_PATH'),
+                    'root_dev': True if dev_name == root_dev else False
+                }
+        _ser = devs['by_name'][dev_name]['id_serial']
+        if _ser in devs['dup_ser']:
+            devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
+            devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
+        else:
+            devs['dup_ser'][_ser] = {
+                'id_prod': devs['by_name'][dev_name]['id_prod'],
+                'id_model': devs['by_name'][dev_name]['id_model'],
+                'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
+                'id_vendor': devs['by_name'][dev_name]['id_vendor'],
+                'id_paths': [devs['by_name'][dev_name]['id_path']],
+                'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
+                }
+
+    del_list = []
+    for _ser in devs['dup_ser'] :
+        if len(devs['dup_ser'][_ser]['id_paths']) == 1:
+            del_list.append(_ser)
+
+    if del_list:
+        for i in del_list:
+            del devs['dup_ser'][i]
+
+    return devs if key is None else devs['by_name'][key.strip('/dev/')]
+
+def get_serial_prompt(dev, commands=None, **kwargs):
+    dev = '/dev/' + dev if '/dev/' not in dev else dev
+    ser = serial.Serial(dev, timeout=1, **kwargs)
+
+    # before writing anything, ensure there is nothing in the buffer
+    if ser.inWaiting() > 0:
+        ser.flushInput()
+
+    # send the commands:
+    ser.write(b'\r')
+    if commands:
+        for cmd in commands:
+            ser.write(bytes(cmd, 'UTF-8'))
+    # read the response, guess a length that is more than the message
+    msg = ser.read(2048)
+    return msg.decode('UTF-8')
+
+def json_print(obj):
+    print(json.dumps(obj, indent=4, sort_keys=True))
+
+def format_eof(file):
+    cmd = 'sed -i -e :a -e {} {}'.format('\'/^\\n*$/{$d;N;};/\\n$/ba\'', file)
+    return bash_command(cmd, eval_errors=False)

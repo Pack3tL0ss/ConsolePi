@@ -67,6 +67,8 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
 - Any information or error messages now display in an information pane that populates the bottom of the menu if any errors are encountered
 - Changed URI for a couple of API methods (so all match the key field in the dict they reference)
 - lots of other little tweaks
+<br>**11/07/2019**
+- New rename function directly from menu.  Rename adapters already defined by `consolepi-addconsole` (or manually) or adapters that have never been defined.
 
 # Features
 

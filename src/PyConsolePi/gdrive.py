@@ -11,6 +11,8 @@ from googleapiclient import discovery
 import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from consolepi.common import check_reachable
+
 
 # -- GLOBALS --
 TIMEOUT = 3   # socket timeout in seconds (for clustered/cloud setup)
@@ -28,14 +30,23 @@ class GoogleDrive:
 
     # Authenticate find file_id and build services
     def auth(self):
-        if self.creds is None:
-            self.creds = self.get_credentials()
-        if self.sheets_svc is None:
-            self.sheets_svc = discovery.build('sheets', 'v4', credentials=self.creds)
-        if self.file_id is None:
-            self.file_id = self.get_file_id()
-            if self.file_id is None:
-                self.file_id = self.create_sheet()
+        if check_reachable('www.googleapis.com', 443):
+            try:
+                if self.creds is None:
+                    self.creds = self.get_credentials()
+                if self.sheets_svc is None:
+                    self.sheets_svc = discovery.build('sheets', 'v4', credentials=self.creds)
+                if self.file_id is None:
+                    self.file_id = self.get_file_id()
+                    if self.file_id is None:
+                        self.file_id = self.create_sheet()
+                return True
+            except (ConnectionError, TimeoutError, OSError) as e:
+                self.log.error('Exception Occured Connecting to Gdrive {}'.format(e))
+                return False
+            else:
+                self.log.error('Google Drive is not reachable - Aborting')
+                return False
 
     # Google sheets API credentials - used to update config on Google Drive
     def get_credentials(self):
@@ -117,7 +128,8 @@ class GoogleDrive:
         # pylint: disable=maybe-no-member
         log = self.log
         log.debug('[GDRIVE]: -->update_files - data passed to function\n{}'.format(json.dumps(data, indent=4, sort_keys=True)))
-        self.auth()
+        if not self.auth():
+            return 'Gdrive-Error: Unable to Connect to Gdrive refer to cloud log for details'
         spreadsheet_id = self.file_id
         service = self.sheets_svc
 
@@ -172,4 +184,10 @@ class GoogleDrive:
 
 
 if __name__ == '__main__':
-    print('gdrive script is not standalone must be imported')
+    print('-- Syncing Data With Google Drive --')
+    from consolepi.common import ConsolePi_data
+    from consolepi.common import ConsolePi_Log
+    config = ConsolePi_data(do_print=False)
+    gdrive = GoogleDrive(config.log)
+    data = gdrive.update_files(config.local)
+    print(json.dumps(data, indent=4, sort_keys=True) if not 'Gdrive-Error' in data else data)

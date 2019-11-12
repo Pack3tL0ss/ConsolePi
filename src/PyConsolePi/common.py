@@ -244,10 +244,10 @@ class ConsolePi_data(Outlets):
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
 
             if tty_port == 9999:
-                msg = '[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev.strip('/dev/'))
+                msg = '[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev.replace('/dev/', ''))
                 log.error(msg)
                 self.error_msgs.append(msg)
-                self.error_msgs.append('Use option \'c\' to change connection settings for ' + tty_dev.strip('/dev/'))
+                self.error_msgs.append('Use option \'c\' to change connection settings for ' + tty_dev.replace('/dev/', ''))
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
             else:
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
@@ -657,10 +657,10 @@ def detect_adapters(key=None):
 
     devs = {'by_name': {}, 'dup_ser': {}}
     for _dev in context.list_devices(subsystem='tty', ID_BUS='usb'):
-        root_dev = _dev['DEVNAME'].strip('/dev/')
+        root_dev = _dev['DEVNAME'].replace('/dev/', '')
         for alias in _dev['DEVLINKS'].split():
             if '/dev/serial/by-' not in alias:
-                dev_name = alias.strip('/dev/')
+                dev_name = alias.replace('/dev/', '')
                 break
             else:
                 dev_name = root_dev
@@ -700,7 +700,7 @@ def detect_adapters(key=None):
         for i in del_list:
             del devs['dup_ser'][i]
 
-    return devs if key is None else devs['by_name'][key.strip('/dev/')]
+    return devs if key is None else devs['by_name'][key.replace('/dev/', '')]
 
 def get_serial_prompt(dev, commands=None, **kwargs):
     dev = '/dev/' + dev if '/dev/' not in dev else dev

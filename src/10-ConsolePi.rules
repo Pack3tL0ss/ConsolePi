@@ -4,7 +4,7 @@
 #   -- ability to automate the addition of adapters properly
 
 # ---------------- // COLLECT AND STORE ATTRIBUTES FROM VARIOUS LEVELS OF DEV HIERARCHY \\ --------------------------------
-SUBSYSTEM!="tty", GOTO="serial_end"
+SUBSYSTEM!="tty", GOTO="END"
 SUBSYSTEMS=="usb", IMPORT{builtin}="usb_id", IMPORT{builtin}="hwdb --subsystem=usb"
 KERNEL!="ttyUSB[0-9]*|ttyACM[0-9]*", GOTO="END"
 SUBSYSTEMS=="usb-serial", ENV{.ID_PORT}="$attr{port_number}"

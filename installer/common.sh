@@ -55,7 +55,7 @@ consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 # header reqs 144 cols to display properly
 header() {
-    clear
+    [ -z $1 ] && clear # pass anything as an argument to prevent screen clear
     if [ $tty_cols -gt 144 ]; then
         echo "                                                                                                                                                ";
         echo "                                                                                                                                                ";

@@ -131,7 +131,7 @@ class ConsolePiMenu():
 
 
     def do_rename_adapter(self, from_name):
-        from_name = from_name.strip('/dev/')
+        from_name = from_name.replace('/dev/', '')
         config = self.config
         c = self.colors
         error = False
@@ -229,7 +229,7 @@ class ConsolePiMenu():
             to_name = None
             while not to_name:
                 to_name = input(' [rename {}]: Provide desired name: '.format(c_from_name))
-            to_name = to_name.strip('/dev/') # strip /dev/ if they thought they needed to include it
+            to_name = to_name.replace('/dev/', '') # strip /dev/ if they thought they needed to include it
             to_name = to_name.replace(' ', '_') # replace any spaces with _ as not allowed (udev rule symlink)
         except KeyboardInterrupt:
             return 'Rename Aborted based on User Input'
@@ -339,7 +339,7 @@ class ConsolePiMenu():
 
             if not error:
                 for _dev in config.local[config.hostname]['adapters']:
-                    if _dev['dev'].strip('/dev/') == from_name:
+                    if _dev['dev'].replace('/dev/', '') == from_name:
                         _dev['dev'] = '/dev/' + to_name # TODO Strip the /dev/ once verified no ill effects
                         if not use_def:
                             _dev['baud'] = self.baud
@@ -1142,7 +1142,7 @@ class ConsolePiMenu():
 
     def show_adapter_details(self, adapter):
         config = self.config
-        dev_name = adapter.strip('/dev/')
+        dev_name = adapter.replace('/dev/', '')
         _dev = config.new_adapters['by_name'][dev_name]
         print( ' --- Details For {} --- '.format(dev_name))
         for k in sorted(_dev.keys()):

@@ -156,7 +156,7 @@ class ConsolePiMenu():
                 next_port = '7001' if not next_port else next_port
 
             else:
-                res = bash_command('sudo cp /etc/ConsolePi/src/ser2net.conf /etc/')
+                res = bash_command('sudo cp /etc/ConsolePi/src/ser2net.conf /etc/', eval_errors=False)
                 if res:
                     return res
                 else:
@@ -212,7 +212,7 @@ class ConsolePiMenu():
             if found:
                 udev_line = '{}\\n{}'.format(udev_line, section_marker)
                 cmd = "sed -i 's/{}/{}/' {}".format(section_marker, udev_line, config.RULES_FILE) # pylint: disable=maybe-no-member
-                error = bash_command(cmd)
+                error = bash_command(cmd, eval_errors=False)
                 if error:
                     return error
             else: # Not Using new 10-ConsolePi.rules template

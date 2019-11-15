@@ -129,25 +129,16 @@ update_config_overrides() {
 # Update ConsolePi Banner to display ConsolePi ascii logo at login
 update_banner() {
     process="update motd"
-    count=$(grep -c "PPPPPPPPPPPPPPPPP" /etc/motd)
-    if [[ $count == 0 ]]; then
-        logit "Update motd with Custom ConsolePi Banner"
-        sed -i '1s/^/        CCCCCCCCCCCCC                                                                     lllllll                   PPPPPPPPPPPPPPPPP     iiii  \n/' /etc/motd
-        sed -i '2s/^/     CCC::::::::::::C                                                                     l:::::l                   P::::::::::::::::P   i::::i \n/' /etc/motd
-        sed -i '3s/^/   CC:::::::::::::::C                                                                     l:::::l                   P::::::PPPPPP:::::P   iiii  \n/' /etc/motd
-        sed -i '4s/^/  C:::::CCCCCCCC::::C                                                                     l:::::l                   PP:::::P     P:::::P        \n/' /etc/motd
-        sed -i '5s/^/ C:::::C       CCCCCC   ooooooooooo   nnnn  nnnnnnnn        ssssssssss      ooooooooooo    l::::l     eeeeeeeeeeee    P::::P     P:::::Piiiiiii \n/' /etc/motd
-        sed -i '6s/^/C:::::C               oo:::::::::::oo n:::nn::::::::nn    ss::::::::::s   oo:::::::::::oo  l::::l   ee::::::::::::ee  P::::P     P:::::Pi:::::i \n/' /etc/motd
-        sed -i '7s/^/C:::::C              o:::::::::::::::on::::::::::::::nn ss:::::::::::::s o:::::::::::::::o l::::l  e::::::eeeee:::::eeP::::PPPPPP:::::P  i::::i \n/' /etc/motd
-        sed -i '8s/^/C:::::C              o:::::ooooo:::::onn:::::::::::::::ns::::::ssss:::::so:::::ooooo:::::o l::::l e::::::e     e:::::eP:::::::::::::PP   i::::i \n/' /etc/motd
-        sed -i '9s/^/C:::::C              o::::o     o::::o  n:::::nnnn:::::n s:::::s  ssssss o::::o     o::::o l::::l e:::::::eeeee::::::eP::::PPPPPPPPP     i::::i \n/' /etc/motd
-        sed -i '10s/^/C:::::C              o::::o     o::::o  n::::n    n::::n   s::::::s      o::::o     o::::o l::::l e:::::::::::::::::e P::::P             i::::i \n/' /etc/motd
-        sed -i '11s/^/C:::::C              o::::o     o::::o  n::::n    n::::n      s::::::s   o::::o     o::::o l::::l e::::::eeeeeeeeeee  P::::P             i::::i \n/' /etc/motd
-        sed -i '12s/^/ C:::::C       CCCCCCo::::o     o::::o  n::::n    n::::nssssss   s:::::s o::::o     o::::o l::::l e:::::::e           P::::P             i::::i \n/' /etc/motd
-        sed -i '13s/^/  C:::::CCCCCCCC::::Co:::::ooooo:::::o  n::::n    n::::ns:::::ssss::::::so:::::ooooo:::::ol::::::le::::::::e        PP::::::PP          i::::::i\n/' /etc/motd
-        sed -i '14s/^/   CC:::::::::::::::Co:::::::::::::::o  n::::n    n::::ns::::::::::::::s o:::::::::::::::ol::::::l e::::::::eeeeeeeeP::::::::P          i::::::i\n/' /etc/motd
-        sed -i '15s/^/     CCC::::::::::::C oo:::::::::::oo   n::::n    n::::n s:::::::::::ss   oo:::::::::::oo l::::::l  ee:::::::::::::eP::::::::P          i::::::i\n/' /etc/motd
-        sed -i '16s/^/        CCCCCCCCCCCCC   ooooooooooo     nnnnnn    nnnnnn  sssssssssss       ooooooooooo   llllllll    eeeeeeeeeeeeeePPPPPPPPPP          iiiiiiii\n/' /etc/motd
+    grep -q "PPPPPPPPPPPPPPPPP" /etc/motd && motd_exists=true || motd_exists=false
+    if $motd_exists; then 
+        mv /etc/motd /bak && sudo touch /etc/motd &&
+            logit "Clear old motd - Success" ||
+            logit "Failed to Clear old motd" "WARNING"
+    fi
+    if [ ! -f /etc/profile.d/consolepi.sh ]; then
+        cp ${src_dir}consolepi.sh /etc/profile.d/ &&
+            logit "Deploy consolepi.sh profile script with banner text - Success" ||
+            logit "Failed to move consolepi.sh from src to /etc/profile.d/" "WARNING"
     fi
 }
 
@@ -817,14 +808,17 @@ do_blue_config() {
         logit "FAILED to give Bluetooth user limited sudo rights" "WARNING"
     fi
 
-    # Configure blue user default tty cols/rows
-    if [[ ! $(sudo grep stty /home/blue/.bashrc) ]]; then
-        sudo echo stty rows 70 cols 150 | sudo tee -a /home/blue/.bashrc > /dev/null && 
-            logit "Changed default Bluetooth tty rows cols" || 
-            logit "FAILED to change default Bluetooth tty rows cols" "WARNING"
-    else
-        logit "blue user tty rows cols already configured"
-    fi
+    # Remove old blue user default tty cols/rows
+    grep -q stty /home/blue/.bashrc &&
+        sed -i 's/^stty rows 70 cols 150//g' /home/blue/.bashrc &&
+        logit "blue user tty row col configuration removed - Success"
+    # if [[ ! $(sudo grep stty /home/blue/.bashrc) ]]; then
+    #     sudo echo stty rows 70 cols 150 | sudo tee -a /home/blue/.bashrc > /dev/null && 
+    #         logit "Changed default Bluetooth tty rows cols" || 
+    #         logit "FAILED to change default Bluetooth tty rows cols" "WARNING"
+    # else
+    #     logit "blue user tty rows cols already configured"
+    # fi
 
     # Configure blue user to auto-launch consolepi-menu on login (blue user is automatically logged in when connection via bluetooth is established)
     if [[ ! $(sudo grep consolepi-menu /home/blue/.bashrc) ]]; then

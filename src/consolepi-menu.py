@@ -220,7 +220,7 @@ class ConsolePiMenu():
                     return error
             else: # Not Using new 10-ConsolePi.rules template just append to file
                 if section_marker == '# END BYSERIAL-DEVS':
-                    append_to_file(config.RULES_FILE, udev_line)
+                    append_to_file(config.RULES_FILE, udev_line)  # pylint: disable=maybe-no-member
                     # with open(config.RULES_FILE, 'a') as r:  # pylint: disable=maybe-no-member
                     #     r.write(udev_line)
                 else: # if not by serial device the new template is required
@@ -1188,6 +1188,7 @@ class ConsolePiMenu():
                 else:
                     menu_actions[str(item)] = {'function': self.do_rename_adapter, 'args': [this_dev]}
                     menu_actions['s' + str(item)] = {'function': self.show_adapter_details, 'args': [this_dev]}
+                    menu_actions['q' + str(item)] = {'function': self.show_serial_prompt, 'args': [this_dev]}
             else:
                 # -- // REMOTE ADAPTERS \\ --
                 _cmd = 'ssh -t {0}@{1} "{2} picocom {3} -b{4} -f{5} -d{6} -p{7}"'.format(
@@ -1205,13 +1206,16 @@ class ConsolePiMenu():
         for k in sorted(_dev.keys()):
             print('{}: {}'.format(k, _dev[k]))
         print('')
+
+        input('\nPress Any Key To Continue\n')
+
+    def show_serial_prompt(self, adapter):
         with Halo(text='Prompt Displayed on Port: ', spinner='dots1', placement='right'):
             p = get_serial_prompt(adapter)
             e = self.format_line('{{red}}No text was rcvd from port{{norm}}')[1]
         print('Prompt Displayed on Port: {}'.format(p if p else e))
         
         input('\nPress Any Key To Continue\n')
-
 
     def rename_menu(self):
         # config = self.config
@@ -1226,7 +1230,8 @@ class ConsolePiMenu():
             mlines, menu_actions, item = self.gen_adapter_lines(loc, rename=True) # pylint: disable=unused-variable
             slines.append('Select Adapter to Rename')   # list of strings index to index match with body list of lists
             foot = [
-                ' s#. prepend s to the menu-item to show details for the port i.e. \'s1\'',
+                ' s#. prepend s to the menu-item to show details for the adapter i.e. \'s1\'',
+                ' q#. prepend q to the menu-item to attempt to get/display a prompt from the device i.e. \'q1\'',
                 '',
                 ' b.  Back'
             ]

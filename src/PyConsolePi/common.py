@@ -735,7 +735,7 @@ def append_to_file(file, line):
         line: line to write
     '''
     with open(file) as f:
-        _lines = f.readlines
+        _lines = f.readlines()
         _last = _lines[-1]
     
     # prepend newline if last line of file lacks it to prevent appending to that line

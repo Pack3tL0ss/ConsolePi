@@ -725,3 +725,23 @@ def json_print(obj):
 def format_eof(file):
     cmd = 'sed -i -e :a -e {} {}'.format('\'/^\\n*$/{$d;N;};/\\n$/ba\'', file)
     return bash_command(cmd, eval_errors=False)
+
+def append_to_file(file, line):
+    '''Determine if last line of file includes a newline character
+    write line provided on the next line
+
+    params: 
+        file: file to write to
+        line: line to write
+    '''
+    with open(file) as f:
+        _lines = f.readlines
+        _last = _lines[-1]
+    
+    # prepend newline if last line of file lacks it to prevent appending to that line
+    if '\n' not in _last:
+        line = '\n{}'.format(line)
+
+    with open(file, 'a+') as f:
+        f.write(line)
+    

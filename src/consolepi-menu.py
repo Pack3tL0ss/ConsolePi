@@ -220,8 +220,9 @@ class ConsolePiMenu():
                     return error
             else: # Not Using new 10-ConsolePi.rules template just append to file
                 if section_marker == '# END BYSERIAL-DEVS':
-                    with open(config.RULES_FILE, 'a') as r:  # pylint: disable=maybe-no-member
-                        r.write(udev_line)
+                    append_to_file(config.RULES_FILE, udev_line)
+                    # with open(config.RULES_FILE, 'a') as r:  # pylint: disable=maybe-no-member
+                    #     r.write(udev_line)
                 else: # if not by serial device the new template is required
                     return 'Unable to Add Line, please use the new 10.ConsolePi.rules found in src dir and\n' \
                         'add you\'re current rules to the BYSERIAL-DEVS section.'

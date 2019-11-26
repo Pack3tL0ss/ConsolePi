@@ -14,7 +14,7 @@ from collections import OrderedDict as od
 import pyudev
 # --// ConsolePi imports \\--
 from consolepi.common import (ConsolePi_data, bash_command, check_reachable, json_print, format_eof, get_serial_prompt,
-                              error_handler, user_input_bool, detect_adapters)
+                              error_handler, user_input_bool, detect_adapters, append_to_file)
 from halo import Halo
 from log_symbols import LogSymbols as log_sym  # Enum
 
@@ -157,9 +157,10 @@ class ConsolePiMenu():
 
             else:
                 res = bash_command('sudo cp /etc/ConsolePi/src/ser2net.conf /etc/', eval_errors=False)
+                next_port = '7001' # added here looks like flawed logic below
                 if res:
                     return res
-                else:
+                else: # TODO this logic looks flawed
                     next_port = '7001'
 
             ser2net_line = ('\n{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} 1STOPBIT {flow} banner'.format(
@@ -170,13 +171,15 @@ class ConsolePiMenu():
             parity=parity,
             flow=flow))
 
-            format_eof(config.SER2NET_FILE) # pylint: disable=maybe-no-member
-            with open(config.SER2NET_FILE, 'a+') as s:  # pylint: disable=maybe-no-member
-                s.write(ser2net_line)
+            # format_eof(config.SER2NET_FILE) # pylint: disable=maybe-no-member
+            # with open(config.SER2NET_FILE, 'a+') as s:  # pylint: disable=maybe-no-member
+            #     s.write(ser2net_line)
+            append_to_file(config.SER2NET_FILE, ser2net_line)
 
 
         def add_to_udev(udev_line, section_marker, label=None):
             found = ser_label_exists = get_next = False # init
+            goto = '' # init
             if os.path.isfile(config.RULES_FILE):   # pylint: disable=maybe-no-member
                 with open(config.RULES_FILE) as x:  # pylint: disable=maybe-no-member
                     for line in x:
@@ -215,11 +218,11 @@ class ConsolePiMenu():
                 error = bash_command(cmd, eval_errors=False)
                 if error:
                     return error
-            else: # Not Using new 10-ConsolePi.rules template
+            else: # Not Using new 10-ConsolePi.rules template just append to file
                 if section_marker == '# END BYSERIAL-DEVS':
                     with open(config.RULES_FILE, 'a') as r:  # pylint: disable=maybe-no-member
                         r.write(udev_line)
-                else:
+                else: # if not by serial device the new template is required
                     return 'Unable to Add Line, please use the new 10.ConsolePi.rules found in src dir and\n' \
                         'add you\'re current rules to the BYSERIAL-DEVS section.'
 
@@ -525,8 +528,9 @@ class ConsolePiMenu():
         Determine header and footer length used to determine if we can print with
         a single column
         '''
-        head_len = len(self.menu_formatting('header', text=header, do_print=False))
-        foot_len = len(self.menu_formatting('footer', text=footer, do_print=False))
+        head_len = len(self.menu_formatting('header', text=header, do_print=False)[0])
+        # TODO don't think foot_len is being calculated correctly
+        foot_len = len(self.menu_formatting('footer', text=footer, do_print=False)[0])
         ''' 
         generate list for each sections where each line is padded to width of longest line
         collect width of longest line and # of rows/menu-entries for each section
@@ -548,7 +552,57 @@ class ConsolePiMenu():
             line_dict['body']['sections'].append(_item_list)
             item = item + len(_section)
             i += 1
+
+        '''
+        THIS SECTION IS UNDER DEV NOT USED YET
+        print multiple sections vertically - determine best cut point to start next column
         ''' 
+        # _rows = line_dict['body']['rows']
+        # tot_body_rows = sum(_rows)
+        # # TODO what if rows for 1 section is greater than term rows
+        # tty_body_avail = (config.rows - head_len - foot_len)
+        # _begin = 0
+        # _end = 1
+        # _iter_start_stop = []
+        # _pass = 0
+        # # -- won't fit in a single column calc sections we can put in the column
+        # # #if not tot_body_rows < tty_body_avail:   # Force at least 2 cols while testing
+        # while True:
+        #     r = sum(_rows[_begin:_end])
+        #     if not r > tty_body_avail and not r > tot_body_rows / 2:
+        #         _end += 1
+        #     else:
+        #         # _end = _end - 1 if sum(_rows[_begin:_end]) > tty_body_avail and _end > 1 else _end
+        #         _iter_start_stop.append([_begin, _end])
+        #         _begin = _end
+        #         _end = _begin + 1
+
+        #     if _end == (len(_rows)):
+        #         _iter_start_stop.append([_begin, _end])
+        #         break
+        #     elif _pass > 10:
+        #         self.error_msgs.append('menu formatter exceeded 10 passses and gave up!!!')
+        #         config.log('menu formatter exceeded 10 passses and gave up!!!')
+        #     _pass += 1
+        
+        # # This is a reset of what was initially done above.  This method still being tested
+        # sections = []
+        # _tot_width = []
+        # for _i in _iter_start_stop:
+        #     this_max_width = max(line_dict['body']['width'][_i[0]:_i[1]])
+        #     _tot_width.append(this_max_width)
+        #     _column_list = []
+        #     # i = 0
+        #     for _s in line_dict['body']['sections'][_i[0]:_i[1]]:
+        #         for _line in _s:
+        #             _fnl_line = '{}{}'.format(_line, ' ' * (this_max_width - len(_line)))
+        #             _s[_s.index(_line)] = _fnl_line
+        #         _column_list += _s
+        #         # i += 1
+        #     sections.append(_column_list)
+
+        # line_dict['body']['sections'] = sections     
+        '''
         set the initial # of columns
         '''
         body = line_dict['body']
@@ -617,6 +671,7 @@ class ConsolePiMenu():
 
         # --// PRINT MENU \\--
         self.menu_formatting('header', text=header, width=_tot_width, do_print=True)
+           
         pad = ' ' * col_pad
         for _i in _iter_start_stop:
             _begin = _i[0]
@@ -641,6 +696,7 @@ class ConsolePiMenu():
             if _end != len(body['sections']):
                 if cols > 1:
                     print('') # When multiple cols adds a 2nd \n below row of entries other than last row
+
         self.menu_formatting('footer', text=footer, width=_tot_width, do_print=True)
         # print(_tot_width, config.cols, config.rows)
 

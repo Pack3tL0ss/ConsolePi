@@ -351,7 +351,6 @@ class ConsolePiMenu():
                             _dev['parity'] = self.parity
                             _dev['dbits'] = self.data_bits
                         break
-                config.new_adapters[to_name] = config.new_adapters[from_name]
                 self.data['local'] = config.local
                 self.udev_pending = True    # toggle for exit function if they exit directly from rename memu
 

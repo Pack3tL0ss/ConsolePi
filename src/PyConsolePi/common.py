@@ -734,6 +734,7 @@ def append_to_file(file, line):
         file: file to write to
         line: line to write
     '''
+    # determine if last line in file has LF
     with open(file) as f:
         _lines = f.readlines()
         _last = _lines[-1]

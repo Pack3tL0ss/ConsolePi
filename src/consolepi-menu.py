@@ -199,7 +199,7 @@ class ConsolePiMenu():
                         
                 goto = goto.split('GOTO=')[1].replace('"', '').strip() if 'GOTO=' in goto else None
                 if goto is None:
-                    goto = last_line.strip().strip('LABEL=').replace('"', '') if 'LABEL=' in last_line else None
+                    goto = last_line.strip().replace('LABEL=', '').replace('"', '') if 'LABEL=' in last_line else None
             else:
                 error = bash_command('sudo cp /etc/ConsolePi/src/10-ConsolePi.rules /etc/udev/rules.d/')
                 found = True
@@ -1174,7 +1174,7 @@ class ConsolePiMenu():
 
             # Generate Menu Line
             menu_line = '{} {}[{} {}{}1]'.format(
-                this_dev.strip('/dev/'), def_indicator, baud, dbits, parity[0].upper())
+                this_dev.replace('/dev/', ''), def_indicator, baud, dbits, parity[0].upper())
             if flow != 'n' and flow in flow_pretty:
                 menu_line += ' {}'.format(flow_pretty[flow])
             mlines.append(menu_line)

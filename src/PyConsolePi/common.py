@@ -747,5 +747,5 @@ def append_to_file(file, line):
         line = '\n{}'.format(line)
 
     with open(file, 'a+') as f:
-        f.writelines(line)
+        f.write(line)
     

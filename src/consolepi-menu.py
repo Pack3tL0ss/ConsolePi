@@ -163,7 +163,7 @@ class ConsolePiMenu():
                 else: # TODO this logic looks flawed
                     next_port = '7001'
 
-            ser2net_line = ('\n{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} 1STOPBIT {flow} banner'.format(
+            ser2net_line = ('{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} 1STOPBIT {flow} banner'.format(
             telnet_port=next_port,
             alias=to_name,
             baud=baud,

@@ -734,15 +734,18 @@ def append_to_file(file, line):
         file: file to write to
         line: line to write
     '''
+    # strip any blank lines from end of file and remove LF
+    format_eof(file)
+
     # determine if last line in file has LF
-    with open(file) as f:
-        _lines = f.readlines()
-        _last = _lines[-1]
+    # with open(file) as f:
+    #     _lines = f.readlines()
+    #     _last = _lines[-1]
     
     # prepend newline if last line of file lacks it to prevent appending to that line
-    if '\n' not in _last:
-        line = '\n{}'.format(line)
+    # if '\n' not in _last:
+    #     line = '\n{}'.format(line)
 
     with open(file, 'a+') as f:
-        f.write(line)
+        f.writelines(line + '\n')
     

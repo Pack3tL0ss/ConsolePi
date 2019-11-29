@@ -13,6 +13,8 @@ cloud_file="/etc/ConsolePi/cloud.data"
 WORD="default"
 . /etc/ConsolePi/ConsolePi.conf
 # This menu is now only used for bluetooth connections and limited only to local connections
+# it can also be launched as an alternative to the normal menu with `consolepi-menu sh` (just pass the parameter 'sh' to the consolepi-menu command)
+
 # if connecting to ConsolePis using Clustering it's expected there would be a network to connect to
 cloud=false
 
@@ -81,7 +83,7 @@ flow_menu() {
         echo '3. No Flow Control (default)'
         echo "x. exit - flow will remain: ${flow_pretty}"
         echo ''
-        read -p "Select menu item: " selection
+        read -ep "Select menu item: " selection
         case $selection in
             "1")
              flow="x"
@@ -138,7 +140,7 @@ parity_menu() {
         echo '3. No Parity (default)'
         echo "x. exit - parity will remain: ${parity_pretty}"
         echo ''
-        read -p "Select menu item: " selection
+        read -ep "Select menu item: " selection
         case $selection in
             "1")
              parity="o"
@@ -170,7 +172,7 @@ databits_menu() {
     echo ''
     valid_input=false
     while ! $valid_input; do
-        read -p "Enter number of data bits: " selection
+        read -ep "Enter number of data bits: " selection
         if [[ $selection > 4 ]] && [[ $selection < 9 ]]; then
             dbits=$selection
             valid_input=true
@@ -200,13 +202,13 @@ baud_menu() {
 		echo '7. custom'
 		echo "x. exit - baud will remain ${baud}"
 		echo ''
-		read -p "Select menu item: " selection
+		read -ep "Select menu item: " selection
 		
         if (( ! $selection == "x" )) && (( $selection > 0 )) && (( $selection < 7 )); then
             baud=${baud_list[ (($selection-1)) ]}
             baud_valid=true
         elif (( $selection == 7 )); then
-            read -p "Input baud rate" baud
+            read -ep "Input baud rate" baud
             baud_valid=true
         elif (( $selection == "x" )); then
             baud_valid=true
@@ -234,7 +236,7 @@ port_config_menu() {
         [[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
             echo "x. exit [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
             echo ''
-            read -p "Select menu item: " selection
+            read -ep "Select menu item: " selection
 
         # Re-Print menu until exit
         case $selection in
@@ -323,7 +325,7 @@ main_menu() {
         echo " CURRENT CONNECTION SETTINGS: [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
         echo '########################################################################'
         echo ''
-        read -p "Select menu item > " selection
+        read -ep "Select menu item > " selection
 
         #if selection not defined or selection is non-printable cntrl char set to zero to fail through without error
         ( [[ -z $selection ]] || [[ $selection =~ [[:cntrl:]] ]] ) && selection=0
@@ -333,9 +335,9 @@ main_menu() {
             # depricated screen in favor of picocom
             ## screen "/dev/${tty_list[$((selection - 1))]##*/}" $baud
             # -- Always use native dev (ttyUSB#) --
-            picocom "/dev/${tty_list[$((selection - 1))]##*/}" -b $baud -f $flow -d $dbits -p $parity
+            picocom "/dev/${tty_list[$((selection - 1))]##*/}" -b $baud -f $flow -d $dbits -y $parity
         elif (( $selection > 0 )) && (( $selection < $((${#tty_list[@]}+${#rem_cmd_list[@]}+1)) )); then
-            exec="${rem_cmd_list[$((selection-${#tty_list[@]}-1))]} -b $baud -f $flow -d $dbits -p $parity"
+            exec="${rem_cmd_list[$((selection-${#tty_list[@]}-1))]} -b $baud -f $flow -d $dbits -y $parity"
             $exec
         elif [[ ${selection,,} == "c" ]]; then
             WORD="configured"

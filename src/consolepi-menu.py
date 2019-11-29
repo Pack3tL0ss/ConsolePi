@@ -558,16 +558,17 @@ class ConsolePiMenu():
         THIS SECTION IS UNDER DEV NOT USED YET
         print multiple sections vertically - determine best cut point to start next column
         ''' 
+        ##### Start Test Section ##########
         # _rows = line_dict['body']['rows']
         # tot_body_rows = sum(_rows)
-        # # TODO what if rows for 1 section is greater than term rows
+        # # # TODO what if rows for 1 section is greater than term rows
         # tty_body_avail = (config.rows - head_len - foot_len)
         # _begin = 0
         # _end = 1
         # _iter_start_stop = []
         # _pass = 0
-        # # -- won't fit in a single column calc sections we can put in the column
-        # # #if not tot_body_rows < tty_body_avail:   # Force at least 2 cols while testing
+        # # # -- won't fit in a single column calc sections we can put in the column
+        # # # #if not tot_body_rows < tty_body_avail:   # Force at least 2 cols while testing
         # while True:
         #     r = sum(_rows[_begin:_end])
         #     if not r > tty_body_avail and not r > tot_body_rows / 2:
@@ -586,7 +587,7 @@ class ConsolePiMenu():
         #         config.log('menu formatter exceeded 10 passses and gave up!!!')
         #     _pass += 1
         
-        # # This is a reset of what was initially done above.  This method still being tested
+        # # # This is a reset of what was initially done above.  This method still being tested
         # sections = []
         # _tot_width = []
         # for _i in _iter_start_stop:
@@ -602,7 +603,8 @@ class ConsolePiMenu():
         #         # i += 1
         #     sections.append(_column_list)
 
-        # line_dict['body']['sections'] = sections     
+        # line_dict['body']['sections'] = sections
+        #### End Test Section ##########
         '''
         set the initial # of columns
         '''
@@ -672,6 +674,25 @@ class ConsolePiMenu():
 
         # --// PRINT MENU \\--
         self.menu_formatting('header', text=header, width=_tot_width, do_print=True)
+
+        ## TEST SECTION ##
+        # _final_rows = []
+        # pad = ' ' * col_pad
+        
+        # s = body['sections'][0]
+        # for line in s:
+        #     idx = 1
+        #     _line = line + pad
+        #     while idx < len(body['sections']):
+        #         if s.index(line) <= len(body['sections'][idx]):
+        #             _line += body['sections'][idx][s.index(line)]
+        #             _line = _line + pad if (idx + 1) < len(body['sections']) else _line
+        #         idx += 1
+        #     _final_rows.append(_line)
+        
+        # for row in _final_rows:
+        #     print(row)
+        ## END TEST SECTION ##
            
         pad = ' ' * col_pad
         for _i in _iter_start_stop:

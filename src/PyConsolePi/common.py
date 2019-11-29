@@ -18,6 +18,12 @@ from sys import stdin
 import serial
 from .power import Outlets
 
+try:
+    import better_exceptions
+    better_exceptions.MAX_LENGTH = None
+except ImportError:
+    pass
+
 # Common Static Global Variables
 DNS_CHECK_FILES = ['/etc/resolv.conf', '/run/dnsmasq/resolv.conf']
 CONFIG_FILE = '/etc/ConsolePi/ConsolePi.conf'

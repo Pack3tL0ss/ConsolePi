@@ -491,7 +491,7 @@ def error_handler(cmd, stderr):
     if stderr and 'FATAL: cannot lock /dev/' not in stderr:
         # Handle key change Error
         if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in stderr:
-            print(stderr.replace('ERROR: ', ''))
+            print(stderr.replace('ERROR: ', '').replace('/usr/bin/ssh-copy-id: ', ''))
             while True:
                 try:
                     choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')

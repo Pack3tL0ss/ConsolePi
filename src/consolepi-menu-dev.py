@@ -498,7 +498,7 @@ class ConsolePiMenu():
     # =======================
     #     MENUS FUNCTIONS
     # =======================
-    def print_mlines(self, body, subs=None, header=None, footer=None, col_pad=5, force_cols=False,
+    def print_mlines(self, body, subs=None, header=None, subhead=None, footer=None, col_pad=4, force_cols=False,
                     do_cols=True, do_format=True, by_tens=False):
         '''
         format and print current menu.
@@ -529,8 +529,13 @@ class ConsolePiMenu():
         Determine header and footer length used to determine if we can print with
         a single column
         '''
-        head_len = len(self.menu_formatting('header', text=header, do_print=False)[0])
-        # TODO don't think foot_len is being calculated correctly
+        if subhead is not None:
+            subhead = [subhead] if not isinstance(subhead, list) else subhead
+            subhead.insert(0, '')
+            subhead.append('')
+        else:
+            subhead = []
+        head_len = len(self.menu_formatting('header', text=header, do_print=False)[0]) + len(subhead)
         foot_len = len(self.menu_formatting('footer', text=footer, do_print=False)[0])
         ''' 
         generate list for each sections where each line is padded to width of longest line
@@ -539,7 +544,10 @@ class ConsolePiMenu():
         All of this is used to format the header/footer width and to ensure consistent formatting
         during print of multiple columns
         '''
+        # if str was passed place in list to iterate over
         body = [body] if isinstance(body[0], str) else body
+        if subs is not None:
+            subs = [subs] if not isinstance(subs, list) else subs
         i = 0
         item = start = 1
         for _section in body:
@@ -547,7 +555,7 @@ class ConsolePiMenu():
                 item = start + 10 if item <= start + 10 else item
                 start += 10
             _item_list, _max_width = self.menu_formatting('body', 
-                text=_section, sub=subs[i], index=item, do_print=False, do_format=do_format)
+                text=_section, sub=subs if subs is None else subs[i], index=item, do_print=False, do_format=do_format)
             line_dict['body']['width'].append(_max_width)
             line_dict['body']['rows'].append(len(_item_list))
             line_dict['body']['sections'].append(_item_list)
@@ -560,7 +568,7 @@ class ConsolePiMenu():
         ''' 
         ##### Start Test Section ##########
         _rows = line_dict['body']['rows']
-        tot_body_rows = sum(_rows)
+        tot_body_rows = sum(_rows) # The # of rows to be printed
         # # TODO what if rows for 1 section is greater than term rows
         tty_body_avail = (config.rows - head_len - foot_len)
         _begin = 0
@@ -569,23 +577,33 @@ class ConsolePiMenu():
         _pass = 0
         # # -- won't fit in a single column calc sections we can put in the column
         # # #if not tot_body_rows < tty_body_avail:   # Force at least 2 cols while testing
-        while True:
-            r = sum(_rows[_begin:_end])
-            if not r > tty_body_avail and not r > tot_body_rows / 2:
-                _end += 1
-            else:
-                # _end = _end - 1 if sum(_rows[_begin:_end]) > tty_body_avail and _end > 1 else _end
-                _iter_start_stop.append([_begin, _end])
-                _begin = _end
-                _end = _begin + 1
+        _r = []
+        [_r.append(r) for r in _rows if r not in _r] # deteremine if all sections are of equal size (common for dli)
+        if len(_r) == 1 or force_cols:
+            for x in range(0, len(line_dict['body']['sections'])):
+                _iter_start_stop.append([x, x + 1])
+                # _tot_width.append(sum(body['width'][x:x + 1]) + (col_pad * (cols - 1)))
+                next
+        else:
+            while True:
+                r = sum(_rows[_begin:_end])
+                if not r >= tty_body_avail and not r >= tot_body_rows / 2:
+                    _end += 1
+                else:
+                    _end = _end - 1 if sum(_rows[_begin:_end]) > tty_body_avail and _end > 1 else _end
+                    if not _end == (len(_rows)):
+                        _iter_start_stop.append([_begin, _end])
+                        _begin = _end
+                        _end = _begin + 1
 
-            if _end == (len(_rows)):
-                _iter_start_stop.append([_begin, _end])
-                break
-            elif _pass > 10:
-                self.error_msgs.append('menu formatter exceeded 10 passses and gave up!!!')
-                config.log('menu formatter exceeded 10 passses and gave up!!!')
-            _pass += 1
+                if _end == (len(_rows)):
+                    _iter_start_stop.append([_begin, _end])
+                    break
+                if _pass > 10:
+                    self.error_msgs.append('menu formatter exceeded 10 passses and gave up!!!')
+                    config.log.error('menu formatter exceeded 10 passses and gave up!!!')
+                    break
+                _pass += 1
         
         # # This is a reset of what was initially done above.  This method still being tested
         sections = []
@@ -597,7 +615,9 @@ class ConsolePiMenu():
             # i = 0
             for _s in line_dict['body']['sections'][_i[0]:_i[1]]:
                 for _line in _s:
-                    _fnl_line = '{}{}'.format(_line, ' ' * (this_max_width - len(_line)))
+                    # _fnl_line = '{}{}'.format(_line, ' ' * (this_max_width - len(_line)))
+                    # print('{:{_len}}{}'.format(next(x, ''), this_pad, _len=wide[_ii]), end=this_end)
+                    _fnl_line = '{:{_len}}'.format(_line, _len=this_max_width)
                     _s[_s.index(_line)] = _fnl_line
                 _column_list += _s
                 # i += 1
@@ -610,7 +630,7 @@ class ConsolePiMenu():
         '''
         body = line_dict['body']
         cols = len(body['sections']) if len(body['sections']) <= MAX_COLS else MAX_COLS
-        if not force_cols:
+        if not force_cols: # TODO OK to remove and refactor tot_1_col_len is _tot_body_rows calculated above
             tot_1_col_len = sum(line_dict['body']['rows']) + len(line_dict['body']['rows']) \
                             + head_len + foot_len
             cols = 1 if not do_cols or tot_1_col_len < config.rows else cols
@@ -660,7 +680,7 @@ class ConsolePiMenu():
         #                     next
         #                 break
 
-        # -- if any footer lines are longer adjust _tot_width (which is the longest line from any section)
+        # -- if any footer or subhead lines are longer adjust _tot_width (which is the longest line from any section)
         foot = self.menu_formatting('footer', text=footer, do_print=False)[0]
         _foot_width = []
         for line in foot:
@@ -668,6 +688,12 @@ class ConsolePiMenu():
         if isinstance(_tot_width, int): # TODO refactor
             _tot_width = [_tot_width]
         _tot_width = max(_foot_width) if max(_foot_width) > max(_tot_width) else max(_tot_width)
+
+        if subhead:
+            _subhead_width = []
+            [_subhead_width.append(len(line)) for line in subhead]
+            _tot_width = max(_subhead_width) if max(_subhead_width) > _tot_width else _tot_width
+
         
         if MIN_WIDTH < config.cols:
             _tot_width = MIN_WIDTH if _tot_width < MIN_WIDTH else _tot_width
@@ -679,21 +705,44 @@ class ConsolePiMenu():
         _final_rows = []
         pad = ' ' * col_pad
         
-        s = body['sections'][0]
-        s_idx = 0
-        for line in s:
-            idx = 1
-            _line = line + pad
-            while idx < len(body['sections']):
-                if s_idx < len(body['sections'][idx]):
-                    _line += body['sections'][idx][s_idx]
-                _line = _line + pad if (idx + 1) < len(body['sections']) else _line
-                idx += 1
-                s_idx += 1
-            _final_rows.append(_line)
+        # s = body['sections'][0]
+        # s_idx = 0
+        # for line in s:
+        #     # idx = 1  # 
+        #     _line = line + pad
+        #     # while idx < len(body['sections']):
+        #     for idx in body['sections']:
+        #         idx = 1 if idx == 0 else idx  # first column handled in outer loop all other columns are being appended to that column
+        #         if s_idx < len(body['sections'][idx]):
+        #             _line += body['sections'][idx][s_idx]
+
+        #             s_idx += 1
+        #         _line = _line + pad if (idx + 1) < len(body['sections']) else _line
+        #         idx += 1
+        #     _final_rows.append(_line)
+        _final_rows = body['sections'][0]
+        for s in body['sections']:
+            if body['sections'].index(s) == 0:
+                continue
+            else:
+                if len(_final_rows) > len(s):
+                    # this_max_width = len(s[0])  # lines are already padded to consistent width all lines should have same width
+                    for _spaces in range(len(_final_rows) - len(s)):
+                        s.append(' ' * len(s[0]))
+                elif len(s) > len(_final_rows):
+                    for _spaces in range(len(s) - len(_final_rows)):
+                        _final_rows.append(' ' * len(_final_rows[0]))
+                # _final_rows = [a + pad + '{:{_len}}'.format(b, _len=this_max_width) for a, b in zip(_final_rows, s)]
+                _final_rows = [a + pad + b for a, b in zip(_final_rows, s)]
+# 
+
+
         
         _tot_width = len(_final_rows[0]) if len(_final_rows[0]) > _tot_width else _tot_width
         self.menu_formatting('header', text=header, width=_tot_width, do_print=True)
+        if subhead:         
+            for line in subhead:
+                print(line)
         for row in _final_rows:
             print(row)
         ## END TEST SECTION ##
@@ -762,7 +811,7 @@ class ConsolePiMenu():
                 else:
                     mlines.append(' {0} {1} {2}'.format('-' * int(b), text, '-' * c))
             mlines.append('=' * width)
-            mlines.append('')
+            # mlines.append('')
 
         # --// BODY \\--
         elif section == 'body':
@@ -803,19 +852,14 @@ class ConsolePiMenu():
         elif section == 'footer':
             mlines.append('')
             if text:
-                if isinstance(text, list):
-                    for t in text:
-                        if '{{r}}' in t:
-                            _t = t.split('{{r}}')
-                            mlines.append('{}{}'.format(_t[0], _t[1].rjust(width - len(_t[0]))))
-                        else:
-                            mlines.append(t)
-                else:
-                    if '{{r}}' in text:
-                        _t = text.split('{{r}}')
+                text = [text] if isinstance(text, str) else text
+                for t in text:
+                    if '{{r}}' in t:
+                        _t = t.split('{{r}}')
                         mlines.append('{}{}'.format(_t[0], _t[1].rjust(width - len(_t[0]))))
                     else:
-                        mlines.append(text)
+                        mlines.append(self.format_line(t)[1])
+
             mlines.append(' x.  exit\n')
             mlines.append('=' * width)
 
@@ -900,13 +944,20 @@ class ConsolePiMenu():
             if not self.DEBUG:
                 os.system('clear')
 
-            self.menu_formatting('header', text=' Power Control Menu ')
-            print('  enter item # to toggle power state on outlet')
-            print('  enter c + item # i.e. "c2" to cycle power on outlet')
-            print('')
+            # self.menu_formatting('header', text=' Power Control Menu ')
+            # print('  enter item # to toggle power state on outlet')
+            # print('  enter c + item # i.e. "c2" to cycle power on outlet')
+            # print('')
+            header = 'Power Control Menu'
+            subhead = [
+                '  enter item # to toggle power state on outlet',
+                '  enter c + item # i.e. "c2" to cycle power on outlet'
+            ]
 
             # Build menu items for each linked outlet
             state_list = []
+            body = []
+            footer = []
             for r in sorted(outlets):
                 outlet = outlets[r]
                 
@@ -925,7 +976,8 @@ class ConsolePiMenu():
                             state_list.append(_outlet['state'])
                             _state = self.format_line(_state)[1]
                             # print(' {}. [{}] port {} ({})'.format(item, _state, dli_port, _outlet['name']))
-                            print(' {}. [{}] {} ({} Port:{})'.format(item, _state, _outlet['name'], _address, dli_port))
+                            # print(' {}. [{}] {} ({} Port:{})'.format(item, _state, _outlet['name'], _address, dli_port))
+                            body.append('[{}] {} ({} Port:{})'.format(_state, ' ' + _outlet['name'] if 'ON' in _state else _outlet['name'], r, dli_port))
                             menu_actions[str(item)] = {
                                 'function': config.pwr_toggle,
                                 'args': [outlet['type'], outlet['address']],
@@ -956,7 +1008,8 @@ class ConsolePiMenu():
                         state_list.append(outlet['is_on'])
                         # print('\n' + header + '\n     ' + '-' * (len(header) - 5))
                         _state = self.format_line(_state)[1]
-                        print(' {}. [{}] {}'.format(item, _state, r))
+                        # print(' {}. [{}] {} ({}:{})'.format(item, _state, r, outlet['type'], outlet['address']))
+                        body.append('[{}] {} ({}:{})'.format(_state,  ' ' + r if 'ON' in _state else r, outlet['type'], outlet['address']))
                         menu_actions[str(item)] = {
                             'function': config.pwr_toggle,
                             'args': [outlet['type'], outlet['address']],
@@ -980,30 +1033,36 @@ class ConsolePiMenu():
                         self.error_msgs.append('DEV NOTE {} outlet state is not bool: {}'.format(r, outlet['error']))
             
             if item > 2:
-                print('')
+                # print('')
                 if False in state_list:
-                    print(' all on:    Turn all outlets {}ON{}'.format(self.colors['green'], self.colors['norm']))
+                    # print(' all on:    Turn all outlets {}ON{}'.format(self.colors['green'], self.colors['norm']))
+                    footer.append(' all on:    Turn all outlets {{green}}ON{{norm}}')
                     menu_actions['all on'] = {
                         'function': config.pwr_all, # pylint: disable=maybe-no-member
                         'kwargs': {'outlets': outlets, 'action': 'toggle', 'desired_state': True}
                         }
                 if True in state_list:
-                    print(' all off:   Turn all outlets {}OFF{}'.format(self.colors['red'], self.colors['norm']))
+                    # print(' all off:   Turn all outlets {}OFF{}'.format(self.colors['red'], self.colors['norm']))
+                    footer.append(' all off:   Turn all outlets {{red}}OFF{{norm}}')
                     menu_actions['all off'] = {
                         'function': config.pwr_all, # pylint: disable=maybe-no-member
                         'kwargs': {'outlets': outlets, 'action': 'toggle', 'desired_state': False}
                         }
-                    print(' cycle all: Cycle all outlets {2}ON{1}{3}{0}OFF{1}{3}{2}ON{1}'.format(self.colors['red'], self.colors['norm'], self.colors['green'], u'\u00B7'))
+                    # print(' cycle all: Cycle all outlets {2}ON{1}{3}{0}OFF{1}{3}{2}ON{1}'.format(self.colors['red'], self.colors['norm'], self.colors['green'], u'\u00B7'))
+                    footer.append(' cycle all: Cycle all outlets {{green}}ON{{norm}}' + u'\u00B7' + '{{red}}OFF{{norm}}' + u'\u00B7' + '{{green}}ON{{norm}}')
                     menu_actions['cycle all'] = {
                         'function': config.pwr_all, # pylint: disable=maybe-no-member
                         'kwargs': {'outlets': outlets, 'action': 'cycle'}
                         }
+                footer.append('')
             
             text = [' b.  Back', ' r.  Refresh']
             if self.dli_exists and not calling_menu == 'dli_menu':
-                text.insert(0, ' d. [dli] Web Power Switch Menu')
+                text.insert(0, ' d.  [dli] Web Power Switch Menu')
                 menu_actions['d'] = self.dli_menu
-            self.menu_formatting('footer', text=text)
+            footer += text
+            # self.menu_formatting('footer', text=text)
+            self.print_mlines(body, header=header, subhead=subhead, footer=footer)
             choice = input(" >>  ").lower()
             if choice not in ['b', 'r']:
                 self.exec_menu(choice, actions=menu_actions, calling_menu='power_menu')

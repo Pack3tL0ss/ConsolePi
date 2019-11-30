@@ -433,7 +433,7 @@ class ConsolePiMenu():
                                 removed = data.pop(remotepi)
                                 log.warning('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
                                     remotepi, removed['fail_cnt']))
-                                self.error_msgs.append('{} removed from local cache after 3 failed attempts to connect'.format(remotepi))
+                                self.error_msgs.append('{} removed from local cache after {} failed attempts to connect'.format(remotepi, removed['fail_cnt']))
                     else:
                         data[remotepi]['fail_cnt'] = 1
             data = config.update_local_cloud_file(data)

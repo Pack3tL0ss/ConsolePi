@@ -16,7 +16,7 @@ try:
     import better_exceptions
     better_exceptions.MAX_LENGTH = None
 except ImportError:
-    print('no better')
+    pass
 
 TIMING = False
 CYCLE_TIME = 3

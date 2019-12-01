@@ -403,6 +403,7 @@ class ConsolePiMenu():
                 #this['adapters'] = build_adapter_commands(this)
             else:
                 update_cache = True # If rem_ip wasn't valid update even if no reachable ip found.  (to update fail cnt)
+                this['rem_ip'] = None
                 for _iface in this['interfaces']:
                     _ip = this['interfaces'][_iface]['ip']
                     if _ip not in self.ip_list:
@@ -413,8 +414,6 @@ class ConsolePiMenu():
                             log.info('[GET REM] Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
                             #this['adapters'] = build_adapter_commands(this)
                             break  # Stop Looping through interfaces we found a reachable one
-                        else:
-                            this['rem_ip'] = None
 
             if this['rem_ip'] is None:
                 log.warning('[GET REM] Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))

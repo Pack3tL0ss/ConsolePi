@@ -151,9 +151,11 @@ class ConsolePiMenu():
 
         def do_ser2net_line(to_name=None, baud=self.baud, dbits=self.data_bits, parity=ser2net_parity[self.parity], flow=ser2net_flow[self.flow]):
             if os.path.isfile(config.SER2NET_FILE):  # pylint: disable=maybe-no-member
-                ports = [re.findall(r'^(7[0-9]{3}):telnet',line) for line in open(config.SER2NET_FILE)]  # pylint: disable=maybe-no-member
-                next_port = int(max(ports)[0]) + 1
-                next_port = '7001' if not next_port else next_port
+                ports = [re.findall(r'^(7[0-9]{3}):telnet',line) for line in open(config.SER2NET_FILE) if line.startswith('7')]  # pylint: disable=maybe-no-member
+                if ports:
+                    next_port = int(max(ports)[0]) + 1
+                else:
+                    next_port = '7001' # if not next_port else next_port
 
             else:
                 res = bash_command('sudo cp /etc/ConsolePi/src/ser2net.conf /etc/', eval_errors=False)

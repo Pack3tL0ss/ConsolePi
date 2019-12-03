@@ -191,15 +191,16 @@ class ConsolePi_data(Outlets):
 
         # -- Detect Attached Serial Adapters and linked power outlets if defined --
         final_tty_list = []
-        for device in context.list_devices(subsystem='tty', ID_BUS='usb'):
-            found = False
-            for _ in device['DEVLINKS'].split():
-                if '/dev/serial/by-' not in _:
-                    found = True
-                    final_tty_list.append(_)
-                    break
-            if not found:
-                final_tty_list.append(device['DEVNAME'])
+        for bus in ['usb', 'pci']:
+            for device in context.list_devices(subsystem='tty', ID_BUS=bus):
+                found = False
+                for _ in device.properties['DEVLINKS'].split():
+                    if '/dev/serial/by-' not in _:
+                        found = True
+                        final_tty_list.append(_)
+                        break
+                if not found:
+                    final_tty_list.append(device.properties['DEVNAME'])
         
         # get telnet port definition from ser2net.conf
         # and build adapters dict

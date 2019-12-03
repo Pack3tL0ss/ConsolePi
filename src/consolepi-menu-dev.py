@@ -257,6 +257,11 @@ class ConsolePiMenu():
                 # id_vendor = _tty.get('ID_VENDOR_ID')
 
                 # Collect locally attached adapters (new func)
+                # -- UPDATE adapter list after rename --
+                for _d in self.data['local'][self.hostname]['adapters']:
+                    if _d['dev'].replace('/dev/', '') == from_name:
+                        _d['dev'] = '/dev/{}'.format(to_name)
+
                 devs = detect_adapters()
                 if from_name in devs['by_name']:
                     _tty = devs['by_name'][from_name]

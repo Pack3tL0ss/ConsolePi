@@ -24,7 +24,7 @@
         "username": "admin",
         "password": "redacted",
         "linked": true,
-        "linked_ports": [1, 2, 3]
+        "linked_ports": [1, 2, 3],
         "linked_devs": ["/dev/3810", "/dev/2930M"]
         },
     "stagepower": {

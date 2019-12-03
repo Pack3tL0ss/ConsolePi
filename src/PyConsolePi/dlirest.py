@@ -228,6 +228,8 @@ class DLI:
                     retry += 1
                 if not outlet_list:
                     log.error('[DLI GET OUTLETS] dli @ {} reachable, but failed to fetch statuslist (outlet_list)'.format(self.fqdn))
+                    self.reachable = False
+                    self.dli = self.outlets = {}
             else:
                 self.reachable = False
                 self.dli = self.outlets = {}
@@ -423,6 +425,7 @@ class DLI:
                             _return = r.json() # TODO - error exception catch
                         else:
                             log.error('[DLI] Bad status code {} retunred while checking current {} of port'.format(r.status_code, fetch))
+                            _return = '[DLI] Bad status code {} retunred while checking current {} of port'.format(r.status_code, fetch)
                     except (socket.error, TimeoutError):
                         self.reachable = False
                         log.error('[DLI] {} appears to be unreachable now'.format(_url))

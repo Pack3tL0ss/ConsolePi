@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
+
+export BETTER_EXCEPTIONS=1
 echo "Launching ConsolePi Serial Console Menu"
 if [ ! -z $1 ] && [ "$1" = 'sh' ]; then 
     sudo /etc/ConsolePi/src/consolepi-menu.sh
+elif [ ! -z $1 ] && [ "$1" = 'dev' ]; then
+    echo "Development Menu"
+    sudo /etc/ConsolePi/src/consolepi-menu-dev.py
 else
     sudo /etc/ConsolePi/src/consolepi-menu.py "${@}"
 fi

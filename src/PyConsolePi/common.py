@@ -18,6 +18,12 @@ from sys import stdin
 import serial
 from .power import Outlets
 
+try:
+    import better_exceptions
+    better_exceptions.MAX_LENGTH = None
+except ImportError:
+    pass
+
 # Common Static Global Variables
 DNS_CHECK_FILES = ['/etc/resolv.conf', '/run/dnsmasq/resolv.conf']
 CONFIG_FILE = '/etc/ConsolePi/ConsolePi.conf'
@@ -185,15 +191,16 @@ class ConsolePi_data(Outlets):
 
         # -- Detect Attached Serial Adapters and linked power outlets if defined --
         final_tty_list = []
-        for device in context.list_devices(subsystem='tty', ID_BUS='usb'):
-            found = False
-            for _ in device['DEVLINKS'].split():
-                if '/dev/serial/by-' not in _:
-                    found = True
-                    final_tty_list.append(_)
-                    break
-            if not found:
-                final_tty_list.append(device['DEVNAME'])
+        for bus in ['usb', 'pci']:
+            for device in context.list_devices(subsystem='tty', ID_BUS=bus):
+                found = False
+                for _ in device.properties['DEVLINKS'].split():
+                    if '/dev/serial/by-' not in _:
+                        found = True
+                        final_tty_list.append(_)
+                        break
+                if not found:
+                    final_tty_list.append(device.properties['DEVNAME'])
         
         # get telnet port definition from ser2net.conf
         # and build adapters dict
@@ -485,7 +492,7 @@ def error_handler(cmd, stderr):
     if stderr and 'FATAL: cannot lock /dev/' not in stderr:
         # Handle key change Error
         if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in stderr:
-            print(stderr.replace('ERROR: ', ''))
+            print(stderr.replace('ERROR: ', '').replace('/usr/bin/ssh-copy-id: ', ''))
             while True:
                 try:
                     choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')

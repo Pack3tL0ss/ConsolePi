@@ -12,6 +12,12 @@ import RPi.GPIO as GPIO
 from consolepi.dlirest import DLI
 from halo import Halo
 
+try:
+    import better_exceptions
+    better_exceptions.MAX_LENGTH = None
+except ImportError:
+    pass
+
 TIMING = False
 CYCLE_TIME = 3
 
@@ -186,7 +192,7 @@ class Outlets:
                         (this_dli, _update) = self.load_dli(outlet['address'], outlet['username'], outlet['password'])
                         if this_dli is None or this_dli.dli is None:
                             failures[k] = outlet_data[k]
-                            failures[k]['error'] = '[PWR-DLI {}] {} Unreachable - Removed'.format(k, failures[k]['address']) 
+                            failures[k]['error'] = '[PWR-DLI {}] {} Unreachable - Removed'.format(k, failures[k]['address'])
                         else:
                             if TIMING:
                                 xstart = time.time()

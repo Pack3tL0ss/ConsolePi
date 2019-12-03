@@ -16,7 +16,10 @@ import pyudev
 import psutil
 from sys import stdin
 import serial
-from .power import Outlets
+try:
+    from .power import Outlets
+except ImportError:
+    from consolepi.power import Outlets
 
 try:
     import better_exceptions
@@ -838,4 +841,9 @@ def append_to_file(file, line):
 
     with open(file, 'a+') as f:
         f.write(line)
-    
+
+# DEBUGGING Should not be called directly
+if __name__ == '__main__':
+    json_print(detect_adapters())
+    config = ConsolePi_data()
+    json_print(config.adapters)

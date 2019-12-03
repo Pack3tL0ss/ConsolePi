@@ -1302,7 +1302,7 @@ class ConsolePiMenu():
         
         input('\nPress Any Key To Continue\n')
 
-    def rename_menu(self):
+    def rename_menu(self, direct_launch=False):
         # config = self.config
         choice = ''
         menu_actions = {}
@@ -1317,9 +1317,10 @@ class ConsolePiMenu():
             foot = [
                 ' s#. prepend s to the menu-item to show details for the adapter i.e. \'s1\'',
                 ' q#. prepend q to the menu-item to attempt to get/display a prompt from the device i.e. \'q1\'',
-                '',
-                ' b.  Back'
+                ''
             ]
+            if not direct_launch:
+                foot.append(' b.  Back')
             self.print_mlines(mlines, header='Rename Local Adapters',footer=foot, subs=slines, do_format=False)
             menu_actions['x'] = self.exit
 
@@ -1939,21 +1940,26 @@ class ConsolePiMenu():
 #      MAIN PROGRAM
 # =======================
 
-
 # Main Program
 if __name__ == "__main__":
     # if argument passed to menu load the class and print the argument (used to print variables/debug)    
     if len(sys.argv) > 1:
-        menu = ConsolePiMenu(bypass_remote=True, do_print=True)
-        config = menu.config
-        var_in = sys.argv[1].replace('self', 'menu')
-        exec('var  = ' + var_in)
-        if isinstance(var, (dict, list)):                    # pylint: disable=undefined-variable
-            print(json.dumps(var, indent=4, sort_keys=True)) # pylint: disable=undefined-variable
-        else:
-            print(var)                                       # pylint: disable=undefined-variable
+        print(sys.argv[1])
+        if sys.argv[1].lower() in ['rn', 'rename', 'addconsole']:
+            menu = ConsolePiMenu()
+            while menu.go:
+                menu.rename_menu(direct_launch=True)
+        else:        
+            menu = ConsolePiMenu(bypass_remote=True, do_print=True)
+            config = menu.config
+            var_in = sys.argv[1].replace('self', 'menu')
+            exec('var  = ' + var_in)
+            if isinstance(var, (dict, list)):                    # pylint: disable=undefined-variable
+                print(json.dumps(var, indent=4, sort_keys=True)) # pylint: disable=undefined-variable
+            else:
+                print(var)                                       # pylint: disable=undefined-variable
     else:
-        # Launch main menu
+        # Launch main menu      
         menu = ConsolePiMenu()
         while menu.go:
-            menu.main_menu()
+            menu.main_menu() 

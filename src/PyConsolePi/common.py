@@ -663,40 +663,41 @@ def detect_adapters(key=None):
     context = pyudev.Context()
 
     devs = {'by_name': {}, 'dup_ser': {}}
-    for _dev in context.list_devices(subsystem='tty', ID_BUS='usb'):
-        root_dev = _dev['DEVNAME'].replace('/dev/', '')
-        for alias in _dev['DEVLINKS'].split():
-            if '/dev/serial/by-' not in alias:
-                dev_name = alias.replace('/dev/', '')
-                break
+    for bus in ['usb', 'pci']:
+        for _dev in context.list_devices(subsystem='tty', ID_BUS=bus):
+            root_dev = _dev['DEVNAME'].replace('/dev/', '')
+            for alias in _dev['DEVLINKS'].split():
+                if '/dev/serial/by-' not in alias:
+                    dev_name = alias.replace('/dev/', '')
+                    break
+                else:
+                    dev_name = root_dev
+                    
+                    
+            devs['by_name'][dev_name] = \
+                    {
+                        'id_prod': _dev.get('ID_MODEL_ID'),
+                        'id_model': _dev.get('ID_MODEL'),
+                        'id_vendorid': _dev.get('ID_VENDOR_ID'),
+                        'id_vendor': _dev.get('ID_VENDOR'),
+                        'id_serial': _dev.get('ID_SERIAL_SHORT'),
+                        'id_ifnum': _dev.get('ID_USB_INTERFACE_NUM'),
+                        'id_path': _dev.get('ID_PATH'),
+                        'root_dev': True if dev_name == root_dev else False
+                    }
+            _ser = devs['by_name'][dev_name]['id_serial']
+            if _ser in devs['dup_ser']:
+                devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
+                devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
             else:
-                dev_name = root_dev
-                
-                
-        devs['by_name'][dev_name] = \
-                {
-                    'id_prod': _dev.get('ID_MODEL_ID'),
-                    'id_model': _dev.get('ID_MODEL'),
-                    'id_vendorid': _dev.get('ID_VENDOR_ID'),
-                    'id_vendor': _dev.get('ID_VENDOR'),
-                    'id_serial': _dev.get('ID_SERIAL_SHORT'),
-                    'id_ifnum': _dev.get('ID_USB_INTERFACE_NUM'),
-                    'id_path': _dev.get('ID_PATH'),
-                    'root_dev': True if dev_name == root_dev else False
-                }
-        _ser = devs['by_name'][dev_name]['id_serial']
-        if _ser in devs['dup_ser']:
-            devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
-            devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
-        else:
-            devs['dup_ser'][_ser] = {
-                'id_prod': devs['by_name'][dev_name]['id_prod'],
-                'id_model': devs['by_name'][dev_name]['id_model'],
-                'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
-                'id_vendor': devs['by_name'][dev_name]['id_vendor'],
-                'id_paths': [devs['by_name'][dev_name]['id_path']],
-                'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
-                }
+                devs['dup_ser'][_ser] = {
+                    'id_prod': devs['by_name'][dev_name]['id_prod'],
+                    'id_model': devs['by_name'][dev_name]['id_model'],
+                    'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
+                    'id_vendor': devs['by_name'][dev_name]['id_vendor'],
+                    'id_paths': [devs['by_name'][dev_name]['id_path']],
+                    'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
+                    }
 
     del_list = []
     for _ser in devs['dup_ser'] :

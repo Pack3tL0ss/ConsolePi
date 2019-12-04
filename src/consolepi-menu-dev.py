@@ -260,7 +260,9 @@ class ConsolePiMenu():
                 # -- UPDATE adapter list after rename --
                 for _d in self.data['local'][self.hostname]['adapters']:
                     if _d['dev'].replace('/dev/', '') == from_name:
-                        _d['dev'] = '/dev/{}'.format(to_name)
+                        _idx = self.data['local'][self.hostname]['adapters'].index(_d)
+                        self.data['local'][self.hostname]['adapters'][_idx]['dev'] = '/dev/{}'.format(to_name)
+                        break
 
                 devs = detect_adapters()
                 if from_name in devs['by_name']:

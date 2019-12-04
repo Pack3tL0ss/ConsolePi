@@ -129,16 +129,20 @@ update_config_overrides() {
 # Update ConsolePi Banner to display ConsolePi ascii logo at login
 update_banner() {
     process="update motd"
-    grep -q "PPPPPPPPPPPPPPPPP" /etc/motd && motd_exists=true || motd_exists=false
-    if $motd_exists; then 
-        mv /etc/motd /bak && sudo touch /etc/motd &&
-            logit "Clear old motd - Success" ||
-            logit "Failed to Clear old motd" "WARNING"
+    if [ -f /etc/motd ]; then
+        grep -q "PPPPPPPPPPPPPPPPP" /etc/motd && motd_exists=true || motd_exists=false
+        if $motd_exists; then 
+            mv /etc/motd /bak && sudo touch /etc/motd &&
+                logit "Clear old motd - Success" ||
+                logit "Failed to Clear old motd" "WARNING"
+        fi
     fi
     if [ ! -f /etc/profile.d/consolepi.sh ]; then
         cp ${src_dir}consolepi.sh /etc/profile.d/ &&
             logit "Deploy consolepi.sh profile script with banner text - Success" ||
             logit "Failed to move consolepi.sh from src to /etc/profile.d/" "WARNING"
+    else
+        logit "consolepi profile script already deployed"
     fi
 }
 

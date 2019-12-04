@@ -16,7 +16,10 @@ import pyudev
 import psutil
 from sys import stdin
 import serial
-from .power import Outlets
+try:
+    from .power import Outlets
+except ImportError:
+    from consolepi.power import Outlets
 
 try:
     import better_exceptions
@@ -191,16 +194,29 @@ class ConsolePi_data(Outlets):
 
         # -- Detect Attached Serial Adapters and linked power outlets if defined --
         final_tty_list = []
-        for bus in ['usb', 'pci']:
-            for device in context.list_devices(subsystem='tty', ID_BUS=bus):
-                found = False
-                for _ in device.properties['DEVLINKS'].split():
-                    if '/dev/serial/by-' not in _:
-                        found = True
-                        final_tty_list.append(_)
-                        break
-                if not found:
-                    final_tty_list.append(device.properties['DEVNAME'])
+        # for bus in ['usb', 'pci']:
+        # for device in context.list_devices(subsystem='tty', ID_BUS=bus):
+        # for device in context.list_devices(ID_BUS='usb'):
+        #     found = False
+        #     for _ in device.properties['DEVLINKS'].split():
+        #         if '/dev/serial/by-' not in _:
+        #             found = True
+        #             final_tty_list.append(_)
+        #             break
+        #     if not found:
+        #         final_tty_list.append(device.properties['DEVNAME'])
+        usb_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='usb', subsystem='tty')]
+        pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
+        root_dev_list = usb_list + pci_list
+        for root_dev in root_dev_list:
+            found = False
+            for a in pyudev.Devices.from_name(context, 'tty', root_dev).properties['DEVLINKS'].split():
+                if '/dev/serial/by-' not in a:
+                    found = True
+                    final_tty_list.append(a)
+                    break
+            if not found:
+                final_tty_list.append('/dev/' + root_dev)
         
         # get telnet port definition from ser2net.conf
         # and build adapters dict
@@ -650,6 +666,67 @@ def kill_hung_session(dev):
             retry += 1
     return ppid is None
 
+# def detect_adapters(key=None):
+#     """Detect Locally Attached Adapters.
+
+#     Returns
+#     -------
+#     dict
+#         udev alias/symlink if defined/found as key or root device if not. 
+#         /dev/ is stripped: (ttyUSB0 | AP515).  Each device has it's attrs
+#         in a dict.
+#     """
+#     context = pyudev.Context()
+
+#     devs = {'by_name': {}, 'dup_ser': {}}
+#     # for bus in ['usb', 'pci']:
+#     # for _dev in context.list_devices(subsystem='tty', ID_BUS=bus):
+#     for _dev in context.list_devices(ID_BUS='usb'):
+#         root_dev = _dev['DEVNAME'].replace('/dev/', '')
+#         for alias in _dev['DEVLINKS'].split():
+#             if '/dev/serial/by-' not in alias:
+#                 dev_name = alias.replace('/dev/', '')
+#                 break
+#             else:
+#                 dev_name = root_dev
+                
+                
+#         devs['by_name'][dev_name] = \
+#                 {
+#                     'id_prod': _dev.get('ID_MODEL_ID'),
+#                     'id_model': _dev.get('ID_MODEL'),
+#                     'id_vendorid': _dev.get('ID_VENDOR_ID'),
+#                     'id_vendor': _dev.get('ID_VENDOR'),
+#                     'id_serial': _dev.get('ID_SERIAL_SHORT'),
+#                     'id_ifnum': _dev.get('ID_USB_INTERFACE_NUM'),
+#                     'id_path': _dev.get('ID_PATH'),
+#                     'root_dev': True if dev_name == root_dev else False
+#                 }
+#         _ser = devs['by_name'][dev_name]['id_serial']
+#         if _ser in devs['dup_ser']:
+#             devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
+#             devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
+#         else:
+#             devs['dup_ser'][_ser] = {
+#                 'id_prod': devs['by_name'][dev_name]['id_prod'],
+#                 'id_model': devs['by_name'][dev_name]['id_model'],
+#                 'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
+#                 'id_vendor': devs['by_name'][dev_name]['id_vendor'],
+#                 'id_paths': [devs['by_name'][dev_name]['id_path']],
+#                 'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
+#                 }
+
+#     del_list = []
+#     for _ser in devs['dup_ser'] :
+#         if len(devs['dup_ser'][_ser]['id_paths']) == 1:
+#             del_list.append(_ser)
+
+#     if del_list:
+#         for i in del_list:
+#             del devs['dup_ser'][i]
+
+#     return devs if key is None else devs['by_name'][key.replace('/dev/', '')]
+
 def detect_adapters(key=None):
     """Detect Locally Attached Adapters.
 
@@ -663,41 +740,50 @@ def detect_adapters(key=None):
     context = pyudev.Context()
 
     devs = {'by_name': {}, 'dup_ser': {}}
-    for _dev in context.list_devices(subsystem='tty', ID_BUS='usb'):
-        root_dev = _dev['DEVNAME'].replace('/dev/', '')
-        for alias in _dev['DEVLINKS'].split():
-            if '/dev/serial/by-' not in alias:
-                dev_name = alias.replace('/dev/', '')
+    
+    usb_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='usb', subsystem='tty')]
+    pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
+    root_dev_list = usb_list + pci_list
+    for root_dev in root_dev_list:
+        found = False
+        for a in pyudev.Devices.from_name(context, 'tty', root_dev).properties['DEVLINKS'].split():
+            if '/dev/serial/by-' not in a:
+                found = True
+                dev_name = a.replace('/dev/', '')
                 break
-            else:
-                dev_name = root_dev
-                
-                
-        devs['by_name'][dev_name] = \
-                {
-                    'id_prod': _dev.get('ID_MODEL_ID'),
-                    'id_model': _dev.get('ID_MODEL'),
-                    'id_vendorid': _dev.get('ID_VENDOR_ID'),
-                    'id_vendor': _dev.get('ID_VENDOR'),
-                    'id_serial': _dev.get('ID_SERIAL_SHORT'),
-                    'id_ifnum': _dev.get('ID_USB_INTERFACE_NUM'),
-                    'id_path': _dev.get('ID_PATH'),
-                    'root_dev': True if dev_name == root_dev else False
-                }
-        _ser = devs['by_name'][dev_name]['id_serial']
-        if _ser in devs['dup_ser']:
-            devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
-            devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
-        else:
-            devs['dup_ser'][_ser] = {
-                'id_prod': devs['by_name'][dev_name]['id_prod'],
-                'id_model': devs['by_name'][dev_name]['id_model'],
-                'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
-                'id_vendor': devs['by_name'][dev_name]['id_vendor'],
-                'id_paths': [devs['by_name'][dev_name]['id_path']],
-                'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
-                }
+        if not found:
+            dev_name = root_dev
+        
+        devs['by_name'][dev_name] = {}     
+        _ser = pyudev.Devices.from_name(context, 'tty', root_dev).properties['ID_SERIAL_SHORT']
+        for _dev in context.list_devices(subsystem='tty', DEVNAME='/dev/' + root_dev):
+            devs['by_name'][dev_name]['id_path'] = _dev.properties['ID_PATH']
+            devs['by_name'][dev_name]['id_ifnum'] = _dev.properties['ID_USB_INTERFACE_NUM']
+            devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT')
+        for _dev in context.list_devices(subsystem='usb', ID_SERIAL_SHORT=_ser):
+            devs['by_name'][dev_name]['id_prod'] = _dev.get('ID_MODEL_ID')
+            devs['by_name'][dev_name]['id_model'] = _dev.get('ID_MODEL')
+            devs['by_name'][dev_name]['id_vendorid'] = _dev.get('ID_VENDOR_ID')
+            devs['by_name'][dev_name]['id_vendor'] = _dev.get('ID_VENDOR')
+                        # 'id_ifnum': _dev.get('ID_USB_INTERFACE_NUM'),
+                        # 'id_path': _dev.get('ID_PATH'),
+            devs['by_name'][dev_name]['root_dev'] = True if dev_name == root_dev else False
+            # _ser = devs['by_name'][dev_name]['id_serial']
 
+
+            if _ser in devs['dup_ser']:
+                devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
+                devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
+            else:
+                devs['dup_ser'][_ser] = {
+                    'id_prod': devs['by_name'][dev_name]['id_prod'],
+                    'id_model': devs['by_name'][dev_name]['id_model'],
+                    'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
+                    'id_vendor': devs['by_name'][dev_name]['id_vendor'],
+                    'id_paths': [devs['by_name'][dev_name]['id_path']],
+                    'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
+                    }
+                    
     del_list = []
     for _ser in devs['dup_ser'] :
         if len(devs['dup_ser'][_ser]['id_paths']) == 1:
@@ -755,4 +841,9 @@ def append_to_file(file, line):
 
     with open(file, 'a+') as f:
         f.write(line)
-    
+
+# DEBUGGING Should not be called directly
+if __name__ == '__main__':
+    json_print(detect_adapters())
+    config = ConsolePi_data()
+    json_print(config.adapters)

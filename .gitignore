@@ -13,6 +13,7 @@ cloud.data
 # /cloud/*/.credentials/*  # ignored via file in that dir
 .vscode/*
 /cloud/gdrive/headless-auth/*
+/src/consolepi-commands/resize
 
 # venv
 .venv

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-if [ -f "/etc/ConsolePi/installer/common.sh" ] && ! type -t logit; then
-    . /etc/ConsolePi/installer/common.sh || exit 1
+if [ -f "/etc/ConsolePi/installer/common.sh" ]; then
+    if ! type -t logit; then
+        . /etc/ConsolePi/installer/common.sh || (echo "ERROR utilities.sh not and unable to source common.sh" && exit 1)
+    fi
 else
     echo "This Script depends on common.sh from ConsolePi repo"
     exit 1
@@ -179,7 +181,7 @@ util_main() {
             fi
         done
     fi
-    
+
     unset process
 }
 

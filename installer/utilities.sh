@@ -40,7 +40,7 @@ get_util_status () {
 do_ask() {
     if [ ! -z "$ASK_OPTIONS" ]; then
         utils=$(whiptail --separate-output --notags --nocancel --title "Optional Packages/Tools" --backtitle "ConsolePi-Installer"  \
-        --checklist "\nUse SpaceBar to toggle\nSelect item to Install, Un-Select to Remove" 15 50 5 \
+        --checklist "\nUse SpaceBar to toggle\nSelect item to Install, Un-Select to Remove\n\nMake No Changes to Continue without change" 15 50 5 \
         "${ASK_OPTIONS[@]}" 3>&1 1>&2 2>&3)
         for u in ${!UTIL_VER[@]}; do
             [[ $utils =~ "$u" ]] && printf -v "$u" true || printf -v "$u" false

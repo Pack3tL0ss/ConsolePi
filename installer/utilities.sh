@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [ -f "/etc/ConsolePi/installer/common.sh" ]; then
-    if ! type -t logit; then
+    if ! type -t logit >/dev/null; then
         . /etc/ConsolePi/installer/common.sh || (echo "ERROR utilities.sh not and unable to source common.sh" && exit 1)
     fi
 else
@@ -46,9 +46,9 @@ do_ask() {
         # [[ $utils =~ "ansible" ]] && ansible=true || ansible=false
         # [[ $utils =~ "speed_test" ]] && speed_test=true || speed_test=false
         # [[ $utils =~ "tshark" ]] && tshark=true || tshark=false
-    else
-        process="optional utilities"
-        logit "All Optional Utilities currently Supported are installed bypassing Util Selection"
+    # else
+    #     process="optional utilities"
+    #     logit "All Optional Utilities currently Supported are installed bypassing Util Selection"
     fi
 }
 

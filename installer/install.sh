@@ -100,7 +100,7 @@ pre_git_prep() {
     unset process
 
     if [ -f $cloud_cache ]; then
-        process="ConsolePi-Upgrade-Prep (ensure cache owned by consolepi group)"
+        process="ConsolePi-Upgrade-Prep (check cache owned by consolepi group)"
         group=$(stat -c '%G' $cloud_cache)
         if [ ! $group == "consolepi" ]; then
             sudo chgrp consolepi $cloud_cache 2>> $log_file &&
@@ -108,6 +108,22 @@ pre_git_prep() {
                 logit "Failed to Change cloud cache group" "WARNING"
         else
             logit "Cloud Cache ownership already OK"
+        fi
+        unset process
+    fi
+
+    if [ -d $consolepi_dir ]; then
+        process="ConsolePi-Upgrade-Prep (check group perms on ConsolePi dir)"
+        group=$(stat -c '%G' $consolepi_dir)
+        if [ ! $group == "consolepi" ]; then
+            sudo chgrp -R consolepi $consolepi_dir 2>> $log_file &&
+                logit "Successfully Changed ConsolePi dir group" ||
+                logit "Failed to Change ConsolePi dir group" "WARNING"
+            sudo chmod g+w -R $consolepi_dir 2>> $log_file &&
+                logit "Successfully Changed ConsolePi dir group permissions" ||
+                logit "Failed to Change ConsolePi dir group Permissions" "WARNING"
+        else
+            logit "ConsolePi dir group already OK"
         fi
         unset process
     fi

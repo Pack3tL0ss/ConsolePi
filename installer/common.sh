@@ -4,8 +4,8 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-INSTALLER_VER=35
-CFG_FILE_VER=6
+INSTALLER_VER=36
+CFG_FILE_VER=7
 cur_dir=$(pwd)
 iam=$(who -m |  awk '{print $1}')
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')

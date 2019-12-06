@@ -868,16 +868,18 @@ get_utils() {
 
 do_resize () {
     # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
-    process="get resize binary from xterm"
     if ! $(which xterm); then
         util_main xterm -I
         which resize >/dev/null && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
         if $good; then
+            process="get resize binary from xterm"
             logit "xterm will now be uninstalled as we only needed a single binary from that package which has been coppied"
-            util_main xterm -F || "Unable to fine resize binary after xterm install"
+            util_main xterm -F
+        else
+            process="get resize binary from xterm"; logit "Unable to fine resize binary after xterm install" "WARNING"
         fi
     else
-        logit "resize utility already present"
+        process="get resize binary from xterm"; logit "resize utility already present"
     fi
     unset process
 }

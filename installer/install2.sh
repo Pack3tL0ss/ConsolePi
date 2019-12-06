@@ -868,9 +868,18 @@ get_utils() {
 
 do_resize () {
     # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
-    util_main xterm -I
-    which resize >/dev/null && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
-    $good && util_main xterm -F || process="get resize binary from xterm" "Unable to fine resize binary after xterm install"
+    process="get resize binary from xterm"
+    if ! $(which xterm); then
+        util_main xterm -I
+        which resize >/dev/null && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
+        if $good; then
+            logit "xterm will now be uninstalled as we only needed a single binary from that package which has been coppied"
+            util_main xterm -F || "Unable to fine resize binary after xterm install"
+        fi
+    else
+        logit "resize utility already present"
+    fi
+    unset process
 }
 
 # Create or Update ConsolePi API startup service (systemd)

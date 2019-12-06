@@ -1106,7 +1106,7 @@ get_serial_udev() {
     # fi
     if $result ; then
         if [ -f ${consolepi_dir}src/consolepi-commands/consolepi-menu ]; then
-            sudo ${consolepi_dir}src/consolepi-commands/consolepi-menu dev rn
+            sudo ${consolepi_dir}src/consolepi-commands/consolepi-menu rn
         else
             logit "ERROR consolepi-menu not found" "WARNING"
         fi

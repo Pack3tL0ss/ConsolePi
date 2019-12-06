@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-sudo /etc/ConsolePi/src/consolepi-addconsole.sh
+# sudo /etc/ConsolePi/src/consolepi-addconsole.sh
+sudo /etc/ConsolePi/src/consolepi-commands/consolepi-menu dev rn

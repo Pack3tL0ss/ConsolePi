@@ -11,16 +11,13 @@ fi
 
 get_util_status () {
     FORCE=false
-    declare -A UTIL_VER
     UTIL_VER['tftpd']=$(in.tftpd -V 2>/dev/null | awk '{print $2}'|cut -d, -f1)
     UTIL_VER['lldpd']=$(lldpd -v 2>/dev/null)
     UTIL_VER['ansible']=$(ansible --version 2>/dev/null | head -1 | awk '{print $2}')
     # UTIL_VER['speed_test']=$(echo placeholder speed_test not automated yet)
     # UTIL_VER['tshark']=$(echo placeholder tshark not automated yet)
 
-    declare -a INSTALLED
-    declare -a ASK_OPTIONS
-    i=0; for u in ${!UTIL_VER[*]}; do
+    i=0; for u in ${!UTIL_VER[@]}; do
         ASK_OPTIONS[$i]=$u; ((i+=1))
         if [ -z "${UTIL_VER[$u]}" ]; then
             ASK_OPTIONS[$i]=$u; ((i+=1))
@@ -31,6 +28,13 @@ get_util_status () {
             INSTALLED+=($u)
         fi
     done
+    echo ${ASK_OPTIONS[@]} $FUNCNAME
+
+    # echo " -----------------------------------------------------------------------------------------------------"
+    # echo -e  "\n ------------------------------------------ get_util_status ------------------------------------------\n"
+    # echo " -----------------------------------------------------------------------------------------------------"
+    # ( set -o posix ; set ) | less
+    # echo "\n --------------------- end get_util_status ---------------------\s"
 }
 
 do_ask() {
@@ -38,7 +42,7 @@ do_ask() {
         utils=$(whiptail --separate-output --notags --nocancel --title "Optional Packages/Tools" --backtitle "ConsolePi-Installer"  \
         --checklist "\nUse SpaceBar to toggle\nSelect item to Install, Un-Select to Remove" 15 50 5 \
         "${ASK_OPTIONS[@]}" 3>&1 1>&2 2>&3)
-        for u in ${!UTIL_VER[*]}; do
+        for u in ${!UTIL_VER[@]}; do
             [[ $utils =~ "$u" ]] && printf -v "$u" true || printf -v "$u" false
         done
         # [[ $utils =~ "tftpd" ]] && tftpd=true || tftpd=false
@@ -154,6 +158,10 @@ util_main() {
     # Utilities to install otherwise install/uninstall packages given in arguments
     # where install/uninstall determination will be the inverse of the current installed state
     if [ -z $1 ]; then
+    # -- // GLOBALS \\ --
+        declare -A UTIL_VER
+        declare -a INSTALLED
+        declare -a ASK_OPTIONS
         get_util_status
         do_ask
         # perform install / uninstall based on selections
@@ -185,4 +193,8 @@ util_main() {
     unset process
 }
 
-util_main ${@}
+if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"src/consolepi-addconsole.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then
+    util_main ${@}
+else
+    $DEBUG && process="utilities script start"; logit "script called from ${0}" "DEBUG"
+fi

@@ -48,7 +48,7 @@ get_config() {
         echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
         echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
         echo 'power=false                                                    # Adds support for Power Outlet control' >> "${default_config}"
-        echo 'tftpd=false                                                    # Enables tftpd-hpa with create rights and root folder /srv/tftp' >> "${default_config}"
+        # echo 'tftpd=false                                                    # Enables tftpd-hpa with create rights and root folder /srv/tftp' >> "${default_config}"
         echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
         header
         echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
@@ -117,12 +117,12 @@ update_config() {
     echo "cloud=${cloud}                                                      # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
     echo "cloud_svc=\"${cloud_svc}\"                                              # Future - only Google Drive / Google Sheets supported currently - must be \"gdrive\"" >> "${default_config}"
     echo "power=${power}                                                     # Adds support for Power Outlet Control" >> "${default_config}"
-    echo "tftpd=${tftpd}                                                     # Enables tftpd-hpa with create rights and root folder /srv/tftp" >> "${default_config}"
+    # echo "tftpd=${tftpd}                                                     # Enables tftpd-hpa with create rights and root folder /srv/tftp" >> "${default_config}"
 }
 
 # Update Config overrides: write any supported custom override variables back to file
 update_config_overrides() {
-    [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}                                                     # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
+    [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}       # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
     echo "debug=${debug}                                                     # turns on additional debugging" >> "${default_config}"
 }
 
@@ -279,13 +279,13 @@ collect() {
         fi
     fi
 
-    # -- tftpd --
-    if ! $selected_prompts || [ -z $tftpd ]; then
-        header
-        [ -z $tftpd ] && tftpd=false
-        user_input $tftpd "Do you want to enable a tftp server"
-        tftpd=$result
-    fi
+    # # -- tftpd --
+    # if ! $selected_prompts || [ -z $tftpd ]; then
+    #     header
+    #     [ -z $tftpd ] && tftpd=false
+    #     user_input $tftpd "Do you want to enable a tftp server"
+    #     tftpd=$result
+    # fi
 }
 
 verify() {
@@ -315,7 +315,7 @@ verify() {
     echo " ConsolePi Cloud Support:                                 $cloud"
     $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
     echo " ConsolePi Power Control Support:                         $power"
-    echo " tftp server:                                             $tftpd"
+    # echo " tftp server:                                             $tftpd"
     echo
     echo "----------------------------------------------------------------------------------------------------------------"
     echo
@@ -857,6 +857,22 @@ do_blue_config() {
     unset process
 }
 
+get_utils() {
+    if [ -f "${consolepi_dir}installer/utilities.sh" ]; then
+        . "${consolepi_dir}installer/utilities.sh"
+    else
+        echo "FATAL ERROR utilities.sh not found exiting"
+        exit 1
+    fi
+}
+
+do_resize () {
+    # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
+    util_main xterm -I
+    which resize >/dev/null && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
+    $good && util_main xterm -F || process="get resize binary from xterm" "Unable to fine resize binary after xterm install"
+}
+
 # Create or Update ConsolePi API startup service (systemd)
 do_consolepi_api() {
     process="ConsolePi API (systemd)"
@@ -967,28 +983,29 @@ do_consolepi_commands() {
     unset process
 }
 
-do_tftpd_server() {
-    process="tftpd-hpa"
-    # check to see if tftpd-hpa is already installed
-    which in.tftpd >/dev/null && tftpd_installed=true || tftpd_installed=false
-    $tftpd_installed && tftpd_ver=$(in.tftpd -V | awk '{print $2}'|cut -d, -f1)
-    # check to see if port is in use
-    if ! $tftpd_installed; then
-        sudo netstat -lnpu | grep -q ":69\s.*" && in_use=true || in_use=false
-        if $in_use; then
-            logit "tftpd package is not installed, but the port is in use tftpd-hpa will likely fail to start" "WARNING"
-            logit "Investigate after the install.  Check for uncommented lines in /etc/inetd.conf or /etc/xinetd.conf"
-        fi
-        logit "Installing tftpd-hpa"
-        sudo apt-get -y install tftpd-hpa >/dev/null 2>>$log_file && logit "Success - tftpd-hpa Installed" ||
-            logit "Failed to install tftpd-hpa" "WARNING"
-        file_diff_update ${src_dir}tftpd-hpa /etc/default/tftpd-hpa
-        sudo systemctl restart tftpd-hpa && logit "tftpd-hpa service restarted" || logit "failed to restart tftpd-hpa service" "WARNING"
-        sudo chown -R tftp:consolepi /srv/tftp && sudo chmod -R g+w /srv/tftp || logit "Failed to change ownership/permissions on tftp root dir /srv/tftp"
-    else
-        logit "tftpd-hpa verison ${tftpd_ver} already installed assuming configured as desired, config file verification not part of upgrade."
-    fi    
-}
+## -- MOVED TO utilities.sh --
+# do_tftpd_server() {
+#     process="tftpd-hpa"
+#     # check to see if tftpd-hpa is already installed
+#     which in.tftpd >/dev/null && tftpd_installed=true || tftpd_installed=false
+#     $tftpd_installed && tftpd_ver=$(in.tftpd -V | awk '{print $2}'|cut -d, -f1)
+#     # check to see if port is in use
+#     if ! $tftpd_installed; then
+#         sudo netstat -lnpu | grep -q ":69\s.*" && in_use=true || in_use=false
+#         if $in_use; then
+#             logit "tftpd package is not installed, but the port is in use tftpd-hpa will likely fail to start" "WARNING"
+#             logit "Investigate after the install.  Check for uncommented lines in /etc/inetd.conf or /etc/xinetd.conf"
+#         fi
+#         logit "Installing tftpd-hpa"
+#         sudo apt-get -y install tftpd-hpa >/dev/null 2>>$log_file && logit "Success - tftpd-hpa Installed" ||
+#             logit "Failed to install tftpd-hpa" "WARNING"
+#         file_diff_update ${src_dir}tftpd-hpa /etc/default/tftpd-hpa
+#         sudo systemctl restart tftpd-hpa && logit "tftpd-hpa service restarted" || logit "failed to restart tftpd-hpa service" "WARNING"
+#         sudo chown -R tftp:consolepi /srv/tftp && sudo chmod -R g+w /srv/tftp || logit "Failed to change ownership/permissions on tftp root dir /srv/tftp"
+#     else
+#         logit "tftpd-hpa verison ${tftpd_ver} already installed assuming configured as desired, config file verification not part of upgrade."
+#     fi    
+# }
 
 misc_stuff() {
     if [ ${wlan_country^^} == "US" ]; then
@@ -1172,8 +1189,11 @@ install2_main() {
     do_consolepi_api
     do_consolepi_mdns
     do_consolepi_commands
-    $tftpd && do_tftpd_server
+    # $tftpd && do_tftpd_server
     ! $upgrade && misc_stuff
+    get_utils
+    do_resize
+    util_main
     get_known_ssids
     get_serial_udev
     custom_post_install_script

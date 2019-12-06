@@ -1072,12 +1072,19 @@ get_serial_udev() {
     echo "You need to have the serial adapters you want to map to specific telnet ports available"
     prompt="Would you like to configure predictable serial ports now"
     $upgrade && user_input false "${prompt}" || user_input true "${prompt}"
+    # if $result ; then
+    #     if [ -f ${consolepi_dir}src/consolepi-addconsole.sh ]; then
+    #         . ${consolepi_dir}src/consolepi-addconsole.sh
+    #         udev_main
+    #     else
+    #         logit "ERROR consolepi-addconsole.sh not available in src directory" "WARNING"
+    #     fi
+    # fi
     if $result ; then
-        if [ -f ${consolepi_dir}src/consolepi-addconsole.sh ]; then
-            . ${consolepi_dir}src/consolepi-addconsole.sh
-            udev_main
+        if [ -f ${consolepi_dir}src/consolepi-commands/consolepi-menu ]; then
+            sudo ${consolepi_dir}src/consolepi-commands/consolepi-menu dev rn
         else
-            logit "ERROR consolepi-addconsole.sh not available in src directory" "WARNING"
+            logit "ERROR consolepi-menu not found" "WARNING"
         fi
     fi
     logit "${process} Complete"

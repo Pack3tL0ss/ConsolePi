@@ -1088,8 +1088,8 @@ get_serial_udev() {
     echo '-  !! suppport for adapters that lack serial ports is not tested at all, so I probably goofed someplace.            -'
     echo "-     I need to find a lame adapter to test                                                                         -"
     echo "-                                                                                                                   -"
-    echo "-  This function can be called anytime from the shell via `consolepi-addconsole` and is available from              -"
-    echo "-    `consolepi-menu` as the `rn` (rename) option.                                                                  -"
+    echo '-  This function can be called anytime from the shell via `consolepi-addconsole` and is available from              -'
+    echo '-    `consolepi-menu` as the `rn` (rename) option.                                                                  -'
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo

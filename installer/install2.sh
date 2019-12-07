@@ -864,7 +864,7 @@ do_resize () {
     process="xterm | resize"
     if [ ! -f ${src_dir}consolepi-commands/resize ]; then
         util_main xterm -I -p "xterm | resize"
-        [ -f ${src_dir}consolepi-commands/resize ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
+        [ -f $(which resize) ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
         if $good; then
             logit "Success - Copy resize binary from xterm"
             logit "xterm will now be removed as we only installed it to get resize"

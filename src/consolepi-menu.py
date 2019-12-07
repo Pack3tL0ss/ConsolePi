@@ -1303,14 +1303,15 @@ class ConsolePiMenu():
     def show_serial_prompt(self, adapter):
         with Halo(text='Prompt Displayed on Port: ', spinner='dots1', placement='right'):
             p = None
-            for i in range(2):
+            for i in range(2): # pylint: disable=unused-variable
                 try:
                     p = get_serial_prompt(adapter)
                     e = self.format_line('{{red}}No text was rcvd from port{{norm}}')[1]
-                except Exception as e:
-                    e = self.format_line('{{red}}Exception Occured Trying To access port{{norm}}')[1]
-                    e+='\n{}'.format(e)
+                    break
+                except Exception as ex:
                     self.trigger_udev()
+                    e = self.format_line('{{red}}Exception Occured Trying To access port{{norm}}')[1]
+                    e += '\n{}'.format(ex)
 
         print('Prompt Displayed on Port: {}'.format(p if p else e))
         

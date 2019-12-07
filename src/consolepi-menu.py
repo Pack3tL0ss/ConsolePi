@@ -1307,7 +1307,7 @@ class ConsolePiMenu():
                 try:
                     p = get_serial_prompt(adapter)
                     e = self.format_line('{{red}}No text was rcvd from port{{norm}}')[1]
-                except SerialException as e:
+                except FileNotFoundError as e:
                     e = self.format_line('{{red}}Exception Occured Trying To access port{{norm}}')[1]
                     e+='\n{}'.format(e)
                     self.trigger_udev()

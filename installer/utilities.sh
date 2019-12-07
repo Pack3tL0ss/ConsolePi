@@ -186,12 +186,14 @@ util_main() {
 }
 
 argparse() {
+    echo ${@} $FUNCNAME
     PARAMS=""
     PROCESS=""
     while (( "$#" )); do
     case "$1" in
         -p)
         PROCESS=$2
+        echo $2 should be process
         shift 2
         ;;
         -F)
@@ -219,10 +221,12 @@ argparse() {
     echo "$PROCESS PROCESS $FUNCNAME"
     # set positional arguments in their proper place
     eval set -- "$PARAMS"
+    echo $PARAMS $FUNCNAME
 }
 
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"src/consolepi-addconsole.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then
     util_main ${@}
 else
     $DEBUG && process="utilities script start" && logit "script called from ${0}" "DEBUG"
+    return 0
 fi

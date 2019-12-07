@@ -869,7 +869,7 @@ get_utils() {
 do_resize () {
     # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
     # if ! which resize >/dev/null; then
-        util_main xterm -I
+        util_main xterm -I -p "get resize binary from xterm"
         which resize >/dev/null && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
         if $good; then
             process="get resize binary from xterm"

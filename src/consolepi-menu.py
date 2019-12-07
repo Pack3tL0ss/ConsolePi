@@ -1301,6 +1301,7 @@ class ConsolePiMenu():
         input('\nPress Any Key To Continue\n')
 
     def show_serial_prompt(self, adapter):
+        # TODO move this exception handler to common
         with Halo(text='Prompt Displayed on Port: ', spinner='dots1', placement='right'):
             p = None
             for i in range(2): # pylint: disable=unused-variable
@@ -1366,6 +1367,7 @@ class ConsolePiMenu():
             error = bash_command(cmd)
         if not error:
             self.udev_pending = False
+            self.data['local'][self.hostname]['adapters'] = config.get_local(do_print=False)
         else:
             return error
 

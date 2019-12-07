@@ -180,7 +180,7 @@ util_main() {
         done
     fi
 
-    unset process
+    # unset process
 }
 
 argparse() {
@@ -222,9 +222,10 @@ argparse() {
 }
 
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"src/consolepi-addconsole.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then
-    unset process
+    # unset process
     util_main ${@}
 else
     $debug && process="utilities script start" && logit "script called from ${0}" "DEBUG"
+    unset process
     return 0
 fi

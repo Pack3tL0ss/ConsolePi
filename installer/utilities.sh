@@ -9,6 +9,7 @@ else
     exit 1
 fi
 DEBUG=$debug
+process=
 
 get_util_status () {
     FORCE=false

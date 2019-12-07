@@ -29,13 +29,6 @@ get_util_status () {
             INSTALLED+=($u)
         fi
     done
-    echo ${ASK_OPTIONS[@]} $FUNCNAME
-
-    # echo " -----------------------------------------------------------------------------------------------------"
-    # echo -e  "\n ------------------------------------------ get_util_status ------------------------------------------\n"
-    # echo " -----------------------------------------------------------------------------------------------------"
-    # ( set -o posix ; set ) | less
-    # echo "\n --------------------- end get_util_status ---------------------\s"
 }
 
 do_ask() {
@@ -46,14 +39,6 @@ do_ask() {
         for u in ${!UTIL_VER[@]}; do
             [[ $utils =~ "$u" ]] && printf -v "$u" true || printf -v "$u" false
         done
-        # [[ $utils =~ "tftpd" ]] && tftpd=true || tftpd=false
-        # [[ $utils =~ "lldpd" ]] && lldpd=true || lldpd=false
-        # [[ $utils =~ "ansible" ]] && ansible=true || ansible=false
-        # [[ $utils =~ "speed_test" ]] && speed_test=true || speed_test=false
-        # [[ $utils =~ "tshark" ]] && tshark=true || tshark=false
-    # else
-    #     process="optional utilities"
-    #     logit "All Optional Utilities currently Supported are installed bypassing Util Selection"
     fi
 }
 
@@ -116,6 +101,7 @@ get_apt_pkg_name() {
 do_util_install() {
     util=$1
     # process=$util
+    echo "$FUNCNAME process $process"
     # check to see if util is already installed
     [ -z "${UTIL_VER[$util]}" ] && util_installed=false || util_installed=true
     # process any pre-checks

@@ -216,6 +216,7 @@ argparse() {
         ;;
     esac
     done
+    echo "$PROCESS PROCESS $FUNCNAME"
     # set positional arguments in their proper place
     eval set -- "$PARAMS"
 }

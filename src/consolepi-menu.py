@@ -1567,6 +1567,9 @@ class ConsolePiMenu():
                                 _error = error_handler(c, _stderr) # pylint: disable=maybe-no-member
                                 if _error:
                                     self.error_msgs.append(_error)
+                            # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
+                            if 'picocom' in c:
+                                os.system('/etc/ConsolePi/src/consolepi-commands/resize >/dev/null')
                         except KeyboardInterrupt:
                             self.error_msgs.append('Aborted last command based on user input')
 

@@ -8,6 +8,7 @@ else
     echo "This Script depends on common.sh from ConsolePi repo"
     exit 1
 fi
+DEBUG=$debug
 
 get_util_status () {
     FORCE=false
@@ -114,7 +115,7 @@ get_apt_pkg_name() {
 
 do_util_install() {
     util=$1
-    process=$util
+    # process=$util
     # check to see if util is already installed
     [ -z "${UTIL_VER[$util]}" ] && util_installed=false || util_installed=true
     # process any pre-checks
@@ -135,7 +136,7 @@ do_util_install() {
 
 do_util_uninstall() {
     util=$1
-    process=$util
+    # process=$util
     $FORCE && go=true || (
         $(prompt="Uninstall $util"; user_input_bool) && go=true || go=false
     )
@@ -165,7 +166,7 @@ util_main() {
         get_util_status
         do_ask
         # perform install / uninstall based on selections
-        for u in ${!UTIL_VER[*]}; do
+        for u in ${!UTIL_VER[@]}; do
             if [[ "${INSTALLED[@]}" =~ "$u" ]]; then
                 ! ${!u} && do_util_uninstall $u
             else
@@ -173,24 +174,62 @@ util_main() {
             fi
         done
     else
-        [[ ${@} =~ '-F' ]] && FORCE=true
-        ARGS=${@/'-F'/}
-        ARGS=${ARGS/'-I'/}
-        for u in $ARGS; do
+        argparse "${@}"
+        # [[ ${@} =~ '-F' ]] && FORCE=true
+        # ARGS=${@/'-F'/}
+        # ARGS=${ARGS/'-I'/}
+        [[ ! -z $PROCESS ]] && process=$PROCESS || process=""
+        for u in $PARAMS; do
             which $u >/dev/null && is_installed=true || is_installed=false
-            if $is_installed && ! [[ ${@} =~ '-I' ]]; then
+            if $is_installed && ! $FORCE_INSTALL; then
                 do_util_uninstall $u
             else
                 if ! $is_installed; then
                     do_util_install $u 
                 else
-                    process=$u; logit "$u already installed"
+                    [[ -z $process ]] && process=$u
+                    logit "$u already installed"
                 fi
             fi
         done
     fi
 
     unset process
+}
+
+argparse() {
+    PARAMS=""
+    PROCESS=""
+    while (( "$#" )); do
+    case "$1" in
+        -p)
+        PROCESS=$2
+        shift 2
+        ;;
+        -F)
+        FORCE=true
+        shift
+        ;;
+        -I)
+        FORCE_INSTALL=true
+        shift
+        ;;
+        --) # end argument parsing
+        shift
+        break
+        ;;
+        -*|--*=) # unsupported flags
+        echo "Error: Unsupported flag $1" >&2
+        exit 1
+        ;;
+        *) # preserve positional arguments
+        PARAMS="$PARAMS $1"
+        shift
+        ;;
+    esac
+    done
+    # set positional arguments in their proper place
+    eval set -- "$PARAMS"
 }
 
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"src/consolepi-addconsole.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then

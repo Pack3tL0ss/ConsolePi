@@ -69,8 +69,7 @@ class ConsolePiMenu():
         for _iface in self.if_ips:
             self.ip_list.append(self.if_ips[_iface]['ip'])
         self.data = {'local': config.local}
-        if not bypass_remote:
-            self.data['remote'] = self.get_remote()
+        self.data['remote'] = self.get_remote() if not bypass_remote else {}
         if config.power:
             if not os.path.isfile(config.POWER_FILE):
                 config.plog('Outlet Control Function enabled but no power.json configuration found - Disabling feature',
@@ -1961,13 +1960,12 @@ class ConsolePiMenu():
 if __name__ == "__main__":
     # if argument passed to menu load the class and print the argument (used to print variables/debug)    
     if len(sys.argv) > 1:
-        print(sys.argv[1])
         if sys.argv[1].lower() in ['rn', 'rename', 'addconsole']:
-            menu = ConsolePiMenu()
+            menu = ConsolePiMenu(bypass_remote=True)
             while menu.go:
                 menu.rename_menu(direct_launch=True)
         else:        
-            menu = ConsolePiMenu(bypass_remote=True, do_print=True)
+            menu = ConsolePiMenu(bypass_remote=True)
             config = menu.config
             var_in = sys.argv[1].replace('self', 'menu')
             exec('var  = ' + var_in)

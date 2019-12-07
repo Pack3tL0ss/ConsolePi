@@ -10,7 +10,6 @@ else
 fi
 
 get_util_status () {
-    FORCE=false
     UTIL_VER['tftpd']=$(in.tftpd -V 2>/dev/null | awk '{print $2}'|cut -d, -f1)
     UTIL_VER['lldpd']=$(lldpd -v 2>/dev/null)
     UTIL_VER['ansible']=$(ansible --version 2>/dev/null | head -1 | awk '{print $2}')
@@ -31,9 +30,10 @@ get_util_status () {
 }
 
 do_ask() {
+    list_len=${#UTIL_VER[@]}
     if [ ! -z "$ASK_OPTIONS" ]; then
         utils=$(whiptail --separate-output --notags --nocancel --title "Optional Packages/Tools" --backtitle "ConsolePi-Installer"  \
-        --checklist "\nUse SpaceBar to toggle\nSelect item to Install, Un-Select to Remove\n\nMake No Changes to Continue without change" 15 50 5 \
+        --checklist "\nUse SpaceBar to toggle\nSelect item to Install, Un-Select to Remove" $((list_len+10)) 50 $list_len \
         "${ASK_OPTIONS[@]}" 3>&1 1>&2 2>&3)
         for u in ${!UTIL_VER[@]}; do
             [[ $utils =~ "$u" ]] && printf -v "$u" true || printf -v "$u" false
@@ -100,7 +100,6 @@ get_apt_pkg_name() {
 do_util_install() {
     util=$1
     [[ -z $PROCESS ]] && process=$util || process=$PROCESS
-    echo "$FUNCNAME process $process"
     # check to see if util is already installed
     [ -z "${UTIL_VER[$util]}" ] && util_installed=false || util_installed=true
     # process any pre-checks

@@ -2,7 +2,7 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script Stage 2                                                       -- #
-# --  Wade Wells - Aug 2019                                                                                                                      -- #
+# --  Wade Wells - Pack3tL0ss                                                                                                                    -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
@@ -48,7 +48,7 @@ get_config() {
         echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
         echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
         echo 'power=false                                                    # Adds support for Power Outlet control' >> "${default_config}"
-        echo 'tftpd=false                                                    # Enables tftpd-hpa with create rights and root folder /srv/tftp' >> "${default_config}"
+        # echo 'tftpd=false                                                    # Enables tftpd-hpa with create rights and root folder /srv/tftp' >> "${default_config}"
         echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
         header
         echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
@@ -117,12 +117,12 @@ update_config() {
     echo "cloud=${cloud}                                                      # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
     echo "cloud_svc=\"${cloud_svc}\"                                              # Future - only Google Drive / Google Sheets supported currently - must be \"gdrive\"" >> "${default_config}"
     echo "power=${power}                                                     # Adds support for Power Outlet Control" >> "${default_config}"
-    echo "tftpd=${tftpd}                                                     # Enables tftpd-hpa with create rights and root folder /srv/tftp" >> "${default_config}"
+    # echo "tftpd=${tftpd}                                                     # Enables tftpd-hpa with create rights and root folder /srv/tftp" >> "${default_config}"
 }
 
 # Update Config overrides: write any supported custom override variables back to file
 update_config_overrides() {
-    [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}                                                     # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
+    [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}       # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
     echo "debug=${debug}                                                     # turns on additional debugging" >> "${default_config}"
 }
 
@@ -279,13 +279,13 @@ collect() {
         fi
     fi
 
-    # -- tftpd --
-    if ! $selected_prompts || [ -z $tftpd ]; then
-        header
-        [ -z $tftpd ] && tftpd=false
-        user_input $tftpd "Do you want to enable a tftp server"
-        tftpd=$result
-    fi
+    # # -- tftpd --
+    # if ! $selected_prompts || [ -z $tftpd ]; then
+    #     header
+    #     [ -z $tftpd ] && tftpd=false
+    #     user_input $tftpd "Do you want to enable a tftp server"
+    #     tftpd=$result
+    # fi
 }
 
 verify() {
@@ -315,7 +315,7 @@ verify() {
     echo " ConsolePi Cloud Support:                                 $cloud"
     $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
     echo " ConsolePi Power Control Support:                         $power"
-    echo " tftp server:                                             $tftpd"
+    # echo " tftp server:                                             $tftpd"
     echo
     echo "----------------------------------------------------------------------------------------------------------------"
     echo
@@ -816,13 +816,6 @@ do_blue_config() {
     grep -q stty /home/blue/.bashrc &&
         sed -i 's/^stty rows 70 cols 150//g' /home/blue/.bashrc &&
         logit "blue user tty row col configuration removed - Success"
-    # if [[ ! $(sudo grep stty /home/blue/.bashrc) ]]; then
-    #     sudo echo stty rows 70 cols 150 | sudo tee -a /home/blue/.bashrc > /dev/null && 
-    #         logit "Changed default Bluetooth tty rows cols" || 
-    #         logit "FAILED to change default Bluetooth tty rows cols" "WARNING"
-    # else
-    #     logit "blue user tty rows cols already configured"
-    # fi
 
     # Configure blue user to auto-launch consolepi-menu on login (blue user is automatically logged in when connection via bluetooth is established)
     if [[ ! $(sudo grep consolepi-menu /home/blue/.bashrc) ]]; then
@@ -854,6 +847,35 @@ do_blue_config() {
     fi
        
     logit "${process} Complete"
+    unset process
+}
+
+get_utils() {
+    if [ -f "${consolepi_dir}installer/utilities.sh" ]; then
+        . "${consolepi_dir}installer/utilities.sh"
+    else
+        echo "FATAL ERROR utilities.sh not found exiting"
+        exit 1
+    fi
+}
+
+do_resize () {
+    # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
+    process="xterm | resize"
+    if [ ! -f ${src_dir}consolepi-commands/resize ]; then
+        util_main xterm -I -p "xterm | resize"
+        [ -f $(which resize) ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
+        if $good; then
+            logit "Success - Copy resize binary from xterm"
+            logit "xterm will now be removed as we only installed it to get resize"
+            util_main xterm -F -p "xterm | resize"
+            apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Success removing xterm left-over deps" || logit "apt-get autoremove after xterm FAILED" "WARNING"
+        else
+            logit "Unable to find resize binary after xterm install" "WARNING"
+        fi
+    else
+        logit "resize utility already present"
+    fi
     unset process
 }
 
@@ -952,6 +974,7 @@ get_known_ssids() {
 do_consolepi_commands() {
     process="Remove old consolepi-commands from /usr/local/bin"
     if [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -ne 0 ]; then
+        sudo cp /usr/local/bin/consolepi-* $bak_dir 2>>$log_file || logit "Failed to Backup potentially custom consolepi-commands in /usr/local/bin"
         sudo rm /usr/local/bin/consolepi-* > /dev/null 2>&1
         sudo unlink /usr/local/bin/consolepi-* > /dev/null 2>&1
         [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -eq 0 ] &&
@@ -965,29 +988,6 @@ do_consolepi_commands() {
         logit "PATH Updated" || logit "PATH contains consolepi-commands dir, No Need for update"
 
     unset process
-}
-
-do_tftpd_server() {
-    process="tftpd-hpa"
-    # check to see if tftpd-hpa is already installed
-    which in.tftpd >/dev/null && tftpd_installed=true || tftpd_installed=false
-    $tftpd_installed && tftpd_ver=$(in.tftpd -V | awk '{print $2}'|cut -d, -f1)
-    # check to see if port is in use
-    if ! $tftpd_installed; then
-        sudo netstat -lnpu | grep -q ":69\s.*" && in_use=true || in_use=false
-        if $in_use; then
-            logit "tftpd package is not installed, but the port is in use tftpd-hpa will likely fail to start" "WARNING"
-            logit "Investigate after the install.  Check for uncommented lines in /etc/inetd.conf or /etc/xinetd.conf"
-        fi
-        logit "Installing tftpd-hpa"
-        sudo apt-get -y install tftpd-hpa >/dev/null 2>>$log_file && logit "Success - tftpd-hpa Installed" ||
-            logit "Failed to install tftpd-hpa" "WARNING"
-        file_diff_update ${src_dir}tftpd-hpa /etc/default/tftpd-hpa
-        sudo systemctl restart tftpd-hpa && logit "tftpd-hpa service restarted" || logit "failed to restart tftpd-hpa service" "WARNING"
-        sudo chown -R tftp:consolepi /srv/tftp && sudo chmod -R g+w /srv/tftp || logit "Failed to change ownership/permissions on tftp root dir /srv/tftp"
-    else
-        logit "tftpd-hpa verison ${tftpd_ver} already installed assuming configured as desired, config file verification not part of upgrade."
-    fi    
 }
 
 misc_stuff() {
@@ -1037,19 +1037,50 @@ get_serial_udev() {
     echo "- Predictable Console ports allow you to configure ConsolePi so that each time you plug-in a specific adapter it    -"
     echo "- will have the same name in consolepi-menu and will be reachable via the same TELNET port.                         -"
     echo "-                                                                                                                   -"
-    echo "- This is handy if you plan to use multiple adapters/devices, or if you are using a multi-port pig-tail adapter.    -"
+    echo "- This is useful if you plan to use multiple adapters/devices, or if you are using a multi-port pig-tail adapter.   -"
+    echo '- Also useful if this is being used as a stationary solution.  So you can name the adaper "NASHDC-Rack12-SW3"       -'
+    echo "-   rather than have them show up as ttyUSB0.                                                                       -"
+    echo "-                                                                                                                   -"
+    echo "- The behavior if you do *not* define Predictable Console Ports is the adapters will use the root device names      -"
+    echo "-   ttyUSB# or ttyACM# where the # starts with 0 and increments for each adapter of that type plugged in. The names -"
+    echo "-   won't necessarily be consistent between reboots.                                                                -"
+    echo "-                                                                                                                   -"
+    echo "- Defining the ports with this utility is also how device specific serial settings are configured.  Otherwise       -"
+    echo "-   they will use the default which is 96008N1                                                                      -"
+    echo "-                                                                                                                   -"
+    echo "- As of Dec 2019 This uses a new mechanism with added support for more challengine adapters:                        -"
+    echo "-   * Multi-Port Serial Adapters, where the adpater presents a single serial # for all ports                        -"
+    echo "-   * Super Lame cheap crappy adapters that don't burn a serial# to the adapter at all:  (CODED NOT TESTED YET)     -"
+    echo "-     If you have one of these.  First Check online with the manufacturer of the chip used in the adapter to see    -"
+    echo "-     if they have a utility to flash the EEPROM, some manufacturers do which would allow you to write a serial #   -"
+    echo "-     For example if the adapter uses an FTDI chip (which I reccomend) they have a utility called FT_PROG           -"
+    echo "-     Most FTDI based adapters have serial #s, I've only seen the lack of serial # on dev boards.                   -"
+    echo "-     ---- If you're interested I reccomend adapters that use FTDI chips. ----                                      -"
+    echo "-                                                                                                                   -"
+    echo '-  !! suppport for adapters that lack serial ports is not tested at all, so I probably goofed someplace.            -'
+    echo "-     I need to find a lame adapter to test                                                                         -"
+    echo "-                                                                                                                   -"
+    echo '-  This function can be called anytime from the shell via `consolepi-addconsole` and is available from              -'
+    echo '-    `consolepi-menu` as the `rn` (rename) option.                                                                  -'
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
     echo "You need to have the serial adapters you want to map to specific telnet ports available"
     prompt="Would you like to configure predictable serial ports now"
     $upgrade && user_input false "${prompt}" || user_input true "${prompt}"
+    # if $result ; then
+    #     if [ -f ${consolepi_dir}src/consolepi-addconsole.sh ]; then
+    #         . ${consolepi_dir}src/consolepi-addconsole.sh
+    #         udev_main
+    #     else
+    #         logit "ERROR consolepi-addconsole.sh not available in src directory" "WARNING"
+    #     fi
+    # fi
     if $result ; then
-        if [ -f ${consolepi_dir}src/consolepi-addconsole.sh ]; then
-            . ${consolepi_dir}src/consolepi-addconsole.sh
-            udev_main
+        if [ -f ${consolepi_dir}src/consolepi-commands/consolepi-menu ]; then
+            sudo ${consolepi_dir}src/consolepi-commands/consolepi-menu rn
         else
-            logit "ERROR consolepi-addconsole.sh not available in src directory" "WARNING"
+            logit "ERROR consolepi-menu not found" "WARNING"
         fi
     fi
     logit "${process} Complete"
@@ -1172,8 +1203,11 @@ install2_main() {
     do_consolepi_api
     do_consolepi_mdns
     do_consolepi_commands
-    $tftpd && do_tftpd_server
+    # $tftpd && do_tftpd_server
     ! $upgrade && misc_stuff
+    get_utils
+    do_resize
+    util_main
     get_known_ssids
     get_serial_udev
     custom_post_install_script

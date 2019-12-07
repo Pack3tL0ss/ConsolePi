@@ -39,6 +39,8 @@ HOME = str(Path.home())
 POWER_FILE = '/etc/ConsolePi/power.json'
 VALID_BAUD = ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']
 REM_LAUNCH = '/etc/ConsolePi/src/remote_launcher.py'
+if not 'consolepi-commands' in os.environ["PATH"]:
+    os.environ["PATH"] += os.pathsep + '/etc/ConsolePi/src/consolepi-commands'
 
 class ConsolePi_Log:
 
@@ -189,7 +191,7 @@ class ConsolePi_data(Outlets):
 
         # plog('Detecting Locally Attached Serial Adapters')
         log.info('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
-        if stdin.isatty():
+        if stdin.isatty() and do_print:
             self.spin.start('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
 
         # -- Detect Attached Serial Adapters and linked power outlets if defined --
@@ -280,7 +282,7 @@ class ConsolePi_data(Outlets):
         if self.outlets:
             serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force get_outlets() line 200
         
-        if stdin.isatty():
+        if stdin.isatty() and do_print:
             if len(serial_list) > 0:
                 self.spin.succeed('[GET ADAPTERS] Detecting Locally Attached Serial Adapters\n\t' \
                     'Found {} Locally attached serial adapters'.format(len(serial_list))) #\GET ADAPTERS

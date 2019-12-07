@@ -1310,11 +1310,14 @@ class ConsolePiMenu():
         input('\nPress Any Key To Continue\n')
 
     def rename_menu(self, direct_launch=False):
-        # config = self.config
+        config = self.config
         choice = ''
         menu_actions = {}
         while choice not in ['b']:
+            if choice == 'r':
+                self.data['local'][self.hostname]['adapters'] = config.get_local()
             loc = self.data['local'][self.hostname]['adapters']
+
             if not self.DEBUG:
                 os.system('clear')               
 
@@ -1328,7 +1331,11 @@ class ConsolePiMenu():
             ]
             if not direct_launch:
                 foot.append(' b.  Back')
-            self.print_mlines(mlines, header='Rename Local Adapters',footer=foot, subs=slines, do_format=False)
+            else:
+                foot.append(' r.  Refresh')
+                menu_actions['r'] = None
+
+            self.print_mlines(mlines, header='Define/Rename Local Adapters',footer=foot, subs=slines, do_format=False)
             menu_actions['x'] = self.exit
 
             choice = input(" >>  ").lower()
@@ -1452,6 +1459,8 @@ class ConsolePiMenu():
             os.system('clear')
         ch = choice.lower()
         if ch == '':
+            return
+        elif menu_actions[ch] is None:
             return
             # menu_actions[calling_menu]()
         else:

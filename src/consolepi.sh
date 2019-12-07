@@ -58,4 +58,4 @@ echo -e "Use ${_green}consolepi-menu${_norm} to launch menu"
 echo -e "or ${_green}consolepi-help${_norm} for a list of other commands (extracted from README)"
 echo
 
-[[ "$PATH" =~ "consolepi-cdommands" ]] || export PATH="$PATH:/etc/ConsolePi/src/consolepi-commands"
+[[ "$PATH" =~ "consolepi-commands" ]] || export PATH="$PATH:/etc/ConsolePi/src/consolepi-commands"

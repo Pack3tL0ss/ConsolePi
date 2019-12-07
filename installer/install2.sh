@@ -862,7 +862,6 @@ get_utils() {
 do_resize () {
     # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
     process="xterm | resize"
-    echo "SRC_DIR: $src_dir"
     if [ ! -f ${src_dir}consolepi-commands/resize ]; then
         util_main xterm -I -p "xterm | resize"
         [ -f ${src_dir}consolepi-commands/resize ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false

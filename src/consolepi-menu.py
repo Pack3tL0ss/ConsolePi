@@ -1361,7 +1361,8 @@ class ConsolePiMenu():
             error = self.trigger_udev()
             return error
 
-    def trigger_udev(self):        
+    def trigger_udev(self):
+        config = self.config    
         cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
         with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
             error = bash_command(cmd)

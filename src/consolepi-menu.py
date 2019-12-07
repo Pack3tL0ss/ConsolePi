@@ -1340,11 +1340,12 @@ class ConsolePiMenu():
 
             choice = input(" >>  ").lower()
             if choice in menu_actions:
-                if not choice == 'b':
+                if not choice == 'b' :
                     self.exec_menu(choice, actions=menu_actions, calling_menu='rename_menu')
             else:
-                if choice and choice != 'b':
-                    self.error_msgs.append('Invalid Selection \'{}\''.format(choice))
+                if choice:
+                    if choice != 'b' or direct_launch:
+                        self.error_msgs.append('Invalid Selection \'{}\''.format(choice))
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:

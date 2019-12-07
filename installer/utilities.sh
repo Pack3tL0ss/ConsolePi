@@ -8,8 +8,6 @@ else
     echo "This Script depends on common.sh from ConsolePi repo"
     exit 1
 fi
-DEBUG=$debug
-process=
 
 get_util_status () {
     FORCE=false
@@ -101,7 +99,7 @@ get_apt_pkg_name() {
 
 do_util_install() {
     util=$1
-    # process=$util
+    [[ -z $PROCESS ]] && process=$util || process=$PROCESS
     echo "$FUNCNAME process $process"
     # check to see if util is already installed
     [ -z "${UTIL_VER[$util]}" ] && util_installed=false || util_installed=true
@@ -124,6 +122,7 @@ do_util_install() {
 do_util_uninstall() {
     util=$1
     # process=$util
+    [[ -z $PROCESS ]] && process=$util || process=$PROCESS
     $FORCE && go=true || (
         $(prompt="Uninstall $util"; user_input_bool) && go=true || go=false
     )
@@ -186,14 +185,14 @@ util_main() {
 }
 
 argparse() {
-    echo ${@} $FUNCNAME
     PARAMS=""
     PROCESS=""
+    FORCE=false
+    FORCE_INSTALL=false
     while (( "$#" )); do
     case "$1" in
         -p)
         PROCESS=$2
-        echo $2 should be process
         shift 2
         ;;
         -F)
@@ -218,15 +217,15 @@ argparse() {
         ;;
     esac
     done
-    echo "$PROCESS PROCESS $FUNCNAME"
+
     # set positional arguments in their proper place
     eval set -- "$PARAMS"
-    echo $PARAMS $FUNCNAME
 }
 
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"src/consolepi-addconsole.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then
+    unset process
     util_main ${@}
 else
-    $DEBUG && process="utilities script start" && logit "script called from ${0}" "DEBUG"
+    $debug && process="utilities script start" && logit "script called from ${0}" "DEBUG"
     return 0
 fi

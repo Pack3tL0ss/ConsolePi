@@ -196,5 +196,5 @@ util_main() {
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"src/consolepi-addconsole.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then
     util_main ${@}
 else
-    $DEBUG && process="utilities script start"; logit "script called from ${0}" "DEBUG"
+    $DEBUG && process="utilities script start" && logit "script called from ${0}" "DEBUG"
 fi

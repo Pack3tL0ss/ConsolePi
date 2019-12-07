@@ -2,7 +2,7 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
 # --                                                 ConsolePi Installation Script Stage 2                                                       -- #
-# --  Wade Wells - Aug 2019                                                                                                                      -- #
+# --  Wade Wells - Pack3tL0ss                                                                                                                    -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
@@ -816,13 +816,6 @@ do_blue_config() {
     grep -q stty /home/blue/.bashrc &&
         sed -i 's/^stty rows 70 cols 150//g' /home/blue/.bashrc &&
         logit "blue user tty row col configuration removed - Success"
-    # if [[ ! $(sudo grep stty /home/blue/.bashrc) ]]; then
-    #     sudo echo stty rows 70 cols 150 | sudo tee -a /home/blue/.bashrc > /dev/null && 
-    #         logit "Changed default Bluetooth tty rows cols" || 
-    #         logit "FAILED to change default Bluetooth tty rows cols" "WARNING"
-    # else
-    #     logit "blue user tty rows cols already configured"
-    # fi
 
     # Configure blue user to auto-launch consolepi-menu on login (blue user is automatically logged in when connection via bluetooth is established)
     if [[ ! $(sudo grep consolepi-menu /home/blue/.bashrc) ]]; then
@@ -869,9 +862,10 @@ get_utils() {
 do_resize () {
     # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
     process="xterm | resize"
-    if [[ ! -f ${src_dir}resize ]]; then
+    echo "SRC_DIR: $src_dir"
+    if [ ! -f ${src_dir}consolepi-commands/resize ]; then
         util_main xterm -I -p "xterm | resize"
-        [[ -f ${src_dir}resize ]] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
+        [ -f ${src_dir}consolepi-commands/resize ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
         if $good; then
             logit "Success - Copy resize binary from xterm"
             logit "xterm will now be removed as we only installed it to get resize"
@@ -996,30 +990,6 @@ do_consolepi_commands() {
 
     unset process
 }
-
-## -- MOVED TO utilities.sh --
-# do_tftpd_server() {
-#     process="tftpd-hpa"
-#     # check to see if tftpd-hpa is already installed
-#     which in.tftpd >/dev/null && tftpd_installed=true || tftpd_installed=false
-#     $tftpd_installed && tftpd_ver=$(in.tftpd -V | awk '{print $2}'|cut -d, -f1)
-#     # check to see if port is in use
-#     if ! $tftpd_installed; then
-#         sudo netstat -lnpu | grep -q ":69\s.*" && in_use=true || in_use=false
-#         if $in_use; then
-#             logit "tftpd package is not installed, but the port is in use tftpd-hpa will likely fail to start" "WARNING"
-#             logit "Investigate after the install.  Check for uncommented lines in /etc/inetd.conf or /etc/xinetd.conf"
-#         fi
-#         logit "Installing tftpd-hpa"
-#         sudo apt-get -y install tftpd-hpa >/dev/null 2>>$log_file && logit "Success - tftpd-hpa Installed" ||
-#             logit "Failed to install tftpd-hpa" "WARNING"
-#         file_diff_update ${src_dir}tftpd-hpa /etc/default/tftpd-hpa
-#         sudo systemctl restart tftpd-hpa && logit "tftpd-hpa service restarted" || logit "failed to restart tftpd-hpa service" "WARNING"
-#         sudo chown -R tftp:consolepi /srv/tftp && sudo chmod -R g+w /srv/tftp || logit "Failed to change ownership/permissions on tftp root dir /srv/tftp"
-#     else
-#         logit "tftpd-hpa verison ${tftpd_ver} already installed assuming configured as desired, config file verification not part of upgrade."
-#     fi    
-# }
 
 misc_stuff() {
     if [ ${wlan_country^^} == "US" ]; then

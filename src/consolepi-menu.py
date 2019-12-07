@@ -1302,8 +1302,16 @@ class ConsolePiMenu():
 
     def show_serial_prompt(self, adapter):
         with Halo(text='Prompt Displayed on Port: ', spinner='dots1', placement='right'):
-            p = get_serial_prompt(adapter)
-            e = self.format_line('{{red}}No text was rcvd from port{{norm}}')[1]
+            p = None
+            for i in range(2)
+            try:
+                p = get_serial_prompt(adapter)
+                e = self.format_line('{{red}}No text was rcvd from port{{norm}}')[1]
+            except SerialException as e:
+                e = self.format_line('{{red}}Exception Occured Trying To access port{{norm}}')[1]
+                e+='\n{}'.format(e)
+                self.trigger_udev()
+
         print('Prompt Displayed on Port: {}'.format(p if p else e))
         
         input('\nPress Any Key To Continue\n')
@@ -1330,9 +1338,9 @@ class ConsolePiMenu():
             ]
             if not direct_launch:
                 foot.append(' b.  Back')
-            else:
-                foot.append(' r.  Refresh')
-                menu_actions['r'] = None
+
+            foot.append(' r.  Refresh')
+            menu_actions['r'] = None
 
             self.print_mlines(mlines, header='Define/Rename Local Adapters',footer=foot, subs=slines, do_format=False)
             menu_actions['x'] = self.exit
@@ -1348,13 +1356,17 @@ class ConsolePiMenu():
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:
-            cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
-            with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
-                error = bash_command(cmd)
-            if not error:
-                self.udev_pending = False
-            else:
-                return error
+            error = self.trigger_udev()
+            return error
+
+    def trigger_udev(self):        
+        cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
+        with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
+            error = bash_command(cmd)
+        if not error:
+            self.udev_pending = False
+        else:
+            return error
 
     def main_menu(self):
         loc = self.data['local'][self.hostname]['adapters']

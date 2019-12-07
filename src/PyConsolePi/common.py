@@ -39,6 +39,8 @@ HOME = str(Path.home())
 POWER_FILE = '/etc/ConsolePi/power.json'
 VALID_BAUD = ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']
 REM_LAUNCH = '/etc/ConsolePi/src/remote_launcher.py'
+if not 'consolepi-commands' in os.environ["PATH"]:
+    os.environ["PATH"] += os.pathsep + '/etc/ConsolePi/src/consolepi-commands'
 
 class ConsolePi_Log:
 

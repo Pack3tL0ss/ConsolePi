@@ -165,7 +165,7 @@ util_main() {
         # [[ ${@} =~ '-F' ]] && FORCE=true
         # ARGS=${@/'-F'/}
         # ARGS=${ARGS/'-I'/}
-        [[ ! -z $PROCESS ]] && process=$PROCESS || process=""
+        # [[ ! -z $PROCESS ]] && process=$PROCESS || process=""
         for u in $PARAMS; do
             which $u >/dev/null && is_installed=true || is_installed=false
             if $is_installed && ! $FORCE_INSTALL; then
@@ -174,7 +174,8 @@ util_main() {
                 if ! $is_installed; then
                     do_util_install $u 
                 else
-                    [[ -z $process ]] && process=$u
+                    # [[ -z $process ]] && process=$u
+                    [[ -z $PROCESS ]] && process=$u || process=$PROCESS
                     logit "$u already installed"
                 fi
             fi

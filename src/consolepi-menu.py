@@ -262,6 +262,10 @@ class ConsolePiMenu():
                         _idx = self.data['local'][self.hostname]['adapters'].index(_d)
                         self.data['local'][self.hostname]['adapters'][_idx]['dev'] = '/dev/{}'.format(to_name)
                         break
+                
+                # if from_name in config.new_adapters:
+                #     config.new_adapters[to_name] = config.new_adapters[from_name]
+                #     del config.new_adapters[from_name]
 
                 devs = detect_adapters()
                 if from_name in devs['by_name']:
@@ -337,7 +341,7 @@ class ConsolePiMenu():
                         # TODO add line with vendor & model - need lame ass adapter with no serial to test
                         #   This would at least limit the alias to that vendor/model adapter.
 
-            else:   # renaming previously named port.  
+            else:   # renaming previously named port.
                 for _file in _files:
                     cmd = 'sudo sed -i "s/{0}{3}/{1}{3}/g" {2} && grep -q "{1}{3}" {2} && [ $(grep -c "{0}{3}" {2}) -eq 0 ]'.format(
                         from_name,
@@ -350,6 +354,7 @@ class ConsolePiMenu():
                         return [error.split('\n'), 'Failed to change {} --> {} in {}'.format(from_name, to_name, _file)]
 
             if not error:
+                # Update adapter variables with new_name
                 for _dev in config.local[config.hostname]['adapters']:
                     if _dev['dev'].replace('/dev/', '') == from_name:
                         _dev['dev'] = '/dev/' + to_name # TODO Strip the /dev/ once verified no ill effects
@@ -360,6 +365,9 @@ class ConsolePiMenu():
                             _dev['dbits'] = self.data_bits
                         break
                 self.data['local'] = config.local
+                if from_name in config.new_adapters['by_name']:
+                    config.new_adapters['by_name'][to_name] = config.new_adapters['by_name'][from_name]
+                    del config.new_adapters['by_name'][from_name]
                 self.udev_pending = True    # toggle for exit function if they exit directly from rename memu
 
         else:
@@ -1302,6 +1310,8 @@ class ConsolePiMenu():
 
     def show_serial_prompt(self, adapter):
         # TODO move this exception handler to common
+        if self.udev_pending:
+            self.trigger_udev()
         with Halo(text='Prompt Displayed on Port: ', spinner='dots1', placement='right'):
             p = None
             for i in range(2): # pylint: disable=unused-variable
@@ -1362,13 +1372,13 @@ class ConsolePiMenu():
             return error
 
     def trigger_udev(self):
-        config = self.config    
+        # config = self.config    
         cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
         with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
             error = bash_command(cmd)
         if not error:
             self.udev_pending = False
-            self.data['local'][self.hostname]['adapters'] = config.get_local(do_print=False)
+            # self.data['local'][self.hostname]['adapters'] = config.get_local(do_print=False)
         else:
             return error
 

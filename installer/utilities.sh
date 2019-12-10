@@ -165,7 +165,7 @@ util_exec() {
 
                 if [[ $1 == "aruba_ansible_modules" ]] || [[ $1 == "aruba_ansible_sw_mod" ]] ; then
                     if [[ ! -d "${home_dir}aruba-ansible-modules" ]]; then
-                        cmd_list+=('-stop' "-u" "git clone https://github.com/aruba/aruba-ansible-modules.git ${home_dir}aruba-ansible-modules")
+                        cmd_list+=('-stop' '-pf' "Clone aruba-ansible-modules from Git Repo" "-u" "git clone https://github.com/aruba/aruba-ansible-modules.git ${home_dir}aruba-ansible-modules")
                     else
                         cmd_list+=('-logit' 'Aruba Ansible Modules repo appears to exist already, Updating (git pull)'
                                 '-s' "pushd ${home_dir}aruba-ansible-modules" \

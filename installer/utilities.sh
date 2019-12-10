@@ -36,10 +36,14 @@ get_util_status () {
     ( $cx_mod_installed || $sw_mod_installed ) && a_mod_status='partially installed' || unset a_mod_status
     ( $cx_mod_installed && $sw_mod_installed ) && a_mod_status='installed'
     UTIL_VER['aruba_ansible_modules']=$( echo $a_mod_status )
-    # warn if aruba-ansible-modules is not completely installed
+    # warn if aruba-ansible-modules is not completely installed and add option to menu to install
     if [[ $a_mod_status == 'partially installed' ]]; then
-        ! $cx_mod_installed && logit "aruba-ansible-modules is partially installed, the aoscx_role available on ansible-galaxy is missing" "WARNING"
-        ! $sw_mod_installed && logit "aruba-ansible-modules is partially installed, the aos-sw modules which can be deployed by aruba-ansible-module-installer.py are missing" "WARNING"
+        process="build utilities menu"
+        ! $cx_mod_installed && UTIL_VER['aruba_ansible_cx_mod']= &&
+            logit "aruba-ansible-modules is partially installed, the aoscx_role available on ansible-galaxy is missing" "WARNING"
+        ! $sw_mod_installed && UTIL_VER['aruba_ansible_sw_mod']= &&
+            logit "aruba-ansible-modules is partially installed, the aos-sw modules deployed via aruba-ansible-module-installer.py is missing" "WARNING"
+        unset process
     fi
     # UTIL_VER['speed_test']=$(echo placeholder speed_test not automated yet)
     # UTIL_VER['tshark']=$(echo placeholder tshark not automated yet)
@@ -50,28 +54,24 @@ get_util_status () {
 
 
     i=0; for u in ${util_list_i[@]}; do
+        pretty=${u//_/ }
+        [[ "$u" =~ "sw_mod" ]] && pretty="Install Missing aos-switch Ansible Module"
+        [[ "$u" =~ "cx_mod" ]] && pretty="Install Missing aos-cx Ansible Module"
         ASK_OPTIONS[$i]=$u; ((i+=1)) # hidden tag
         if [ -z "${UTIL_VER[$u]}" ]; then
-            ASK_OPTIONS[$i]=${u//_/ }; ((i+=1)) # displayed name same as tag
+            ASK_OPTIONS[$i]=$pretty; ((i+=1)) # item text formatted version of tag
             ASK_OPTIONS[$i]=NO; ((i+=1)) # item not checked (not installed)
         else
             if [[ ${UTIL_VER[$u]} = [0-9]* ]]; then
-                ASK_OPTIONS[$i]="$u (v${UTIL_VER[$u]} currently installed)"; ((i+=1)) # addl display text formatted version
+                ASK_OPTIONS[$i]="$pretty (v${UTIL_VER[$u]} currently installed)"; ((i+=1)) # item text tag + version
             else
-                ASK_OPTIONS[$i]="$u (${UTIL_VER[$u]})"; ((i+=1)) # addl display text simply "installed" or "partially installed" where version doesn't really apply
+                ASK_OPTIONS[$i]="$pretty (${UTIL_VER[$u]})"; ((i+=1)) # item text tag + version formatted when v# doesn't apply
             fi
             ASK_OPTIONS[$i]=YES; ((i+=1)) # item is checked (installed)
             INSTALLED+=($u) # add item to installed array for change comparison after selection
-            # if aruba_ansible_modules partially installed provide option to install missing component
-            if [[ "$u" == 'aruba_ansible_modules' ]] && [[ "${UTIL_VER[$u]}" == "partially installed" ]]; then
-                ! $cx_mod_installed && missing_mod='cx_mod'
-                ! $sw_mod_installed && missing_mod='sw_mod'
-                ASK_OPTIONS[$i]=$missing_mod; ((i+=1))
-                ASK_OPTIONS[$i]="Install Missing aos-${missing_mod:0:2} module"
-                ASK_OPTIONS[$i]=NO; ((i+=1)) # item not checked (not installed)
-            fi
         fi
     done
+    # echo -e "---\nDEBUG\n${ASK_OPTIONS[@]}\n---" # -- DEBUG LINE --
 }
 
 do_ask() {
@@ -156,14 +156,14 @@ util_exec() {
                     )
             fi
             ;;
-        aruba_ansible_modules|cx_mod|sw_mod)
+        aruba_ansible_modules|aruba_ansible_cx_mod|aruba_ansible_sw_mod)
             if [[ $2 == "install" ]]; then
                 declare -a cmd_list
-                if [[ $1 == "aruba_ansible_modules" ]] || [[ $1 == "cx_mod" ]] ; then
+                if [[ $1 == "aruba_ansible_modules" ]] || [[ $1 == "aruba_ansible_cx_mod" ]] ; then
                     cmd_list=('-stop' '-u' '-pf' 'Install aoscx_role from ansible-galaxy' "ansible-galaxy install arubanetworks.aoscx_role")
                 fi
 
-                if [[ $1 == "aruba_ansible_modules" ]] || [[ $1 == "sw_mod" ]] ; then
+                if [[ $1 == "aruba_ansible_modules" ]] || [[ $1 == "aruba_ansible_sw_mod" ]] ; then
                     if [[ ! -d "${home_dir}aruba-ansible-modules" ]]; then
                         cmd_list+=('-stop' "-u" "git clone https://github.com/aruba/aruba-ansible-modules.git ${home_dir}aruba-ansible-modules")
                     else
@@ -198,7 +198,7 @@ util_exec() {
     else
         ch=true
     fi
-    $ch && process_cmds "${cmd_list[@]}" && logit "Success - $2 $process Completed No Issues."
+    $ch && process_cmds "${cmd_list[@]}" && logit "Done - $2 $process Completed without Issue."
 }
 
 # translate menu tag to pkg name when a prettier name is used in the menu

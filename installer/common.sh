@@ -209,15 +209,15 @@ systemd_diff_update() {
         override=false
         src_file="${src_dir}systemd/${1}.service"
         if [[ -f "$src_file" ]] && [[ -f "$dst_file" ]]; then
-            mdns_diff=$(diff -s ${src_file} ${dst_file}) 
+            file_diff=$(diff -s ${src_file} ${dst_file}) 
         else
-            mdns_diff="doit"
+            file_diff="doit"
         fi
     fi
 
     # -- if systemd file doesn't exist or doesn't match copy and enable from the source directory
     if ! $override; then
-        if [[ ! "$mdns_diff" = *"identical"* ]]; then
+        if [[ ! "$file_diff" = *"identical"* ]]; then
             if [[ -f "/etc/ConsolePi/src/systemd/${1}.service" ]]; then
                 if [ -f /etc/systemd/system/${1}.service ]; then
                     sudo cp /etc/systemd/system/${1}.service "$bak_dir${1}.service.$(date +%F_%H%M)" 1>/dev/null 2>> $log_file &&

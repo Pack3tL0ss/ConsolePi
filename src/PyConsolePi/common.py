@@ -807,6 +807,7 @@ def get_serial_prompt(dev, commands=None, **kwargs):
 
     # send the commands:
     ser.write(b'\r')
+    ser.write(b'\r')
     if commands:
         for cmd in commands:
             ser.write(bytes(cmd, 'UTF-8'))

@@ -91,7 +91,6 @@ class ConsolePi_data(Outlets):
         self.cloud = None
         self.cloud_svc = None
         self.power = None
-        self.tftpd = None
         self.debug = None
 
         # build attributes from ConsolePi.conf values

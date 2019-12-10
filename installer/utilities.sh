@@ -291,13 +291,14 @@ util_main() {
         argparse "${@}"
         for u in $PARAMS; do
             which $u >/dev/null && is_installed=true || is_installed=false
+            [[ -z $PROCESS ]] && process=$u || process=$PROCESS
             if $is_installed && ! $FORCE_INSTALL; then
                 util_exec $u "remove"
             else
                 if ! $is_installed; then
                     util_exec $u "install"
                 else
-                    [[ -z $PROCESS ]] && process=$u || process=$PROCESS
+                    # [[ -z $PROCESS ]] && process=$u || process=$PROCESS
                     logit "$u already installed"
                 fi
             fi

@@ -863,16 +863,23 @@ do_resize () {
     # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
     process="xterm | resize"
     if [ ! -f ${src_dir}consolepi-commands/resize ]; then
-        util_main xterm -I -p "xterm | resize"
-        [ -f $(which resize) ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
-        if $good; then
-            logit "Success - Copy resize binary from xterm"
-            logit "xterm will now be removed as we only installed it to get resize"
-            util_main xterm -F -p "xterm | resize"
-            apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Success removing xterm left-over deps" || logit "apt-get autoremove after xterm FAILED" "WARNING"
-        else
-            logit "Unable to find resize binary after xterm install" "WARNING"
-        fi
+        # util_main xterm -I -p "xterm | resize"
+        cmd_list=("-apt-install" "xterm" "--pretty=xterm | resize" \
+                  "-stop" "-s" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
+                    "[ -f $(which resize) ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize" \
+                  "-l" "xterm will now be removed as we only installed it to get resize" \
+                  "-apt-purge" "xterm"
+                )
+        process_cmds "${cmd_list[@]}"
+        # [ -f $(which resize) ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
+        # if $good; then
+        #     logit "Success - Copy resize binary from xterm"
+        #     logit "xterm will now be removed as we only installed it to get resize"
+        #     util_main xterm -F -p "xterm | resize"
+        #     # apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Success removing xterm left-over deps" || logit "apt-get autoremove after xterm FAILED" "WARNING"
+        # else
+        #     logit "Unable to find resize binary after xterm install" "WARNING"
+        # fi
     else
         logit "resize utility already present"
     fi

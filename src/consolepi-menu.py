@@ -456,7 +456,6 @@ class ConsolePiMenu():
         return data
 
     # Update with Data from ConsolePi.csv on Gdrive and local cache populated by mdns.  Update Gdrive with our data
-    # TODO rem_update deprecated and can be removed
     def refresh(self, rem_update=False):
         # pylint: disable=maybe-no-member
         remote_consoles = None
@@ -464,14 +463,13 @@ class ConsolePiMenu():
         config.rows, config.cols = config.get_tty_size()
         log = config.log
         plog = config.plog
-        # Update Local Adapters
+        # -- // Update Local Adapters \\ --
         if not rem_update:
-            # plog('[MENU REFRESH] Detecting Locally Attached Serial Adapters')
             config.local = {self.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
             self.data['local'] = config.local
             log.debug('Final Data set collected for {}: {}'.format(self.hostname, self.data['local']))
 
-        # Get details from Google Drive - once populated will skip
+        # -- // Get details from Google Drive - once populated will skip \\ --
         if self.do_cloud and not self.local_only:
             if config.cloud_svc == 'gdrive' and self.cloud is None:
                 # burried import until I find out why this import takes so @#%$@#% long.  Not imported until 1st refresh is called

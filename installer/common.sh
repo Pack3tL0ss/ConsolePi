@@ -180,6 +180,7 @@ user_input() {
 }
 
 # user input function that accepts y|yes|n|no (not case sensitive) and loops until a valid response is entered. No default
+# TODO add -e flag for exit option
 user_input_bool() {
     valid_response=false
     while ! $valid_response; do
@@ -427,7 +428,7 @@ process_cmds() {
                 err="/dev/null"
                 shift
                 ;;
-            -logit) # Used to simply log a message
+            -logit|-l) # Used to simply log a message
                 case "$3" in
                     WARNING|ERROR)
                         logit "$2" "$3"

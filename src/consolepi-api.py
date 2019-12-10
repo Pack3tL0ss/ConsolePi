@@ -23,7 +23,11 @@ log = config.log
 user = config.USER # pylint: disable=maybe-no-member
 last_update = int(time())
 
-app = FastAPI(title='ConsolePi.API')
+app = FastAPI(title='ConsolePi.API',
+              docs_url='/api/docs',
+              redoc_url="/api/redoc",
+              openapi_url='/api/openapi/openapi.json'
+              )
 
 def log_request(request: Request, route: str):
     log.info('[NEW API RQST IN] {} Requesting -- {} -- Data via API'.format(request.client.host, route))

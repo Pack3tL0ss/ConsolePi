@@ -5,7 +5,8 @@ import threading
 import time
 from collections import OrderedDict as od
 from os import path
-from sys import stdin
+# from sys import stdin
+import sys
 
 import requests
 import RPi.GPIO as GPIO
@@ -116,18 +117,18 @@ class Outlets:
         '''
         if address not in self._dli or not self._dli[address]:
             # -- // Load the DLI \\--
-            if stdin.isatty():
+            if sys.stdin.isatty():
                 self.spin.start('[DLI] Getting Outlets {}'.format(address))
                 # print('[DLI] Getting Outlets {}'.format(address))
             self._dli[address] = DLI(address, username, password)
 
             # --// Return Pass or fail based on reachability \\--
             if not self._dli[address].reachable:
-                if stdin.isatty():
+                if sys.stdin.isatty():
                     self.spin.fail()
                 return None, None
             else:
-                if stdin.isatty():
+                if sys.stdin.isatty():
                     self.spin.succeed()
                 return self._dli[address], False
 
@@ -255,7 +256,7 @@ class Outlets:
             }
         return self.outlet_data
 
-    def pwr_toggle(self, pwr_type, address, desired_state=None, port=None, noff=True, noconfirm=False):   # TODO refactor to pwr_toggle 
+    def pwr_toggle(self, pwr_type, address, desired_state=None, port=None, noff=True, noconfirm=False):
         '''Toggle Power On the specified port
 
         args:
@@ -463,6 +464,14 @@ class Outlets:
 if __name__ == '__main__':
     pwr = Outlets('/etc/ConsolePi/power.json')
     outlets = pwr.get_outlets()
-    print(json.dumps(outlets, indent=4, sort_keys=True))
-    # upd = pwr.get_outlets(upd_linked=True)
-    # print(json.dumps(upd, indent=4, sort_keys=True))
+    if len(sys.argv) <= 1:
+        if len(sys.argv) == 1:        
+            print(json.dumps(getattr(pwr, sys.argv[1]), indent=4, sort_keys=True))
+        else:
+            print(json.dumps(outlets, indent=4, sort_keys=True))
+    else:
+        func = getattr(pwr, sys.argv[1])
+        print(sys.argv[2:])
+        func(*sys.argv[2:])
+        # upd = pwr.get_outlets(upd_linked=True)
+        # print(json.dumps(upd, indent=4, sort_keys=True))

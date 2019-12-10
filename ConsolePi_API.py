@@ -10,7 +10,7 @@ config = ConsolePi_data(do_print=False)
 # outlets = config.outlets
 log = config.log
 user = config.USER # pylint: disable=maybe-no-member
-last_update = int(time())     
+last_update = int(time())
 
 def log_request(route):
     log.info('[API RQST IN] {} Requesting -- {} -- Data via API'.format(request.remote_addr, route))
@@ -18,13 +18,15 @@ def log_request(route):
 @app.route('/api/v1.0/adapters', methods=['GET'])
 def get_adapters():
     log_request('adapters')
+    global last_update
     # if data has been refreshed in the last 20 seconds trust it is valid
     # prevents multiple simul calls to get_local after mdns_refresh and
     # subsequent API calls from all other ConsolePi on the network
     if int(time()) - last_update > 20:
+        last_update = int(time())
         return jsonify({'adapters': config.get_local(do_print=False)})
     else:
-        return jsonify({'adapters': config.get_local(do_print=False)})
+        return jsonify({'adapters': config.adapters})
 
 @app.route('/api/v1.0/remotes', methods=['GET'])
 def get_cache():

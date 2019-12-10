@@ -12,6 +12,7 @@ import requests
 import RPi.GPIO as GPIO
 from consolepi.dlirest import DLI
 from halo import Halo
+from logging import getLogger
 
 try:
     import better_exceptions
@@ -24,7 +25,7 @@ CYCLE_TIME = 3
 
 class Outlets:
 
-    def __init__(self, power_file='/etc/ConsolePi/power.json', log=None):
+    def __init__(self, power_file='/etc/ConsolePi/power.json', log=getLogger('ConsolePi-PWR')):
         # pylint: disable=maybe-no-member
         self.power_file = power_file
         self.spin = Halo(spinner='dots')
@@ -32,6 +33,7 @@ class Outlets:
         GPIO.setwarnings(False)
         self._dli = {}
         self.outlet_data = {}
+        self.log = log
 
 
 
@@ -120,7 +122,7 @@ class Outlets:
             if sys.stdin.isatty():
                 self.spin.start('[DLI] Getting Outlets {}'.format(address))
                 # print('[DLI] Getting Outlets {}'.format(address))
-            self._dli[address] = DLI(address, username, password)
+            self._dli[address] = DLI(address, username, password, log=self.log)
 
             # --// Return Pass or fail based on reachability \\--
             if not self._dli[address].reachable:

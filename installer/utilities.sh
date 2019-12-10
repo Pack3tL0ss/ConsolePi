@@ -63,7 +63,7 @@ get_util_status () {
             ASK_OPTIONS[$i]=YES; ((i+=1)) # item is checked (installed)
             INSTALLED+=($u) # add item to installed array for change comparison after selection
             # if aruba_ansible_modules partially installed provide option to install missing component
-            if [[ "$u" == 'aruba_ansible_modules']] && [[ "${UTIL_VER[$u]}" == "partially installed" ]]; then
+            if [[ "$u" == 'aruba_ansible_modules' ]] && [[ "${UTIL_VER[$u]}" == "partially installed" ]]; then
                 ! $cx_mod_installed && missing_mod='cx_mod'
                 ! $sw_mod_installed && missing_mod='sw_mod'
                 ASK_OPTIONS[$i]=$missing_mod; ((i+=1))

@@ -1394,9 +1394,9 @@ class ConsolePiMenu():
                 self.error_msgs.append('No Adapters Found, Outlets Found... Launching to Power Menu')
                 self.error_msgs.append('use option "b" to access main menu options')
                 if self.dli_exists and not self.linked_exists:
-                    self.exec_menu('dli_menu')
+                    self.exec_menu('d')
                 else:
-                    self.exec_menu('power_menu')
+                    self.exec_menu('p')
                 
         # Build menu items for each locally connected serial adapter
         outer_body = []

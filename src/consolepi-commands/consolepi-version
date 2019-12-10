@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+[[ -f /etc/ConsolePi/installer/common.sh ]] && . /etc/ConsolePi/installer/common.sh
+echo -e "${_cyan}   ______                       __    ${_lred} ____  _ "
+echo -e "${_cyan}  / ____/___  ____  _________  / /__  ${_lred}/ __ \(_)"
+echo -e "${_cyan} / /   / __ \/ __ \/ ___/ __ \/ / _ \\\\${_lred}/ /_/ / / "
+echo -e "${_cyan}/ /___/ /_/ / / / (__  ) /_/ / /  __${_lred}/ ____/ /  "
+echo -e "${_cyan}\____/\____/_/ /_/____/\____/_/\___${_lred}/_/   /_/   "
+echo -e "${_blue}  https://github.com/Pack3tL0ss/ConsolePi${_norm}"
+echo -e ""
+echo "Your current commit is dated$(pushd $consolepi_dir >/dev/null && git log -1 | grep Date: | cut -d' ' -f2- && popd >/dev/null)"
+echo "ConsolePi Installer version: $INSTALLER_VER (I don't always remember to bump this though)"
+echo
+echo "use consolepi-help for a list of commands (consolepi-menu being the main one)"
+echo "refer to the GitHub for additional detail"
+echo -e "\n"

@@ -399,3 +399,143 @@ do_systemd_enable_load_start() {
     sudo systemctl stop $1 >/dev/null 2>&1
     sudo systemctl start $1 1>/dev/null 2>> $log_file || logit "$1 failed to start, may be normal depending on service/hardware" "WARNING"
 }
+
+process_cmds() {
+    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname')
+    ret=0
+    # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
+    while (( "$#" )); do
+        # echo -e "DEBUG:\n\tcmd=${cmd}\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
+        case "$1" in
+            -stop) # will stop function from exec remaining commands on failure (witout exit 1)
+                stop=true
+                shift
+                ;;
+            -e) # will result in exit 1 if cmd fails
+                fail_lvl="ERROR"
+                shift
+                ;;
+            -s) # only show msg if cmd passes
+                silent=true
+                shift
+                ;;
+            -u) # Run Command as logged in User
+                cmd_pfx="sudo -u $iam"
+                shift
+                ;;
+            -nolog) # Don't log stderr anywhere default is to log_file
+                err="/dev/null"
+                shift
+                ;;
+            -logit) # Used to simply log a message
+                case "$3" in
+                    WARNING|ERROR)
+                        logit "$2" "$3"
+                        shift 3
+                        ;;
+                    *)
+                        logit "$2"
+                        shift 2
+                        ;;
+                esac
+                ;;
+            -nostart) # elliminates the process start msg
+                showstart=false
+                shift
+                ;;
+            -apt-install) # install pkg via apt
+                case "$3" in
+                    --pretty=*)
+                        pname=${3/*=}
+                        _shift=3
+                        ;;
+                    *)
+                        pname=$2
+                        _shift=2
+                        ;;
+                esac
+                pmsg="Success - Install $pname (apt)"
+                fmsg="Error - Install $pname (apt)"
+                stop=true
+                cmd="sudo apt-get -y install $2"
+                shift $_shift
+                ;;
+            -apt-purge) # purge pkg followed by autoremove
+                case "$3" in
+                    --pretty=*)
+                        pname=${3/*=}
+                        _shift=3
+                        ;;
+                    *)
+                        pname=$2
+                        _shift=2
+                        ;;
+                esac
+                pmsg="Success - Remove $pname (apt)"
+                fmsg="Error - Remove $pname (apt)"
+                cmd="sudo apt-get -y purge $2"
+                shift $_shift
+                ;;
+            -o) # redirect stdout default is /dev/null
+                out="$2"
+                shift 2
+                ;;
+            -pf|-fp) # msg template for both success and failure in 1
+                pmsg="Success - $2"
+                fmsg="Error - $2"
+                shift 2
+                ;;
+            -p) # msg displayed if command successful
+                pmsg="Success - $2"
+                shift 2
+                ;;
+            -f) # msg displayed if command fails
+                fmsg="Error - $2"
+                shift 2
+                ;;
+            -*|--*=) # unsupported flags
+                echo "Error: Unsupported flag passed to process_cmds $1" >&2
+                exit 1
+                ;;
+            *) # The command to execute, all flags should precede the commands otherwise defaults for those items
+                cmd="$1"
+                shift
+                ;;
+        esac
+        # if cmd is set process cmd
+        # use defaults if flag not set
+        if [[ ! -z $cmd ]]; then
+            [[ -z $pmsg ]] && pmsg="Success - $cmd"
+            [[ -z $fmsg ]] && fmsg="Error - $cmd  See details in $log_file"
+            [[ -z $fail_lvl ]] && fail_lvl="WARNING"
+            [[ -z $silent ]] && silent=false
+            [[ -z $stop ]] && stop=false
+            [[ -z $err ]] && err=$log_file
+            [[ ! -z $cmd_pfx ]] && cmd="$cmd_pfx $cmd"
+            [[ -z $out ]] && out='/dev/null'
+            [[ -z $showstart ]] && showstart=true
+            # echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop"
+            # -- // PROCESS THE CMD \\ --
+            ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
+            if eval "$cmd" >>"$out" 2>>"$err"; then
+                ! $silent && logit "$pmsg"
+                # if cmd was an apt-get purge - automatically issue autoremove to clean unnecessary deps
+                if [[ "$cmd" =~ "purge" ]]; then
+                    logit "Tidying Up packages that are no longer in use (apt autoremove)"
+                    sudo apt-get -y autoremove >/dev/null 2>>$log_file &&
+                        logit "Success - All Tidy Now" || 
+                        logit "Error - apt autoremove returned error-code" "WARNING"
+                fi
+            else
+                logit "$fmsg" "$fail_lvl" && ((ret+=1))
+                $stop && logit "aborting remaining tasks due to previous failure"
+            fi
+            # unset all flags
+            for c in "${reset_vars[@]}"; do
+                unset ${c} 
+            done
+        fi
+
+    done
+    return $ret
+}

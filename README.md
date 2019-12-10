@@ -51,7 +51,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
 
-## DEC 2019 *Major Update*
+### DEC 2019 *Major Update*
 - refactored the menu formatter.  When multiple ConsolePis are clustered it will populate the colums in a more intuitive way
     > This is still evolving, but an improvement.  
 - Completely Replaced consolepi-addconsole function with more capable option which is also available in the menu

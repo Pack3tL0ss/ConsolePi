@@ -36,25 +36,40 @@ get_util_status () {
     ( $cx_mod_installed || $sw_mod_installed ) && a_mod_status='partially installed' || unset a_mod_status
     ( $cx_mod_installed && $sw_mod_installed ) && a_mod_status='installed'
     UTIL_VER['aruba_ansible_modules']=$( echo $a_mod_status )
+    # warn if aruba-ansible-modules is not completely installed
+    if [[ $a_mod_status == 'partially installed' ]]; then
+        ! $cx_mod_installed && logit "aruba-ansible-modules is partially installed, the aoscx_role available on ansible-galaxy is missing" "WARNING"
+        ! $sw_mod_installed && logit "aruba-ansible-modules is partially installed, the aos-sw modules which can be deployed by aruba-ansible-module-installer.py are missing" "WARNING"
+    fi
     # UTIL_VER['speed_test']=$(echo placeholder speed_test not automated yet)
     # UTIL_VER['tshark']=$(echo placeholder tshark not automated yet)
     util_list_i=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort))
     util_list_f=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort -rn))
     sudo rm /tmp/ansible_ver 2>/dev/null
 
+
+
     i=0; for u in ${util_list_i[@]}; do
-        ASK_OPTIONS[$i]=$u; ((i+=1))
+        ASK_OPTIONS[$i]=$u; ((i+=1)) # hidden tag
         if [ -z "${UTIL_VER[$u]}" ]; then
-            ASK_OPTIONS[$i]=${u//_/ }; ((i+=1))
-            ASK_OPTIONS[$i]=NO; ((i+=1))
+            ASK_OPTIONS[$i]=${u//_/ }; ((i+=1)) # displayed name same as tag
+            ASK_OPTIONS[$i]=NO; ((i+=1)) # item not checked (not installed)
         else
             if [[ ${UTIL_VER[$u]} = [0-9]* ]]; then
-                ASK_OPTIONS[$i]="$u (v${UTIL_VER[$u]} currently installed)"; ((i+=1))
+                ASK_OPTIONS[$i]="$u (v${UTIL_VER[$u]} currently installed)"; ((i+=1)) # addl display text formatted version
             else
-                ASK_OPTIONS[$i]="$u (${UTIL_VER[$u]})"; ((i+=1))
+                ASK_OPTIONS[$i]="$u (${UTIL_VER[$u]})"; ((i+=1)) # addl display text simply "installed" or "partially installed" where version doesn't really apply
             fi
-            ASK_OPTIONS[$i]=YES; ((i+=1))
-            INSTALLED+=($u)
+            ASK_OPTIONS[$i]=YES; ((i+=1)) # item is checked (installed)
+            INSTALLED+=($u) # add item to installed array for change comparison after selection
+            # if aruba_ansible_modules partially installed provide option to install missing component
+            if [[ "$u" == 'aruba_ansible_modules']] && [[ "${UTIL_VER[$u]}" == "partially installed" ]]; then
+                ! $cx_mod_installed && missing_mod='cx_mod'
+                ! $sw_mod_installed && missing_mod='sw_mod'
+                ASK_OPTIONS[$i]=$missing_mod; ((i+=1))
+                ASK_OPTIONS[$i]="Install Missing aos-${missing_mod:0:2} module"
+                ASK_OPTIONS[$i]=NO; ((i+=1)) # item not checked (not installed)
+            fi
         fi
     done
 }
@@ -62,13 +77,13 @@ get_util_status () {
 do_ask() {
     list_len=${#UTIL_VER[@]}
     if [ ! -z "$ASK_OPTIONS" ]; then
+        # height width list-height
         utils=$(whiptail --notags --nocancel --separate-output --title "Optional Packages/Tools" --backtitle "$backtitle"  \
-        --checklist "\nUse SpaceBar to toggle\nSelect item to Install, Un-Select to Remove" $((list_len+10)) 50 $list_len \
+        --checklist "\nUse SpaceBar to toggle\nSelect item to Install, Un-Select to Remove" $((list_len+10)) 55 $list_len \
         "${ASK_OPTIONS[@]}" 3>&1 1>&2 2>&3)
         # return to util_main if user pressed esc
         ret=$? && [[ $ret != 0 ]] && return $ret
         utils=($utils)
-        # if [ -z ${utils+x} ]; then echo "utils is unset"; else echo "utils is set to '${utils[@]}'"; fi
         # add ansible if aruba-ansible-modules was selected without selecting ansible
         if [[ " ${utils[@]} " =~ ' aruba_ansible_modules ' ]] && [[ ! " ${utils[@]} " =~ " ansible " ]] && [[ -z "${UTIL_VER['ansible']}" ]]; then
                 process="aruba-ansible-modules"
@@ -141,18 +156,25 @@ util_exec() {
                     )
             fi
             ;;
-        aruba_ansible_modules)
+        aruba_ansible_modules|cx_mod|sw_mod)
             if [[ $2 == "install" ]]; then
-                cmd_list=('-stop' '-u' '-pf' 'Install aoscx_role from ansible-galaxy' "ansible-galaxy install arubanetworks.aoscx_role")
-                if [[ ! -d "${home_dir}aruba-ansible-modules" ]]; then
-                    cmd_list+=('-stop' "-u" "git clone https://github.com/aruba/aruba-ansible-modules.git ${home_dir}aruba-ansible-modules")
-                else
-                    cmd_list+=('-logit' 'Aruba Ansible Modules repo appears to exist already, Updating (git pull)'
-                               '-s' "pushd ${home_dir}aruba-ansible-modules" \
-                               '-stop' '-u' '-pf' 'Update aruba-ansible-modules (Git)' 'git pull' \
-                               '-s' 'popd')
+                declare -a cmd_list
+                if [[ $1 == "aruba_ansible_modules" ]] || [[ $1 == "cx_mod" ]] ; then
+                    cmd_list=('-stop' '-u' '-pf' 'Install aoscx_role from ansible-galaxy' "ansible-galaxy install arubanetworks.aoscx_role")
                 fi
-                cmd_list+=("-pf" "execute aruba_module_installer.py" "sudo python ${home_dir}aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py")
+
+                if [[ $1 == "aruba_ansible_modules" ]] || [[ $1 == "sw_mod" ]] ; then
+                    if [[ ! -d "${home_dir}aruba-ansible-modules" ]]; then
+                        cmd_list+=('-stop' "-u" "git clone https://github.com/aruba/aruba-ansible-modules.git ${home_dir}aruba-ansible-modules")
+                    else
+                        cmd_list+=('-logit' 'Aruba Ansible Modules repo appears to exist already, Updating (git pull)'
+                                '-s' "pushd ${home_dir}aruba-ansible-modules" \
+                                '-stop' '-u' '-pf' 'Update aruba-ansible-modules (Git)' 'git pull' \
+                                '-s' 'popd')
+                    fi
+                    cmd_list+=("-pf" "execute aruba_module_installer.py" "sudo python ${home_dir}aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py")
+                fi
+
             elif [[ $2 == "remove" ]]; then
                 cmd_list=('-stop' '-u' '-pf' 'remove aoscx_role from ansible roles path' "ansible-galaxy remove arubanetworks.aoscx_role")
                 if [[ -f ${home_dir}aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py ]]; then

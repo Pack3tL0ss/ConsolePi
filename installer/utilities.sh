@@ -15,7 +15,7 @@ fi
 get_util_status () {
     UTIL_VER['tftpd']=$(in.tftpd -V 2>/dev/null | awk '{print $2}'|cut -d, -f1)
     UTIL_VER['lldpd']=$(lldpd -v 2>/dev/null)
-    ansible --version > /tmp/ansible_ver
+    ansible --version > /tmp/ansible_ver 2>/dev/null
     UTIL_VER['ansible']=$(head -1 /tmp/ansible_ver | awk '{print $2}')
     a_role="${home_dir}.ansible/roles/arubanetworks.aoscx_role"
     aoss_dir=$(grep "ansible python module location" /tmp/ansible_ver | cut -d'=' -f 2 | cut -d' ' -f 2)/modules/network/arubaoss

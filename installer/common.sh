@@ -416,7 +416,7 @@ process_cmds() {
                 fail_lvl="ERROR"
                 shift
                 ;;
-            -s) # only show msg if cmd passes
+            -s) # only show msg if cmd fails
                 silent=true
                 shift
                 ;;

@@ -529,7 +529,7 @@ process_cmds() {
                 fi
             else
                 logit "$fmsg" "$fail_lvl" && ((ret+=1))
-                $stop && logit "aborting remaining tasks due to previous failure"
+                $stop && logit "aborting remaining tasks due to previous failure" && break
             fi
             # unset all flags
             for c in "${reset_vars[@]}"; do

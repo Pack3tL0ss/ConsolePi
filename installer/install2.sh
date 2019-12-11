@@ -865,9 +865,9 @@ do_resize () {
     if [ ! -f ${src_dir}consolepi-commands/resize ]; then
         # util_main xterm -I -p "xterm | resize"
         cmd_list=("-apt-install" "xterm" "--pretty=xterm ~ resize" \
-                  '-s' 'sleep 5' \
-                  "-stop" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
-                    "[ -f $(which resize) ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize" \
+                  '-s' "export rsz_loc=\$(which resize)" \
+                  "-stop" "-nostart" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
+                    "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
                   "-l" "xterm will now be removed as we only installed it to get resize" \
                   "-apt-purge" "xterm"
                 )

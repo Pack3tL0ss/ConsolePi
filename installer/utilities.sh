@@ -15,7 +15,7 @@ fi
 get_util_status () {
     UTIL_VER['tftpd']=$(in.tftpd -V 2>/dev/null | awk '{print $2}'|cut -d, -f1)
     UTIL_VER['lldpd']=$(lldpd -v 2>/dev/null)
-    ansible --version > /tmp/ansible_ver
+    ansible --version > /tmp/ansible_ver 2>/dev/null
     UTIL_VER['ansible']=$(head -1 /tmp/ansible_ver | awk '{print $2}')
     a_role="${home_dir}.ansible/roles/arubanetworks.aoscx_role"
     aoss_dir=$(grep "ansible python module location" /tmp/ansible_ver | cut -d'=' -f 2 | cut -d' ' -f 2)/modules/network/arubaoss
@@ -291,13 +291,14 @@ util_main() {
         argparse "${@}"
         for u in $PARAMS; do
             which $u >/dev/null && is_installed=true || is_installed=false
+            [[ -z $PROCESS ]] && process=$u || process=$PROCESS
             if $is_installed && ! $FORCE_INSTALL; then
                 util_exec $u "remove"
             else
                 if ! $is_installed; then
                     util_exec $u "install"
                 else
-                    [[ -z $PROCESS ]] && process=$u || process=$PROCESS
+                    # [[ -z $PROCESS ]] && process=$u || process=$PROCESS
                     logit "$u already installed"
                 fi
             fi

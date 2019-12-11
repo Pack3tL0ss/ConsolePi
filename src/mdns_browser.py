@@ -104,6 +104,7 @@ if __name__ == '__main__':
         print("\nBrowsing services, press Ctrl-C to exit...\n")
     else:
         mdns = MDNS_Browser()
+        
     try:
         while True:
             time.sleep(0.1)

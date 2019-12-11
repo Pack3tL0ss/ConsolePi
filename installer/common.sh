@@ -4,7 +4,7 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-INSTALLER_VER=37
+INSTALLER_VER=38
 CFG_FILE_VER=7
 cur_dir=$(pwd)
 iam=$(who -m |  awk '{print $1}')
@@ -180,6 +180,7 @@ user_input() {
 }
 
 # user input function that accepts y|yes|n|no (not case sensitive) and loops until a valid response is entered. No default
+# TODO add -e flag for exit option
 user_input_bool() {
     valid_response=false
     while ! $valid_response; do
@@ -208,15 +209,15 @@ systemd_diff_update() {
         override=false
         src_file="${src_dir}systemd/${1}.service"
         if [[ -f "$src_file" ]] && [[ -f "$dst_file" ]]; then
-            mdns_diff=$(diff -s ${src_file} ${dst_file}) 
+            file_diff=$(diff -s ${src_file} ${dst_file}) 
         else
-            mdns_diff="doit"
+            file_diff="doit"
         fi
     fi
 
     # -- if systemd file doesn't exist or doesn't match copy and enable from the source directory
     if ! $override; then
-        if [[ ! "$mdns_diff" = *"identical"* ]]; then
+        if [[ ! "$file_diff" = *"identical"* ]]; then
             if [[ -f "/etc/ConsolePi/src/systemd/${1}.service" ]]; then
                 if [ -f /etc/systemd/system/${1}.service ]; then
                     sudo cp /etc/systemd/system/${1}.service "$bak_dir${1}.service.$(date +%F_%H%M)" 1>/dev/null 2>> $log_file &&
@@ -415,7 +416,7 @@ process_cmds() {
                 fail_lvl="ERROR"
                 shift
                 ;;
-            -s) # only show msg if cmd passes
+            -s) # only show msg if cmd fails
                 silent=true
                 shift
                 ;;
@@ -427,7 +428,7 @@ process_cmds() {
                 err="/dev/null"
                 shift
                 ;;
-            -logit) # Used to simply log a message
+            -logit|-l) # Used to simply log a message
                 case "$3" in
                     WARNING|ERROR)
                         logit "$2" "$3"
@@ -528,7 +529,7 @@ process_cmds() {
                 fi
             else
                 logit "$fmsg" "$fail_lvl" && ((ret+=1))
-                $stop && logit "aborting remaining tasks due to previous failure"
+                $stop && logit "aborting remaining tasks due to previous failure" && break
             fi
             # unset all flags
             for c in "${reset_vars[@]}"; do

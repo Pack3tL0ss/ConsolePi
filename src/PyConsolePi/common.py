@@ -91,7 +91,6 @@ class ConsolePi_data(Outlets):
         self.cloud = None
         self.cloud_svc = None
         self.power = None
-        self.tftpd = None
         self.debug = None
 
         # build attributes from ConsolePi.conf values
@@ -806,6 +805,7 @@ def get_serial_prompt(dev, commands=None, **kwargs):
         ser.flushInput()
 
     # send the commands:
+    ser.write(b'\r')
     ser.write(b'\r')
     if commands:
         for cmd in commands:

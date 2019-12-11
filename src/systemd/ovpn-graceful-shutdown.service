@@ -7,7 +7,7 @@ Before=networking.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/pkill -SIGTERM -e -F /var/run/ovpn.pid
+ExecStart=/usr/bin/pkill -SIGTERM -e -F /var/run/ovpn.pid
 
 
 [Install]

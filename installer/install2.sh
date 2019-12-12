@@ -126,26 +126,6 @@ update_config_overrides() {
     echo "debug=${debug}                                                     # turns on additional debugging" >> "${default_config}"
 }
 
-# Update ConsolePi Banner to display ConsolePi ascii logo at login
-update_banner() {
-    process="update motd"
-    if [ -f /etc/motd ]; then
-        grep -q "PPPPPPPPPPPPPPPPP" /etc/motd && motd_exists=true || motd_exists=false
-        if $motd_exists; then 
-            mv /etc/motd /bak && sudo touch /etc/motd &&
-                logit "Clear old motd - Success" ||
-                logit "Failed to Clear old motd" "WARNING"
-        fi
-    fi
-    if [ ! -f /etc/profile.d/consolepi.sh ]; then
-        cp ${src_dir}consolepi.sh /etc/profile.d/ &&
-            logit "Deploy consolepi.sh profile script with banner text - Success" ||
-            logit "Failed to move consolepi.sh from src to /etc/profile.d/" "WARNING"
-    else
-        logit "consolepi profile script already deployed"
-    fi
-}
-
 # Automatically set the DHCP range based on the hotspot IP provided
 hotspot_dhcp_range() {
     baseip=`echo $wlan_ip | cut -d. -f1-3`   # get first 3 octets of wlan_ip
@@ -979,25 +959,6 @@ get_known_ssids() {
     unset process
 }
 
-do_consolepi_commands() {
-    process="Remove old consolepi-commands from /usr/local/bin"
-    if [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -ne 0 ]; then
-        sudo cp /usr/local/bin/consolepi-* $bak_dir 2>>$log_file || logit "Failed to Backup potentially custom consolepi-commands in /usr/local/bin"
-        sudo rm /usr/local/bin/consolepi-* > /dev/null 2>&1
-        sudo unlink /usr/local/bin/consolepi-* > /dev/null 2>&1
-        [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -eq 0 ] &&
-            logit "Success - Removing convenience command links created by older version" ||
-            logit "Failure - Verify old consolepi-command scripts/symlinks were removed from /usr/local/bin after the install" "WARNING"  
-    fi
-
-    process="Update PATH for consolepi-commands"
-    [ $(grep -c "consolepi-commands" /etc/profile) -eq 0 ] && 
-        sudo echo 'export PATH="$PATH:/etc/ConsolePi/src/consolepi-commands"' >> /etc/profile &&
-        logit "PATH Updated" || logit "PATH contains consolepi-commands dir, No Need for update"
-
-    unset process
-}
-
 misc_stuff() {
     if [ ${wlan_country^^} == "US" ]; then
         process="Set Keyboard Layout"
@@ -1007,6 +968,7 @@ misc_stuff() {
         unset process
     fi
 
+    # -- Commented out for now because it apparently didn't work as expected, get occasional error msg
     # -- set locale -- # if US haven't verified others use same code as wlan_country
     # if [ ${wlan_country^^} == "US" ]; then
     #     process="Set locale"
@@ -1076,14 +1038,6 @@ get_serial_udev() {
     echo "You need to have the serial adapters you want to map to specific telnet ports available"
     prompt="Would you like to configure predictable serial ports now"
     $upgrade && user_input false "${prompt}" || user_input true "${prompt}"
-    # if $result ; then
-    #     if [ -f ${consolepi_dir}src/consolepi-addconsole.sh ]; then
-    #         . ${consolepi_dir}src/consolepi-addconsole.sh
-    #         udev_main
-    #     else
-    #         logit "ERROR consolepi-addconsole.sh not available in src directory" "WARNING"
-    #     fi
-    # fi
     if $result ; then
         if [ -f ${consolepi_dir}src/consolepi-commands/consolepi-menu ]; then
             sudo ${consolepi_dir}src/consolepi-commands/consolepi-menu rn
@@ -1202,16 +1156,12 @@ install2_main() {
     ConsolePi_cleanup
     install_ovpn
     ovpn_graceful_shutdown
-    # ovpn_logging
     install_autohotspotn
     gen_dnsmasq_conf
     dhcpcd_conf
-    update_banner
     do_blue_config
     do_consolepi_api
     do_consolepi_mdns
-    do_consolepi_commands
-    # $tftpd && do_tftpd_server
     ! $upgrade && misc_stuff
     get_utils
     do_resize

@@ -21,7 +21,7 @@ get_common() {
 }
 
 remove_first_boot() {
-    #IF first boot was enabled by image creator script - remove it
+    # SD-Card created using Image Creator Script launches installer automatically - remove first-boot launch
     process="Remove exec on first-boot"
     sudo sed -i "s#consolepi-install##g" /home/pi/.bashrc
     grep -q consolepi-install /home/pi/.bashrc && 
@@ -252,6 +252,49 @@ do_logging() {
     unset process
 }
 
+# Early versions of ConsolePi placed consolepi-commands in /usr/local/bin natively in the users path.
+# ConsolePi now adds a script in profile.d to display the login banner and update path to include the 
+# consolepi-commands dir.  This function ensures the old stuff in /usr/local/bin are removed
+do_remove_old_consolepi_commands() {
+    process="Remove old consolepi-commands from /usr/local/bin"
+    if [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -ne 0 ]; then
+        sudo cp /usr/local/bin/consolepi-* $bak_dir 2>>$log_file || logit "Failed to Backup potentially custom consolepi-commands in /usr/local/bin" "WARNING"
+        sudo rm /usr/local/bin/consolepi-* > /dev/null 2>&1
+        sudo unlink /usr/local/bin/consolepi-* > /dev/null 2>&1
+        [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -eq 0 ] &&
+            logit "Success - Removing convenience command links created by older version" ||
+            logit "Failure - Verify old consolepi-command scripts/symlinks were removed from /usr/local/bin after the install" "WARNING"  
+    fi
+    unset process
+}
+
+# Update ConsolePi Banner to display ConsolePi ascii logo at login
+update_banner() {
+    process="update motd"
+    if [ -f /etc/motd ]; then
+        grep -q "PPPPPPPPPPPPPPPPP" /etc/motd && motd_exists=true || motd_exists=false
+        if $motd_exists; then 
+            mv /etc/motd /bak && sudo touch /etc/motd &&
+                logit "Clear old motd - Success" ||
+                logit "Failed to Clear old motd" "WARNING"
+        fi
+    fi
+    if [ ! -f /etc/profile.d/consolepi.sh ]; then
+        cp ${src_dir}consolepi.sh /etc/profile.d/ &&
+            logit "Deploy consolepi.sh profile script with banner text - Success" ||
+            logit "Failed to move consolepi.sh from src to /etc/profile.d/" "WARNING"
+    else
+        logit "consolepi profile script already deployed"
+    fi
+    # path update is now in consolepi.sh profile script - remove old path update from /etc/profile
+    process="PATH"
+    if grep -q consolepi-commands /etc/profile ; then
+        sed -i '/export.*PATH.*consolepi-commands/d'  /etc/profile &&
+            logit "Success - move path update to script in profile.d" ||
+            logit "Error - error code returned while updating profile script"
+    fi
+}
+
 get_install2() {
     if [ -f "${consolepi_dir}installer/install2.sh" ]; then
         . "${consolepi_dir}installer/install2.sh"
@@ -264,16 +307,18 @@ get_install2() {
 main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
-        get_common              # get and import common functions script
-        get_pi_info             # (common.sh func) Collect some version info for logging
-        remove_first_boot       # if autolaunch install is configured remove
-        do_apt_update           # apt-get update the pi
-        pre_git_prep            # process upgrade tasks required prior to git pull
-        git_ConsolePi           # git clone or git pull ConsolePi
-        do_pyvenv               # build upgrade python3 venv for ConsolePi
-        do_logging              # Configure logging and rotation
-        get_install2            # get and import install2 functions
-        install2_main           # Kick off install2 functions
+        get_common                          # get and import common functions script
+        get_pi_info                         # (common.sh func) Collect some version info for logging
+        remove_first_boot                   # if autolaunch install is configured remove
+        do_apt_update                       # apt-get update the pi
+        pre_git_prep                        # process upgrade tasks required prior to git pull
+        git_ConsolePi                       # git clone or git pull ConsolePi
+        do_pyvenv                           # build upgrade python3 venv for ConsolePi
+        do_logging                          # Configure logging and rotation
+        do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
+        update_banner                       # ConsolePi login banner update
+        get_install2                        # get and import install2 functions
+        install2_main                       # Kick off install2 functions
     else
       echo 'Script should be ran as root. exiting.'
     fi

@@ -407,6 +407,7 @@ process_cmds() {
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
         # echo -e "DEBUG:\n\tcmd=${cmd}\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
+        # echo -e "DEBUG ~ Currently evaluating: '$1'"
         case "$1" in
             -stop) # will stop function from exec remaining commands on failure (witout exit 1)
                 stop=true
@@ -515,7 +516,8 @@ process_cmds() {
             [[ ! -z $cmd_pfx ]] && cmd="$cmd_pfx $cmd"
             [[ -z $out ]] && out='/dev/null'
             [[ -z $showstart ]] && showstart=true
-            # echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop"
+            # echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
+            # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
             # -- // PROCESS THE CMD \\ --
             ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
             if eval "$cmd" >>"$out" 2>>"$err"; then
@@ -529,9 +531,10 @@ process_cmds() {
                 fi
             else
                 logit "$fmsg" "$fail_lvl" && ((ret+=1))
-                $stop && logit "aborting remaining tasks due to previous failure" && break
+                $stop && logit "aborting remaining tasks due to previous failure" && cd $cur_dir && break
             fi
-            # unset all flags
+            # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
+            # -- // unset all flags \\ --
             for c in "${reset_vars[@]}"; do
                 unset ${c} 
             done

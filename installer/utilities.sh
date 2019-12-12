@@ -45,8 +45,15 @@ get_util_status () {
             logit "aruba-ansible-modules is partially installed, the aos-sw modules deployed via aruba-ansible-module-installer.py is missing" "WARNING"
         unset process
     fi
-    # UTIL_VER['speed_test']=$(echo placeholder speed_test not automated yet)
-    # UTIL_VER['tshark']=$(echo placeholder tshark not automated yet)
+    [ -z $model_pretty ] && get_pi_info > /dev/null
+    if [[ "$model_pretty" =~ "Pi 4" ]] ; then
+        UTIL_VER['speed_test']=$( [ -f /var/www/html/speedtest.js ] && echo installed )
+    else
+        process='consolepi-extras'
+        logit "consolepi-extras (optional utilities/packages installer) omitted speed test option not >= Pi 4"
+        unset process
+    fi
+    # UTIL_VER['wireshark~tshark']=$( which wireshark )
     util_list_i=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort))
     util_list_f=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort -rn))
     sudo rm /tmp/ansible_ver 2>/dev/null
@@ -102,7 +109,7 @@ do_ask() {
 
 util_exec() {
     util=$1
-    [[ -z $PROCESS ]] && process=$util || process=$PROCESS
+    [[ -z $PROCESS ]] && process=${util//_/ } || process=$PROCESS
     apt_pkg_name=$(get_apt_pkg_name $util)
     case "$1" in
         tftpd)
@@ -183,7 +190,56 @@ util_exec() {
                     cmd_list+=('-logit' "Unable to find aruba_module_installer exec to remove modules installed via script - Ensure you are logged in w/ the same user used to install" "WARNING")
                 fi
             fi
-            ;;    
+            ;;
+        speed_test)
+            if [[ $2 == "install" ]]; then
+                cmd_list=(
+                    "-stop" "-u" "-s" "-f" "failed to created directory .git_repos" "mkdir -p ${home_dir}.git_repos"
+                )
+
+                if [ ! -d ${home_dir}.git_repos/speedtest/.git ] ; then 
+                    cmd_list+=(
+                        "-stop" "-pf" "Clone speedtest from GitHub" "-u"
+                            "git clone https://github.com/librespeed/speedtest.git ${home_dir}.git_repos/speedtest"
+                    )
+                else
+                    cmd_list+=(
+                        "-s" "pushd ${home_dir}.git_repos/speedtest"
+                        "-stop" "-u" "-pf" "Update speedtest (GitHub)" "git pull"
+                        "-s" "popd"
+                        )
+                fi
+
+                cmd_list+=(
+                    "-logit" 'Configuring SpeedTest...'
+                    "-s" "mkdir -p /var/www/speedtest"
+                    "-s" "pushd ${home_dir}.git_repos/speedtest"
+                    "-stop" "-s" "cp -R backend example-singleServer-*.html *.js /var/www/speedtest"
+                    "-s" "pushd /var/www/speedtest"
+                    "-s" "cp example-singleServer-gauges.html index.html"
+                    "-s" "sed -i 's/LibreSpeed Example/ConsolePi SpeedTest/' /var/www/speedtest/index.html"
+                    "-s" "sed -i 's/Source code/LibreSpeed on GitHub/' /var/www/speedtest/index.html"
+                    "-s" "-pf" "Updating Permissions" "chown -R www-data * "
+                    "-s" "popd && popd"
+                    "-apt-install" "apache2"
+                    "-apt-install" "php"
+                    "-apt-install" "libapache2-mod-php"
+                    "-stop" "-s" "a2dissite 000-default"
+                    "-pf" "Move apache2 SpeedTest conf file into sites-available" 
+                        "file_diff_update ${src_dir}010-speedtest.conf /etc/apache2/sites-available/010-speedtest.conf"
+                    "-pf" "Enable apache2 SpeetTest conf" "a2ensite 010-speedtest"
+                    "systemctl restart apache2"
+                    )
+            elif [[ $2 == "remove" ]]; then
+                echo -e "\n\t-------------------------------------------------"
+                echo -e "\t speed-test removal not implemented yet"
+                echo -e "\t remove speed-test files in /var/www/speedtest"
+                echo -e "\t remove packages: apache2 php libapache2-mod-php"
+                echo -e "\t rmdir .git-repos/speedtest from home dir"
+                echo -e "\t-------------------------------------------------\n"
+                return 1
+            fi
+            ;;
         *)
             if [[ $2 == "install" ]]; then
                 cmd_list=("-apt-install" "$apt_pkg_name")

@@ -1516,7 +1516,7 @@ class ConsolePiMenu():
                                 if config.outlet_by_dev is None:
                                     self.spin.start('Waiting for Power Update Threads to Complete')
                                     if not config.wait_for_threads('init'):
-                                        self.spin2.succeed()
+                                        self.spin.succeed()
                                         if config.outlets:
                                             config.adapters = config.map_serial2outlet(config.adapters, config.outlets)
                                     else:

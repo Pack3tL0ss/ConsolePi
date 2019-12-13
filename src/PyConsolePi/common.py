@@ -489,9 +489,23 @@ class ConsolePi_data(Outlets):
                 return_list.append('{}: {}'.format(_rem, ret))
         return return_list
 
-    def get_active_threads(self):
-        for t in threading.enumerate():
-            print(t.name)
+    def wait_for_threads(self, name, timeout=8):
+        start = time.time()
+        now = 0
+        while now < start + timeout:
+            for t in threading.enumerate():
+                if name in t.name:
+                    time.sleep(1)
+                    now = time.time()
+                    found = True
+                else:
+                    found = False
+                    break
+            if not found:
+                break
+
+        return found
+
                 # t.join()    # if refresh thread is running join ~ wait for it to complete. # TODO Don't think this works or below 
                 #             # wouldn't have been necessary.
                 # # toggle all returns True (ON) or False (OFF) if command successfully sent.  In reality the ports 

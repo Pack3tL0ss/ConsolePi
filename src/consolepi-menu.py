@@ -384,11 +384,12 @@ class ConsolePiMenu():
         return getattr(config, key)         
 
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
+    @Halo(text='[GET REM] Getting Remote ConsolePis with attached Serial Adapters from local cache', spinner='dots')
     def get_remote(self, data=None, refresh=False):
         config = self.config
         log = config.log
-        _msg = '[GET REM] Getting Remote ConsolePis with attached Serial Adapters from local cache'
-        self.spin.start(_msg)
+        # _msg = '[GET REM] Getting Remote ConsolePis with attached Serial Adapters from local cache'
+        # self.spin.start(_msg)
         log.info('[GET REM] Starting fetch from local cache')
 
         if data is None or len(data) == 0:
@@ -396,7 +397,7 @@ class ConsolePiMenu():
 
         # / Get Remotes from cache spinner update
         if data:
-            self.spin.succeed()
+            pass # self.spin.succeed()
         else:
             self.spin.warn(_msg + '\n\t' + self.log_sym_warn + 'No Remotes in Local Cache')
 
@@ -1397,9 +1398,11 @@ class ConsolePiMenu():
             return error
 
     def main_menu(self):
-        loc = self.data['local'][self.hostname]['adapters']
-        rem = self.data['remote']
+        # loc = self.data['local'][self.hostname]['adapters']
+        # rem = self.data['remote']
         config = self.config
+        loc = config.adapters
+        rem = config.remotes
         if not self.DEBUG:
             os.system('clear')
 

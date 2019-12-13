@@ -1368,9 +1368,9 @@ class ConsolePiMenu():
                 self.error_msgs.append('No Adapters Found, Outlets Found... Launching to Power Menu')
                 self.error_msgs.append('use option "b" to access main menu options')
                 if self.dli_exists and not self.linked_exists:
-                    self.exec_menu('dli_menu')
+                    self.exec_menu('d')
                 else:
-                    self.exec_menu('power_menu')
+                    self.exec_menu('p')
                 
         # Build menu items for each locally connected serial adapter
         outer_body = []
@@ -1526,7 +1526,7 @@ class ConsolePiMenu():
                                             else:   # return is bool which is what we expect
                                                 if r:
                                                     self.spin.succeed()
-                                                    threading.Thread(target=config.get_outlets, name='auto_pwr_refresh_' + outlet['type']).start()
+                                                    threading.Thread(target=config.pwr_get_outlets, name='auto_pwr_refresh_' + outlet['type']).start()
                                                 else:
                                                     self.spin.fail()
                                                     self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))

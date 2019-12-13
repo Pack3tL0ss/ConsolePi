@@ -956,6 +956,10 @@ class ConsolePiMenu():
             'power_menu': self.power_menu,
         }           
         choice = ''
+        # Ensure Power Threads are complete
+        if not config.pwr_init_complete:
+            with Halo(text='Ensuring Outlet init threads are complete', spinner='dots'):
+                config.wait_for_threads('init')
         while choice.lower() not in ['x', 'b']:
             item = 1
             if choice.lower() == 'r': 
@@ -1103,6 +1107,9 @@ class ConsolePiMenu():
         }
         states = self.states
         choice = ''
+        if not config.pwr_init_complete:
+            with Halo(text='Ensuring Outlet init threads are complete', spinner='dots'):
+                config.wait_for_threads('init')
         while choice not in ['x', 'b']:
             if not self.DEBUG:
                 os.system('clear')
@@ -1487,11 +1494,12 @@ class ConsolePiMenu():
     def exec_menu(self, choice, actions=None, calling_menu='main_menu'):
         menu_actions = actions if actions is not None else self.menu_actions
         config = self.config
-        log = config.log
+        # log = config.log
         if not self.DEBUG and calling_menu not in ['dli_menu', 'power_menu']:
             os.system('clear')
         ch = choice.lower()
         if ch == '':
+            config.rows, config.cols = config.get_tty_size() # re-calc tty size in case they've adjusted the window
             return
         elif menu_actions[ch] is None:
             return
@@ -1507,79 +1515,81 @@ class ConsolePiMenu():
                         # -- // AUTO POWER ON LINKED OUTLETS \\ --
                         # TODO Move this to common, so remote_launcher can leverage same logic
                         if config.power:  # pylint: disable=maybe-no-member
-                            desired_state = True
+                            # desired_state = True
                             if '/dev/' in c[1] or ( len(c) >= 4 and '/dev/' in c[3] ):
                                 menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[1]
-
-                                # Outlet by dev None indicates it may still be updating
-                                # outlet_by_dev is dict after process runs (can be empty dict if no outlets defined)
-                                if config.outlet_by_dev is None:
-                                    self.spin.start('Checking/Waiting for Power Update Threads to Complete')
-                                    if not config.wait_for_threads('init'):
-                                        self.spin.succeed()
-                                        if config.outlets:
-                                            config.adapters = config.map_serial2outlet(config.adapters, config.outlets)
-                                    else:
-                                        self.spin.fail('Checking/Waiting for Power Update Threads to Complete ~ TimeOut')
-                                        self.error_msgs.apppend('Timeout Waiting for Power threads')
-                                        log.error('Timeout Waiting for Power threads')
+                                # with Halo(text='Checking/Waiting for Power Update Threads - Check for Linked Outlets', spinner='dots'):
+                                    # threading.Thread(target=config.exec_auto_pwron, args=[menu_dev], name='auto_pwr_on_' + menu_dev.replace('/dev/', ''))
+                                config.exec_auto_pwron(menu_dev)
+                        #         # Outlet by dev None indicates it may still be updating
+                        #         # outlet_by_dev is dict after process runs (can be empty dict if no outlets defined)
+                        #         if config.outlet_by_dev is None:
+                        #             self.spin.start('Checking/Waiting for Power Update Threads - Check for Linked Outlets')
+                        #             if not config.wait_for_threads('init'):
+                        #                 self.spin.succeed()
+                        #                 if config.outlets:
+                        #                     config.adapters = config.map_serial2outlet(config.adapters, config.outlets)
+                        #             else:
+                        #                 self.spin.fail('Checking/Waiting for Power Update Threads - Check for Linked Outlets')
+                        #                 self.error_msgs.apppend('Timeout Waiting for Power threads')
+                        #                 log.error('Timeout Waiting for Power threads')
                                     
-                                menu_dev = menu_dev.replace('/dev/', '') if menu_dev not in config.outlet_by_dev else menu_dev
-                                if menu_dev in config.outlet_by_dev:    # See Dictionary Reference for structure
-                                    for outlet in config.outlet_by_dev[menu_dev]:
-                                        _addr = outlet['address']
+                        #         menu_dev = menu_dev.replace('/dev/', '') if menu_dev not in config.outlet_by_dev else menu_dev
+                        #         if menu_dev in config.outlet_by_dev:    # See Dictionary Reference for structure
+                        #             for outlet in config.outlet_by_dev[menu_dev]:
+                        #                 _addr = outlet['address']
 
-                                        # -- // DLI web power switch Auto Power On \\ --
-                                        if outlet['type'].lower() == 'dli':
-                                            host_short = _addr.split('.')[0] if '.' in _addr and not config.canbeint(_addr.split('.')[0]) else _addr
-                                            # is_on is a dict for dli outlets in the
-                                            # 'is_on': {<dli-port>: 'name': <dli-port-name>, 'state': <True|False>} ... where True = ON
-                                            for p in outlet['is_on']:
-                                                self.spin.start('Ensuring linked outlet: [{}]:{} port: {}({}) is powered on'.format(
-                                                    outlet['type'], host_short, p, outlet['is_on'][p]['name']))
-                                                if not outlet['is_on'][p]['state']:   # This is just checking what's in the dict not querying the DLI
-                                                    r = config.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state, port=p)
-                                                    if isinstance(r, bool):
-                                                        if r:
-                                                            self.spin.succeed()
-                                                            # start a thread to update outlet state in background
-                                                            # threading.Thread(target=config.outlet_update, kwargs={'refresh': True, 'upd_linked': True}, name='auto_pwr_refresh_dli').start()
-                                                            config.pwr_start_update_threads(upd_linked=True, t_name='refresh')
-                                                        else:
-                                                            self.spin.fail()
-                                                    else:
-                                                        self.spin.fail('Error operating linked outlet {} @ {} ({})'.format(
-                                                            menu_dev.replace('/dev/', ''), outlet['address'], r))
-                                                        log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
-                                                        self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
-                                                else: # Outlet is already in powered on state
-                                                    self.spin.succeed()
+                        #                 # -- // DLI web power switch Auto Power On \\ --
+                        #                 if outlet['type'].lower() == 'dli':
+                        #                     host_short = _addr.split('.')[0] if '.' in _addr and not config.canbeint(_addr.split('.')[0]) else _addr
+                        #                     # is_on is a dict for dli outlets in the
+                        #                     # 'is_on': {<dli-port>: 'name': <dli-port-name>, 'state': <True|False>} ... where True = ON
+                        #                     for p in outlet['is_on']:
+                        #                         self.spin.start('Ensuring linked outlet: [{}]:{} port: {}({}) is powered on'.format(
+                        #                             outlet['type'], host_short, p, outlet['is_on'][p]['name']))
+                        #                         if not outlet['is_on'][p]['state']:   # This is just checking what's in the dict not querying the DLI
+                        #                             r = config.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state, port=p)
+                        #                             if isinstance(r, bool):
+                        #                                 if r:
+                        #                                     self.spin.succeed()
+                        #                                     # start a thread to update outlet state in background
+                        #                                     # threading.Thread(target=config.outlet_update, kwargs={'refresh': True, 'upd_linked': True}, name='auto_pwr_refresh_dli').start()
+                        #                                     config.pwr_start_update_threads(upd_linked=True, t_name='refresh')
+                        #                                 else:
+                        #                                     self.spin.fail()
+                        #                             else:
+                        #                                 self.spin.fail('Error operating linked outlet {} @ {} ({})'.format(
+                        #                                     menu_dev.replace('/dev/', ''), outlet['address'], r))
+                        #                                 log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
+                        #                                 self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
+                        #                         else: # Outlet is already in powered on state
+                        #                             self.spin.succeed()
                                                 
-                                        # -- // GPIO & TASMOTA Auto Power On \\ --
-                                        else:
-                                            msg = 'Ensuring linked outlet: {} ({}:{}) is powered on'.format(
-                                                    outlet['grp_name'], outlet['type'], outlet['address'])
-                                            self.spin.start(msg)
-                                            r = config.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
-                                                noff=outlet['noff'] if outlet['type'].upper() == 'GPIO' else True)
-                                            # TODO Below (first if) should never happen just a fail-safe after refactoring the returns from power.py Can eventually remove
-                                            if not isinstance(r, bool) and isinstance(r, int) and r <= 1: 
-                                                self.error_msgs.append('the return from {} {} was an int({})'.format(
-                                                    outlet['type'], outlet['address'], r
-                                                ))
-                                            elif isinstance(r, int) and r > 1:  # return is an error
-                                                self.spin.fail('{}\n{} {}'.format(
-                                                    msg, self.log_sym_error, self.http_codes[r]))
-                                                r = False
-                                            else:   # return is bool which is what we expect
-                                                if r:
-                                                    self.spin.succeed()
-                                                    # threading.Thread(target=config.pwr_get_outlets, name='auto_pwr_refresh_' + outlet['type']).start()
-                                                    config.pwr_start_update_threads(upd_linked=True, t_name='refresh')
-                                                else:
-                                                    self.spin.fail()
-                                                    self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
-                                                    log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
+                                        # # -- // GPIO & TASMOTA Auto Power On \\ --
+                                        # else:
+                                        #     msg = 'Ensuring linked outlet: {} ({}:{}) is powered on'.format(
+                                        #             outlet['grp_name'], outlet['type'], outlet['address'])
+                                        #     self.spin.start(msg)
+                                        #     r = config.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
+                                        #         noff=outlet['noff'] if outlet['type'].upper() == 'GPIO' else True)
+                                        #     # TODO Below (first if) should never happen just a fail-safe after refactoring the returns from power.py Can eventually remove
+                                        #     if not isinstance(r, bool) and isinstance(r, int) and r <= 1: 
+                                        #         self.error_msgs.append('the return from {} {} was an int({})'.format(
+                                        #             outlet['type'], outlet['address'], r
+                                        #         ))
+                                        #     elif isinstance(r, int) and r > 1:  # return is an error
+                                        #         self.spin.fail('{}\n{} {}'.format(
+                                        #             msg, self.log_sym_error, self.http_codes[r]))
+                                        #         r = False
+                                        #     else:   # return is bool which is what we expect
+                                        #         if r:
+                                        #             self.spin.succeed()
+                                        #             # threading.Thread(target=config.pwr_get_outlets, name='auto_pwr_refresh_' + outlet['type']).start()
+                                        #             config.pwr_start_update_threads(upd_linked=True, t_name='refresh')
+                                        #         else:
+                                        #             self.spin.fail()
+                                        #             self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
+                                        #             log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
 
                         # --// execute the command \\--
                         try:

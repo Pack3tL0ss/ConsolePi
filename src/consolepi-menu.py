@@ -410,26 +410,32 @@ class ConsolePiMenu():
         update_cache = False
         pop_list = []
         for remotepi in data:
+            rem_ip_list = []
             this = data[remotepi]
             # print('  {} Found...  Checking reachability'.format(remotepi), end='')
             self.spin.start('{}'.format(remotepi))
-            if 'rem_ip' in this and this['rem_ip'] is not None and check_reachable(this['rem_ip'], 22):
-                self.spin.succeed()
-                log.info('[GET REM] Found {0} in Local Cache, reachable via {1}'.format(remotepi, this['rem_ip']))
-                #this['adapters'] = build_adapter_commands(this)
-            else:
-                update_cache = True # If rem_ip wasn't valid update even if no reachable ip found.  (to update fail cnt)
-                this['rem_ip'] = None
-                for _iface in this['interfaces']:
-                    _ip = this['interfaces'][_iface]['ip']
-                    if _ip not in self.ip_list:
-                        if check_reachable(_ip, 22):
-                            this['rem_ip'] = _ip
-                            # print(': Success', end='\n')
-                            self.spin.succeed()
-                            log.info('[GET REM] Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
-                            #this['adapters'] = build_adapter_commands(this)
-                            break  # Stop Looping through interfaces we found a reachable one
+            # if 'rem_ip' in this and this['rem_ip'] is not None and check_reachable(this['rem_ip'], 22):
+            # if rem_ip is defined it was found reachable previously make it the first IP to try
+            if 'rem_ip' in this and this['rem_ip'] is not None:
+                rem_ip_list.append(this['rem_ip'])
+
+            # Populate remaining interface IPs found on remote exclude any that match our own IPs (can occur w/ hotspots using same IP)
+            for _iface in this['interfaces']:
+                _ip = this['interfaces'][_iface]['ip']
+                if _ip not in rem_ip_list and _ip not in self.ip_list:
+                    rem_ip_list.append(_ip)
+
+            this['rem_ip'] = None   # set rem_ip to None indicating Unreachable, set with IP if found reachable below
+            for _ip in rem_ip_list:
+                _adapters = config.get_adapters_via_api(_ip)
+                if _adapters:
+                    if not isinstance(_adapters, int):
+                        this['adapters'] = _adapters
+                    this['rem_ip'] = _ip
+                    self.spin.succeed()
+                    log.info('[GET REM] Updating Cache - Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, _ip))
+                    #this['adapters'] = build_adapter_commands(this)
+                    break  # Stop Looping through interfaces we found a reachable one
 
             if this['rem_ip'] is None:
                 log.warning('[GET REM] Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
@@ -437,6 +443,7 @@ class ConsolePiMenu():
                     self.error_msgs.append('Cached Remote \'{}\' is unreachable'.format(remotepi))
                 self.spin.fail()
                 pop_list.append(remotepi)  # Remove Unreachable remote from cache
+                update_cache = True
         
         # update local cache if any ConsolePis found UnReachable
         if update_cache:
@@ -603,7 +610,9 @@ class ConsolePiMenu():
                 if not r >= tty_body_avail and not r >= tot_body_rows / 2:
                     _end += 1
                 else:
-                    _end = _end - 1 if sum(_rows[_begin:_end]) > tty_body_avail and _end > 1 else _end
+                    if r > tty_body_avail and _end > 1:
+                        if _begin != _end - 1: # Indicates the individual section is > then avail rows so give up until paging implemented
+                            _end = _end - 1
                     if not _end == (len(_rows)):
                         _iter_start_stop.append([_begin, _end])
                         _begin = _end
@@ -612,9 +621,9 @@ class ConsolePiMenu():
                 if _end == (len(_rows)):
                     _iter_start_stop.append([_begin, _end])
                     break
-                if _pass > 10:
-                    self.error_msgs.append('menu formatter exceeded 10 passses and gave up!!!')
-                    config.log.error('menu formatter exceeded 10 passses and gave up!!!')
+                if _pass > len(_rows) + 20: # should not hit this anymore
+                    self.error_msgs.append('menu formatter exceeded {} passses and gave up!!!'.format(len(_rows) + 20))
+                    config.log.error('menu formatter exceeded {} passses and gave up!!!'.format(len(_rows) + 20))
                     break
                 _pass += 1
         
@@ -1042,7 +1051,7 @@ class ConsolePiMenu():
                             'key': r
                             }
                         item += 1
-                    else:   # refactored power.py get_outlets this should never hit
+                    else:   # refactored power.py pwr_get_outlets this should never hit
                         self.error_msgs.append('DEV NOTE {} outlet state is not bool: {}'.format(r, outlet['error']))
             
             if item > 2:
@@ -1496,11 +1505,31 @@ class ConsolePiMenu():
                         #               (remote): ['ssh', '-t', 'pi@10.1.30.28', 'picocom /dev/AP303P-BARN_7001 -b9600 -fn -d8 -pn']
                         
                         # -- // AUTO POWER ON LINKED OUTLETS \\ --
+                        # TODO Move this to common, so remote_launcher can leverage same logic
                         if config.power:  # pylint: disable=maybe-no-member
                             desired_state = True
-                            # TODO remove /dev/ from power.json (don't require /dev/)
                             if '/dev/' in c[1] or ( len(c) >= 4 and '/dev/' in c[3] ):
                                 menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[1]
+
+                                # Outlet by dev None indicates it may still be updating
+                                # if config.outlet_by_dev is None:
+                                #     if config.get_active_threads()['power']:
+                                #         self.spin.start('Waiting for Outlet State Thread to Complete')
+                                #         elapsed = 0
+                                #         while elapsed < 10:
+                                #             _pwr_threads = config.get_active_threads()['power']
+                                #             if not _pwr_threads:
+                                #                 self.spin.succeed()
+                                #             else:
+                                #                 time.sleep(1)
+                                #                 elapsed += 1
+                                #         if not _pwr_threads:
+                                #             config.outlet_by_dev = {}
+                                #             self.spin.fail()
+                                #             msg = 'Timeout waiting for power threads to complete - {} - still running'
+                                #             log.error(msg)
+                                #             self.error_msgs.append(msg)
+                                    
                                 menu_dev = menu_dev.replace('/dev/', '') if menu_dev not in config.outlet_by_dev else menu_dev
                                 if menu_dev in config.outlet_by_dev:    # See Dictionary Reference for structure
                                     for outlet in config.outlet_by_dev[menu_dev]:
@@ -1520,7 +1549,8 @@ class ConsolePiMenu():
                                                         if r:
                                                             self.spin.succeed()
                                                             # start a thread to update outlet state in background
-                                                            threading.Thread(target=config.outlet_update, kwargs={'refresh': True, 'upd_linked': True}, name='auto_pwr_refresh_dli').start()
+                                                            # threading.Thread(target=config.outlet_update, kwargs={'refresh': True, 'upd_linked': True}, name='auto_pwr_refresh_dli').start()
+                                                            config.pwr_start_update_threads(upd_linked=True, t_name='refresh')
                                                         else:
                                                             self.spin.fail()
                                                     else:
@@ -1550,7 +1580,8 @@ class ConsolePiMenu():
                                             else:   # return is bool which is what we expect
                                                 if r:
                                                     self.spin.succeed()
-                                                    threading.Thread(target=config.get_outlets, name='auto_pwr_refresh_' + outlet['type']).start()
+                                                    # threading.Thread(target=config.pwr_get_outlets, name='auto_pwr_refresh_' + outlet['type']).start()
+                                                    config.pwr_start_update_threads(upd_linked=True, t_name='refresh')
                                                 else:
                                                     self.spin.fail()
                                                     self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
@@ -1564,7 +1595,8 @@ class ConsolePiMenu():
                                 # print('\n' + _stderr.replace('ERROR: ', ''))
                                 _error = error_handler(c, _stderr) # pylint: disable=maybe-no-member
                                 if _error:
-                                    self.error_msgs.append(_error)
+                                    _error = _error.replace('\r', '').split('\n')
+                                    [self.error_msgs.append(i) for i in _error if i] # Remove any trailing empy items after split
                             # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
                             c = ' '.join([str(i) for i in c])
                             if 'picocom' in c: # pylint: disable=maybe-no-member

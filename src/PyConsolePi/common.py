@@ -120,14 +120,18 @@ class ConsolePi_data(Outlets):
         self.plog = cpi_log.plog
         self.hostname = socket.gethostname()
         self.error_msgs = []
-        self.outlet_by_dev = {} # defined in get_local --> map_serial2outlet
+        self.outlet_by_dev = None # defined in get_local --> map_serial2outlet
         self.outlet_failures = {}
         if self.power: # pylint: disable=maybe-no-member
             if os.path.isfile(POWER_FILE):
-                self.outlet_update()
+                # threading.Thread(target=self.outlet_update, name='init_outlets').start()
+                # self.outlet_update()
+                self.outlets = self.pwr_get_outlets_from_file()
+                if self.outlets:
+                    self.pwr_start_update_threads(self.outlets)
             else:
                 self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')
-        self.outlets = None if not self.power or not os.path.isfile(POWER_FILE) else self.outlets # pylint: disable=maybe-no-member
+                self.outlets = None # if not self.power or not os.path.isfile(POWER_FILE) else self.outlets # pylint: disable=maybe-no-member
         self.adapters = self.get_local(do_print=do_print)
         self.interfaces = self.get_if_ips()
         self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
@@ -148,7 +152,7 @@ class ConsolePi_data(Outlets):
         '''
         if self.power: # pylint: disable=maybe-no-member
             if not hasattr(self, 'outlets') or refresh:
-                _outlets = self.get_outlets(upd_linked=upd_linked, failures=self.outlet_failures)
+                _outlets = self.pwr_get_outlets(self.outlets, upd_linked=upd_linked, failures=self.outlet_failures)
                 self.outlets = _outlets['linked']
                 self.outlet_failures = _outlets['failures']
                 self.dli_pwr = _outlets['dli_power']
@@ -185,27 +189,14 @@ class ConsolePi_data(Outlets):
     # TODO run get_local in blocking thread abort additional calls if thread already running
     def get_local(self, do_print=True):
         log = self.log
-        # plog = self.plog
         context = pyudev.Context()
 
-        # plog('Detecting Locally Attached Serial Adapters')
         log.info('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
         if stdin.isatty() and do_print:
             self.spin.start('[GET ADAPTERS] Detecting Locally Attached Serial Adapters')
 
         # -- Detect Attached Serial Adapters and linked power outlets if defined --
         final_tty_list = []
-        # for bus in ['usb', 'pci']:
-        # for device in context.list_devices(subsystem='tty', ID_BUS=bus):
-        # for device in context.list_devices(ID_BUS='usb'):
-        #     found = False
-        #     for _ in device.properties['DEVLINKS'].split():
-        #         if '/dev/serial/by-' not in _:
-        #             found = True
-        #             final_tty_list.append(_)
-        #             break
-        #     if not found:
-        #         final_tty_list.append(device.properties['DEVNAME'])
         usb_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='usb', subsystem='tty')]
         pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
         root_dev_list = usb_list + pci_list
@@ -235,8 +226,9 @@ class ConsolePi_data(Outlets):
                             if '#' in line[0]:
                                 continue
                             tty_port = int(line[0])
-                            # 9600 NONE 1STOPBIT 8DATABITS XONXOFF LOCAL -RTSCTS
-                            # 9600 8DATABITS NONE 1STOPBIT banner
+                            # --- ser2net config lines look like this ---
+                            # ... 9600 NONE 1STOPBIT 8DATABITS XONXOFF LOCAL -RTSCTS
+                            # ... 9600 8DATABITS NONE 1STOPBIT banner
                             connect_params = line[4]
                             connect_params.replace(',', ' ')
                             connect_params = connect_params.split()
@@ -267,7 +259,7 @@ class ConsolePi_data(Outlets):
                 self.error_msgs.append(msg)
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
 
-            if tty_port == 9999:
+            if tty_port == 9999: # No ser2net definition found for this adapter - should not occur
                 msg = '[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev.replace('/dev/', ''))
                 log.error(msg)
                 self.error_msgs.append(msg)
@@ -277,9 +269,8 @@ class ConsolePi_data(Outlets):
                 serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
                         'parity': parity, 'flow': flow})
                             
-        # if self.power and os.path.isfile(POWER_FILE):  # pylint: disable=maybe-no-member
-        if self.outlets:
-            serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force get_outlets() line 200
+        # if self.outlets:
+        #     serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force pwr_get_outlets() line 200
         
         if stdin.isatty() and do_print:
             if len(serial_list) > 0:
@@ -293,7 +284,6 @@ class ConsolePi_data(Outlets):
     # TODO Refactor make more efficient
     def map_serial2outlet(self, serial_list, outlets):
         log = self.log
-        # print('Fetching Power Outlet Data')
         outlet_by_dev = {}
         for dev in serial_list:
             if dev['dev'] not in outlet_by_dev:
@@ -354,13 +344,26 @@ class ConsolePi_data(Outlets):
         return data
 
     def update_local_cloud_file(self, remote_consoles=None, current_remotes=None, local_cloud_file=LOCAL_CLOUD_FILE):
+        '''Update local cloud cache (cloud.json)
+
+        Verifies the newly discovered data is more current than what we already know and updates the local cloud.json file if so
+        The Menu uses cloud.json to populate remote menu items
+
+        params:
+            remote_consoles: The newly discovered data (from Gdrive or mdns)
+            current_remotes: The current remote data fetched from the local cloud cache (cloud.json)
+                - func will retrieve this if not provided
+            local_cloud_file The path to the local cloud file (global var cloud.json)
+
+        return:
+            remote_consoles: Dict, The resulting remote console dict representing what's deemed to be the most recent for each host
+        '''
         # NEW gets current remotes from file and updates with new
         log = self.log
         if len(remote_consoles) > 0:
             if os.path.isfile(local_cloud_file):
                 if current_remotes is None:
                     current_remotes = self.get_local_cloud_file()
-                # os.remove(local_cloud_file)
 
         # update current_remotes dict with data passed to function
         # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
@@ -440,7 +443,11 @@ class ConsolePi_data(Outlets):
             'cache-control': "no-cache"
             }
 
-        response = requests.request("GET", url, headers=headers)
+        try:
+            response = requests.request("GET", url, headers=headers, timeout=2)
+        except (OSError, TimeoutError) as e:
+            log.error('[API RQST OUT] exception occured retrieving adapters via API for Remote ConsolePi {}\n{}'.format(ip, e))
+            return False
 
         if response.ok:
             ret = json.loads(response.text)
@@ -481,6 +488,18 @@ class ConsolePi_data(Outlets):
             if ret is not None:
                 return_list.append('{}: {}'.format(_rem, ret))
         return return_list
+
+    def get_active_threads(self):
+        for t in threading.enumerate():
+            print(t.name)
+                # t.join()    # if refresh thread is running join ~ wait for it to complete. # TODO Don't think this works or below 
+                #             # wouldn't have been necessary.
+                # # toggle all returns True (ON) or False (OFF) if command successfully sent.  In reality the ports 
+                # # may not be in the  state yet, but dli is working it.  Update menu items to reflect end state
+                # for p in config.dli_pwr[_addr]:     
+                #     config.dli_pwr[_addr][p]['state'] = response
+                # break
+
 
 def set_perm(file):
     gid = grp.getgrnam("consolepi").gr_gid
@@ -612,6 +631,16 @@ def check_reachable(ip, port, timeout=2):
     return reachable
 
 def user_input_bool(question):
+    '''Ask User Y/N Question require Y/N answer
+
+    Error and reprompt if user's response is not valid
+    Appends '? (y/n): ' to question/prompt provided
+
+    Params:
+        question:str, The Question to ask
+    Returns:
+        answer:bool, Users Response yes=True
+    '''
     try:
         answer = input(question + '? (y/n): ').lower().strip()
     except KeyboardInterrupt:
@@ -626,7 +655,17 @@ def user_input_bool(question):
         return False
 
 def find_procs_by_name(name, dev):
-    "Return a list of processes matching 'name'."
+    '''Return the pid of process matching name, where dev was referenced in the cmdline options
+
+    Used by kill hung process
+
+    Params: 
+        name:str, name of process to find
+        dev:str, dev which needs to be in the cmdline arguments for the process
+
+    Returns:
+        The pid of the matching process
+    '''
     ppid = None
     for p in psutil.process_iter(attrs=["name", "cmdline"]):
         if name == p.info['name'] and dev in p.info['cmdline']:
@@ -635,6 +674,13 @@ def find_procs_by_name(name, dev):
     return ppid
 
 def terminate_process(pid):
+    '''send terminate, then kill if still alive to pid
+
+    Used by kill_hung_sessions
+
+    params: pid of process to be killed
+    return: No Return
+    '''
     p = psutil.Process(pid)
     x = 0
     while x < 2:
@@ -646,6 +692,12 @@ def terminate_process(pid):
         x += 1
 
 def kill_hung_session(dev):
+    '''Kill hung picocom session
+
+    If picocom process still active and user is diconnected from SSH
+    it makes the device unavailable.  When error_handler determines that is the case
+    This function is called giving the user the option to kill it.
+    '''
     ppid = find_procs_by_name('picocom', dev)
     retry = 0
     msg = '\n{} appears to be in use (may be a previous hung session).\nDo you want to Terminate the existing session'.format(dev.replace('/dev/', ''))
@@ -666,67 +718,6 @@ def kill_hung_session(dev):
                 ppid = find_procs_by_name('picocom', dev)
             retry += 1
     return ppid is None
-
-# def detect_adapters(key=None):
-#     """Detect Locally Attached Adapters.
-
-#     Returns
-#     -------
-#     dict
-#         udev alias/symlink if defined/found as key or root device if not. 
-#         /dev/ is stripped: (ttyUSB0 | AP515).  Each device has it's attrs
-#         in a dict.
-#     """
-#     context = pyudev.Context()
-
-#     devs = {'by_name': {}, 'dup_ser': {}}
-#     # for bus in ['usb', 'pci']:
-#     # for _dev in context.list_devices(subsystem='tty', ID_BUS=bus):
-#     for _dev in context.list_devices(ID_BUS='usb'):
-#         root_dev = _dev['DEVNAME'].replace('/dev/', '')
-#         for alias in _dev['DEVLINKS'].split():
-#             if '/dev/serial/by-' not in alias:
-#                 dev_name = alias.replace('/dev/', '')
-#                 break
-#             else:
-#                 dev_name = root_dev
-                
-                
-#         devs['by_name'][dev_name] = \
-#                 {
-#                     'id_prod': _dev.get('ID_MODEL_ID'),
-#                     'id_model': _dev.get('ID_MODEL'),
-#                     'id_vendorid': _dev.get('ID_VENDOR_ID'),
-#                     'id_vendor': _dev.get('ID_VENDOR'),
-#                     'id_serial': _dev.get('ID_SERIAL_SHORT'),
-#                     'id_ifnum': _dev.get('ID_USB_INTERFACE_NUM'),
-#                     'id_path': _dev.get('ID_PATH'),
-#                     'root_dev': True if dev_name == root_dev else False
-#                 }
-#         _ser = devs['by_name'][dev_name]['id_serial']
-#         if _ser in devs['dup_ser']:
-#             devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
-#             devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
-#         else:
-#             devs['dup_ser'][_ser] = {
-#                 'id_prod': devs['by_name'][dev_name]['id_prod'],
-#                 'id_model': devs['by_name'][dev_name]['id_model'],
-#                 'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
-#                 'id_vendor': devs['by_name'][dev_name]['id_vendor'],
-#                 'id_paths': [devs['by_name'][dev_name]['id_path']],
-#                 'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
-#                 }
-
-#     del_list = []
-#     for _ser in devs['dup_ser'] :
-#         if len(devs['dup_ser'][_ser]['id_paths']) == 1:
-#             del_list.append(_ser)
-
-#     if del_list:
-#         for i in del_list:
-#             del devs['dup_ser'][i]
-
-#     return devs if key is None else devs['by_name'][key.replace('/dev/', '')]
 
 def detect_adapters(key=None):
     """Detect Locally Attached Adapters.
@@ -766,11 +757,7 @@ def detect_adapters(key=None):
             devs['by_name'][dev_name]['id_model'] = _dev.get('ID_MODEL')
             devs['by_name'][dev_name]['id_vendorid'] = _dev.get('ID_VENDOR_ID')
             devs['by_name'][dev_name]['id_vendor'] = _dev.get('ID_VENDOR')
-                        # 'id_ifnum': _dev.get('ID_USB_INTERFACE_NUM'),
-                        # 'id_path': _dev.get('ID_PATH'),
             devs['by_name'][dev_name]['root_dev'] = True if dev_name == root_dev else False
-            # _ser = devs['by_name'][dev_name]['id_serial']
-
 
             if _ser in devs['dup_ser']:
                 devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
@@ -797,6 +784,13 @@ def detect_adapters(key=None):
     return devs if key is None else devs['by_name'][key.replace('/dev/', '')]
 
 def get_serial_prompt(dev, commands=None, **kwargs):
+    '''Attempt to get prompt from serial device
+
+    Send 2 x cr to serial device and display any output
+    returned from device.
+
+    Used in rename function to help determine what the device is.
+    '''
     dev = '/dev/' + dev if '/dev/' not in dev else dev
     ser = serial.Serial(dev, timeout=1, **kwargs)
 
@@ -811,7 +805,7 @@ def get_serial_prompt(dev, commands=None, **kwargs):
         for cmd in commands:
             ser.write(bytes(cmd, 'UTF-8'))
     # read the response, guess a length that is more than the message
-    msg = ser.read(2048)
+    msg = ser.read(4096)
     return msg.decode('UTF-8')
 
 def json_print(obj):

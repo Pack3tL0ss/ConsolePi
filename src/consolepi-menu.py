@@ -1512,23 +1512,11 @@ class ConsolePiMenu():
                                 menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[1]
 
                                 # Outlet by dev None indicates it may still be updating
-                                # if config.outlet_by_dev is None:
-                                #     if config.get_active_threads()['power']:
-                                #         self.spin.start('Waiting for Outlet State Thread to Complete')
-                                #         elapsed = 0
-                                #         while elapsed < 10:
-                                #             _pwr_threads = config.get_active_threads()['power']
-                                #             if not _pwr_threads:
-                                #                 self.spin.succeed()
-                                #             else:
-                                #                 time.sleep(1)
-                                #                 elapsed += 1
-                                #         if not _pwr_threads:
-                                #             config.outlet_by_dev = {}
-                                #             self.spin.fail()
-                                #             msg = 'Timeout waiting for power threads to complete - {} - still running'
-                                #             log.error(msg)
-                                #             self.error_msgs.append(msg)
+                                # outlet_by_dev is dict after process runs (can be empty dict if no outlets defined)
+                                if config.outlet_by_dev is None:
+                                    if not config.wait_for_threads('init'):
+                                        if config.outlets:
+                                            config.adapters = config.map_serial2outlet(config.adapters, config.outlets)
                                     
                                 menu_dev = menu_dev.replace('/dev/', '') if menu_dev not in config.outlet_by_dev else menu_dev
                                 if menu_dev in config.outlet_by_dev:    # See Dictionary Reference for structure

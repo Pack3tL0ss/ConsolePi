@@ -270,7 +270,8 @@ do_remove_old_consolepi_commands() {
 
 # Update ConsolePi Banner to display ConsolePi ascii logo at login
 update_banner() {
-    process="update motd"
+    process="update motd & profile"
+    # remove old banner from /etc/motd - remove entire thing nothing useful
     if [ -f /etc/motd ]; then
         grep -q "PPPPPPPPPPPPPPPPP" /etc/motd && motd_exists=true || motd_exists=false
         if $motd_exists; then 
@@ -279,20 +280,17 @@ update_banner() {
                 logit "Failed to Clear old motd" "WARNING"
         fi
     fi
-    if [ ! -f /etc/profile.d/consolepi.sh ]; then
-        cp ${src_dir}consolepi.sh /etc/profile.d/ &&
-            logit "Deploy consolepi.sh profile script with banner text - Success" ||
-            logit "Failed to move consolepi.sh from src to /etc/profile.d/" "WARNING"
-    else
-        logit "consolepi profile script already deployed"
-    fi
-    # path update is now in consolepi.sh profile script - remove old path update from /etc/profile
-    process="PATH"
+
+    # remove old path update from /etc/profile
     if grep -q consolepi-commands /etc/profile ; then
         sed -i '/export.*PATH.*consolepi-commands/d'  /etc/profile &&
             logit "Success - move path update to script in profile.d" ||
             logit "Error - error code returned while updating profile script"
     fi
+
+    # create new consolepi.sh profile script with banner and path
+    file_diff_update ${src_dir}consolepi.sh /etc/profile.d/consolepi.sh
+    unset process
 }
 
 get_install2() {

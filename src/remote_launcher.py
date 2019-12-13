@@ -59,7 +59,7 @@ if __name__ == '__main__':
             if config.power:  # pylint: disable=maybe-no-member
                 try:
                     for dev in config.local[config.hostname]['adapters']:
-                        print(dev['dev'], sys.argv[2])
+                        # print(dev['dev'], sys.argv[2])
                         if dev['dev'] == sys.argv[2]:
                             outlet = None if 'outlet' not in dev else dev['outlet']
                             if outlet is not None:

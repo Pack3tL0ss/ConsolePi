@@ -1514,13 +1514,13 @@ class ConsolePiMenu():
                                 # Outlet by dev None indicates it may still be updating
                                 # outlet_by_dev is dict after process runs (can be empty dict if no outlets defined)
                                 if config.outlet_by_dev is None:
-                                    self.spin.start(text='Waiting for Power Update Threads to Complete', spinner='dots')
+                                    self.spin.start(text='Waiting for Power Update Threads to Complete')
                                     if not config.wait_for_threads('init'):
                                         self.spin2.succeed()
                                         if config.outlets:
                                             config.adapters = config.map_serial2outlet(config.adapters, config.outlets)
                                     else:
-                                        self.spin.fail(text='Waiting for Power Update Threads to Complete ~ TimeOut', spinner='dots')
+                                        self.spin.fail(text='Waiting for Power Update Threads to Complete ~ TimeOut')
                                         self.error_msgs.apppend('Timeout Waiting for Power threads')
                                         log.error('Timeout Waiting for Power threads')
                                     

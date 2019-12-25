@@ -1,3 +1,5 @@
+#!/etc/ConsolePi/venv/bin/python3
+
 import logging
 import netifaces as ni
 import os
@@ -15,6 +17,7 @@ from pathlib import Path
 import pyudev
 import psutil
 from sys import stdin
+from halo import Halo
 import serial
 from log_symbols import LogSymbols as log_sym  # Enum
 try:
@@ -70,11 +73,10 @@ class ConsolePi_Log:
             print(msg, end=end)
 
 
-class ConsolePi_data(Outlets):
+class ConsolePi_data():
 
     def __init__(self, log_file=CLOUD_LOG_FILE, do_print=True):
-        super().__init__(POWER_FILE)
-
+        # super().__init__(POWER_FILE)
         # init ConsolePi.conf values
         self.cfg_file_ver = None
         self.push = None
@@ -96,13 +98,18 @@ class ConsolePi_data(Outlets):
 
         # build attributes from ConsolePi.conf values
         # and GLOBAL variables
-        self.log_sym_error = log_sym.ERROR.value
         config = self.get_config_all()
         for key, value in config.items():
             if type(value) == str:
-                exec('self.{} = "{}"'.format(key, value))
+                try:
+                    exec('self.{} = "{}"'.format(key, value))
+                except Exception as e:
+                    print(key, value, e)
             else:
-                exec('self.{} = {}'.format(key, value))
+                try:
+                    exec('self.{} = {}'.format(key, value))
+                except Exception as e:
+                    print(key, value, e)
         # from globals
         for key, value in globals().items():
             if type(value) == str:
@@ -115,52 +122,95 @@ class ConsolePi_data(Outlets):
                     x.append(_)
                 exec('self.{} = {}'.format(key, x))
 
+        self.log_sym_error = log_sym.ERROR.value
+        self.spin = Halo(spinner='dots')
         self.do_print = do_print
         self.log_file = log_file
         cpi_log = ConsolePi_Log(log_file=log_file, do_print=do_print, debug=self.debug) # pylint: disable=maybe-no-member
         self.log = cpi_log.log
         self.plog = cpi_log.plog
+        self.pwr = Outlets(POWER_FILE, log=self.log)
         self.hostname = socket.gethostname()
         self.error_msgs = []
-        self.outlet_by_dev = None # defined in get_local --> map_serial2outlet
-        self.outlet_failures = {}
+        # self.outlet_failures = {}
+        # self.outlets = None # if not self.power or not os.path.isfile(POWER_FILE) else self.outlets # pylint: disable=maybe-no-member
+        self.outlet_by_dev = None
+        self.pwr_init_complete = False
         if self.power: # pylint: disable=maybe-no-member
             if os.path.isfile(POWER_FILE):
-                # threading.Thread(target=self.outlet_update, name='init_outlets').start()
-                # self.outlet_update()
-                self.pwr_init_complete = False
-                self.outlets = self.pwr_get_outlets_from_file()
-                if self.outlets:
-                    self.pwr_start_update_threads(self.outlets)
+                # self.pwr.outlet_data = self.pwr.pwr_get_outlets_from_file()['linked']
+                if self.pwr.outlet_data:
+                    # self.get_outlet_types(self.pwr.outlet_data)
+                    self.pwr.pwr_start_update_threads(self.pwr.outlet_data) # Update status for each outlet in background
+                    # - this thread monitors pwr threads and updates init_complete
+                    # threading.Thread(target=self.wait_for_threads).start()
+                    # self.wait_for_threads()
+
+                    # self.outlet_by_dev = (self.outlets['linked'])
             else:
                 self.pwr_init_complete = True
                 self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')
-                self.outlets = None # if not self.power or not os.path.isfile(POWER_FILE) else self.outlets # pylint: disable=maybe-no-member
-        self.adapters = self.get_local(do_print=do_print)
+                self.power = False
+        self.adapters = self.get_adapters(do_print=do_print)
         self.interfaces = self.get_if_ips()
-        self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
+        self.ip_list = self.get_ip_list()
+        # self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
+        self.local = self.local_data_repr()
         self.remotes = self.get_local_cloud_file()
         if stdin.isatty():
             self.rows, self.cols = self.get_tty_size()
         self.root = True if os.geteuid() == 0 else False
-        self.new_adapters = detect_adapters()
+        self.new_adapters = detect_adapters()        
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
         rows, cols = size.stdout.decode('UTF-8').split()
         return int(rows), int(cols)
 
-    def outlet_update(self, upd_linked=False, refresh=False):
-        '''
-        Called by init and consolepi-menu refresh
-        '''
-        if self.power: # pylint: disable=maybe-no-member
-            if not hasattr(self, 'outlets') or refresh:
-                _outlets = self.pwr_get_outlets(self.outlets, upd_linked=upd_linked, failures=self.outlet_failures)
-                self.outlets = _outlets['linked']
-                self.outlet_failures = _outlets['failures']
-                self.dli_pwr = _outlets['dli_power']
+    # def outlet_update(self, upd_linked=False, refresh=False):
+    #     '''
+    #     Called by init and consolepi-menu refresh
+    #     '''
+    #     if self.power: # pylint: disable=maybe-no-member
+    #         if not hasattr(self, 'outlets') or refresh:
+    #             _outlets = self.pwr.pwr_get_outlets(self.pwr.outlet_data, upd_linked=upd_linked, failures=self.pwr.outlet_data['failures'])
+    #             self.outlets = _outlets['linked']
+    #             self.outlet_failures = _outlets['failures']
+    #             self.dli_pwr = _outlets['dli_power']
+    #             self.pwr.outlet_data = _outlets
+    #             return _outlets
 
+    def outlet_update(self, upd_linked=False, refresh=False, key='linked', outlets=None):
+        '''
+        Called by consolepi-menu refresh
+        '''
+        log = self.log
+        if self.power: # pylint: disable=maybe-no-member
+            outlets = self.pwr.outlet_data if outlets is None else outlets
+            if not self.pwr_init_complete or refresh:
+                _outlets = self.pwr.pwr_get_outlets(outlet_data=outlets, upd_linked=upd_linked, failures=self.pwr.outlet_data['failures'])
+                # self.outlets = _outlets['linked']
+                # self.outlet_failures = _outlets['failures']
+                # self.dli_pwr = _outlets['dli_power']
+                self.pwr.outlet_data = _outlets
+            else:
+                _outlets = outlets
+
+            if key in _outlets:
+                return _outlets[key]
+            else:
+                msg = 'Invalid key ({}) passed to outlet_update. Returning "linked" (defined)'.format(key)
+                log.error(msg)
+                self.error_msgs.append(msg)
+                return _outlets['linked']
+
+    def local_data_repr(self, adapters=None, interfaces=None, outlets=None):
+        adapters = self.adapters if adapters is None else adapters
+        interfaces = self.interfaces if interfaces is None else interfaces
+        # outlets = self.outlets if outlets is None else outlets
+        local = {self.hostname: {'adapters': adapters, 'interfaces': interfaces, 'user': 'pi'}}
+
+        return local
 
     def get_config_all(self):
         with open('/etc/ConsolePi/ConsolePi.conf', 'r') as config:
@@ -185,13 +235,56 @@ class ConsolePi_data(Outlets):
                             pass
                     locals()[var] = value
         ret_data = locals()
-        for key in ['self', 'config', 'line', 'var', 'value']:
-            ret_data.pop(key)
+        for key in ['self', 'config', 'line', 'var', 'value' 'ret_data']:
+            if key in ret_data:
+                del ret_data[key]
 
         return ret_data
 
+    # def get_outlet_types(self, outlets=None):
+    #     '''extract outlet types present in power.json
+
+    #     used to determine what options to present in the menu
+    #     params:
+    #         outlets:dict, the contents of the power.json file
+
+    #     '''
+    #     self.dli_exists = self.gpio_exists = self.tasmota_exists = self.linked_exists = False
+    #     if outlets is None:
+    #         outlets = self.pwr.outlet_data['linked']
+    #     elif 'linked' in outlets:
+    #         outlets = outlets['linked']
+    #     for outlet_group in outlets:
+    #         if outlets[outlet_group]['type'].lower() == 'dli':
+    #             self.dli_exists = True
+    #         elif outlets[outlet_group]['type'].upper() == 'GPIO':
+    #             self.gpio_exists = True
+    #         elif outlets[outlet_group]['type'].lower() == 'tasmota':
+    #             self.tasmota_exists = True
+    #         else:
+    #             self.error_msgs.append('Outlet Control Disabled by Script - Invalid \'type\' in power.json')
+    #             self.power = False
+    #             break
+
+    #         if 'linked_devs' in outlets[outlet_group] and outlets[outlet_group]['linked_devs']:
+    #             self.linked_exists = True
+                                    
+    #         if self.dli_exists and self.gpio_exists and self.tasmota_exists and self.linked_exists:
+    #             break
+            
+    #     # -- return not used other than for debug --
+    #     return {
+    #         'dli_exists': self.dli_exists,
+    #         'gpio_exists': self.gpio_exists,
+    #         'tasmota_exists': self.tasmota_exists,
+    #         'linked_exists': self.linked_exists
+    #         }
+
     # TODO run get_local in blocking thread abort additional calls if thread already running
-    def get_local(self, do_print=True):
+    # TODO assign defaults here if not found in ser2net instead of in consolepi-menu
+    def get_adapters(self, do_print=None):
+        if do_print is None:
+            do_print = self.do_print
         log = self.log
         context = pyudev.Context()
 
@@ -285,11 +378,36 @@ class ConsolePi_data(Outlets):
         
         return serial_list
 
+    # def format_dev(self, dev, with_path=True):
+    #     dev = [dev] if not isinstance(dev, list) else dev
+    #     ret_list = []
+    #     for d in dev:
+    #         if with_path:
+    #             if '/dev/' not in d:
+    #                 d = '/dev/{}'.format(d) 
+    #         else:
+    #             d = d.replace('/dev/', '')
+
+    #         ret_list.append(d)
+    #     return ret_list[0] if len(ret_list) == 1 else ret_list
+
     # TODO Refactor make more efficient
     def map_serial2outlet(self, serial_list, outlets):
+        '''repr generates outlets linked to adapters in a dict keyed by the adapter
+
+        adapter dict keyed by the adapter name (alias if defined)
+
+        params:
+            serial_list:list, list of discovered serial adapters
+            outlets:dict, The outlet dict defined in power.json
+
+        returns:
+            dict: {adapter: {outlet_data}}
+        '''
         log = self.log
         outlet_by_dev = {}
         for dev in serial_list:
+            # print(dev['dev']) # -- DEBUG --
             if dev['dev'] not in outlet_by_dev:
                 outlet_by_dev[dev['dev']] = []
             # -- get linked outlet details if defined --
@@ -298,26 +416,19 @@ class ConsolePi_data(Outlets):
                 outlet = outlets[o]
                 if 'linked_devs' in outlet and outlet['linked_devs']:
                     if dev['dev'] in outlet['linked_devs']:
-                        log.info('[PWR OUTLETS] Found Outlet {} linked to {}'.format(o, dev['dev']))
+                        log.info('[PWR OUTLETS] Found Outlet {} linked to {}'.format(o, dev['dev'].replace('/dev/', '')))
                         address = outlet['address']
                         if outlet['type'].upper() == 'GPIO':
                             address = int(outlet['address'])
                         noff = outlet['noff'] if 'noff' in outlet else True
-                        outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
-                        # TODO This should only keep 1 outlet per adapter in the adapters dict, refactor as below to allow list of outlets or dict with grp as key
-                        # this_outlet_dict = {'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
-                        # if outlet_dict is None:
-                        #     outlet_dict = this_outlet_dict
-                        # else:
-                        #     outlet_dict[o] = this_outlet_dict
-                        # outlet_by_dev[dev['dev']].append(outlet_dict)
+                        outlet_dict = {'key': o, 'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
                         outlet_by_dev[dev['dev']].append(outlet_dict)
-                        # break
 
             dev['outlet'] = outlet_dict
 
         self.outlet_by_dev = outlet_by_dev
-        return serial_list
+        # return serial_list
+        return outlet_by_dev
 
     def get_if_ips(self):
         log=self.log
@@ -411,20 +522,20 @@ class ConsolePi_data(Outlets):
                                     log.info('[CACHE UPD] {} Keeping existing data based *existence* of update time which is lacking in this update from {}'.format(_, remote_consoles[_]['source']))
                                     
                         # -- Should be able to remove some of this logic now that a timestamp has beeen added along with a cloud update on serial adapter change --
-                        elif remote_consoles[_]['source'] != 'mdns' and 'source' in current_remotes[_] and current_remotes[_]['source'] == 'mdns':
-                            if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
-                                # given all of the above it would appear the mdns entry is more current than the cloud entry
-                                remote_consoles[_] = current_remotes[_]
-                                log.info('[CACHE UPD] Keeping existing cache data for {}'.format(_))
-                        elif remote_consoles[_]['source'] != 'mdns':
-                                if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
-                                    # if we currently have a reachable ip assume whats in the cache is more valid
-                                    remote_consoles[_]['rem_ip'] = current_remotes[_]['rem_ip']
+                        # elif remote_consoles[_]['source'] != 'mdns' and 'source' in current_remotes[_] and current_remotes[_]['source'] == 'mdns':
+                        #     if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
+                        #         # given all of the above it would appear the mdns entry is more current than the cloud entry
+                        #         remote_consoles[_] = current_remotes[_]
+                        #         log.info('[CACHE UPD] Keeping existing cache data for {}'.format(_))
+                        # elif remote_consoles[_]['source'] != 'mdns':
+                        #         if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
+                        #             # if we currently have a reachable ip assume whats in the cache is more valid
+                        #             remote_consoles[_]['rem_ip'] = current_remotes[_]['rem_ip']
 
-                                    if len(current_remotes[_]['adapters']) > 0 and len(remote_consoles[_]['adapters']) == 0:
-                                        log.info('[CACHE UPD] My Adapter data for {} is more current, keeping'.format(_))
-                                        remote_consoles[_]['adapters'] = current_remotes[_]['adapters']
-                                        log.debug('[CACHE UPD] !!! Keeping Adapter data from cache as none provided in data set !!!')
+                        #             if len(current_remotes[_]['adapters']) > 0 and len(remote_consoles[_]['adapters']) == 0:
+                        #                 log.info('[CACHE UPD] My Adapter data for {} is more current, keeping'.format(_))
+                        #                 remote_consoles[_]['adapters'] = current_remotes[_]['adapters']
+                        #                 log.debug('[CACHE UPD] !!! Keeping Adapter data from cache as none provided in data set !!!')
         
             with open(local_cloud_file, 'w') as cloud_file:
                 cloud_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
@@ -462,6 +573,45 @@ class ConsolePi_data(Outlets):
             ret = response.status_code
             log.error('[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi {}\n{}:{}'.format(ip, ret, response.text))
         return ret
+
+    def api_reachable(self, remote_data: dict):
+        '''Check Rechability & Fetch adapter data via API for remote ConsolePi
+
+        params:
+            remote_data:dict, The ConsolePi dictionary for the remote (from cache file)
+        
+        returns:
+            tuple [0]: Bool, indicating if data is different than cache
+                  [1]: dict, Updated ConsolePi dictionary for the remote
+        '''
+        rem_ip_list = []
+        update = False
+
+        if 'rem_ip' in remote_data and remote_data['rem_ip'] is not None:
+            rem_ip_list.append(remote_data['rem_ip'])
+
+        for _iface in remote_data['interfaces']:
+            _ip = remote_data['interfaces'][_iface]['ip']
+            if _ip not in rem_ip_list and _ip not in self.ip_list:
+                rem_ip_list.append(_ip)
+
+        for _ip in rem_ip_list:
+            _adapters = self.get_adapters_via_api(_ip)
+            if _adapters:
+                if not isinstance(_adapters, int): # indicates an html error code was returned
+                    if not remote_data['adapters'] == _adapters:
+                        remote_data['adapters'] = _adapters
+                        update = True
+                # remote was reachable update rem_ip, even if returned bad status_code still reachable
+                if 'rem_ip' not in remote_data or not remote_data['rem_ip'] == _ip:
+                    remote_data['rem_ip'] = _ip
+                    update = True
+                break  # Stop Looping through interfaces we found a reachable one
+            else:
+                remote_data['rem_ip'] = None
+        
+        return (update, remote_data)
+        
     
     def canbeint(self, _str):
         try: 
@@ -475,7 +625,7 @@ class ConsolePi_data(Outlets):
         # generate local key file if it doesn't exist
         if not os.path.isfile(HOME + '/.ssh/id_rsa'):
             print('\n\nNo Local ssh cert found, generating...')
-            bash_command('ssh-keygen -m pem -t rsa -C "{0}@{1}"'.format(rem_user, hostname))
+            bash_command('sudo -u {0} ssh-keygen -m pem -t rsa -C "{0}@{1}"'.format(rem_user, hostname))
         rem_list = []
         if rem_ip is not None and not isinstance(rem_ip, list):
             rem_list.append(rem_ip)
@@ -488,37 +638,51 @@ class ConsolePi_data(Outlets):
         return_list = []
         for _rem in rem_list:
             print('\nAttempting to copy ssh cert to {}\n'.format(_rem))
-            ret = bash_command('ssh-copy-id {0}@{1}'.format(rem_user, _rem))
+            ret = bash_command('sudo -u {0} ssh-copy-id {0}@{1}'.format(rem_user, _rem))
             if ret is not None:
                 return_list.append('{}: {}'.format(_rem, ret))
         return return_list
 
-    def wait_for_threads(self, name, timeout=8):
+    def wait_for_threads(self, name='init', timeout=8):
+        log = self.log
         start = time.time()
-        now = 0
-        while now < start + timeout:
+        do_log = False
+        while True:
+            found = False
             for t in threading.enumerate():
                 if name in t.name:
-                    time.sleep(1)
-                    now = time.time()
-                    found = True
-                else:
-                    found = False
-                    break
+                    found = do_log = True 
+                    t.join(timeout - 1)
 
             if not found:
-                self.pwr_init_complete = True
+                if name == 'init':
+                    self.pwr_init_complete = True
+                if do_log:
+                    log.info('[PWR {0} WAIT] Waiting for {0} Threads to Complete, elapsed time: {1}'.format(name, time.time() - start))
                 break
+            elif time.time() - start > timeout:
+                log.error('[PWR INIT WAIT] Timeout Waiting for {} Threads to Complete, elapsed time: {}'.format(name, time.time() - start))
+                break
+        
+        if not found:
+            self.outlets = self.pwr.outlet_data['linked']
+            self.outlet_failures = self.pwr.outlet_data['failures']
+            self.dli_pwr = self.pwr.outlet_data['dli_power']
 
         return found
 
     def exec_auto_pwron(self, menu_dev):
         '''Launch auto_pwron in thread
 
-        params menu_dev:str, The tty dev user is connecting to
+        params:
+            menu_dev:str, The tty dev user is connecting to
         '''
         print('Checking for and Powering on any outlets linked to {} in the background'.format(menu_dev.replace('/dev/', '')))
-        threading.Thread(target=self.auto_pwron_thread, args=[menu_dev], name='auto_pwr_on_' + menu_dev.replace('/dev/', ''))
+        # self.auto_pwron_thread(menu_dev) # swap to debug directly (disable thread)
+        threading.Thread(target=self.auto_pwron_thread, args=(menu_dev,), name='auto_pwr_on_' + menu_dev.replace('/dev/', '')).start()
+        self.log.debug('[AUTO PWRON] Active Threads: {}'.format(
+            [t.name for t in threading.enumerate() if t.name != 'MainThread']
+            ))
 
     def auto_pwron_thread(self, menu_dev):
         '''Ensure any outlets linked to device are powered on
@@ -535,17 +699,16 @@ class ConsolePi_data(Outlets):
         # Outlet by dev None indicates it may still be updating
         # outlet_by_dev is dict after process runs (can be empty dict if no outlets defined)
         log = self.log
-        if self.outlet_by_dev is None:
+        if not self.pwr_init_complete:
             if not self.wait_for_threads('init'):
-                if self.outlets:
-                    self.adapters = config.map_serial2outlet(config.adapters, config.outlets)
-                    self.local[self.hostname]['adapters'] = self.adapters
+                if self.pwr.outlet_data:
+                    self.outlet_by_dev = self.map_serial2outlet(self.adapters, self.pwr.outlet_data['linked'])
+                    # self.local[self.hostname]['adapters'] = self.adapters
             else:
                 self.error_msgs.append('Timeout Waiting for Power threads')
                 log.error('Timeout Waiting for Power threads')
-            
-        menu_dev = menu_dev.replace('/dev/', '') if menu_dev not in self.outlet_by_dev else menu_dev
-        if menu_dev in self.outlet_by_dev:    # See Dictionary Reference for structure
+        # menu_dev = menu_dev.replace('/dev/', '') if menu_dev not in self.outlet_by_dev else menu_dev
+        if self.outlet_by_dev is not None and menu_dev in self.outlet_by_dev:    # See Dictionary Reference for structure
             for outlet in self.outlet_by_dev[menu_dev]:
                 _addr = outlet['address']
 
@@ -554,17 +717,20 @@ class ConsolePi_data(Outlets):
                     # host_short = _addr.split('.')[0] if '.' in _addr and not self.canbeint(_addr.split('.')[0]) else _addr
                     # is_on is a dict for dli outlets
                     # 'is_on': {<dli-port>: 'name': <dli-port-name>, 'state': <True|False>} ... where True = ON
+                    # ports_to_pwr = []
                     for p in outlet['is_on']:
+                        log.debug('[Auto PwrOn] Power ON {} Linked Outlet {}:{} p{}'.format(menu_dev, outlet['type'], _addr, p))
                         # self.spin.start('Ensuring linked outlet: [{}]:{} port: {}({}) is powered on'.format(
                             # outlet['type'], host_short, p, outlet['is_on'][p]['name']))
                         if not outlet['is_on'][p]['state']:   # This is just checking what's in the dict not querying the DLI
-                            r = self.pwr_toggle(outlet['type'], outlet['address'], desired_state=True, port=p)
+                            # ports_to_pwr.append(p)
+                            r = self.pwr.pwr_toggle(outlet['type'], outlet['address'], desired_state=True, port=p)
                             if isinstance(r, bool):
                                 if r:
                                     # self.spin.succeed()
                                     # start a thread to update outlet state in background
-                                    # threading.Thread(target=config.outlet_update, kwargs={'refresh': True, 'upd_linked': True}, name='auto_pwr_refresh_dli').start()
-                                    self.pwr_start_update_threads(upd_linked=True, t_name='refresh')
+                                    threading.Thread(target=self.outlet_update, kwargs={'refresh': True, 'upd_linked': True}, name='auto_pwr_refresh_dli').start()
+                                    # self.pwr.pwr_start_update_threads(upd_linked=True, t_name='refresh')
                                 # else:
                                     # self.spin.fail()
                             else:
@@ -576,10 +742,11 @@ class ConsolePi_data(Outlets):
                         #     self.spin.succeed()
                 # -- // GPIO & TASMOTA Auto Power On \\ --
                 else:
+                    log.debug('[Auto PwrOn] Power ON {} Linked Outlet {}:{}'.format(menu_dev, outlet['type'], _addr))
                     # msg = 'Ensuring linked outlet: {} ({}:{}) is powered on'.format(
                     #         outlet['grp_name'], outlet['type'], outlet['address'])
                     # self.spin.start(msg)
-                    r = self.pwr_toggle(outlet['type'], outlet['address'], desired_state=True,
+                    r = self.pwr.pwr_toggle(outlet['type'], outlet['address'], desired_state=True,
                         noff=outlet['noff'] if outlet['type'].upper() == 'GPIO' else True)
                     # TODO Below (first if) should never happen just a fail-safe after refactoring the returns from power.py Can eventually remove
                     if not isinstance(r, bool) and isinstance(r, int) and r <= 1: 
@@ -592,9 +759,11 @@ class ConsolePi_data(Outlets):
                         r = False
                     else:   # return is bool which is what we expect
                         if r:
+                            self.pwr.outlet_data['linked'][outlet['key']]['state'] = r
+                            self.outlets = self.pwr.outlet_data['linked']
                             # self.spin.succeed()
                             # threading.Thread(target=config.pwr_get_outlets, name='auto_pwr_refresh_' + outlet['type']).start()
-                            config.pwr_start_update_threads(upd_linked=True, t_name='refresh')
+                            self.pwr.pwr_get_outlets(upd_linked=True)
                         else:
                             # self.spin.fail()
                             self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
@@ -905,7 +1074,7 @@ def get_serial_prompt(dev, commands=None, **kwargs):
         for cmd in commands:
             ser.write(bytes(cmd, 'UTF-8'))
     # read the response, guess a length that is more than the message
-    msg = ser.read(4096)
+    msg = ser.read(2048)
     return msg.decode('UTF-8')
 
 def json_print(obj):
@@ -940,6 +1109,16 @@ def append_to_file(file, line):
 
 # DEBUGGING Should not be called directly
 if __name__ == '__main__':
-    json_print(detect_adapters())
-    config = ConsolePi_data()
-    json_print(config.adapters)
+    c = ConsolePi_data()
+    c.exec_auto_pwron('/dev/2930F-Stage-Top')
+    if not c.pwr_init_complete:
+        from halo import Halo
+        with Halo(text='Waiting for pwr init Threads to complete'):
+            c.wait_for_threads()
+            json_print(c.outlet_by_dev)
+            # c.pwr._dli['labpower1.kabrew.com'].toggle([5, 6], toState=False)
+    #     c.outlet_by_dev = c.map_serial2outlet(c.adapters, c.pwr.outlet_data['linked'])
+    #     json_print(c.pwr.outlet_data)
+    #     print('\n\n\nOutlet By Dev\n')
+    #     json_print(c.outlet_by_dev)
+    # json_print(c.adapters)

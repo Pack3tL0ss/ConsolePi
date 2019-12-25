@@ -45,7 +45,7 @@ get_util_status () {
             logit "aruba-ansible-modules is partially installed, the aos-sw modules deployed via aruba-ansible-module-installer.py is missing" "WARNING"
         unset process
     fi
-    [ -z $model_pretty ] && get_pi_info > /dev/null
+    [ -z "$model_pretty" ] && get_pi_info > /dev/null
     if [[ "$model_pretty" =~ "Pi 4" ]] ; then
         UTIL_VER['speed_test']=$( [ -f /var/www/html/speedtest.js ] && echo installed )
     else

@@ -1654,7 +1654,8 @@ class ConsolePiMenu():
                                             if menu_actions[ch]['function'].__name__ == 'pwr_toggle':
                                                 self.spin.start('Request Sent, Refreshing Outlet States')
                                                 # threading.Thread(target=self.get_dli_outlets, kwargs={'upd_linked': True, 'refresh': True}, name='pwr_toggle_refresh').start()
-                                                threading.Thread(target=config.outlet_update, kwargs={'upd_linked': True, 'refresh': True}, name='pwr_toggle_refresh').start()
+                                                upd_linked = True if calling_menu == 'power_menu' else False # else dli_menu
+                                                threading.Thread(target=config.outlet_update, kwargs={'upd_linked': upd_linked, 'refresh': True}, name='pwr_toggle_refresh').start()
                                                 if _grp in config.outlets:
                                                     config.outlets[_grp]['is_on'][_port]['state'] = response
                                                 elif _port != 'all':

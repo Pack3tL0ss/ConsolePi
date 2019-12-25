@@ -6,9 +6,8 @@ After=networking.service
 
 [Service]
 Type=simple
-# ExecStart=/etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/ConsolePi_API.py
 ExecStart=/etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/src/consolepi-api.py
 
 
 [Install]
-WantedBy=network-online.target
+WantedBy=multi-user.target

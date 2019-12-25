@@ -103,6 +103,9 @@ class ConsolePiMenu():
         if config.power and config.pwr.outlet_data:
             if config.pwr.linked_exists or config.pwr.gpio_exists or config.pwr.tasmota_exists:
                 self.menu_actions['p'] = self.power_menu
+            elif config.pwr.dli_exists: # if no linked outlets but dlis defined p sends to dli_menu
+                self.menu_actions['p'] = self.dli_menu
+                
             if config.pwr.dli_exists:
                 self.menu_actions['d'] = self.dli_menu
         if not config.root:

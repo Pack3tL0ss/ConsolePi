@@ -7,7 +7,7 @@ config = ConsolePi_data(do_print=False)
 
 def main():
     log = config.log
-    data = config.local
+    data = {config.hostname: {'adapters': config.get_adapters(), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
     log.debug('[CLOUD TRIGGER (IP)]: Final Data set collected for {}: \n{}'.format(config.hostname, data))
     log.info('[CLOUD TRIGGER (IP)]: Cloud Update triggered by IP Update')
     if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member

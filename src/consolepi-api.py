@@ -18,7 +18,8 @@ from starlette.requests import Request
 import uvicorn
 
 config = ConsolePi_data(do_print=False)
-outlets = config.outlets
+if not config.wait_for_threads():
+    outlets = config.pwr.outlet_data['linked']
 log = config.log
 user = config.USER # pylint: disable=maybe-no-member
 last_update = int(time())
@@ -36,11 +37,11 @@ def log_request(request: Request, route: str):
 def adapters(request: Request):
     log_request(request, 'adapters')
     # if data has been refreshed in the last 20 seconds trust it is valid
-    # prevents multiple simul calls to get_local after mdns_refresh and
+    # prevents multiple simul calls to get_adapters after mdns_refresh and
     # subsequent API calls from all other ConsolePi on the network
     global last_update
     if int(time()) - last_update > 20:
-        adapters  = config.get_local(do_print=False)
+        adapters  = config.get_adapters(do_print=False)
         last_update = int(time())
         return {'adapters': adapters}
     else:
@@ -62,7 +63,7 @@ def get_ifaces(request: Request):
 def get_outlets(request: Request):
     log_request(request, 'outlets')
     # -- Collect Outlet Details remove sensitive data --
-    outlets = config.get_outlets()
+    outlets = config.pwr.pwr_get_outlets()
     if outlets and 'linked' in outlets:
         for grp in outlets['linked']:
             for x in ['username', 'password']:
@@ -73,7 +74,7 @@ def get_outlets(request: Request):
 @app.get('/api/v1.0/details')
 def get_details(request: Request):
     log_request(request, 'details')
-    return {config.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': user}}
+    return {config.hostname: {'adapters': config.get_adapters(), 'interfaces': config.get_if_ips(), 'user': user}}
 
 # @app.get("/api/v1.0/{item_id}")
 # def read_item(self, item_id: int, q: str = None):

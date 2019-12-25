@@ -376,6 +376,7 @@ class ConsolePi_data():
             else:
                 self.spin.warn('[GET ADAPTERS] Detecting Locally Attached Serial Adapters\n\tNo Locally attached serial adapters found')
         
+        self.adapters = serial_list
         return serial_list
 
     # def format_dev(self, dev, with_path=True):

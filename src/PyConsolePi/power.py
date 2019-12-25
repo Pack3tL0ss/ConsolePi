@@ -31,10 +31,9 @@ class Outlets:
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         self._dli = {}
+        self.dli_exists = self.tasmota_exists = self.gpio_exists = self.linked_exists = False
         self.outlet_data = self.pwr_get_outlets_from_file()
         self.log = log
-
-
 
     def do_tasmota_cmd(self, address, command=None):
         '''
@@ -143,7 +142,7 @@ class Outlets:
 
         returns:
             dict: with following keys (all values are dicts)
-                linked: everything in power.json
+                linked: linked outlets from power.json (linked to serial adapters- auto pwr-on)
                 dli_power: dict any dlis in power.json have all ports represented here
                 failures: failure to connect to any outlets will result in an entry here
                     outlet_name: failure description
@@ -156,6 +155,12 @@ class Outlets:
                 'dli_power': {},
                 'failures': {}
                 }
+                
+            for k in outlet_data['linked']:
+                if 'linked_devs' in outlet_data['linked'][k] and outlet_data['linked'][k]['linked_devs']:
+                    outlet_data['linked'][k]['linked_devs'] = self.pwr_format_dev(outlet_data['linked'][k]['linked_devs'])
+                    self.linked_exists = True
+                exec('self.{}_exists = True'.format(outlet_data['linked'][k]['type'].lower()))
         else:
             outlet_data = None
 
@@ -171,17 +176,27 @@ class Outlets:
             outlet_data = {**outlet_data, **failures}
             failures = {}
 
+        # this shouldn't happen, but prevents spawning multiple updates for same outlet
         if outlet_data is not None:
             for k in outlet_data:
-                threading.Thread(target=self.pwr_get_outlets, args=[{k: outlet_data[k]}], kwargs=kwargs, name=t_name + '_pwr_' + k).start()
+                found = False
+                for t in threading.enumerate():
+                    if k == t.name:
+                        found = True
+                        break
+                if not found:
+                    threading.Thread(target=self.pwr_get_outlets, args=[{k: outlet_data[k]}], kwargs=kwargs, name=t_name + '_pwr_' + k).start()
+
+
 
     def pwr_get_outlets(self, outlet_data=None, upd_linked=False, failures={}):
         '''Get Details for Outlets defined in power.json
 
-        params:
-            upd_linked: True will update just the linked ports, False is for dli and will update
+        params: - All Optional
+            outlet_data:dict, The outlets that need to be updated, if not provided will get all outlets defined in power.json
+            upd_linked:Bool, If True will update just the linked ports, False is for dli and will update
                 all ports for the dli.
-            failures: when refreshing outlets pass in previous failures so they can be re-tried
+            failures,dict: when refreshing outlets pass in previous failures so they can be re-tried
         '''
         # if not self.outlet_data:
         #     if path.isfile(self.power_file):
@@ -193,21 +208,37 @@ class Outlets:
         #         return
         # else:
         #     outlet_data = self.outlet_data['linked'] if 'linked' in self.outlet_data else None
-        #     if failures: # re-attempt connection to failed power controllers on refresh
-        #         outlet_data = {**outlet_data, **failures}
-        #         failures = {}
+
         if outlet_data is None:
             outlet_data = self.outlet_data
-        
+
         if outlet_data is not None: # Nothing in power.json or file doesn't exist
-            dli_power = {} if 'dli_power' not in self.outlet_data else self.outlet_data['dli_power']
+            if 'dli_power' in outlet_data:
+                dli_power = outlet_data['dli_power']
+            elif 'dli_power' in self.outlet_data:
+                dli_power = self.outlet_data['dli_power']
+            else:
+                dli_power = {}
+
+        if not failures:
+            if 'failures' in outlet_data and outlet_data['failures']:
+                failures = outlet_data['failures']
+            elif 'failures' in self.outlet_data and self.outlet_data['failures']:
+                failures = self.outlet_data['failures']
+
+        if failures: # re-attempt connection to failed power controllers on refresh
+            outlet_data = {**outlet_data, **failures}
+            failures = {}
+
+        if outlet_data and 'linked' in outlet_data:
+            outlet_data = outlet_data['linked']
 
         for k in outlet_data:
             outlet = outlet_data[k]
             if outlet['type'].upper() == 'GPIO':
                 noff = True if 'noff' not in outlet else outlet['noff'] # default normally off to True if not provided
                 GPIO.setup(outlet['address'], GPIO.OUT)  # pylint: disable=maybe-no-member
-                outlet['is_on'] = bool(GPIO.input(outlet['address'])) if noff else not bool(GPIO.input(outlet['address'])) # pylint: disable=maybe-no-member
+                outlet_data[k]['is_on'] = bool(GPIO.input(outlet['address'])) if noff else not bool(GPIO.input(outlet['address'])) # pylint: disable=maybe-no-member
             elif outlet['type'] == 'tasmota':
                 response = self.do_tasmota_cmd(outlet['address'])
                 outlet['is_on'] = response
@@ -221,6 +252,7 @@ class Outlets:
                     print('\n{}'.format('=' * len(dbg_line)))
                     print('{}\n{}\n{}'.format(dbg_line, outlet_data[k], '-' * len(dbg_line)))
                     print('{}'.format('=' * len(dbg_line)))
+
                 # - Check the power.json data for some required information
                 all_good = True # initial value
                 for _ in ['address', 'username', 'password']:
@@ -230,6 +262,7 @@ class Outlets:
                         failures[k]['error'] = '[PWR-DLI {}] {} missing from {} configuration - skipping'.format(k, _, failures[k]['address']) 
                         # Log here, delete item from dict? TODO
                         break
+                    
                 if all_good:
                     (this_dli, _update) = self.load_dli(outlet['address'], outlet['username'], outlet['password'])
                     if this_dli is None or this_dli.dli is None:
@@ -256,7 +289,7 @@ class Outlets:
                             else:
                                 if 'linked_ports' in outlet and outlet['linked_ports']:
                                     _p = outlet['linked_ports']
-                                    outlet['is_on'] = this_dli[_p]
+                                    outlet_data[k]['is_on'] = this_dli[_p]
                                     # TODO not actually using the error returned this turned into a hot mess
                                     if isinstance(outlet['is_on'], dict) and not outlet['is_on']:
                                         all_good = False
@@ -282,6 +315,8 @@ class Outlets:
                         if TIMING:
                             print('[TIMING] this_dli.outlets: {}'.format(time.time() - xstart)) # TIMING
 
+            # -- END for LOOP for k in outlet_data --
+
         # Move failed outlets from the keys that populate the menu to the 'failures' key
         # failures are displayed in the footer section of the menu, then re-tried on refresh
         for _dev in failures:
@@ -290,19 +325,28 @@ class Outlets:
                 del outlet_data[_dev]
             if failures[_dev]['address'] in dli_power:
                 del dli_power[failures[_dev]['address']]
+        self.outlet_data['failures'] = failures
         # self.outlet_data = {
         #     'linked': outlet_data,
         #     'failures': failures,
         #     'dli_power': dli_power
         #     }
-        self.outlet_data['linked'][k] = outlet_data[k]
-        self.outlets = self.outlet_data['linked']
-        if k in failures:
-            self.outlet_data['failures'][k] = failures[k]
-            self.failures = self.outlet_data['failures']
-        if outlet['address'] in dli_power:
-            self.outlet_data['dli_power'][outlet['address']] = dli_power[outlet['address']]
-            self.dli_pwr = self.outlet_data['dli_power']
+        # self.outlet_data['linked'][k] = outlet_data[k]
+        # self.outlet_data['linked'] = outlet_data
+        # self.outlets = self.outlet_data['linked']
+        # if k in failures:
+        #     self.outlet_data['failures'][k] = failures[k]
+        #     self.failures = self.outlet_data['failures']
+        # if outlet['address'] in dli_power:
+        for o in outlet_data:
+            self.outlet_data['linked'][o] = outlet_data[o]
+        
+        # for dli in dli_power:
+        #     self.outlet_data['dli_power'][dli] = dli_power[dli]
+        self.outlet_data['dli_power'] = dli_power
+        # self.dli_pwr = self.outlet_data['dli_power']
+        
+        # self.failures = self.outlet_data['failures']
 
         return self.outlet_data
 
@@ -435,7 +479,7 @@ class Outlets:
             return 'Error: desired final state must be provided' # should never hit this
 
         if outlets is None:
-            outlets = self.pwr_get_outlets
+            outlets = self.pwr_get_outlets()['linked']
         responses = []
         for grp in outlets:
             outlet = outlets[grp]
@@ -443,6 +487,7 @@ class Outlets:
             if action == 'toggle':
                 # skip any defined dlis that don't have any linked_outlets defined
                 if not outlet['type'] == 'dli' or  ('linked_ports' in outlet and outlet['linked_ports']):
+                    # threading.Thread(target=responses.append, args=(self.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
                     responses.append(self.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
                     port=outlet['linked_ports'] if outlet['type'] == 'dli' and 'linked_ports' in outlet else None,
                     noff=noff, noconfirm=True))
@@ -473,7 +518,7 @@ class Outlets:
         while True:
             threads = 0
             for t in threading.enumerate():
-                if 'cycle' in t.name:
+                if 'cycle' in t.name or 'toggle_' in t.name:
                     threads += 1
             if threads == 0:
                 break
@@ -482,19 +527,50 @@ class Outlets:
 
 
     # Does not appear to be used can prob remove
-    def get_state(self, type, address, port=None):
-        if type.upper() == 'GPIO':
-            GPIO.setup(address)  # pylint: disable=maybe-no-member
-            response = GPIO.input(address)  # pylint: disable=maybe-no-member
-        elif type.lower() == 'tasmota':
-            response = self.do_tasmota_cmd(address)
-        elif type.lower() == 'dli':
-            if port is not None:
-                response = self._dli[address].state(port)
-            else:
-                response = 'ERROR no port provided for dli port'
+    # def get_state(self, type, address, port=None):
+    #     if type.upper() == 'GPIO':
+    #         GPIO.setup(address)  # pylint: disable=maybe-no-member
+    #         response = GPIO.input(address)  # pylint: disable=maybe-no-member
+    #     elif type.lower() == 'tasmota':
+    #         response = self.do_tasmota_cmd(address)
+    #     elif type.lower() == 'dli':
+    #         if port is not None:
+    #             response = self._dli[address].state(port)
+    #         else:
+    #             response = 'ERROR no port provided for dli port'
 
-        return response
+    #     return response
+    
+    def pwr_format_dev(self, dev, with_path=True):
+        '''properly format devs found in user created JSON
+
+        The function makes using full path of the serial device optional
+        in power.json so user can define flr01_neIDF vs /dev/flr01_neIDF
+        
+        Used By: pwr_get_outlets_from_file on init
+        
+        params:
+            dev:list or str, a single device or list of devices
+                devices should be valid, either a root device /dev/ttyUSB0
+                or an alias defined via udev rules
+            with_path:bool, Optional - default is true.  method will prepend
+                /dev/ if necessary. with_path=False results in the opposite
+                /dev/ is removed if included
+
+        Returns: 
+            list (of strings): list of properly formatted devices
+        '''
+        dev = [dev] if not isinstance(dev, list) else dev
+        ret_list = []
+        for d in dev:
+            if with_path:
+                if '/dev/' not in d:
+                    d = '/dev/{}'.format(d) 
+            else:
+                d = d.replace('/dev/', '')
+
+            ret_list.append(d)
+        return ret_list
 
     def confirm(self, prompt, action='Toggle'):
         '''
@@ -515,14 +591,15 @@ if __name__ == '__main__':
     pwr = Outlets('/etc/ConsolePi/power.json')
     outlet_data = pwr.pwr_get_outlets_from_file()
     outlets = pwr.pwr_get_outlets(outlet_data)
-    if len(sys.argv) <= 1:
-        if len(sys.argv) == 1:        
+    if len(sys.argv) >= 2:
+        if len(sys.argv) == 2:
             print(json.dumps(getattr(pwr, sys.argv[1]), indent=4, sort_keys=True))
         else:
-            print(json.dumps(outlets, indent=4, sort_keys=True))
+            func = getattr(pwr, sys.argv[1])
+            print(sys.argv[2:])
+            func(*sys.argv[2:])
+            # upd = pwr.pwr_get_outlets(upd_linked=True)
+            # print(json.dumps(upd, indent=4, sort_keys=True))
     else:
-        func = getattr(pwr, sys.argv[1])
-        print(sys.argv[2:])
-        func(*sys.argv[2:])
-        # upd = pwr.pwr_get_outlets(upd_linked=True)
-        # print(json.dumps(upd, indent=4, sort_keys=True))
+        print(json.dumps(outlets, indent=4, sort_keys=True))
+        print(outlets['linked']['labpower1']['linked_devs'])

@@ -42,7 +42,7 @@ def get_ifaces():
 def get_outlets():
     log_request('outlets')
     # -- Collect Outlet Details remove sensitive data --
-    outlets = config.pwr.get_outlets()
+    outlets = config.pwr.pwr_get_outlets()
     if outlets and 'linked' in outlets:
         for grp in outlets['linked']:
             for x in ['username', 'password']:

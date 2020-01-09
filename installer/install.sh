@@ -10,14 +10,21 @@
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-if [ ! -z $1 ] && [ "$1" = 'dev' ] ; then
+if [ ! -z $1 ] && [ "$1" = 'local-dev' ] ; then
+    echo '!!!! local development testing mode !!!!'
     branch=dev
+    local_dev=true
 else
     branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && sudo git status | head -1 | awk '{print $3}' && popd >/dev/null || echo "master")
+    local_dev=false
 fi
 
 get_common() {
-    wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
+    if ! $local_dev ; then
+        wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
+    else
+        sftp git@omv:/export/git/ConsolePi/installer/common.sh /tmp/common.sh
+    fi
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
     [ -f /tmp/common.sh ] && rm /tmp/common.sh

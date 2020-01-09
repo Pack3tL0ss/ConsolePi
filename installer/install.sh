@@ -26,6 +26,8 @@ get_common() {
         sftp git@omv:/export/git/ConsolePi/installer/common.sh /tmp/common.sh
     fi
     . /tmp/common.sh
+    # overwrite the default source directory to local repo when running local tests
+    $local_dev && consolepi_source='git@omv:/export/ConsolePi/ConsolePi.git'
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
     header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
@@ -145,7 +147,8 @@ git_ConsolePi() {
     cd "/etc"
     if [ ! -d $consolepi_dir ]; then 
         logit "Clean Install git clone ConsolePi"
-        git clone "${consolepi_source}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
+        [ ! -z $branch ] && $branch=='dev' && branch_args='-b dev' || branch_args=""
+        git clone "${consolepi_source}" "${branch_args}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
     else
         cd $consolepi_dir
         logit "Directory exists Updating ConsolePi via git"

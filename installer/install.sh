@@ -10,7 +10,11 @@
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && sudo git status | head -1 | awk '{print $3}' && popd >/dev/null || echo "master")
+if [ ! -z $1 ] && [ "$1" = 'dev' ] ; then
+    branch=dev
+else
+    branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && sudo git status | head -1 | awk '{print $3}' && popd >/dev/null || echo "master")
+fi
 
 get_common() {
     wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh

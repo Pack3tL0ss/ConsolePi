@@ -1012,6 +1012,10 @@ class ConsolePiMenu():
             # outlets = self.get_dli_outlets()
             outlets = config.outlet_update()
 
+        if not outlets:
+            self.error_msgs.append('No Linked Outlets are connected')
+            return
+
         while choice.lower() not in ['x', 'b']:
             item = 1
             if choice.lower() == 'r':

@@ -376,8 +376,8 @@ get_pi_info() {
     logit "$model_pretty"
     logit "$version running on $cpu Revision: $rev"
     logit "$(uname -a)"
-    logit "Python 3 Version $(python3 -V)"
     dpkg -l | grep -q raspberrypi-ui && logit "Raspbian with Desktop" || logit "Raspbian Lite"
+    logit "Python 3 Version $(python3 -V)"
     unset process
 }
 

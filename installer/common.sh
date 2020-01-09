@@ -24,6 +24,7 @@ tmp_log="/tmp/consolepi_install.log"
 final_log="/var/log/ConsolePi/install.log"
 cloud_cache="/etc/ConsolePi/cloud.json"
 override_dir="/etc/ConsolePi/src/override"
+py3ver=$(python3 -V | cut -d. -f2)
 
 # Terminal coloring
 _norm='\e[0m'
@@ -375,6 +376,7 @@ get_pi_info() {
     logit "$model_pretty"
     logit "$version running on $cpu Revision: $rev"
     logit "$(uname -a)"
+    logit "Python 3 Version $(python3 -V)"
     dpkg -l | grep -q raspberrypi-ui && logit "Raspbian with Desktop" || logit "Raspbian Lite"
     unset process
 }

@@ -47,7 +47,7 @@ get_util_status () {
     fi
     [ -z "$model_pretty" ] && get_pi_info > /dev/null
     if [[ "$model_pretty" =~ "Pi 4" ]] ; then
-        UTIL_VER['speed_test']=$( [ -f /var/www/html/speedtest.js ] && echo installed )
+        UTIL_VER['speed_test']=$( [ -f /var/www/speedtest/speedtest.js ] && echo installed )
     else
         process='consolepi-extras'
         logit "consolepi-extras (optional utilities/packages installer) omitted speed test option not >= Pi 4"

@@ -9,6 +9,9 @@ echo -e "${_cyan}\____/\____/_/ /_/____/\____/_/\___${_lred}/_/   /_/   "
 echo -e "${_blue}  https://github.com/Pack3tL0ss/ConsolePi${_norm}"
 echo -e ""
 echo "Your current commit is dated$(pushd $consolepi_dir >/dev/null && git log -1 | grep Date: | cut -d' ' -f2- && popd >/dev/null)"
+# until I sort permissions or create a wrapper try non-sudo then sudo 
+git fetch >/dev/null 2>&1 || sudo git fetch >/dev/null 2>&1
+git status | head -2 | tail -1
 echo "ConsolePi Installer version: $INSTALLER_VER (I don't always remember to bump this though)"
 echo
 echo "use consolepi-help for a list of commands (consolepi-menu being the main one)"

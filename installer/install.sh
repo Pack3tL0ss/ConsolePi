@@ -146,7 +146,7 @@ git_ConsolePi() {
     cd "/etc"
     if [ ! -d $consolepi_dir ]; then 
         logit "Clean Install git clone ConsolePi"
-        [ ! -z $branch ] && $branch=='dev' && branch_args='-b dev' || branch_args=""
+        [ ! -z $branch ] && [ $branch = 'dev' ] && branch_args='-b dev' || branch_args=""
         git clone "${consolepi_source}" "${branch_args}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
     else
         cd $consolepi_dir

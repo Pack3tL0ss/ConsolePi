@@ -20,7 +20,7 @@ import uvicorn
 config = ConsolePi_data(do_print=False)
 if config.power:
     if not config.wait_for_threads():
-        outlets = config.pwr.outlet_data['linked'] if config.pwr.outlet_data else None
+        outlets = config.pwr.outlet_data if config.pwr.outlet_data else None
 else: 
     outlets = None
 log = config.log
@@ -63,15 +63,16 @@ def get_ifaces(request: Request):
     return {'interfaces': ifaces}
 
 @app.get('/api/v1.0/outlets')
-def get_outlets(request: Request):
+def get_outlets(request: Request, outlets=outlets):
     log_request(request, 'outlets')
     # -- Collect Outlet Details remove sensitive data --
-    outlets = config.pwr.pwr_get_outlets()
-    if outlets and 'linked' in outlets:
-        for grp in outlets['linked']:
-            for x in ['username', 'password']:
-                if x in outlets['linked'][grp]:
-                    del outlets['linked'][grp][x]
+    if outlets:
+        outlets = config.pwr.pwr_get_outlets()
+        if outlets and 'linked' in outlets:
+            for grp in outlets['linked']:
+                for x in ['username', 'password']:
+                    if x in outlets['linked'][grp]:
+                        del outlets['linked'][grp][x]
     return outlets
 
 @app.get('/api/v1.0/details')

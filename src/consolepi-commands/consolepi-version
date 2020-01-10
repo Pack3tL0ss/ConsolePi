@@ -12,8 +12,8 @@ echo "Your current commit is dated$(pushd $consolepi_dir >/dev/null && git log -
 # until I sort permissions or create a wrapper try non-sudo then sudo 
 git fetch >/dev/null 2>&1 || sudo git fetch >/dev/null 2>&1
 git status | head -2 | tail -1
-echo "ConsolePi Installer version: $INSTALLER_VER (I don't always remember to bump this though)"
+echo "ConsolePi Installer version: $INSTALLER_VER"
 echo
-echo "use consolepi-help for a list of commands (consolepi-menu being the main one)"
+echo -e "use ${_cyan}consolepi-help${_norm} for a list of commands (${_cyan}consolepi-menu${_norm} being the main one)"
 echo "refer to the GitHub for additional detail"
 echo -e "\n"

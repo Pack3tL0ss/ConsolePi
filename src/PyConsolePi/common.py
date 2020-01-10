@@ -994,6 +994,7 @@ def kill_hung_session(dev):
             retry += 1
     return ppid is None
 
+#TODO move this up into the Class
 def detect_adapters(key=None):
     """Detect Locally Attached Adapters.
 
@@ -1021,8 +1022,12 @@ def detect_adapters(key=None):
         if not found:
             dev_name = root_dev
         
-        devs['by_name'][dev_name] = {}     
-        _ser = pyudev.Devices.from_name(context, 'tty', root_dev).properties['ID_SERIAL_SHORT']
+        devs['by_name'][dev_name] = {}
+        try:
+            _ser = pyudev.Devices.from_name(context, 'tty', root_dev).properties['ID_SERIAL_SHORT']
+        except KeyError:
+            _ser = 'lame'
+            # self.error_messages.append('The Adapter @ ' + root_dev + 'Lacks a serial #... lame!')
         for _dev in context.list_devices(subsystem='tty', DEVNAME='/dev/' + root_dev):
             devs['by_name'][dev_name]['id_path'] = _dev.properties['ID_PATH']
             devs['by_name'][dev_name]['id_ifnum'] = _dev.properties['ID_USB_INTERFACE_NUM']

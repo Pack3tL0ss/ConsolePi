@@ -1001,7 +1001,7 @@ get_serial_udev() {
                 file_diff_update $found_path /etc/udev/rules.d
             else
                 sudo cp $found_path /etc/udev/rules.d
-                sudo udevadm control --reload-rules
+                sudo udevadm control --reload-rules && sudo udevadm trigger
             fi
         fi
     fi

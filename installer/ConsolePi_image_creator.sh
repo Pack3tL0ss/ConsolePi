@@ -64,10 +64,40 @@ priority=0
 img_type='lite'
 
 # if img_only=true only burn the image and enable SSH (I run headless), no other pre-staging is done. This is for testing more commom install scenario
-img_only=true
+img_only=false
 
 # -- Auto Launch ConsolePi installer when user logs in --
 auto_install=true
+
+# Terminal coloring
+_norm='\e[0m'
+_bold='\033[1;32m'
+_blink='\e[5m'
+_red='\e[31m'
+_blue='\e[34m'
+_lred='\e[91m'
+_yellow='\e[33;1m'
+_green='\e[32m'
+_cyan='\e[96m' # technically light cyan
+
+header() {
+    [ "$1" == 'clear' ] && clear
+    echo -e "${_cyan}   ______                       __    ${_lred} ____  _ "
+    echo -e "${_cyan}  / ____/___  ____  _________  / /__  ${_lred}/ __ \(_)"
+    echo -e "${_cyan} / /   / __ \/ __ \/ ___/ __ \/ / _ \\\\${_lred}/ /_/ / / "
+    echo -e "${_cyan}/ /___/ /_/ / / / (__  ) /_/ / /  __${_lred}/ ____/ /  "
+    echo -e "${_cyan}\____/\____/_/ /_/____/\____/_/\___${_lred}/_/   /_/   "
+    echo -e "${_blue}  https://github.com/Pack3tL0ss/ConsolePi${_norm}"
+    echo -e ""
+}
+
+green() {
+    echo -e "\033[1;32m${*}\033[m"
+}
+
+cyan() {
+    echo -e "\e[96m${*}\033[m"
+}
 
 # Function to collect user input
 get_input() {
@@ -103,8 +133,15 @@ do_unzip() {
     [[ -z $img_file ]] && echo 'Something went wrong img file not found after unzip... exiting' && exit 1
 }
 
+show_disk_details() {
+echo -e "------------------------------- // Device Details for $(green "$my_usb") \\\\\ -----------------------------------"
+echo 
+fdisk -l | sed -n "/Disk \/dev\/${my_usb}:/,/Disk \/${my_usb}\//p"
+echo 
+echo -e "--------------------------------------------------------------------------------------------"
+}
+
 main() {
-    clear
     if ! $configure_wpa_supplicant && [[ ! -f "$(pwd)/wpa_supplicant.conf" ]] && [[ ! -f "$(pwd)/ConsolePi_stage/wpa_supplicant.conf" ]]; then
         echo "wlan configuration will not be applied to image, to apply WLAN configuration break out of the script & change params @"
         echo "top of this script *or* provide wpa_supplicant.conf in script directory."
@@ -114,24 +151,19 @@ main() {
     [[ $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
     [[ $boot_list =~ $my_usb ]] && my_usb=    # if usb device found make sure it's not marked as bootable if so reset my_usb so we can check for sd card adapter
     [[ -z $my_usb ]] && my_usb=$( sudo fdisk -l | grep 'Disk /dev/mmcblk' | awk '{print $2}' | cut -d: -f1 | cut -d'/' -f3)
-    ####[[ -z $my_usb ]] && echo "Script currently only support USB micro-sd adapters... none found... Exiting" && exit 1
-    
-    echo -e "\n\n\033[1;32mConsolePi Image Creator$*\033[m \n'exit' (which will terminate the script) is valid at all prompts\n"
-    [[ $my_usb ]] && echo -e "Script has discovered removable flash device @ \033[1;32m ${my_usb} $*\033[m" ||
-        echo -e "Script failed to detect removable flash device, you will need to specify the device"
-    prompt="Do you want to see fdisk details for all disks to verify?"
-    get_input
 
-    # Display fdisk -l output if user wants to verify the correct drive is selected
-    if $input; then
-        echo "Displaying fdisk -l output in 'less' press q to quit"
-        sleep 3
-        sudo fdisk -l | less +G
-    fi
+    header "clear"    
+
+    echo -e "\n\n$(green "ConsolePi Image Creator") \n'exit' (which will terminate the script) is valid at all prompts\n"
+    [[ $my_usb ]] && echo -e "Script has discovered removable flash device @ $(green "${my_usb}") with the following details\n" ||
+        echo -e "Script failed to detect removable flash device, you will need to specify the device"
+
+    show_disk_details ${my_usb}
     
     # Give user chance to change target drive
-    echo -e "\n\nPress enter to accept \033[1;32m ${my_usb} $*\033[m as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
-    read -ep "Device to flash with image [${my_usb}]:" drive
+    echo -e "\n\nPress enter to accept $(green "${my_usb}") as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
+
+    read -ep "Device to flash with image [$(green "${my_usb}")]: " drive
     [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
     
     if [[ $drive ]]; then
@@ -159,7 +191,9 @@ main() {
     # Find out what current raspbian release is
     [ ! $img_type = 'desktop' ] && img_url="https://downloads.raspberrypi.org/raspbian_${img_type}_latest" ||
         img_url="https://downloads.raspberrypi.org/raspbian_latest"
-    cur_rel=$(curl -sIL $img_url | \
+
+    # remove DH cipher security improvement in curl broke this, need this until raspberrypi.org changes to use a larger key
+    cur_rel=$(curl -sIL --ciphers 'DEFAULT:!DH' $img_url | \
         grep -o -E "[0-9]{4}-[0-9]{2}-[0-9]{2}-raspbian-[a-z,A-Z]*.{1}[a-z]*.zip" | head -1 | cut -d'.' -f1)
     
     # Check to see if any images exist in script dir already
@@ -167,44 +201,34 @@ main() {
     found_img_zip=$(ls -lc *raspbian*.zip 2>>/dev/null | awk '{print $9}')
     readarray -t found_img_files <<<"$found_img_file"
     readarray -t found_img_zips <<<"$found_img_zip"
-    # img_file=$(ls -lc "${found_img_file}.img" 2>>/dev/null | awk '{print $9}')
     
     # If img or zip raspbian-lite image exists in script dir see if it is current
     # if not prompt user to determine if they want to download current
     if [[ $found_img_file ]]; then
-#        if [[ ! ${found_img_file%.img} =~ $cur_rel ]]; then
-        # if ! $(ls -lc | grep -q ${cur_rel}.img); then
         if [[ ! " ${found_img_files[@]} " =~ " ${cur_rel}.img " ]]; then
             echo "the following images were found:"
             idx=1
             for i in ${found_img_files[@]}; do echo ${idx}. ${i} && ((idx=$idx+1));  done
-            echo -e "\nbut the current release is $cur_rel"
-            # echo "${found_img_zip%.zip} found, but the latest available release is ${cur_rel}"
-            prompt="Would you like to download and use the latest release? (${cur_rel}):"
-            # echo "${found_img_file%.img} found, but the latest available release is ${cur_rel}"
-            # prompt="Would you like to download and use the latest release? (${cur_rel}):"
+            echo -e "\nbut the current release is $(cyan $cur_rel)"
+            prompt="Would you like to download and use the latest release? ($(cyan $cur_rel)):"
             get_input
             $input || img_file=$found_img_file # selecting no won't likely won't work right now
         else
-            echo "Using image ${cur_rel%.img}, found in $(pwd). It is the current release"
+            echo "Using image $(cyan ${cur_rel%.img}), found in $(pwd). It is the current release"
             img_file=${cur_rel}.img
         fi
     elif [[ $found_img_zip ]]; then
-#        if [[ ! ${found_img_zip%.zip} =~ $cur_rel ]]; then
-        # if ! $(ls -lc | grep -q ${cur_rel}.zip); then
         if [[ ! " ${found_img_zips[@]} " =~ " ${cur_rel}.zip " ]]; then
             echo "the following images were found:"
             idx = 1
             for i in ${found_img_zips[@]}; do echo ${idx}. ${i} && ((idx=$idx+1));  done
-            echo -e "\nbut the current release is $cur_rel"
-            # echo "${found_img_zip%.zip} found, but the latest available release is ${cur_rel}"
-            prompt="Would you like to download and use the latest release? (${cur_rel}):"
+            echo -e "\nbut the current release is $(cyan $cur_rel)"
+            prompt="Would you like to download and use the latest release? ($(cyan ${cur_rel})):"
             get_input
             $input || do_unzip $found_img_zip ## selecting no won't likely won't work right now # img_file assigned in do_unzip
         else
-            echo "Using ${cur_rel} found in $(pwd). It is the current release"
-            do_unzip ${cur_rel}.zip
-            #img_file assigned in do_unzip
+            echo "Using $(cyan ${cur_rel}) found in $(pwd). It is the current release"
+            do_unzip ${cur_rel}.zip #img_file assigned in do_unzip
         fi
     else
         echo "no image found in $(pwd)"
@@ -222,13 +246,15 @@ main() {
     done
    
     # ----------------------------------- // Burn Raspian image to device (micro-sd) \\ -----------------------------------
-    echo -e "\n\n!!! Last chance to abort !!!"
-    prompt="About to burn '${img_file}' to ${my_usb}, Continue?" 
+    echo -e "\n\n${_red}!!! Last chance to abort !!!${_norm}"
+    prompt="About to burn $(cyan ${img_file}) to $(green ${my_usb}), Continue?" 
     get_input
     ! $input && echo 'Exiting Script based on user input' && exit 1
-    echo -e "\nNow Burning image ${img_file} to ${my_usb} standby...\n this takes a few minutes\n"
-    sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && echo -e "\n\n\033[1;32mImage written to flash - no Errors$*\033[m\n\n" || 
-        ( echo -e "\n\n\033[1;32mError occurred burning image $*\033[m\n\n" && exit 1 )
+    header "clear"
+    echo -e "\nNow Burning image $(cyan ${img_file}) to $(green ${my_usb}) standby...\n this takes a few minutes\n"
+    sudo dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress && 
+        echo -e "\n\n\033[1;32mImage written to flash - no Errors\033[m\n\n" || 
+        ( echo -e "\n\n\033[1;32mError occurred burning image\033[m\n\n" && exit 1 )
 
     # Create some mount-points if they don't exist already.  Script will remove them if it has to create them, they will remain if they were already there
     [[ ! -d /mnt/usb1 ]] && sudo mkdir /mnt/usb1 && usb1_existed=false || usb1_existed=true

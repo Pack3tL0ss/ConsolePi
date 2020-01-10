@@ -689,10 +689,10 @@ class ConsolePi_data():
                 if name == 'init':
                     self.pwr_init_complete = True
                 if do_log:
-                    log.info('[PWR {0} WAIT] Waiting for {0} Threads to Complete, elapsed time: {1}'.format(name, time.time() - start))
+                    log.info('[PWR {0} WAIT] Waiting for {0} Threads to Complete, elapsed time: {1}'.format(name.strip('_'), time.time() - start))
                 break
             elif time.time() - start > timeout:
-                log.error('[PWR INIT WAIT] Timeout Waiting for {} Threads to Complete, elapsed time: {}'.format(name, time.time() - start))
+                log.error('[PWR INIT WAIT] Timeout Waiting for {} Threads to Complete, elapsed time: {}'.format(name.strip('_'), time.time() - start))
                 break
         
         if not found:

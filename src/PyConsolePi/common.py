@@ -673,7 +673,7 @@ class ConsolePi_data():
                 self.dli_pwr = self.pwr.outlet_data['dli_power']
             else:
                 self.outlet_failures = {}
-                self.dli_pwr = self.pwr.outlet_data['dli_power'] = {}
+                self.dli_pwr = {}
 
         return found
 

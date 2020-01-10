@@ -159,7 +159,7 @@ main() {
     # Find out what current raspbian release is
     [ ! $img_type = 'desktop' ] && img_url="https://downloads.raspberrypi.org/raspbian_${img_type}_latest" ||
         img_url="https://downloads.raspberrypi.org/raspbian_latest"
-    cur_rel=$(curl -sIL $img_url | 
+    cur_rel=$(curl -sIL $img_url | \
         grep -o -E "[0-9]{4}-[0-9]{2}-[0-9]{2}-raspbian-[a-z,A-Z]*.{1}[a-z]*.zip" | head -1 | cut -d'.' -f1)
     
     # Check to see if any images exist in script dir already
@@ -176,7 +176,7 @@ main() {
         # if ! $(ls -lc | grep -q ${cur_rel}.img); then
         if [[ ! " ${found_img_files[@]} " =~ " ${cur_rel}.img " ]]; then
             echo "the following images were found:"
-            idx = 1
+            idx=1
             for i in ${found_img_files[@]}; do echo ${idx}. ${i} && ((idx=$idx+1));  done
             echo -e "\nbut the current release is $cur_rel"
             # echo "${found_img_zip%.zip} found, but the latest available release is ${cur_rel}"

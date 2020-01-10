@@ -77,7 +77,7 @@ class ConsolePiMenu():
         # updated by get_remote thread until I build a proper class for remotes
         self.pop_list = []
         self.cache_update_pending = False
-        self.remotes = self.get_remote()
+        self.remotes = self.get_remote() if not bypass_remote else {}
         if config.power:
             if not os.path.isfile(config.POWER_FILE):
                 config.plog('Outlet Control Function enabled but no power.json configuration found - Disabling feature',

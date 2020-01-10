@@ -330,9 +330,35 @@ main() {
     echo "Boot RaspberryPi with this image, if auto-install was disabled in script enter 'consolepi-install' to deploy ConsolePi"
 }
 
+# Not implemented yet
+parse_args() {
+    ret=0
+    # initial values
+    local_dav=false
+    # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
+    while (( "$#" )); do
+        # echo -e "DEBUG ~ Currently evaluating: '$1'"
+        case "$1" in
+            -local) # will stop function from exec remaining commands on failure (witout exit 1)
+                local_dev=true
+                shift
+                ;;
+            -b) # will result in exit 1 if cmd fails
+                branch="$2"
+                shift 2
+                ;;
+            *) ## -*|--*=) # unsupported flags
+                echo "Error: Unsupported flag $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    return $ret
+}
 
 iam=`whoami`
 if [ "${iam}" = "root" ]; then 
+    # (( "$#" )) && parse_args "$@"
     main
 else
     echo 'Script should be ran as root. exiting.'

@@ -1440,7 +1440,7 @@ class ConsolePiMenu():
             self.print_mlines(mlines, header='Define/Rename Local Adapters',footer=foot, subs=slines, do_format=False)
             menu_actions['x'] = self.exit
 
-            choice = input(" >>  ").lower()
+            choice = input(" >> ").lower()
             if choice in menu_actions:
                 if not choice == 'b' :
                     self.exec_menu(choice, actions=menu_actions, calling_menu='rename_menu')

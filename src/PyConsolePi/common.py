@@ -351,8 +351,8 @@ class ConsolePi_data():
                                 tty_dev.replace('/dev/', ''), tty_port, baud, dbits, parity.upper(), flow.upper()))
                             break
             else:   # No ser2net.conf file found
-                msg = '[GET ADAPTERS] No ser2net.conf file found unable to extract port definition'
-                log.error(msg)
+                msg = 'No ser2net.conf file found unable to extract port definition'
+                log.error('[GET ADAPTERS] ' + msg)
                 self.error_msgs.append(msg)
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
 

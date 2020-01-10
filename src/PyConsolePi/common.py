@@ -357,9 +357,9 @@ class ConsolePi_data():
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
 
             if tty_port == 9999: # No ser2net definition found for this adapter - should not occur
-                msg = '[GET ADAPTERS] No ser2net.conf definition found for {}'.format(tty_dev.replace('/dev/', ''))
+                msg = 'No ser2net.conf definition found for {}'.format(tty_dev.replace('/dev/', ''))
                 log.error(msg)
-                self.error_msgs.append(msg)
+                self.error_msgs.append('[GET ADAPTERS] ' + msg)
                 self.error_msgs.append('Use option \'c\' to change connection settings for ' + tty_dev.replace('/dev/', ''))
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
             else:

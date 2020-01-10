@@ -15,7 +15,7 @@ from collections import OrderedDict as od
 import pyudev
 # --// ConsolePi imports \\--
 from consolepi.common import (ConsolePi_data, bash_command, check_reachable, json_print, format_eof, get_serial_prompt,
-                              error_handler, user_input_bool, detect_adapters, append_to_file)
+                              error_handler, user_input_bool, append_to_file)
 from halo import Halo
 from log_symbols import LogSymbols as log_sym  # Enum
 
@@ -287,7 +287,7 @@ class ConsolePiMenu():
                 self.con_dict = None
 
             if 'ttyUSB' in from_name or 'ttyACM' in from_name:
-                devs = detect_adapters()
+                devs = config.detect_adapters()
                 if from_name in devs['by_name']:
                     _tty = devs['by_name'][from_name]
                     id_prod = _tty['id_prod']
@@ -1153,7 +1153,7 @@ class ConsolePiMenu():
             elif choice == 'b':
                 return
 
-    def wait_for_input(lower=False, terminate=True):
+    def wait_for_input(self, lower=False, terminate=True):
         try:
             choice = input(" >>  ") if not lower else input(" >>  ").lower()
             return choice

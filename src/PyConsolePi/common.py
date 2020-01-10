@@ -160,7 +160,7 @@ class ConsolePi_data():
         if stdin.isatty():
             self.rows, self.cols = self.get_tty_size()
         self.root = True if os.geteuid() == 0 else False
-        self.new_adapters = detect_adapters()        
+        self.new_adapters = self.detect_adapters()        
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
@@ -241,44 +241,73 @@ class ConsolePi_data():
 
         return ret_data
 
-    # def get_outlet_types(self, outlets=None):
-    #     '''extract outlet types present in power.json
+    def detect_adapters(self, key=None):
+        """Detect Locally Attached Adapters.
 
-    #     used to determine what options to present in the menu
-    #     params:
-    #         outlets:dict, the contents of the power.json file
+        Returns
+        -------
+        dict
+            udev alias/symlink if defined/found as key or root device if not. 
+            /dev/ is stripped: (ttyUSB0 | AP515).  Each device has it's attrs
+            in a dict.
+        """
+        context = pyudev.Context()
 
-    #     '''
-    #     self.dli_exists = self.gpio_exists = self.tasmota_exists = self.linked_exists = False
-    #     if outlets is None:
-    #         outlets = self.pwr.outlet_data['linked']
-    #     elif 'linked' in outlets:
-    #         outlets = outlets['linked']
-    #     for outlet_group in outlets:
-    #         if outlets[outlet_group]['type'].lower() == 'dli':
-    #             self.dli_exists = True
-    #         elif outlets[outlet_group]['type'].upper() == 'GPIO':
-    #             self.gpio_exists = True
-    #         elif outlets[outlet_group]['type'].lower() == 'tasmota':
-    #             self.tasmota_exists = True
-    #         else:
-    #             self.error_msgs.append('Outlet Control Disabled by Script - Invalid \'type\' in power.json')
-    #             self.power = False
-    #             break
-
-    #         if 'linked_devs' in outlets[outlet_group] and outlets[outlet_group]['linked_devs']:
-    #             self.linked_exists = True
-                                    
-    #         if self.dli_exists and self.gpio_exists and self.tasmota_exists and self.linked_exists:
-    #             break
+        devs = {'by_name': {}, 'dup_ser': {}}
+        
+        usb_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='usb', subsystem='tty')]
+        pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
+        root_dev_list = usb_list + pci_list
+        for root_dev in root_dev_list:
+            found = False
+            for a in pyudev.Devices.from_name(context, 'tty', root_dev).properties['DEVLINKS'].split():
+                if '/dev/serial/by-' not in a:
+                    found = True
+                    dev_name = a.replace('/dev/', '')
+                    break
+            if not found:
+                dev_name = root_dev
             
-    #     # -- return not used other than for debug --
-    #     return {
-    #         'dli_exists': self.dli_exists,
-    #         'gpio_exists': self.gpio_exists,
-    #         'tasmota_exists': self.tasmota_exists,
-    #         'linked_exists': self.linked_exists
-    #         }
+            devs['by_name'][dev_name] = {}
+            try:
+                _ser = pyudev.Devices.from_name(context, 'tty', root_dev).properties['ID_SERIAL_SHORT']
+            except KeyError:
+                _ser = 'lame'
+                self.error_messages.append('The Adapter @ ' + root_dev + 'Lacks a serial #... lame!')
+            for _dev in context.list_devices(subsystem='tty', DEVNAME='/dev/' + root_dev):
+                devs['by_name'][dev_name]['id_path'] = _dev.properties['ID_PATH']
+                devs['by_name'][dev_name]['id_ifnum'] = _dev.properties['ID_USB_INTERFACE_NUM']
+                devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT')
+            for _dev in context.list_devices(subsystem='usb', ID_SERIAL_SHORT=_ser):
+                devs['by_name'][dev_name]['id_prod'] = _dev.get('ID_MODEL_ID')
+                devs['by_name'][dev_name]['id_model'] = _dev.get('ID_MODEL')
+                devs['by_name'][dev_name]['id_vendorid'] = _dev.get('ID_VENDOR_ID')
+                devs['by_name'][dev_name]['id_vendor'] = _dev.get('ID_VENDOR')
+                devs['by_name'][dev_name]['root_dev'] = True if dev_name == root_dev else False
+
+                if _ser in devs['dup_ser']:
+                    devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
+                    devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
+                else:
+                    devs['dup_ser'][_ser] = {
+                        'id_prod': devs['by_name'][dev_name]['id_prod'],
+                        'id_model': devs['by_name'][dev_name]['id_model'],
+                        'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
+                        'id_vendor': devs['by_name'][dev_name]['id_vendor'],
+                        'id_paths': [devs['by_name'][dev_name]['id_path']],
+                        'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
+                        }
+                        
+        del_list = []
+        for _ser in devs['dup_ser'] :
+            if len(devs['dup_ser'][_ser]['id_paths']) == 1:
+                del_list.append(_ser)
+
+        if del_list:
+            for i in del_list:
+                del devs['dup_ser'][i]
+
+        return devs if key is None else devs['by_name'][key.replace('/dev/', '')]    
 
     # TODO run get_local in blocking thread abort additional calls if thread already running
     # TODO assign defaults here if not found in ser2net instead of in consolepi-menu
@@ -993,75 +1022,6 @@ def kill_hung_session(dev):
                 ppid = find_procs_by_name('picocom', dev)
             retry += 1
     return ppid is None
-
-#TODO move this up into the Class
-def detect_adapters(key=None):
-    """Detect Locally Attached Adapters.
-
-    Returns
-    -------
-    dict
-        udev alias/symlink if defined/found as key or root device if not. 
-        /dev/ is stripped: (ttyUSB0 | AP515).  Each device has it's attrs
-        in a dict.
-    """
-    context = pyudev.Context()
-
-    devs = {'by_name': {}, 'dup_ser': {}}
-    
-    usb_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='usb', subsystem='tty')]
-    pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
-    root_dev_list = usb_list + pci_list
-    for root_dev in root_dev_list:
-        found = False
-        for a in pyudev.Devices.from_name(context, 'tty', root_dev).properties['DEVLINKS'].split():
-            if '/dev/serial/by-' not in a:
-                found = True
-                dev_name = a.replace('/dev/', '')
-                break
-        if not found:
-            dev_name = root_dev
-        
-        devs['by_name'][dev_name] = {}
-        try:
-            _ser = pyudev.Devices.from_name(context, 'tty', root_dev).properties['ID_SERIAL_SHORT']
-        except KeyError:
-            _ser = 'lame'
-            # self.error_messages.append('The Adapter @ ' + root_dev + 'Lacks a serial #... lame!')
-        for _dev in context.list_devices(subsystem='tty', DEVNAME='/dev/' + root_dev):
-            devs['by_name'][dev_name]['id_path'] = _dev.properties['ID_PATH']
-            devs['by_name'][dev_name]['id_ifnum'] = _dev.properties['ID_USB_INTERFACE_NUM']
-            devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT')
-        for _dev in context.list_devices(subsystem='usb', ID_SERIAL_SHORT=_ser):
-            devs['by_name'][dev_name]['id_prod'] = _dev.get('ID_MODEL_ID')
-            devs['by_name'][dev_name]['id_model'] = _dev.get('ID_MODEL')
-            devs['by_name'][dev_name]['id_vendorid'] = _dev.get('ID_VENDOR_ID')
-            devs['by_name'][dev_name]['id_vendor'] = _dev.get('ID_VENDOR')
-            devs['by_name'][dev_name]['root_dev'] = True if dev_name == root_dev else False
-
-            if _ser in devs['dup_ser']:
-                devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
-                devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
-            else:
-                devs['dup_ser'][_ser] = {
-                    'id_prod': devs['by_name'][dev_name]['id_prod'],
-                    'id_model': devs['by_name'][dev_name]['id_model'],
-                    'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
-                    'id_vendor': devs['by_name'][dev_name]['id_vendor'],
-                    'id_paths': [devs['by_name'][dev_name]['id_path']],
-                    'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
-                    }
-                    
-    del_list = []
-    for _ser in devs['dup_ser'] :
-        if len(devs['dup_ser'][_ser]['id_paths']) == 1:
-            del_list.append(_ser)
-
-    if del_list:
-        for i in del_list:
-            del devs['dup_ser'][i]
-
-    return devs if key is None else devs['by_name'][key.replace('/dev/', '')]
 
 def get_serial_prompt(dev, commands=None, **kwargs):
     '''Attempt to get prompt from serial device

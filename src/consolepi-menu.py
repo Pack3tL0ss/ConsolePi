@@ -1147,12 +1147,22 @@ class ConsolePiMenu():
             footer += text
             # self.menu_formatting('footer', text=text)
             self.print_mlines(body, header=header, subhead=subhead, footer=footer)
-            choice = input(" >>  ").lower()
+            choice = self.wait_for_input(lower=True)
             if choice not in ['b', 'r']:
                 self.exec_menu(choice, actions=menu_actions, calling_menu='power_menu')
             elif choice == 'b':
                 return
 
+    def wait_for_input(lower=False, terminate=True):
+        try:
+            choice = input(" >>  ") if not lower else input(" >>  ").lower()
+            return choice
+        except KeyboardInterrupt:
+            if terminate:
+                print('Exiting based on user input')
+                self.exit()
+            else:
+                return
 
     def dli_menu(self, calling_menu='power_menu'):
         config = self.config

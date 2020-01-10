@@ -289,7 +289,11 @@ class Outlets:
                             else:
                                 if 'linked_ports' in outlet and outlet['linked_ports']:
                                     _p = outlet['linked_ports']
-                                    outlet_data[k]['is_on'] = this_dli[_p]
+                                    if k in outlet_data:
+                                        outlet_data[k]['is_on'] = this_dli[_p]
+                                    else:
+                                        self.log('[PWR GET_OUTLETS] {} appears to be unreachable'.format(k))
+
                                     # TODO not actually using the error returned this turned into a hot mess
                                     if isinstance(outlet['is_on'], dict) and not outlet['is_on']:
                                         all_good = False

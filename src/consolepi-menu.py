@@ -1365,15 +1365,16 @@ class ConsolePiMenu():
             mlines.append(menu_line)
 
             if not remote:
+                _cmd = 'picocom {0} -b{1} -f{2} -d{3} -p{4}'.format(this_dev, baud, flow, dbits, parity)
                 if not rename:
                     # -- // LOCAL ADAPTERS \\ --
                     # Generate Command executed for Menu Line
-                    _cmd = 'picocom {0} -b{1} -f{2} -d{3} -p{4}'.format(this_dev, baud, flow, dbits, parity)
                     menu_actions[str(item)] = {'cmd': _cmd}
                 else:
                     menu_actions[str(item)] = {'function': self.do_rename_adapter, 'args': [this_dev]}
                     menu_actions['s' + str(item)] = {'function': self.show_adapter_details, 'args': [this_dev]}
                     menu_actions['q' + str(item)] = {'function': self.show_serial_prompt, 'args': [this_dev]}
+                    menu_actions['c' + str(item)] = {'cmd': _cmd}
             else:
                 # -- // REMOTE ADAPTERS \\ --
                 _cmd = 'sudo -u {rem_user} ssh -t {0}@{1} "{2} picocom {3} -b{4} -f{5} -d{6} -p{7}"'.format(
@@ -1437,6 +1438,7 @@ class ConsolePiMenu():
             foot = [
                 ' s#. prepend s to the menu-item to show details for the adapter i.e. \'s1\'',
                 ' q#. prepend q to the menu-item to attempt to get/display a prompt from the device i.e. \'q1\'',
+                ' c#. prepend c to to connect to the device (can change baud in picocom) i.e. \'q1\'',
                 '',
                 ' The system is updated with new adapter(s) when you leave this menu (exit or back)',
                 ''

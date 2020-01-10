@@ -18,8 +18,11 @@ from starlette.requests import Request
 import uvicorn
 
 config = ConsolePi_data(do_print=False)
-if not config.wait_for_threads():
-    outlets = config.pwr.outlet_data['linked'] if config.pwr.outlet_data else None
+if config.power:
+    if not config.wait_for_threads():
+        outlets = config.pwr.outlet_data['linked'] if config.pwr.outlet_data else None
+else: 
+    outlets = None
 log = config.log
 user = config.USER # pylint: disable=maybe-no-member
 last_update = int(time())

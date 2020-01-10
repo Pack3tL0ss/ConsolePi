@@ -273,7 +273,7 @@ class ConsolePi_data():
                 _ser = pyudev.Devices.from_name(context, 'tty', root_dev).properties['ID_SERIAL_SHORT']
             except KeyError:
                 _ser = 'lame'
-                self.error_messages.append('The Adapter @ ' + root_dev + 'Lacks a serial #... lame!')
+                self.error_msgs.append('The Adapter @ ' + root_dev + 'Lacks a serial #... lame!')
             for _dev in context.list_devices(subsystem='tty', DEVNAME='/dev/' + root_dev):
                 devs['by_name'][dev_name]['id_path'] = _dev.properties['ID_PATH']
                 devs['by_name'][dev_name]['id_ifnum'] = _dev.properties['ID_USB_INTERFACE_NUM']

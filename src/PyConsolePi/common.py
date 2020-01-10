@@ -648,7 +648,8 @@ class ConsolePi_data():
         log = self.log
         start = time.time()
         do_log = False
-        while True:
+        found = False    
+        while self.power:
             found = False
             for t in threading.enumerate():
                 if name in t.name:
@@ -666,9 +667,13 @@ class ConsolePi_data():
                 break
         
         if not found:
-            self.outlets = self.pwr.outlet_data['linked']
-            self.outlet_failures = self.pwr.outlet_data['failures']
-            self.dli_pwr = self.pwr.outlet_data['dli_power']
+            if self.power and self.pwr.outlet_data:
+                self.outlets = None if not self.pwr.outlet_data['linked'] else self.pwr.outlet_data['linked']
+                self.outlet_failures = self.pwr.outlet_data['failures']
+                self.dli_pwr = self.pwr.outlet_data['dli_power']
+            else:
+                self.outlet_failures = {}
+                self.dli_pwr = self.pwr.outlet_data['dli_power'] = {}
 
         return found
 

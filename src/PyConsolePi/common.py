@@ -674,6 +674,12 @@ class ConsolePi_data():
         return return_list
 
     def wait_for_threads(self, name='init', timeout=8):
+        '''wait for parallel async threads to complete
+
+        returns:
+            bool: True if threads are still running indicating a timeout
+                  False indicates no threads found ~ they have finished
+        '''
         log = self.log
         start = time.time()
         do_log = False
@@ -697,8 +703,16 @@ class ConsolePi_data():
         
         if not found:
             if self.power and self.pwr.outlet_data:
+                # remove failed outlets from portions of the dict that are iterated over to build menu
+                if self.pwr.outlet_data['failures']:
+                    for o in self.pwr.outlet_data['failures']:
+                        self.error_msgs.append(self.pwr.outlet_data['failures'][o]['error'])
+                        if o in self.pwr.outlet_data['linked']:
+                            del self.pwr.outlet_data['linked'][o]
+                        if o in self.pwr.outlet_data['dli']:
+                            del self.pwr.outlet_data['dli'][o]
                 self.outlets = None if not self.pwr.outlet_data['linked'] else self.pwr.outlet_data['linked']
-                self.outlet_failures = self.pwr.outlet_data['failures']
+                self.outlet_failures = self.pwr.outlet_data['failures']                       
                 self.dli_pwr = self.pwr.outlet_data['dli_power']
             else:
                 self.outlet_failures = {}

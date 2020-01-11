@@ -990,11 +990,7 @@ class ConsolePiMenu():
 
     def power_menu(self, calling_menu='main_menu'):
         config = self.config
-        # outlets = self.get_dli_outlets()
-        # outlets = None
-        # outlets = config.outlets
         states = self.states
-        # colors = self.colors
         menu_actions = {
             'b': self.main_menu,
             'x': self.exit,
@@ -1006,10 +1002,7 @@ class ConsolePiMenu():
             with Halo(text='Waiting for Outlet init threads to complete', spinner='dots'):
                 config.wait_for_threads()
                 outlets = config.pwr.outlet_data['linked']
-                # outlets = config.outlets
-                # outlets = self.get_dli_outlets()
         else:
-            # outlets = self.get_dli_outlets()
             outlets = config.outlet_update()
 
         if not outlets:

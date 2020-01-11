@@ -13,6 +13,7 @@ if [[ "$1" == "--pip" ]] ; then
     echo "pip install/upgrade ConsolePi requirements - This can take some time."
     sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade pip 1>/tmp/cpi_pip.log 2>&1 &&
     sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade -r ${req_file} 1>/tmp/cpi_pip.log &&
-    rm /tmp/cpi_pip.log || ( echo "pip upgrade retuned errors displaying log (/tmp/cpi_pip.log)" &&
-        less /tmp/cpi_pip.log | +G )
+    rm /tmp/cpi_pip.log && echo "pip and requirements updated without error" || 
+        ( echo "pip upgrade retuned errors displaying log (/tmp/cpi_pip.log)" &&
+          less /tmp/cpi_pip.log | +G )
 fi

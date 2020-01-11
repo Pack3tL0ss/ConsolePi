@@ -154,6 +154,7 @@ class ConsolePi_data():
         self.adapters = self.get_adapters(do_print=do_print)
         self.interfaces = self.get_if_ips()
         self.ip_list = self.get_ip_list()
+        self.if_w_gw = self.get_if_w_gw()   # used by cloud update as most likely reachable rem_ip ~ still verified by Pi consuming
         # self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
         self.local = self.local_data_repr()
         self.remotes = self.get_local_cloud_file()
@@ -455,6 +456,12 @@ class ConsolePi_data():
             ip_list.append(if_ips[_iface]['ip'])
         return ip_list
 
+    def get_ip_w_gw(self):
+        try:
+            return self.interfaces[ni.gateways()['default'][netifaces.AF_INET][1]]['ip']
+        except:
+            return
+
     def get_local_cloud_file(self, local_cloud_file=LOCAL_CLOUD_FILE):
         data = {}
         if os.path.isfile(local_cloud_file) and os.stat(local_cloud_file).st_size > 0:
@@ -575,6 +582,7 @@ class ConsolePi_data():
         rem_ip_list = []
         update = False
 
+        # if data in includes rem_ip make sure to try that first
         if 'rem_ip' in remote_data and remote_data['rem_ip'] is not None:
             rem_ip_list.append(remote_data['rem_ip'])
 

@@ -92,7 +92,10 @@ class MDNS_Browser:
                         # adapter data is updated on menu_launch
                         if not mdns_data[hostname]['adapters']:
                             log.info('[MDNS DSCVRY] {} provided no adapter data Collecting via API'.format(info.server.split('.')[0]))
-                            update_cache, mdns_data[hostname] = config.api_reachable(mdns_data[hostname])
+                            try:
+                                update_cache, mdns_data[hostname] = config.api_reachable(mdns_data[hostname])
+                            except Exception:
+                                pass
 
                         if self.show:
                             if hostname in self.discovered:

@@ -154,7 +154,7 @@ class ConsolePi_data():
         self.adapters = self.get_adapters(do_print=do_print)
         self.interfaces = self.get_if_ips()
         self.ip_list = self.get_ip_list()
-        self.if_w_gw = self.get_if_w_gw()   # used by cloud update as most likely reachable rem_ip ~ still verified by Pi consuming
+        self.ip_w_gw = self.get_ip_w_gw()   # used by cloud update as most likely reachable rem_ip ~ still verified by Pi consuming
         # self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
         self.local = self.local_data_repr()
         self.remotes = self.get_local_cloud_file()
@@ -192,11 +192,12 @@ class ConsolePi_data():
                 self.error_msgs.append(msg)
                 return _outlets['linked']
 
-    def local_data_repr(self, adapters=None, interfaces=None, outlets=None):
+    def local_data_repr(self, adapters=None, interfaces=None, rem_ip=None, outlets=None):
         adapters = self.adapters if adapters is None else adapters
         interfaces = self.interfaces if interfaces is None else interfaces
+        rem_ip = self.ip_w_gw if rem_ip is None else rem_ip
         # outlets = self.outlets if outlets is None else outlets
-        local = {self.hostname: {'adapters': adapters, 'interfaces': interfaces, 'user': 'pi'}}
+        local = {self.hostname: {'adapters': adapters, 'interfaces': interfaces, 'rem_ip': rem_ip, 'user': self.USER}} # pylint: disable=maybe-no-member
 
         return local
 
@@ -458,7 +459,7 @@ class ConsolePi_data():
 
     def get_ip_w_gw(self):
         try:
-            return self.interfaces[ni.gateways()['default'][netifaces.AF_INET][1]]['ip']
+            return self.get_if_ips()[ni.gateways()['default'][ni.AF_INET][1]]['ip']
         except:
             return
 

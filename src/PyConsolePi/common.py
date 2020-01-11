@@ -709,7 +709,7 @@ class ConsolePi_data():
                         self.error_msgs.append(self.pwr.outlet_data['failures'][o]['error'])
                         if o in self.pwr.outlet_data['linked']:
                             del self.pwr.outlet_data['linked'][o]
-                        if o in self.pwr.outlet_data['dli']:
+                        if 'dli' in self.pwr.outlet_data and o in self.pwr.outlet_data['dli']:
                             del self.pwr.outlet_data['dli'][o]
                 self.outlets = None if not self.pwr.outlet_data['linked'] else self.pwr.outlet_data['linked']
                 self.outlet_failures = self.pwr.outlet_data['failures']                       

@@ -167,19 +167,6 @@ class ConsolePi_data():
         rows, cols = size.stdout.decode('UTF-8').split()
         return int(rows), int(cols)
 
-    # def outlet_update(self, upd_linked=False, refresh=False):
-    #     '''
-    #     Called by init and consolepi-menu refresh
-    #     '''
-    #     if self.power: # pylint: disable=maybe-no-member
-    #         if not hasattr(self, 'outlets') or refresh:
-    #             _outlets = self.pwr.pwr_get_outlets(self.pwr.outlet_data, upd_linked=upd_linked, failures=self.pwr.outlet_data['failures'])
-    #             self.outlets = _outlets['linked']
-    #             self.outlet_failures = _outlets['failures']
-    #             self.dli_pwr = _outlets['dli_power']
-    #             self.pwr.outlet_data = _outlets
-    #             return _outlets
-
     def outlet_update(self, upd_linked=False, refresh=False, key='linked', outlets=None):
         '''
         Called by consolepi-menu refresh
@@ -408,19 +395,6 @@ class ConsolePi_data():
         self.adapters = serial_list
         return serial_list
 
-    # def format_dev(self, dev, with_path=True):
-    #     dev = [dev] if not isinstance(dev, list) else dev
-    #     ret_list = []
-    #     for d in dev:
-    #         if with_path:
-    #             if '/dev/' not in d:
-    #                 d = '/dev/{}'.format(d) 
-    #         else:
-    #             d = d.replace('/dev/', '')
-
-    #         ret_list.append(d)
-    #     return ret_list[0] if len(ret_list) == 1 else ret_list
-
     # TODO Refactor make more efficient
     def map_serial2outlet(self, serial_list, outlets):
         '''repr generates outlets linked to adapters in a dict keyed by the adapter
@@ -550,23 +524,7 @@ class ConsolePi_data():
                             elif 'upd_time' in current_remotes[_]:
                                     remote_consoles[_] = current_remotes[_] 
                                     log.info('[CACHE UPD] {} Keeping existing data based *existence* of update time which is lacking in this update from {}'.format(_, remote_consoles[_]['source']))
-                                    
-                        # -- Should be able to remove some of this logic now that a timestamp has beeen added along with a cloud update on serial adapter change --
-                        # elif remote_consoles[_]['source'] != 'mdns' and 'source' in current_remotes[_] and current_remotes[_]['source'] == 'mdns':
-                        #     if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
-                        #         # given all of the above it would appear the mdns entry is more current than the cloud entry
-                        #         remote_consoles[_] = current_remotes[_]
-                        #         log.info('[CACHE UPD] Keeping existing cache data for {}'.format(_))
-                        # elif remote_consoles[_]['source'] != 'mdns':
-                        #         if 'rem_ip' in current_remotes[_] and current_remotes[_]['rem_ip'] is not None:
-                        #             # if we currently have a reachable ip assume whats in the cache is more valid
-                        #             remote_consoles[_]['rem_ip'] = current_remotes[_]['rem_ip']
 
-                        #             if len(current_remotes[_]['adapters']) > 0 and len(remote_consoles[_]['adapters']) == 0:
-                        #                 log.info('[CACHE UPD] My Adapter data for {} is more current, keeping'.format(_))
-                        #                 remote_consoles[_]['adapters'] = current_remotes[_]['adapters']
-                        #                 log.debug('[CACHE UPD] !!! Keeping Adapter data from cache as none provided in data set !!!')
-        
             with open(local_cloud_file, 'w') as cloud_file:
                 cloud_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
                 set_perm(local_cloud_file)

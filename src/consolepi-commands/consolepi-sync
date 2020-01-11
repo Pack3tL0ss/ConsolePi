@@ -10,6 +10,7 @@ if [[ "$1" == "--pip" ]] ; then
     [ $py3ver -ge 6 ] && req_file="/etc/ConsolePi/installer/requirements.txt" ||
                          req_file="/etc/ConsolePi/installer/requirements-legacy.txt"
 
+    echo "pip install/upgrade ConsolePi requirements - This can take some time."
     sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade pip 1>/tmp/cpi_pip.log 2>&1 &&
     sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade -r ${req_file} 1>/tmp/cpi_pip.log &&
     rm /tmp/cpi_pip.log || ( echo "pip upgrade retuned errors displaying log (/tmp/cpi_pip.log)" &&

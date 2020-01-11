@@ -495,7 +495,7 @@ class ConsolePiMenu():
         plog = config.plog
         # -- // Update Local Adapters \\ --
         if not rem_update:
-            config.local = {config.hostname: {'adapters': config.get_adapters(), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
+            config.local = {config.hostname: {'adapters': config.get_adapters(), 'interfaces': config.get_if_ips(), 'rem_ip': config.get_ip_w_gw(), 'user': 'pi'}}
             # self.data['local'] = config.local
             log.debug('Final Data set collected for {}: {}'.format(config.hostname, config.local))
 

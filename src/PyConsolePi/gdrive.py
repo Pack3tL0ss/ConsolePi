@@ -5,7 +5,6 @@ import json
 import socket
 import os.path
 import time
-
 # -- google stuff --
 from googleapiclient import discovery
 import pickle

@@ -1482,12 +1482,12 @@ class ConsolePiMenu():
 
         # Launch to Power Menu if no adapters or remotes are found
         if not loc and not rem and config.power and config.outlets:
-                self.error_msgs.append('No Adapters Found, Outlets Found... Launching to Power Menu')
-                self.error_msgs.append('use option "b" to access main menu options')
-                if config.pwr.dli_exists and not config.pwr.linked_exists:
-                    self.exec_menu('d')
-                else:
-                    self.exec_menu('p')
+            self.error_msgs.append('No Adapters Found, Outlets Found... Launching to Power Menu')
+            self.error_msgs.append('use option "b" to access main menu options')
+            if config.pwr.dli_exists and not config.pwr.linked_exists:
+                self.exec_menu('d')
+            else:
+                self.exec_menu('p')
 
         # Build menu items for each locally connected serial adapter
         outer_body = []

@@ -258,14 +258,6 @@ collect() {
             read -n 1 -p "Press any key to continue"
         fi
     fi
-
-    # # -- tftpd --
-    # if ! $selected_prompts || [ -z $tftpd ]; then
-    #     header
-    #     [ -z $tftpd ] && tftpd=false
-    #     user_input $tftpd "Do you want to enable a tftp server"
-    #     tftpd=$result
-    # fi
 }
 
 verify() {
@@ -1070,43 +1062,44 @@ custom_post_install_script() {
 
 # -- Display Post Install Message --
 post_install_msg() {
+    clear
     echo
     echo "*********************************************** Installation Complete ***************************************************"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mNext Steps/Info$*\033[m                                                                                                       *"
+    echo -e "* \033[1;32mNext Steps/Info\033[m                                                                                                       *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mCloud Sync:$*\033[m                                                                                                           *"
+    echo -e "* \033[1;32mCloud Sync:\033[m                                                                                                           *"
     echo "*   if you plan to use cloud sync.  You will need to do some setup on the Google side and Authorize ConsolePi           *"
     echo "*   refer to the GitHub for more details                                                                                *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mOpenVPN:$*\033[m                                                                                                              *"
+    echo -e "* \033[1;32mOpenVPN:\033[m                                                                                                              *"
     echo "*   if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and ovpn_credentials files in    *"
     echo "*   /etc/openvpn/client.  Then run 'consolepi-upgrade' which will add a few lines to the config to enable some          *"
     echo "*   ConsolePi functionality.  There is a .example file for reference as well.                                           *"
     echo "*     You should \"sudo chmod 600 <filename>\" both of the files for added security                                       *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mser2net Usage:$*\033[m                                                                                                        *"
+    echo -e "* \033[1;32mser2net Usage:\033[m                                                                                                        *"
     echo "*   Serial Ports are available starting with telnet port 8001 (ttyUSB#) or 9001 (ttyACM#) incrementing with each        *"
     echo "*   adapter plugged in.  if you configured predictable ports for specific serial adapters those start with 7001.        *"
     echo "*   **OR** just launch the consolepi-menu for a menu w/ detected adapters                                               *"
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mBlueTooth:$*\033[m                                                                                                            *"
+    echo -e "* \033[1;32mBlueTooth:\033[m                                                                                                            *"
     echo "*   ConsolePi should be discoverable (after reboot if this is the initial installation).                                *"
     echo "*   - Configure bluetooth serial on your device and pair with ConsolePi                                                 *"
     echo "*   - On client device attach to the com port created after the step above was completed                                *"
     echo "*   - Once Connected the Console Menu will automatically launch allowing you to connect to any serial devices found     *"
     echo "*   NOTE: The Console Menu is available from any shell session (bluetooth or SSH) via the consolepi-menu command        *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mLogging:$*\033[m                                                                                                              *"
+    echo -e "* \033[1;32mLogging:\033[m                                                                                                              *"
     echo "*   The bulk of logging for remote discovery, adapter detection cloud updates... end up in /var/log/ConsolePi/cloud.log *"
     echo "*   The tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest in syslog                         *"
     echo "*   - openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn   *"
     echo "*   - pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log                *"
     echo "*   - An install log can be found in ${consolepi_dir}installer/install.log                                               *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mConsolePi Commands:$*\033[m                                                                                                   *"
+    echo -e "* \033[1;32mConsolePi Commands:\033[m                                                                                                   *"
     echo "*   **Refer to the GitHub for the most recent complete list**                                                           *"
     echo "*   - consolepi-upgrade: upgrade ConsolePi. - supported update method.                                                  *"
     echo "*   - consolepi-addssids: Add additional known ssids. same as doing sudo /etc/ConsolePi/ssids.sh                        *"
@@ -1125,14 +1118,13 @@ post_install_msg() {
     echo "*        valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail       *"
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${INSTALLER_VER}**************************************************************************************"
-    echo -e "\n\n"
     # Script Complete Prompt for reboot if first install
     if $upgrade; then
-        echo "ConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade"
+        echo -e "\nConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade\n"
     else
-        prompt="A reboot is required, do you want to reboot now"
+        prompt="\nA reboot is required, do you want to reboot now"
         go_reboot=$(user_input_bool)
-        $go_reboot && sudo reboot || echo "ConsolePi Install script Complete, Reboot is required"
+        $go_reboot && sudo reboot || echo "\nConsolePi Install script Complete, Reboot is required"
     fi
 }
 

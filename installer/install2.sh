@@ -441,6 +441,7 @@ misc_imports(){
             logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
         fi
 
+        # -- custom overlay file for PoE hat (fan control) --
         found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
         [[ $found_path ]] && logit "overlay file found creating dtbo"
         if [[ $found_path ]]; then 
@@ -1157,7 +1158,9 @@ install2_main() {
     ! $upgrade && misc_stuff 
     do_resize
     if [ ! -z $skip_utils ] && $skip_utils ; then
+        process="optional utilities installer"
         logit "utilities menu bypassed by config variable"
+        unset process
     else
         get_utils
         util_main

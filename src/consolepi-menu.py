@@ -1437,7 +1437,7 @@ class ConsolePiMenu():
             for host in sorted(rem):
                 if 'rem_ip' in rem[host] and rem[host]['rem_ip'] is not None:
                 # if rem[host]['rem_ip'] is not None:
-                    mlines.append('Connect to {1} @ {2}'.format(host, rem[host]['rem_ip']))
+                    mlines.append('Connect to {0} @ {1}'.format(host, rem[host]['rem_ip']))
                     _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, rem[host]['user'], rem[host]['rem_ip'])
                     menu_actions[str(item)] = {'cmd': _cmd}
                     item += 1

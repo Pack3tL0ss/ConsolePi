@@ -1457,12 +1457,14 @@ class ConsolePiMenu():
                     r = ssh_hosts[host]
                     if 'address' in r:
                         mlines.append('Connect to {0} @ {1}'.format(host, ssh_hosts[host]['address']))
+                        _host = ssh_hosts[host]['address'].split(':')[0]
+                        _port = '' if ':' not in ssh_hosts[host]['address'] else ssh_hosts[host]['address'].split(':')[1])
                         if 'method' in r and r['method'].lower() == 'ssh':
-                            _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], ssh_hosts[host]['address'])
+                            _cmd = 'sudo -u {0} ssh -t {3} {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], _host,
+                            '' if not _port else '-p {}'.format(_port))
                         elif 'method' in r and r['method'].lower() == 'telnet':
                             _cmd = 'sudo -u {0} telnet {1} {2}'.format(config.loc_user, 
-                                    ssh_hosts[host]['address'].split(':')[0],
-                                    '' if ':' not in ssh_hosts[host]['address'] else ssh_hosts[host]['address'].split(':')[1])
+                                    ssh_hosts[host]['address'].split(':')[0], _port
                         menu_actions[str(item)] = {'cmd': _cmd}
                         item += 1
                     

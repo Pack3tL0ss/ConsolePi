@@ -501,7 +501,8 @@ class ConsolePi_data():
         if len(remote_consoles) > 0:
             if os.path.isfile(local_cloud_file):
                 if current_remotes is None:
-                    current_remotes = self.get_local_cloud_file()
+                    # current_remotes = self.get_local_cloud_file() if not hasattr(self, remotes) else self.remotes
+                    current_remotes = self.remotes
 
         # update current_remotes dict with data passed to function
         # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
@@ -515,14 +516,14 @@ class ConsolePi_data():
                             remote_consoles[_] = current_remotes[_]
                     else:
                         # -- DEBUG --
-                        log.debug('[CACHE UPD] \n--{}-- \n    remote rem_ip: {}\n    remote source: {}\n    remote upd_time: {}\n    cache rem_ip: {}\n    cache source: {}\n    cache upd_time: {}\n'.format(
+                        log.debug('[CACHE UPD] \n--{}-- \n    remote upd_time: {}\n    remote rem_ip: {}\n    remote source: {}\n    cache rem upd_time: {}\n    cache rem_ip: {}\n    cache source: {}\n'.format(
                             _,
+                            time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(remote_consoles[_]['upd_time'])) if 'upd_time' in remote_consoles[_] else None,
                             remote_consoles[_]['rem_ip'] if 'rem_ip' in remote_consoles[_] else None,
                             remote_consoles[_]['source'] if 'source' in remote_consoles[_] else None,
-                            time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(remote_consoles[_]['upd_time'])) if 'upd_time' in remote_consoles[_] else None,
+                            time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(current_remotes[_]['upd_time'])) if 'upd_time' in current_remotes[_] else None,
                             current_remotes[_]['rem_ip'] if 'rem_ip' in current_remotes[_] else None, 
                             current_remotes[_]['source'] if 'source' in current_remotes[_] else None,
-                            time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(current_remotes[_]['upd_time'])) if 'upd_time' in current_remotes[_] else None,
                             ))
                         # -- END DEBUG --
                         # No Change Detected (data passed to function matches cache)
@@ -539,7 +540,10 @@ class ConsolePi_data():
                                     # -- after 3 failed connection attempts.
                                     if 'fail_cnt' not in remote_consoles[_] and 'fail_cnt' in current_remotes[_]:
                                         remote_consoles[_]['fail_cnt'] = current_remotes[_]['fail_cnt']
-                                    log.info('[CACHE UPD] {} Updating data from {} based on more current update time'.format(_, remote_consoles[_]['source']))
+                                    if current_remotes[_]['upd_time'] == remote_consoles[_]['upd_time']:
+                                        log.warning('[CACHE UPD] {} current cache update time and {} update time is equal but contents of dict don\'t match'.format(_, remote_consoles[_]['source']))
+                                    else:
+                                        log.info('[CACHE UPD] {} Updating data from {} based on more current update time'.format(_, remote_consoles[_]['source']))
                             elif 'upd_time' in current_remotes[_]:
                                     remote_consoles[_] = current_remotes[_] 
                                     log.info('[CACHE UPD] {} Keeping existing data based *existence* of update time which is lacking in this update from {}'.format(_, remote_consoles[_]['source']))

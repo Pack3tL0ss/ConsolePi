@@ -473,6 +473,7 @@ class ConsolePiMenu():
         config.rows, config.cols = config.get_tty_size()
         log = config.log
         plog = config.plog
+        
         # -- // Update Local Adapters \\ --
         if not rem_update:
             config.local = {config.hostname: {'adapters': config.get_adapters(), 'interfaces': config.get_if_ips(), 'rem_ip': config.get_ip_w_gw(), 'user': 'pi'}}

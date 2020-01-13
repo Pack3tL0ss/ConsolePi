@@ -438,7 +438,7 @@ class ConsolePiMenu():
             threading.Thread(target=verify_remote_thread, args=(data, remotepi), name='vrfy_{}'.format(remotepi)).start()
 
         # -- wait for threads to complete --
-        if not config.wait_for_threads(name='vrfy_'):
+        if not config.wait_for_threads(name='vrfy_', thread_type='remote'):
             if config.remotes:
                 spin.succeed('[GET REM] Querying Remotes via API to verify reachability and adapter data\n\tFound {} Remote ConsolePis'.format(len(config.remotes)))
             else:
@@ -473,7 +473,7 @@ class ConsolePiMenu():
         config.rows, config.cols = config.get_tty_size()
         log = config.log
         plog = config.plog
-        
+
         # -- // Update Local Adapters \\ --
         if not rem_update:
             config.local = {config.hostname: {'adapters': config.get_adapters(), 'interfaces': config.get_if_ips(), 'rem_ip': config.get_ip_w_gw(), 'user': 'pi'}}

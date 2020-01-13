@@ -662,7 +662,7 @@ class ConsolePi_data():
                 return_list.append('{}: {}'.format(_rem, ret))
         return return_list
 
-    def wait_for_threads(self, name='init', timeout=8):
+    def wait_for_threads(self, name='init', timeout=8, thread_type='power'):
         '''wait for parallel async threads to complete
 
         returns:
@@ -673,7 +673,7 @@ class ConsolePi_data():
         start = time.time()
         do_log = False
         found = False    
-        while self.power:
+        while True:
             found = False
             for t in threading.enumerate():
                 if name in t.name:
@@ -684,28 +684,31 @@ class ConsolePi_data():
                 if name == 'init':
                     self.pwr_init_complete = True
                 if do_log:
-                    log.info('[PWR {0} WAIT] Waiting for {0} Threads to Complete, elapsed time: {1}'.format(name.strip('_'), time.time() - start))
+                    log.info('[{0} {1} WAIT] {0} Threads have Completed, elapsed time: {2}'.format(
+                        name.strip('_').upper(), thread_type.upper(), time.time() - start))
                 break
             elif time.time() - start > timeout:
-                log.error('[PWR INIT WAIT] Timeout Waiting for {} Threads to Complete, elapsed time: {}'.format(name.strip('_'), time.time() - start))
+                log.error('[{0} {1} WAIT] Timeout Waiting for {0} Threads to Complete, elapsed time: {2}'.format(
+                    name.strip('_').upper(), thread_type.upper(), time.time() - start))
                 break
         
-        if not found:
-            if self.power and self.pwr.outlet_data:
-                # remove failed outlets from portions of the dict that are iterated over to build menu
-                if self.pwr.outlet_data['failures']:
-                    for o in self.pwr.outlet_data['failures']:
-                        self.error_msgs.append(self.pwr.outlet_data['failures'][o]['error'])
-                        if o in self.pwr.outlet_data['linked']:
-                            del self.pwr.outlet_data['linked'][o]
-                        if 'dli' in self.pwr.outlet_data and o in self.pwr.outlet_data['dli']:
-                            del self.pwr.outlet_data['dli'][o]
-                self.outlets = None if not self.pwr.outlet_data['linked'] else self.pwr.outlet_data['linked']
-                self.outlet_failures = self.pwr.outlet_data['failures']                       
-                self.dli_pwr = self.pwr.outlet_data['dli_power']
-            else:
-                self.outlet_failures = {}
-                self.dli_pwr = {}
+        if thread_type == 'power':
+            if not found:
+                if self.power and self.pwr.outlet_data:
+                    # remove failed outlets from portions of the dict that are iterated over to build menu
+                    if self.pwr.outlet_data['failures']:
+                        for o in self.pwr.outlet_data['failures']:
+                            self.error_msgs.append(self.pwr.outlet_data['failures'][o]['error'])
+                            if o in self.pwr.outlet_data['linked']:
+                                del self.pwr.outlet_data['linked'][o]
+                            if 'dli' in self.pwr.outlet_data and o in self.pwr.outlet_data['dli']:
+                                del self.pwr.outlet_data['dli'][o]
+                    self.outlets = None if not self.pwr.outlet_data['linked'] else self.pwr.outlet_data['linked']
+                    self.outlet_failures = self.pwr.outlet_data['failures']                       
+                    self.dli_pwr = self.pwr.outlet_data['dli_power']
+                else:
+                    self.outlet_failures = {}
+                    self.dli_pwr = {}
 
         return found
 

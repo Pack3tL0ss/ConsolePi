@@ -20,7 +20,7 @@ from consolepi.common import ConsolePi_Log
 #     new_file.write(str(sys.argv[1:]) + '\n' + str(os.environ) + '\n')
 
 # -- Some Testing Stuff - eventually move to ztp.conf or oobm.conf file --
-match = ['2530', '3810', '8320']
+match = ['2530', '3810', '8320', '8325', '6300']
 
 cpi_log = ConsolePi_Log()
 log = cpi_log.log
@@ -54,8 +54,11 @@ if vendor is not None and 'ConsolePi' in vendor:
         'cache-control': 'no-cache'
     }
 
-    response = requests.request("GET", url, headers=headers)
-    log.info('Response from {}[{}]: \n{}'.format(ip, response.status_code, response.text))
+    try:
+        response = requests.request("GET", url, headers=headers)
+        log.info('[DHCP TRIGGER] Response from {}[{}]: \n{}'.format(ip, response.status_code, response.text))
+    except:
+        pass
 
     # TODO get/post info from/to ConsolePi that just connected via API
     # Update local cloud cache

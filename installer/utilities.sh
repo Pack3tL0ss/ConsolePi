@@ -246,13 +246,15 @@ util_exec() {
             if [[ $2 == "install" ]]; then
                 cmd_list=(
                     "-s" "-pf" "Update /etc/bash/bashrc for cockpit ~ ConsolePi" 
-                    "echo -e \"if [ ! -z \$COCKPIT_REMOTE_PEER ] && [[ ! \\\"\\\$PATH\\\" =~ \\\"consolepi-commands\\\" ]] ; then\\n\\t[ -f \\\"/etc/ConsolePi/src/consolepi.sh\\\" ] && . /etc/ConsolePi/src/consolepi.sh\\nfi\" >>/tmp/test"
+                    "echo -e \"# read consolepi profile script for cockpit tty\\nif [ ! -z \\\$COCKPIT_REMOTE_PEER ] && [[ ! \\\"\\\$PATH\\\" =~ \\\"consolepi-commands\\\" ]] ; then\\n\\t[ -f \\\"/etc/ConsolePi/src/consolepi.sh\\\" ] && . /etc/ConsolePi/src/consolepi.sh\\nfi\" >>/etc/bash.bashrc"
                     "-logit" 'Installing cockpit this will take a few...'
                     "-apt-install" "$apt_pkg_name"
                 )
             elif [[ $2 == "remove" ]]; then
                 cmd_list=(
                     "-logit" 'Removing cockpit this will take a few...'
+                    "-s" "-f" "remove cockpit ~ ConsolePi lines from /etc/bash/bashrc"
+                        "sed -i '/consolepi profile script for cockpit tty/,/fi/d' /etc/bash.bashrc"
                     "-apt-purge" "$apt_pkg_name"
                 )
             fi

@@ -1118,6 +1118,8 @@ post_install_msg() {
     echo "*        valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail       *"
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${INSTALLER_VER}**************************************************************************************"
+    # Display any warnings 
+    [ $warn_cnt -gt 0 ] && echo -e "\n${_red}---- warnings exist ----${_norm}" && grep warning $log_file && echo ''
     # Script Complete Prompt for reboot if first install
     if $upgrade; then
         echo -e "\nConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade\n"

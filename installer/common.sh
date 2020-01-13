@@ -25,6 +25,7 @@ final_log="/var/log/ConsolePi/install.log"
 cloud_cache="/etc/ConsolePi/cloud.json"
 override_dir="/etc/ConsolePi/src/override"
 py3ver=$(python3 -V | cut -d. -f2)
+warn_cnt=0
 
 # Terminal coloring
 _norm='\e[0m'
@@ -106,6 +107,7 @@ logit() {
         status="${_red}${status}${_norm}"
     elif [[ ! "${status}" == "INFO" ]]; then
         status="${_yellow}${status}${_norm}"
+        ((warn_cnt+=1))
     fi
     
     # Log to stdout and log-file

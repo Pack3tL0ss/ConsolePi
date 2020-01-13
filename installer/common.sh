@@ -8,6 +8,7 @@ INSTALLER_VER=40
 CFG_FILE_VER=7
 cur_dir=$(pwd)
 iam=$(who -m |  awk '{print $1}')
+[ -z $iam ] && iam=$(whoami) # cockpit shell
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"

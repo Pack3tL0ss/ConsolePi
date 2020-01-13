@@ -1405,12 +1405,12 @@ class ConsolePiMenu():
         if loc: # and config.root:
             text.append(' rn. Rename Local Adapters')
             self.menu_actions['rn'] = self.rename_menu
-        if os.path.isfile('/etc/ConsolePi/hosts.json') and os.stat('/etc/ConsolePi/hosts.json').st_size > 0:
+        if config.ssh_hosts:
             text.append(' rh. Enter remote host menu (defined ssh hosts)')
-        self.menu_actions['rh'] = {
-            'function': self.rshell_menu,
-            'kwargs': {'ssh_hosts': True}
-            }
+            self.menu_actions['rh'] = {
+                'function': self.rshell_menu,
+                'kwargs': {'ssh_hosts': True}
+                }
         text.append(' r.  Refresh')
 
         self.print_mlines(outer_body, header='ConsolePi Serial Menu', footer=text, subs=slines, do_format=False)
@@ -1419,7 +1419,7 @@ class ConsolePiMenu():
         self.exec_menu(choice)
         return
 
-    def rshell_menu(self, ssh_hosts=False):
+    def rshell_menu(self, do_ssh_hosts=False):
         choice = ''
         config = self.config
         # rem = self.remotes
@@ -1439,7 +1439,7 @@ class ConsolePiMenu():
             # Build menu items for each reachable remote ConsolePi
             item = 1
 
-            if not ssh_hosts:
+            if not do_ssh_hosts:
                 for host in sorted(rem):
                     if 'rem_ip' in rem[host] and rem[host]['rem_ip'] is not None:
                     # if rem[host]['rem_ip'] is not None:
@@ -1448,15 +1448,14 @@ class ConsolePiMenu():
                         menu_actions[str(item)] = {'cmd': _cmd}
                         item += 1
             else:
-                if os.path.isfile('/etc/ConsolePi/hosts.json') and os.stat('/etc/ConsolePi/hosts.json').st_size > 0:
-                    with open('/etc/ConsolePi/hosts.json') as host_file:
-                        ssh_hosts = json.load(host_file)
-                        for host in sorted(ssh_hosts):
-                            if 'address' in ssh_hosts:
-                                print(' {0}. Connect to {1} @ {2}'.format(item, host, ssh_hosts['address']))
-                                _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, ssh_hosts['user'], ssh_hosts['pass'])
-                                menu_actions[str(item)] = {'cmd': _cmd}
-                                item += 1
+                if config.ssh_hosts:
+                    ssh_hosts = config.ssh_hosts
+                    for host in sorted(ssh_hosts):
+                        if 'address' in ssh_hosts:
+                            print(' {0}. Connect to {1} @ {2}'.format(item, host, ssh_hosts['address']))
+                            _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, ssh_hosts['user'], ssh_hosts['pass'])
+                            menu_actions[str(item)] = {'cmd': _cmd}
+                            item += 1
 
 
             text = ' b.  Back'

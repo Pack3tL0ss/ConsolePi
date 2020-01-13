@@ -35,6 +35,7 @@ except ImportError:
 DNS_CHECK_FILES = ['/etc/resolv.conf', '/run/dnsmasq/resolv.conf']
 CONFIG_FILE = '/etc/ConsolePi/ConsolePi.conf'
 LOCAL_CLOUD_FILE = '/etc/ConsolePi/cloud.json'
+REM_HOSTS_FILE = '/etc/ConsolePi/hosts.json'
 CLOUD_LOG_FILE = '/var/log/ConsolePi/cloud.log'
 RULES_FILE = '/etc/udev/rules.d/10-ConsolePi.rules'
 SER2NET_FILE = '/etc/ser2net.conf'
@@ -166,6 +167,8 @@ class ConsolePi_data():
             self.loc_user = os.getlogin()
         except:
             self.loc_user = os.getenv('SUDO_USER') # testing for cockpit terminal
+        self.ssh_hosts = self.get_local_cloud_file(local_cloud_file=REM_HOSTS_FILE)
+
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)

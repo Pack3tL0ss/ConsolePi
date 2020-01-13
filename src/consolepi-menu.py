@@ -1398,19 +1398,19 @@ class ConsolePiMenu():
                 text.append(' d.  [dli] Web Power Switch Menu')
         if self.remotes_connected:
             self.menu_actions['k'] = self.key_menu
-            self.menu_actions['s'] = self.rshell_menu
+            self.menu_actions['rc'] = self.rshell_menu
             text.append(' k.  Distribute SSH Key to Remote Hosts')
-            text.append(' s.  Remote Shell Menu (Connect to Remote ConsolePi Shell)')
+            text.append(' rc.  Remote Shell Menu (Connect to Remote ConsolePi Shell)')
         text.append(' sh. Enter Local Shell')
-        if os.path.isfile('/etc/ConsolePi/hosts.json') and os.stat('/etc/ConsolePi/hosts.json').st_size > 0:
-            text.append('  H. Enter remote host menu (defined ssh hosts)')
-            self.menu_actions['H'] = {
-                                'function': self.rshell_menu,
-                                'kwargs': {'ssh_hosts': True}
-                                }
         if loc: # and config.root:
             text.append(' rn. Rename Local Adapters')
             self.menu_actions['rn'] = self.rename_menu
+        if os.path.isfile('/etc/ConsolePi/hosts.json') and os.stat('/etc/ConsolePi/hosts.json').st_size > 0:
+            text.append(' rh.  Enter remote host menu (defined ssh hosts)')
+        self.menu_actions['rh'] = {
+            'function': self.rshell_menu,
+            'kwargs': {'ssh_hosts': True}
+            }
         text.append(' r.  Refresh')
 
         self.print_mlines(outer_body, header='ConsolePi Serial Menu', footer=text, subs=slines, do_format=False)

@@ -161,7 +161,8 @@ class ConsolePi_data():
         if stdin.isatty():
             self.rows, self.cols = self.get_tty_size()
         self.root = True if os.geteuid() == 0 else False
-        self.new_adapters = self.detect_adapters()  
+        self.new_adapters = self.detect_adapters()
+        self.loc_user = os.getlogin()
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
@@ -641,7 +642,7 @@ class ConsolePi_data():
 
     def gen_copy_key(self, rem_ip=None, rem_user=USER):
         hostname = self.hostname
-        loc_user = os.getlogin()
+        loc_user = self.loc_user
         loc_home = bash_command('sudo -u pi printenv | grep HOME= | cut -d= -f2', eval_errors=False, return_stdout=True)
         # generate local key file if it doesn't exist
         if not os.path.isfile(loc_home + '/.ssh/id_rsa'):

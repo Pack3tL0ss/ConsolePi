@@ -1415,7 +1415,7 @@ class ConsolePiMenu():
 
     def rshell_menu(self):
         choice = ''
-        # config = self.config
+        config = self.config
         # rem = self.remotes
         rem = config.remotes
         # rem = self.data['remote']

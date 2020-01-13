@@ -378,6 +378,8 @@ get_pi_info() {
     logit "$(uname -a)"
     dpkg -l | grep -q raspberrypi-ui && logit "Raspbian with Desktop" || logit "Raspbian Lite"
     logit "Python 3 Version $(python3 -V)"
+    [ $py3ver -lt 6 ] && logit "${_red}DEPRICATION WARNING:${_norm} Python 3.5 will no longer be supported by ConsolePi in a future release." "warning" &&
+        logit "You should install a new ConsolePi using the current Raspbian release"
     unset process
 }
 

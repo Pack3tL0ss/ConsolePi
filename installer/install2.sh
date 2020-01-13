@@ -865,7 +865,7 @@ do_consolepi_api() {
     if [ $py3ver -ge 6 ] ; then
         systemd_diff_update consolepi-api
     else
-        systemd_diff_update consolepi-api-flask
+        ! $upgrade && systemd_diff_update consolepi-api-flask
         logit "A newer version of the ConsolePi API is available but it requires Python>=3.6 ($(python3 -V) is installed) keeping existing API" "WARNING"
     fi
     unset process

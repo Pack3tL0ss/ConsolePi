@@ -1398,19 +1398,13 @@ class ConsolePiMenu():
                 text.append(' d.  [dli] Web Power Switch Menu')
         if self.remotes_connected:
             self.menu_actions['k'] = self.key_menu
-            self.menu_actions['rc'] = self.rshell_menu
+            self.menu_actions['s'] = self.rshell_menu
             text.append(' k.  Distribute SSH Key to Remote Hosts')
-            text.append(' rc. Remote ConsolePi Shell Menu')
+            text.append(' s.  Remote Shell Menu')
         text.append(' sh. Enter Local Shell')
         if loc: # and config.root:
             text.append(' rn. Rename Local Adapters')
             self.menu_actions['rn'] = self.rename_menu
-        if config.ssh_hosts:
-            text.append(' rh. Remote Hosts Shell Menu')
-            self.menu_actions['rh'] = {
-                'function': self.rshell_menu,
-                'kwargs': {'do_ssh_hosts': True}
-                }
         text.append(' r.  Refresh')
 
         self.print_mlines(outer_body, header='ConsolePi Serial Menu', footer=text, subs=slines, do_format=False)
@@ -1442,10 +1436,11 @@ class ConsolePiMenu():
             for host in sorted(rem):
                 if 'rem_ip' in rem[host] and rem[host]['rem_ip'] is not None:
                 # if rem[host]['rem_ip'] is not None:
-                    print(' {0}. Connect to {1} @ {2}'.format(item, host, rem[host]['rem_ip']))
+                    mlines.append('Connect to {1} @ {2}'.format(host, rem[host]['rem_ip']))
                     _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, rem[host]['user'], rem[host]['rem_ip'])
                     menu_actions[str(item)] = {'cmd': _cmd}
                     item += 1
+            self.menu_formatting('body', text=mlines, sub='Remote ConsolePis')
 
             if config.ssh_hosts:
                 mlines = []

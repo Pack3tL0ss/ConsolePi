@@ -1432,7 +1432,6 @@ class ConsolePiMenu():
         while choice.lower() not in ['x', 'b']:
             if not self.DEBUG:
                 os.system('clear')
-            self.menu_formatting('header', text=' Remote Shell Menu ')
             outer_body = []
             mlines = []
             subs = []
@@ -1449,6 +1448,7 @@ class ConsolePiMenu():
                     item += 1
             outer_body.append(mlines)
 
+            # Build menu items for each manually defined host in hosts.json # only ssh for now
             if config.ssh_hosts:
                 subs.append('Manually Configured Remotes')
                 ssh_hosts = config.ssh_hosts
@@ -1460,12 +1460,9 @@ class ConsolePiMenu():
                         item += 1
                 outer_body.append(mlines)
 
-            self.menu_formatting('body', text=outer_body, sub=subs)
-
-
             text = ' b.  Back'
-            self.menu_formatting('footer', text=text)
-            choice = input(" >>  ")
+            self.print_mlines(outer_body, header='Remote Shell Menu', footer=text, subs=subs)
+            choice = self.wait_for_input(terminate=False)
             self.exec_menu(choice, actions=menu_actions, calling_menu='rshell_menu')
 
 

@@ -101,14 +101,14 @@ logit() {
     #       default status is INFO if none provided.
     [ -z "$process" ] && process="UNDEFINED"
     message=$1                                      # 1st arg = the log message
-    [ -z "${2}" ] && status="INFO" || status=$2
+    [ -z "${2}" ] && status="INFO" || status=${2^^} # to upper
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
     if [[ "${status}" == "ERROR" ]]; then
         fatal=true
         status="${_red}${status}${_norm}"
     elif [[ ! "${status}" == "INFO" ]]; then
         status="${_yellow}${status}${_norm}"
-        ((warn_cnt+=1))
+        [[ "${status}" == "WARNING" ]] ((warn_cnt+=1))
     fi
     
     # Log to stdout and log-file

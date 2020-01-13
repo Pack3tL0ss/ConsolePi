@@ -365,9 +365,7 @@ util_main() {
 }
 
 # -- // SCRIPT ROOT \\ --
-#echo "$BASH_SOURCE == $0"
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"utilities.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then
-    # unset process
     backtitle="ConsolePi Extras"
     util_main ${@}
 else

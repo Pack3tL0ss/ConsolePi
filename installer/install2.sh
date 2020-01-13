@@ -420,6 +420,7 @@ EOF
 }
 
 misc_imports(){
+    # additional imports occur in related functions if import file exists
     process="Perform misc imports"
     if ! $upgrade; then
         # -- ssh authorized keys --
@@ -1125,6 +1126,7 @@ post_install_msg() {
 }
 
 install2_main() {
+    #-- install.sh does --
     # remove_first_boot
     # updatepi
     # pre_git_prep
@@ -1168,6 +1170,5 @@ install2_main() {
     get_known_ssids
     get_serial_udev
     custom_post_install_script
-    # move_log
     post_install_msg
 }

@@ -877,7 +877,7 @@ def bash_command(cmd, do_print=False, eval_errors=True):
     # subprocess.run(['/bin/bash', '-c', cmd])
     response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     _stderr = response.stderr.decode('UTF-8')
-    _stdout = response.stdout.decode('UTF-8')
+    _stdout = response.stdout.decode('UTF-8').strip()
     if do_print:
         print(_stderr)
     # print(response)

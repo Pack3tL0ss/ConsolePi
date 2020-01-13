@@ -875,8 +875,9 @@ def error_handler(cmd, stderr):
 
 def bash_command(cmd, do_print=False, eval_errors=True):
     # subprocess.run(['/bin/bash', '-c', cmd])
-    response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
+    response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     _stderr = response.stderr.decode('UTF-8')
+    _stdout = response.stdout.decode('UTF-8')
     if do_print:
         print(_stderr)
     # print(response)
@@ -884,6 +885,8 @@ def bash_command(cmd, do_print=False, eval_errors=True):
     if eval_errors:
         if _stderr:
             return error_handler(getattr(response, 'args'), _stderr)
+        else:
+            return _stdout
 
 def is_valid_ipv4_address(address):
     try:

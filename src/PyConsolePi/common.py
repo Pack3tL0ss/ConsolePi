@@ -642,7 +642,7 @@ class ConsolePi_data():
     def gen_copy_key(self, rem_ip=None, rem_user=USER):
         hostname = self.hostname
         loc_user = os.getlogin()
-        loc_home = bash_command('sudo -u pi printenv | grep HOME= | cut -d= -f2')
+        loc_home = bash_command('sudo -u pi printenv | grep HOME= | cut -d= -f2', eval_errors=False, return_stdout=True)
         # generate local key file if it doesn't exist
         if not os.path.isfile(loc_home + '/.ssh/id_rsa'):
             print('\n\nNo Local ssh cert found, generating...')
@@ -873,11 +873,14 @@ def error_handler(cmd, stderr):
         else:
             return 'User Abort or Failure to kill existing session to {}'.format(cmd[1].replace('/dev/', ''))
 
-def bash_command(cmd, do_print=False, eval_errors=True):
+def bash_command(cmd, do_print=False, eval_errors=True, return_stdout=False):
     # subprocess.run(['/bin/bash', '-c', cmd])
-    response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    if not return_stdout:
+        response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
+    else:
+        response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        _stdout = response.stdout.decode('UTF-8').strip()
     _stderr = response.stderr.decode('UTF-8')
-    _stdout = response.stdout.decode('UTF-8').strip()
     if do_print:
         print(_stderr)
     # print(response)
@@ -886,7 +889,7 @@ def bash_command(cmd, do_print=False, eval_errors=True):
         if _stderr:
             return error_handler(getattr(response, 'args'), _stderr)
         else:
-            return _stdout
+            return _stdout if return_stdout else None
 
 def is_valid_ipv4_address(address):
     try:

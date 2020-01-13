@@ -1467,7 +1467,6 @@ class ConsolePiMenu():
                                     ssh_hosts[host]['address'].split(':')[0], _port)
                         menu_actions[str(item)] = {'cmd': _cmd}
                         item += 1
-                    
 
                 outer_body.append(mlines)
 

@@ -450,25 +450,27 @@ class ConsolePi_data():
         '''
         log = self.log
         outlet_by_dev = {}
-        for dev in serial_list:
-            # print(dev['dev']) # -- DEBUG --
-            if dev['dev'] not in outlet_by_dev:
-                outlet_by_dev[dev['dev']] = []
-            # -- get linked outlet details if defined --
-            outlet_dict = None
-            for o in outlets:
-                outlet = outlets[o]
-                if 'linked_devs' in outlet and outlet['linked_devs']:
-                    if dev['dev'] in outlet['linked_devs']:
-                        log.info('[PWR OUTLETS] Found Outlet {} linked to {}'.format(o, dev['dev'].replace('/dev/', '')))
-                        address = outlet['address']
-                        if outlet['type'].upper() == 'GPIO':
-                            address = int(outlet['address'])
-                        noff = outlet['noff'] if 'noff' in outlet else True
-                        outlet_dict = {'key': o, 'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
-                        outlet_by_dev[dev['dev']].append(outlet_dict)
+        ssh_list = [{'dev': '/host/{}'.format(k)} for k in self.ssh_hosts.keys()] if self.ssh_hosts else []
+        for _list in [serial_list, ssh_list]:
+            for dev in serial_list:
+                # print(dev['dev']) # -- DEBUG --
+                if dev['dev'] not in outlet_by_dev:
+                    outlet_by_dev[dev['dev']] = []
+                # -- get linked outlet details if defined --
+                outlet_dict = None
+                for o in outlets:
+                    outlet = outlets[o]
+                    if 'linked_devs' in outlet and outlet['linked_devs']:
+                        if dev['dev'].replace('/host/', '') in outlet['linked_devs']:
+                            log.info('[PWR OUTLETS] Found Outlet {} linked to {}'.format(o, dev['dev'].replace('/dev/', '')))
+                            address = outlet['address']
+                            if outlet['type'].upper() == 'GPIO':
+                                address = int(outlet['address'])
+                            noff = outlet['noff'] if 'noff' in outlet else True
+                            outlet_dict = {'key': o, 'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
+                            outlet_by_dev[dev['dev']].append(outlet_dict)
 
-            dev['outlet'] = outlet_dict
+                dev['outlet'] = outlet_dict
 
         self.outlet_by_dev = outlet_by_dev
         # return serial_list

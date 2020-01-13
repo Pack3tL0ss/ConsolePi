@@ -1391,7 +1391,7 @@ class ConsolePiMenu():
                 self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]))
             self.menu_actions['c'] = self.con_menu
         text.append(' h.  Display picocom help')
-        
+
         if config.power: # and config.outlets is not None:
             if config.pwr.linked_exists or config.pwr.gpio_exists or config.pwr.tasmota_exists:
                 text.append(' p.  Power Control Menu')
@@ -1436,6 +1436,7 @@ class ConsolePiMenu():
             outer_body = []
             mlines = []
             subs = []
+            item = 1
 
             # Build menu items for each reachable remote ConsolePi
             subs.append('Remote ConsolePis')
@@ -1445,6 +1446,7 @@ class ConsolePiMenu():
                     mlines.append('Connect to {0} @ {1}'.format(host, rem[host]['rem_ip']))
                     _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, rem[host]['user'], rem[host]['rem_ip'])
                     menu_actions[str(item)] = {'cmd': _cmd}
+                    item += 1
             outer_body.append(mlines)
 
             if config.ssh_hosts:
@@ -1455,6 +1457,7 @@ class ConsolePiMenu():
                         mlines.append('Connect to {0} @ {1}'.format(host, ssh_hosts[host]['address']))
                         _cmd = 'sudo -u {0} ssh {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], ssh_hosts[host]['address'])
                         menu_actions[str(item)] = {'cmd': _cmd}
+                        item += 1
                 outer_body.append(mlines)
 
             self.menu_formatting('body', text=outer_body, sub=subs)

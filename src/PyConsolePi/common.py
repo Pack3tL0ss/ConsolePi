@@ -169,7 +169,7 @@ class ConsolePi_data():
             self.loc_user = os.getenv('SUDO_USER') # testing for cockpit terminal
         self.ssh_hosts = self.get_local_cloud_file(local_cloud_file=REM_HOSTS_FILE)
         if self.ssh_hosts:
-            self.threading.Thread(target=telnet_install_thread, kwargs={'host_dict': self.ssh_hosts}, name='telnet_install_verify').start()
+            threading.Thread(target=self.telnet_install_thread, kwargs={'host_dict': self.ssh_hosts}, name='telnet_install_verify').start()
 
     def telnet_install_thread(self, host_dict=None):
         host_dict = self.ssh_hosts if host_dict is None else host_dict

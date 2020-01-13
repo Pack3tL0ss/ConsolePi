@@ -161,7 +161,7 @@ class ConsolePi_data():
         if stdin.isatty():
             self.rows, self.cols = self.get_tty_size()
         self.root = True if os.geteuid() == 0 else False
-        self.new_adapters = self.detect_adapters()        
+        self.new_adapters = self.detect_adapters()  
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
@@ -641,10 +641,11 @@ class ConsolePi_data():
 
     def gen_copy_key(self, rem_ip=None, rem_user=USER):
         hostname = self.hostname
+        loc_user = os.getlogin()
         # generate local key file if it doesn't exist
         if not os.path.isfile(HOME + '/.ssh/id_rsa'):
             print('\n\nNo Local ssh cert found, generating...')
-            bash_command('sudo -u {0} ssh-keygen -m pem -t rsa -C "{0}@{1}"'.format(rem_user, hostname))
+            bash_command('sudo -u {0} ssh-keygen -m pem -t rsa -C "{1}@{2}"'.format(loc_user, rem_user, hostname))
         rem_list = []
         if rem_ip is not None and not isinstance(rem_ip, list):
             rem_list.append(rem_ip)
@@ -657,7 +658,7 @@ class ConsolePi_data():
         return_list = []
         for _rem in rem_list:
             print('\nAttempting to copy ssh cert to {}\n'.format(_rem))
-            ret = bash_command('sudo -u {0} ssh-copy-id {0}@{1}'.format(rem_user, _rem))
+            ret = bash_command('sudo -u {0} ssh-copy-id {1}@{2}'.format(loc_user, rem_user, _rem))
             if ret is not None:
                 return_list.append('{}: {}'.format(_rem, ret))
         return return_list
@@ -844,6 +845,7 @@ def error_handler(cmd, stderr):
                     choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
                     if choice.lower() in ['y', 'yes']:
                         _cmd = shlex.split(stderr.split('remove with:\r\n')[1].split('\r\n')[0].replace('ERROR:   ', ''))
+                        _cmd = ['sudo -u {}'.format(os.getlogin())]
                         subprocess.run(_cmd)
                         print('\n')
                         subprocess.run(cmd)

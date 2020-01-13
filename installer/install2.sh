@@ -123,7 +123,7 @@ update_config() {
 # Update Config overrides: write any supported custom override variables back to file
 update_config_overrides() {
     [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}       # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
-    [ ! -z $skip_utils ]       && echo "no_utils=${skip_utils}                   # when set to true will bypass the utility installer menu during upgrade" >> "${default_config}"
+    [ ! -z $skip_utils ]       && echo "no_utils=${skip_utils}                                                   # when set to true will bypass the utility installer menu during upgrade" >> "${default_config}"
     # always add debug back to EoF
     echo "debug=${debug}                                                     # turns on additional debugging" >> "${default_config}"
 }

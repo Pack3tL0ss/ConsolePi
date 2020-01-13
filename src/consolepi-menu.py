@@ -67,14 +67,6 @@ class ConsolePiMenu():
         self.flow = 'n'
         self.parity_pretty = {'o': 'Odd', 'e': 'Even', 'n': 'No'}
         self.flow_pretty = {'x': 'Xon/Xoff', 'h': 'RTS/CTS', 'n': 'No'}
-        # self.hostname = config.hostname
-        # self.if_ips = config.interfaces
-        # self.ip_list = []
-        # for _iface in config.interfaces:
-        #     self.ip_list.append(self.if_ips[_iface]['ip'])
-        # self.data = {'local': config.local}
-        # self.data['remote'] = self.get_remote() if not bypass_remote else {}
-        # updated by get_remote thread until I build a proper class for remotes
         self.pop_list = []
         self.cache_update_pending = False
         self.remotes = self.get_remote() if not bypass_remote else {}
@@ -87,7 +79,7 @@ class ConsolePiMenu():
         if config.power and config.pwr.outlet_data['failures']:
             for _ in config.pwr.outlet_data['failures']:
                 self.error_msgs.append(config.pwr.outlet_data['failures'][_]['error'])
-            # self.get_dli_outlets()   # Update error msg with failure
+
         self.DEBUG = config.debug
         self.menu_actions = {
             'main_menu': self.main_menu,
@@ -401,22 +393,13 @@ class ConsolePiMenu():
         else:
             return 'Aborted based on user input'
 
-    # Depricated -- Can be REMOVED -- (once verified no ill impact)
-    # def get_dli_outlets(self, refresh=False, upd_linked=False, key='outlets'):
-    #     # pylint: disable=maybe-no-member
-    #     config = self.config
-    #     config.outlet_update(refresh=refresh, upd_linked=upd_linked)
-    #     if config.pwr.outlet_data['failures']:
-    #         for _ in config.pwr.outlet_data['failures']:
-    #             self.error_msgs.append(config.pwr.outlet_data['failures'][_]['error'])
-    #     return getattr(config, key)
-
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
     def get_remote(self, data=None):
         spin = self.spin
         config = self.config
         log = config.log
         update_cache = False
+
         def verify_remote_thread(data, remotepi):
             this = data[remotepi]
             update, this = config.api_reachable(this)
@@ -425,10 +408,7 @@ class ConsolePiMenu():
 
             if this['rem_ip'] is None:
                 log.warning('[GET REM] Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
-                if 'fail_cnt' in this:
-                    this['fail_cnt'] += 1
-                else:
-                    this['fail_cnt'] = 1
+                this['fail_cnt'] = 1 if 'fail_cnt' not in this else this['fail_cnt'] + 1
                 if ('fail_cnt' in this and this['fail_cnt'] < 3) or 'fail_cnt' not in this: # Removal Error will display no need for both
                     self.error_msgs.append('Cached Remote \'{}\' is unreachable'.format(remotepi))
 
@@ -444,7 +424,7 @@ class ConsolePiMenu():
             data = config.remotes # remotes from local cloud cache
 
         if not data:
-            print(self.log_sym_warn + 'No Remotes in Local Cache')
+            print(self.log_sym_warn + ' No Remotes in Local Cache')
 
         if config.hostname in data:
             del data[config.hostname]
@@ -514,7 +494,6 @@ class ConsolePiMenu():
             log.info(_msg)
             self.spin.start(_msg)
             # -- // SYNC DATA WITH GDRIVE \\ --
-            # remote_consoles = self.cloud.update_files(self.data['local'])
             remote_consoles = self.cloud.update_files(config.local)
             if remote_consoles and 'Gdrive-Error:' not in remote_consoles:
                 self.spin.succeed(_msg + '\n\tFound {} Remotes via Gdrive Sync'.format(len(remote_consoles)))
@@ -537,8 +516,7 @@ class ConsolePiMenu():
                 print('Close and re-launch menu if network access has been restored')
 
         # Update Remote data with data from local_cloud cache
-        # self.data['remote'] = self.get_remote(data=remote_consoles, refresh=True)
-        config.remote = self.get_remote(data=remote_consoles) #, refresh=True)
+        config.remote = self.get_remote(data=remote_consoles)
 
     # =======================
     #     MENUS FUNCTIONS
@@ -608,10 +586,8 @@ class ConsolePiMenu():
             i += 1
 
         '''
-        THIS SECTION IS UNDER DEV NOT USED YET
         print multiple sections vertically - determine best cut point to start next column
         '''
-        ##### Start Test Section ##########
         _rows = line_dict['body']['rows']
         tot_body_rows = sum(_rows) # The # of rows to be printed
         # # TODO what if rows for 1 section is greater than term rows
@@ -652,26 +628,20 @@ class ConsolePiMenu():
                     break
                 _pass += 1
 
-        # # This is a reset of what was initially done above.  This method still being tested
         sections = []
         _tot_width = []
         for _i in _iter_start_stop:
             this_max_width = max(line_dict['body']['width'][_i[0]:_i[1]])
             _tot_width.append(this_max_width)
             _column_list = []
-            # i = 0
             for _s in line_dict['body']['sections'][_i[0]:_i[1]]:
                 for _line in _s:
-                    # _fnl_line = '{}{}'.format(_line, ' ' * (this_max_width - len(_line)))
-                    # print('{:{_len}}{}'.format(next(x, ''), this_pad, _len=wide[_ii]), end=this_end)
                     _fnl_line = '{:{_len}}'.format(_line, _len=this_max_width)
                     _s[_s.index(_line)] = _fnl_line
                 _column_list += _s
-                # i += 1
             sections.append(_column_list)
 
         line_dict['body']['sections'] = sections
-        #### End Test Section ##########
         '''
         set the initial # of columns
         '''
@@ -681,64 +651,16 @@ class ConsolePiMenu():
             tot_1_col_len = sum(line_dict['body']['rows']) + len(line_dict['body']['rows']) \
                             + head_len + foot_len
             cols = 1 if not do_cols or tot_1_col_len < config.rows else cols
-        '''
-        calculate max total width of widest row given # of cols and col padding
-        reduce # of cols if any row overruns the tty width or reduce col padding if
-        overrun is minimal
-        '''
-        # _begin = 0
-        # _end = cols
-        # _tot_width = []
-        # _iter_start_stop = []
-        # while True:
-        #     _tot_width.append(sum(body['width'][_begin:_end]) + (col_pad * (cols - 1))) # pad doesn't apply for first and last column
-        #     if max(_tot_width) <= config.cols:
-        #         if _end < len(body['sections']):
-        #             _iter_start_stop.append([_begin, _end])
-        #             _begin = _end
-        #             _end = _end + cols if _end + cols <= len(body['sections']) else len(body['sections'])
-        #         else:
-        #             _tot_width = max(_tot_width)
-        #             _iter_start_stop.append([_begin, _end])
-        #             break
-        #     else:   # width of this # of cols too wide for screen reduce col count
-        #         reduce_cols = True
-        #         if 2 * ( cols - 1 ) < max(_tot_width) - config.cols < 5 * ( cols - 1 ):
-        #             if col_pad != 2:
-        #                 col_pad = 2
-        #                 reduce_cols = False
-        #             else:
-        #                 pass # reduce_cols = True
-        #         if reduce_cols:
-        #             if cols > 1:
-        #                 cols -= 1
-        #                 _begin = 0
-        #                 _end = cols
-        #                 _tot_width = []
-        #             else:
-        #                 self.error_msgs.append('tty too small for full menu display')
-        #                 self.error_msgs.append('Use Scrollback')
-        #                 _iter_start_stop = []
-        #                 _tot_width = []
-        #                 # this essentially builds a single column TODO simplify this
-        #                 for x in range(0, len(body['sections'])):
-        #                     _iter_start_stop.append([x, x + 1])
-        #                     _tot_width.append(sum(body['width'][x:x + 1]) + (col_pad * (cols - 1)))
-        #                     next
-        #                 break
 
         # -- if any footer or subhead lines are longer adjust _tot_width (which is the longest line from any section)
         foot = self.menu_formatting('footer', text=footer, do_print=False)[0]
-        _foot_width = []
-        for line in foot:
-            _foot_width.append(len(line))
-        if isinstance(_tot_width, int): # TODO refactor
+        _foot_width = [ len(line) for line in foot ]
+        if isinstance(_tot_width, int):
             _tot_width = [_tot_width]
-        _tot_width = max(_foot_width) if max(_foot_width) > max(_tot_width) else max(_tot_width)
+        _tot_width = max(_foot_width + _tot_width)
 
         if subhead:
-            _subhead_width = []
-            [_subhead_width.append(len(line)) for line in subhead]
+            _subhead_width = [len(line) for line in subhead]
             _tot_width = max(_subhead_width) if max(_subhead_width) > _tot_width else _tot_width
 
 
@@ -746,44 +668,21 @@ class ConsolePiMenu():
             _tot_width = MIN_WIDTH if _tot_width < MIN_WIDTH else _tot_width
 
         # --// PRINT MENU \\--
-
-
-        ## TEST SECTION ##
         _final_rows = []
         pad = ' ' * col_pad
 
-        # s = body['sections'][0]
-        # s_idx = 0
-        # for line in s:
-        #     # idx = 1  #
-        #     _line = line + pad
-        #     # while idx < len(body['sections']):
-        #     for idx in body['sections']:
-        #         idx = 1 if idx == 0 else idx  # first column handled in outer loop all other columns are being appended to that column
-        #         if s_idx < len(body['sections'][idx]):
-        #             _line += body['sections'][idx][s_idx]
-
-        #             s_idx += 1
-        #         _line = _line + pad if (idx + 1) < len(body['sections']) else _line
-        #         idx += 1
-        #     _final_rows.append(_line)
         _final_rows = body['sections'][0]
         for s in body['sections']:
             if body['sections'].index(s) == 0:
                 continue
             else:
                 if len(_final_rows) > len(s):
-                    # this_max_width = len(s[0])  # lines are already padded to consistent width all lines should have same width
                     for _spaces in range(len(_final_rows) - len(s)):
                         s.append(' ' * len(s[0]))
                 elif len(s) > len(_final_rows):
                     for _spaces in range(len(s) - len(_final_rows)):
                         _final_rows.append(' ' * len(_final_rows[0]))
-                # _final_rows = [a + pad + '{:{_len}}'.format(b, _len=this_max_width) for a, b in zip(_final_rows, s)]
                 _final_rows = [a + pad + b for a, b in zip(_final_rows, s)]
-#
-
-
 
         _tot_width = len(_final_rows[0]) if len(_final_rows[0]) > _tot_width else _tot_width
         self.menu_formatting('header', text=header, width=_tot_width, do_print=True)
@@ -792,36 +691,8 @@ class ConsolePiMenu():
                 print(line)
         for row in _final_rows:
             print(row)
-        ## END TEST SECTION ##
-
-#         pad = ' ' * col_pad
-#         for _i in _iter_start_stop:
-#             _begin = _i[0]
-#             _end = _i[1]
-#             long = max(body['rows'][_begin:_end])
-#             wide = body['width'][_begin:_end]
-#             _iters = []
-#             for s in body['sections'][_begin:_end]:
-#                 _iters.append(iter(s))
-#             for _ in range(long):
-#                 for x in _iters:
-#                     _ii = _iters.index(x)
-#                     if _ii + _begin + 1 == _end or _ii == cols - 1:
-#                         this_pad = ''
-#                         this_end = '\n'
-#                     else:
-#                         this_pad = pad
-#                         this_end = ''
-#                     print('{:{_len}}{}'.format(next(x, ''), this_pad, _len=wide[_ii]), end=this_end)
-# #                    print('{:{_len}}{}'.format(next(x, ''), pad if _ii < cols else '', _len=wide[_ii]),
-# #                        end='\n' if _ii + _begin + 1 == _end or _ii == cols - 1 else '')
-#             if _end != len(body['sections']):
-#                 if cols > 1:
-#                     print('') # When multiple cols adds a 2nd \n below row of entries other than last row
 
         self.menu_formatting('footer', text=footer, width=_tot_width, do_print=True)
-        # print(_tot_width, config.cols, config.rows)
-
 
     def menu_formatting(self, section, sub=None, text=None, width=MIN_WIDTH,
                          l_offset=1, index=1, do_print=True, do_format=True):
@@ -829,7 +700,6 @@ class ConsolePiMenu():
         log = config.log
         mlines = []
         max_len = None
-        # colors = self.colors
 
         # -- append any errors from config (ConsolePi_data object)
         if config.error_msgs:
@@ -873,7 +743,6 @@ class ConsolePiMenu():
                 else:
                     mlines.append(' {0} {1} {2}'.format('-' * int(b), text, '-' * c))
             mlines.append('=' * width)
-            # mlines.append('')
 
         # --// BODY \\--
         elif section == 'body':
@@ -928,7 +797,7 @@ class ConsolePiMenu():
             # --// ERRORs - append to footer \\-- #
             if len(self.error_msgs) > 0:
                 errors = []
-                [errors.append(e) for e in self.error_msgs if e not in errors] # Remove Duplicates only occurs when menu launches direct to Power menu
+                errors = [e for e in self.error_msgs if e not in errors] # Remove Duplicates only occurs when menu launches direct to Power menu
                 for _error in errors:
                     if isinstance(_error, list):
                         log.error('{} is a list expected string'.format(_error))
@@ -967,8 +836,8 @@ class ConsolePiMenu():
         colors = self.colors
         _l = line
         for c in colors:
-            _l = _l.replace('{{' + c + '}}', '')
-            line = line.replace('{{' + c + '}}', colors[c])
+            _l = _l.replace('{{' + c + '}}', '') # color format var removed so we can get the tot_cols used by line
+            line = line.replace('{{' + c + '}}', colors[c]) # line formatted with coloring
         return len(_l), line
 
     def picocom_help(self):
@@ -1610,7 +1479,7 @@ class ConsolePiMenu():
                         # -- // AUTO POWER ON LINKED OUTLETS \\ --
                         if config.power:  # pylint: disable=maybe-no-member
                             if '/dev/' in c[1] or ( len(c) >= 4 and '/dev/' in c[3] ):
-                                menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[1]
+                                menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[2]
                                 if c[0] != 'ssh':
                                     config.exec_auto_pwron(menu_dev)
 
@@ -1619,11 +1488,11 @@ class ConsolePiMenu():
                             result = subprocess.run(c, stderr=subprocess.PIPE)
                             _stderr = result.stderr.decode('UTF-8')
                             if _stderr or result.returncode == 1:
-                                # print('\n' + _stderr.replace('ERROR: ', ''))
                                 _error = error_handler(c, _stderr) # pylint: disable=maybe-no-member
                                 if _error:
                                     _error = _error.replace('\r', '').split('\n')
                                     [self.error_msgs.append(i) for i in _error if i] # Remove any trailing empy items after split
+
                             # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
                             c = ' '.join([str(i) for i in c])
                             if 'picocom' in c: # pylint: disable=maybe-no-member
@@ -1639,17 +1508,18 @@ class ConsolePiMenu():
                             # update kwargs with name from confirm_and_spin method
                             if menu_actions[ch]['function'].__name__ == 'pwr_rename':
                                 kwargs['name'] = name
+
                             # // -- CALL THE FUNCTION \\--
                             if spin_text:  # start spinner if spin_text set by confirm_and_spin
                                 with Halo(text=spin_text, spinner='dots2'):
                                     response = menu_actions[ch]['function'](*args, **kwargs)
                             else: # no spinner
                                 response = menu_actions[ch]['function'](*args, **kwargs)
+
                             # --// Power Menus \\--
                             if calling_menu in ['power_menu', 'dli_menu']:
                                 if menu_actions[ch]['function'].__name__ == 'pwr_all':
                                     with Halo(text='Refreshing Outlet States', spinner='dots'):
-                                        # self.get_dli_outlets(refresh=True, upd_linked=True)
                                         config.outlet_update(refresh=True, upd_linked=True)
                                 else:
                                     _grp = menu_actions[ch]['key']

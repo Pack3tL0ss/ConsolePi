@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-for svc in consolepi-mdnsbrowse consolepi-mdnsreg consolepi-api autohotspot ser2net; do 
+for svc in consolepi-mdnsbrowse consolepi-mdnsreg consolepi-api hostapd autohotspot ser2net; do 
   echo -e "\n---------------- // STATUS OF ${svc}.service \\\\ ---------------"
   systemctl status $svc  
 done
@@ -10,4 +10,4 @@ done
   cat /var/log/ConsolePi/cloud.log | grep -v INFO
 
 echo -e "\n---------------- // Summary \\\\ ---------------"
-systemctl -a | grep "rfcomm\|consolepi-\|autohotspot\|ser2net"
+systemctl -a | grep "rfcomm\|consolepi-\|hostapd\|autohotspot\|ser2net"

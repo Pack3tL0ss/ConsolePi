@@ -2,12 +2,16 @@
 
 for svc in consolepi-mdnsbrowse consolepi-mdnsreg consolepi-api hostapd autohotspot ser2net; do 
   echo -e "\n---------------- // STATUS OF ${svc}.service \\\\ ---------------"
-  systemctl status $svc  
+  systemctl status $svc
+  echo
+  read -en 1 -p "press any key to continue"
 done
 
 [ ! -z $1 ] && [ $1 == 'log' ] &&
   echo "---------------- // ERRORS from log file \\\\ ---------------" &&
-  cat /var/log/ConsolePi/cloud.log | grep -v INFO
+  cat /var/log/ConsolePi/cloud.log | grep -v INFO &&
+  echo &&
+  read -en 1 -p "press any key to continue"
 
 echo -e "\n---------------- // Summary \\\\ ---------------"
 systemctl -a | grep "rfcomm\|consolepi-\|hostapd\|autohotspot\|ser2net"

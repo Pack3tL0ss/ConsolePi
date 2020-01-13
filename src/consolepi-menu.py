@@ -1391,16 +1391,20 @@ class ConsolePiMenu():
                 self.baud, self.data_bits, self.parity.upper(), self.flow_pretty[self.flow]))
             self.menu_actions['c'] = self.con_menu
         text.append(' h.  Display picocom help')
+        
         if config.power: # and config.outlets is not None:
             if config.pwr.linked_exists or config.pwr.gpio_exists or config.pwr.tasmota_exists:
                 text.append(' p.  Power Control Menu')
             if config.pwr.dli_exists:
                 text.append(' d.  [dli] Web Power Switch Menu')
-        if self.remotes_connected:
-            self.menu_actions['k'] = self.key_menu
-            self.menu_actions['s'] = self.rshell_menu
-            text.append(' k.  Distribute SSH Key to Remote Hosts')
+
+        if self.remotes_connected or config.ssh_hosts:
             text.append(' s.  Remote Shell Menu')
+            self.menu_actions['s'] = self.rshell_menu
+            if self.remotes_connected:
+                text.append(' k.  Distribute SSH Key to Remote Hosts')
+                self.menu_actions['k'] = self.key_menu
+
         text.append(' sh. Enter Local Shell')
         if loc: # and config.root:
             text.append(' rn. Rename Local Adapters')
@@ -1429,30 +1433,31 @@ class ConsolePiMenu():
             if not self.DEBUG:
                 os.system('clear')
             self.menu_formatting('header', text=' Remote Shell Menu ')
+            outer_body = []
+            mlines = []
+            subs = []
 
             # Build menu items for each reachable remote ConsolePi
-            item = 1
-            print('')
-            mlines = []
+            subs.append('Remote ConsolePis')
             for host in sorted(rem):
                 if 'rem_ip' in rem[host] and rem[host]['rem_ip'] is not None:
                 # if rem[host]['rem_ip'] is not None:
                     mlines.append('Connect to {0} @ {1}'.format(host, rem[host]['rem_ip']))
                     _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, rem[host]['user'], rem[host]['rem_ip'])
                     menu_actions[str(item)] = {'cmd': _cmd}
-                    item += 1
-            self.menu_formatting('body', text=mlines, sub='Remote ConsolePis')
+            outer_body.append(mlines)
 
             if config.ssh_hosts:
-                mlines = []
+                subs.append('Manually Configured Remotes')
                 ssh_hosts = config.ssh_hosts
                 for host in sorted(ssh_hosts):
                     if 'address' in ssh_hosts[host]:
                         mlines.append('Connect to {0} @ {1}'.format(host, ssh_hosts[host]['address']))
-                        _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], ssh_hosts[host]['address'])
+                        _cmd = 'sudo -u {0} ssh {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], ssh_hosts[host]['address'])
                         menu_actions[str(item)] = {'cmd': _cmd}
+                outer_body.append(mlines)
 
-                self.menu_formatting('body', text=mlines, sub='Manually Configured Remotes', index=item)
+            self.menu_formatting('body', text=outer_body, sub=subs)
 
 
             text = ' b.  Back'

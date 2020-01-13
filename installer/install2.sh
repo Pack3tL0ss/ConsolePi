@@ -123,6 +123,8 @@ update_config() {
 # Update Config overrides: write any supported custom override variables back to file
 update_config_overrides() {
     [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}       # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
+    [ ! -z $skip_utils ]       && echo "no_utils=${skip_utils}                   # when set to true will bypass the utility installer menu during upgrade" >> "${default_config}"
+    # always add debug back to EoF
     echo "debug=${debug}                                                     # turns on additional debugging" >> "${default_config}"
 }
 
@@ -836,23 +838,14 @@ do_resize () {
     process="xterm ~ resize"
     if [ ! -f ${src_dir}consolepi-commands/resize ]; then
         # util_main xterm -I -p "xterm | resize"
-        cmd_list=("-apt-install" "xterm" "--pretty=xterm ~ resize" \
+        cmd_list=("-apt-install" "xterm" "--pretty=${process}" \
                   '-s' "export rsz_loc=\$(which resize)" \
                   "-stop" "-nostart" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
-                    "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
+                      "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
                   "-l" "xterm will now be removed as we only installed it to get resize" \
                   "-apt-purge" "xterm"
                 )
         process_cmds "${cmd_list[@]}"
-        # [ -f $(which resize) ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
-        # if $good; then
-        #     logit "Success - Copy resize binary from xterm"
-        #     logit "xterm will now be removed as we only installed it to get resize"
-        #     util_main xterm -F -p "xterm | resize"
-        #     # apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Success removing xterm left-over deps" || logit "apt-get autoremove after xterm FAILED" "WARNING"
-        # else
-        #     logit "Unable to find resize binary after xterm install" "WARNING"
-        # fi
     else
         logit "resize utility already present"
     fi
@@ -1161,10 +1154,14 @@ install2_main() {
     do_blue_config
     do_consolepi_api
     do_consolepi_mdns
-    ! $upgrade && misc_stuff
-    get_utils
+    ! $upgrade && misc_stuff 
     do_resize
-    util_main
+    if [ ! -z $skip_utils ] && $skip_utils ; then
+        logit "utilities menu bypassed by config variable"
+    else
+        get_utils
+        util_main
+    fi
     get_known_ssids
     get_serial_udev
     custom_post_install_script

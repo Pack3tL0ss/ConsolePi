@@ -149,6 +149,7 @@ class GoogleDrive:
             }
 
             # find out if this ConsolePi already has a row use that row in range
+            # TODO have seen 503 svc unavailable need rarely but still need exception handler/retry loop
             result = service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id, range='A:B').execute()
             # TODO add exception catcher for HttpError 503 service currently unreachable with retries

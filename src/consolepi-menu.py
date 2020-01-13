@@ -1450,12 +1450,13 @@ class ConsolePiMenu():
 
             # Build menu items for each manually defined host in hosts.json # only ssh for now
             if config.ssh_hosts:
+                mlines = []
                 subs.append('Manually Configured Remotes')
                 ssh_hosts = config.ssh_hosts
                 for host in sorted(ssh_hosts):
                     if 'address' in ssh_hosts[host]:
                         mlines.append('Connect to {0} @ {1}'.format(host, ssh_hosts[host]['address']))
-                        _cmd = 'sudo -u {0} ssh {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], ssh_hosts[host]['address'])
+                        _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], ssh_hosts[host]['address'])
                         menu_actions[str(item)] = {'cmd': _cmd}
                         item += 1
                 outer_body.append(mlines)

@@ -1453,7 +1453,7 @@ class ConsolePiMenu():
                     for host in sorted(ssh_hosts):
                         if 'address' in ssh_hosts[host]:
                             print(' {0}. Connect to {1} @ {2}'.format(item, host, ssh_hosts[host]['address']))
-                            _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], ssh_hosts[host]['pass'])
+                            _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], ssh_hosts[host]['address'])
                             menu_actions[str(item)] = {'cmd': _cmd}
                             item += 1
 

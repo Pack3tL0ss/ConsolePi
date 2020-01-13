@@ -1402,7 +1402,7 @@ class ConsolePiMenu():
             text.append(' k.  Distribute SSH Key to Remote Hosts')
             text.append(' s.  Remote Shell Menu (Connect to Remote ConsolePi Shell)')
         text.append(' sh. Enter Local Shell')
-        if os.path.isfile('/etc/ConsolePi/hosts.json') and os.stat(local_cloud_file).st_size > 0:
+        if os.path.isfile('/etc/ConsolePi/hosts.json') and os.stat('/etc/ConsolePi/hosts.json').st_size > 0:
             text.append('  H. Enter remote host menu (defined ssh hosts)')
             self.menu_actions['H'] = {
                                 'function': self.rshell_menu,
@@ -1448,7 +1448,7 @@ class ConsolePiMenu():
                         menu_actions[str(item)] = {'cmd': _cmd}
                         item += 1
             else:
-                if os.path.isfile('/etc/ConsolePi/hosts.json') and os.stat(local_cloud_file).st_size > 0:
+                if os.path.isfile('/etc/ConsolePi/hosts.json') and os.stat('/etc/ConsolePi/hosts.json').st_size > 0:
                     with open('/etc/ConsolePi/hosts.json') as host_file:
                         ssh_hosts = json.load(host_file)
                         for host in sorted(ssh_hosts):

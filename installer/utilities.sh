@@ -21,6 +21,8 @@ get_util_status () {
     aoss_dir=$(grep "ansible python module location" /tmp/ansible_ver | cut -d'=' -f 2 | cut -d' ' -f 2)/modules/network/arubaoss
     pycmd=python$(tail -1 /tmp/ansible_ver | awk '{print $4}' | cut -d'.' -f 1)
     which $pycmd >/dev/null 2>&1 || ( logit "Failed to determine Ansible Python Ver" "WARNING" && pycmd=python)
+    cpit_status=$(dpkg -l | grep " cockpit " | awk '{print $1,$3}')
+    [[ "$cpit_status" =~ "ii" ]] && UTIL_VER['cockpit']="${cpit_status/ii }" || UTIL_VER['cockpit']=
 
     if [[ ! -z $a_role ]] && [[ -d $a_role ]]; then
         cx_mod_installed=true

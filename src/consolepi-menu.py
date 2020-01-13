@@ -69,7 +69,8 @@ class ConsolePiMenu():
         self.flow_pretty = {'x': 'Xon/Xoff', 'h': 'RTS/CTS', 'n': 'No'}
         self.pop_list = []
         self.cache_update_pending = False
-        self.remotes = self.get_remote() if not bypass_remote else {}
+        # TODO move get_remotes to ConsolePi class
+        config.remotes = self.get_remote() if not bypass_remote else {}
         if config.power:
             if not os.path.isfile(config.POWER_FILE):
                 config.plog('Outlet Control Function enabled but no power.json configuration found - Disabling feature',
@@ -1160,7 +1161,8 @@ class ConsolePiMenu():
     def key_menu(self):
         config = self.config
         # rem = self.data['remote']
-        rem = self.remotes
+        # rem = self.remotes
+        rem = config.remotes
         choice = ''
         menu_actions = {
             'b': self.main_menu,
@@ -1197,7 +1199,8 @@ class ConsolePiMenu():
     def gen_adapter_lines(self, adapters, item=1, remote=False, host=None, rename=False):
         # rem = self.data['remote']
         config = self.config
-        rem = self.remotes
+        # rem = self.remotes
+        rem = config.remotes
         flow_pretty = {
             'x': 'xon/xoff',
             'h': 'RTS/CTS',
@@ -1346,7 +1349,8 @@ class ConsolePiMenu():
         # rem = self.data['remote']
         config = self.config
         loc = config.adapters
-        rem = self.remotes
+        # rem = self.remotes
+        rem = config.remotes
         if not self.DEBUG:
             os.system('clear')
 
@@ -1412,7 +1416,8 @@ class ConsolePiMenu():
     def rshell_menu(self):
         choice = ''
         # config = self.config
-        rem = self.remotes
+        # rem = self.remotes
+        rem = config.remotes
         # rem = self.data['remote']
         menu_actions = {
             'rshell_menu': self.rshell_menu,

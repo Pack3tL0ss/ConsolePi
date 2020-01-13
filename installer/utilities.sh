@@ -248,12 +248,12 @@ util_exec() {
                     "-s" "-pf" "Update /etc/bash/bashrc for cockpit ~ ConsolePi" 
                     "echo -e \"if [ ! -z \$COCKPIT_REMOTE_PEER ] && [[ ! \\\"\\\$PATH\\\" =~ \\\"consolepi-commands\\\" ]] ; then\\n\\t[ -f \\\"/etc/ConsolePi/src/consolepi.sh\\\" ] && . /etc/ConsolePi/src/consolepi.sh\\nfi\" >>/tmp/test"
                     "-logit" 'Installing cockpit this will take a few...'
-                    "-apt-install" "cockpit"
+                    "-apt-install" "$apt_pkg_name"
                 )
             elif [[ $2 == "remove" ]]; then
                 cmd_list=(
                     "-logit" 'Removing cockpit this will take a few...'
-                    "-apt-purge $apt_pkg_name"
+                    "-apt-purge" "$apt_pkg_name"
                 )
             fi
             ;;
@@ -261,7 +261,7 @@ util_exec() {
             if [[ $2 == "install" ]]; then
                 cmd_list=("-apt-install" "$apt_pkg_name")
             elif [[ $2 == "remove" ]]; then
-                cmd_list=("-apt-purge $apt_pkg_name")
+                cmd_list=("-apt-purge" "$apt_pkg_name")
             fi
             ;;
     esac

@@ -1454,11 +1454,19 @@ class ConsolePiMenu():
                 subs.append('Manually Configured Remotes')
                 ssh_hosts = config.ssh_hosts
                 for host in sorted(ssh_hosts):
-                    if 'address' in ssh_hosts[host]:
+                    r = ssh_hosts[host]
+                    if 'address' in r:
                         mlines.append('Connect to {0} @ {1}'.format(host, ssh_hosts[host]['address']))
-                        _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], ssh_hosts[host]['address'])
+                        if 'method' in r and r['method'].lower() == 'ssh':
+                            _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, ssh_hosts[host]['user'], ssh_hosts[host]['address'])
+                        elif 'method' in r and r['method'].lower() == 'telnet':
+                            _cmd = 'sudo -u {0} telnet {1} {2}'.format(config.loc_user, 
+                                    ssh_hosts[host]['address'].split(':')[0],
+                                    '' if ':' not in ssh_hosts[host]['address'] else ssh_hosts[host]['address'].split(':')[1])
                         menu_actions[str(item)] = {'cmd': _cmd}
                         item += 1
+                    
+
                 outer_body.append(mlines)
 
             text = ' b.  Back'

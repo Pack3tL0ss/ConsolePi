@@ -168,6 +168,26 @@ class ConsolePi_data():
         except:
             self.loc_user = os.getenv('SUDO_USER') # testing for cockpit terminal
         self.ssh_hosts = self.get_local_cloud_file(local_cloud_file=REM_HOSTS_FILE)
+        if ssh_hosts:
+            threading.Thread(target=telnet_install_thread, kwargs={'host_dict': ssh_hosts}, name='telnet_install_verify').start()
+
+    def telnet_install_thread(self, host_dict=None):
+        host_dict = self.ssh_hosts if host_dict is None else host_dict
+        tel_found = False
+        for h in host_dict:
+            if 'method' in host_dict[h] and host_dict[h]['method'].lower() == 'telnet':
+                tel_found = True
+                break
+                
+        if not tel_found:
+            return True
+
+        r = check_install_apt_pkg('telnet')
+        if r[0] != 0:
+            self.log.error('[VRFY TELNET INSTALLED] verify TELNET installed returned an error\n{}'.format(r[1]) )
+            self.error_msgs.append('Error returned during TELNET (installed) verification')
+        else:
+            return True
 
 
     def get_tty_size(self):
@@ -897,6 +917,16 @@ def bash_command(cmd, do_print=False, eval_errors=True, return_stdout=False):
             return error_handler(getattr(response, 'args'), _stderr)
         
     return _stdout if return_stdout else None
+
+def check_install_apt_pkg(pkg: str, verify_cmd=None):
+    verify_cmd = 'which pkg' if verify_cmd is None else verify_cmd
+    resp = bash_command(verify_cmd, return_stdout=True)
+    if not resp:
+        resp = subprocess.run(['/bin/bash', '-c', 'apt install -y {}'.format(pkg)], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    else:
+        resp = (0, resp)
+
+    return (resp.returncode, resp.stdout.decode('UTF-8') if resp.returncode == 0 else resp.stderr.decode('UTF-8'))
 
 def is_valid_ipv4_address(address):
     try:

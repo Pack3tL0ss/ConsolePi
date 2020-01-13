@@ -39,7 +39,7 @@ CLOUD_LOG_FILE = '/var/log/ConsolePi/cloud.log'
 RULES_FILE = '/etc/udev/rules.d/10-ConsolePi.rules'
 SER2NET_FILE = '/etc/ser2net.conf'
 USER = 'pi' # currently not used, user pi is hardcoded using another user may have unpredictable results as it hasn't been tested
-HOME = str(Path.home())
+# HOME = str(Path.home())
 POWER_FILE = '/etc/ConsolePi/power.json'
 VALID_BAUD = ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']
 REM_LAUNCH = '/etc/ConsolePi/src/remote_launcher.py'
@@ -642,8 +642,9 @@ class ConsolePi_data():
     def gen_copy_key(self, rem_ip=None, rem_user=USER):
         hostname = self.hostname
         loc_user = os.getlogin()
+        loc_home = bash_command('sudo -u pi printenv | grep HOME= | cut -d= -f2')
         # generate local key file if it doesn't exist
-        if not os.path.isfile(HOME + '/.ssh/id_rsa'):
+        if not os.path.isfile(loc_home + '/.ssh/id_rsa'):
             print('\n\nNo Local ssh cert found, generating...')
             bash_command('sudo -u {0} ssh-keygen -m pem -t rsa -C "{1}@{2}"'.format(loc_user, rem_user, hostname))
         rem_list = []

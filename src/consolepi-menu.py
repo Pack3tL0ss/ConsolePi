@@ -1409,7 +1409,7 @@ class ConsolePiMenu():
             text.append(' rh. Remote Hosts Shell Menu')
             self.menu_actions['rh'] = {
                 'function': self.rshell_menu,
-                'kwargs': {'ssh_hosts': True}
+                'kwargs': {'do_ssh_hosts': True}
                 }
         text.append(' r.  Refresh')
 

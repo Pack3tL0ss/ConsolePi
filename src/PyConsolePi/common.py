@@ -888,8 +888,8 @@ def bash_command(cmd, do_print=False, eval_errors=True, return_stdout=False):
     if eval_errors:
         if _stderr:
             return error_handler(getattr(response, 'args'), _stderr)
-        else:
-            return _stdout if return_stdout else None
+        
+    return _stdout if return_stdout else None
 
 def is_valid_ipv4_address(address):
     try:

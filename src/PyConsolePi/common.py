@@ -162,7 +162,10 @@ class ConsolePi_data():
             self.rows, self.cols = self.get_tty_size()
         self.root = True if os.geteuid() == 0 else False
         self.new_adapters = self.detect_adapters()
-        self.loc_user = os.getlogin()
+        try:
+            self.loc_user = os.getlogin()
+        except:
+            self.loc_user = os.getenv('SUDO_USER') # testing for cockpit terminal
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)

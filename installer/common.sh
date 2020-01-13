@@ -108,7 +108,7 @@ logit() {
         status="${_red}${status}${_norm}"
     elif [[ ! "${status}" == "INFO" ]]; then
         status="${_yellow}${status}${_norm}"
-        [[ "${status}" == "WARNING" ]] ((warn_cnt+=1))
+        [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
     fi
     
     # Log to stdout and log-file

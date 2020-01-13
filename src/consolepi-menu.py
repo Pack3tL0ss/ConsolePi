@@ -1402,6 +1402,12 @@ class ConsolePiMenu():
             text.append(' k.  Distribute SSH Key to Remote Hosts')
             text.append(' s.  Remote Shell Menu (Connect to Remote ConsolePi Shell)')
         text.append(' sh. Enter Local Shell')
+        if os.path.isfile('/etc/ConsolePi/hosts.json') and os.stat(local_cloud_file).st_size > 0:
+            text.append('  H. Enter remote host menu (defined ssh hosts)')
+            self.menu_actions['H'] = {
+                                'function': self.rshell_menu,
+                                'kwargs': {'ssh_hosts': True}
+                                }
         if loc: # and config.root:
             text.append(' rn. Rename Local Adapters')
             self.menu_actions['rn'] = self.rename_menu
@@ -1413,7 +1419,7 @@ class ConsolePiMenu():
         self.exec_menu(choice)
         return
 
-    def rshell_menu(self):
+    def rshell_menu(self, ssh_hosts=False):
         choice = ''
         config = self.config
         # rem = self.remotes
@@ -1432,13 +1438,26 @@ class ConsolePiMenu():
 
             # Build menu items for each reachable remote ConsolePi
             item = 1
-            for host in sorted(rem):
-                if 'rem_ip' in rem[host] and rem[host]['rem_ip'] is not None:
-                # if rem[host]['rem_ip'] is not None:
-                    print(' {0}. Connect to {1} @ {2}'.format(item, host, rem[host]['rem_ip']))
-                    _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, rem[host]['user'], rem[host]['rem_ip'])
-                    menu_actions[str(item)] = {'cmd': _cmd}
-                    item += 1
+
+            if not ssh_hosts:
+                for host in sorted(rem):
+                    if 'rem_ip' in rem[host] and rem[host]['rem_ip'] is not None:
+                    # if rem[host]['rem_ip'] is not None:
+                        print(' {0}. Connect to {1} @ {2}'.format(item, host, rem[host]['rem_ip']))
+                        _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, rem[host]['user'], rem[host]['rem_ip'])
+                        menu_actions[str(item)] = {'cmd': _cmd}
+                        item += 1
+            else:
+                if os.path.isfile('/etc/ConsolePi/hosts.json') and os.stat(local_cloud_file).st_size > 0:
+                    with open('/etc/ConsolePi/hosts.json') as host_file:
+                        ssh_hosts = json.load(host_file)
+                        for host in sorted(ssh_hosts):
+                            if 'address' in ssh_hosts:
+                                print(' {0}. Connect to {1} @ {2}'.format(item, host, ssh_hosts['address']))
+                                _cmd = 'sudo -u {0} ssh -t {1}@{2}'.format(config.loc_user, ssh_hosts['user'], ssh_hosts['pass'])
+                                menu_actions[str(item)] = {'cmd': _cmd}
+                                item += 1
+
 
             text = ' b.  Back'
             self.menu_formatting('footer', text=text)

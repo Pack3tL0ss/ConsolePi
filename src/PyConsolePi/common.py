@@ -248,26 +248,37 @@ class ConsolePi_data():
         pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
         root_dev_list = usb_list + pci_list
         for root_dev in root_dev_list:
-            found = False
+            # found = False
+            # determine if the device already has a udev alias and collect available path options for use on lame adapters
+            dev_name = by_path = by_id = None
             for a in pyudev.Devices.from_name(context, 'tty', root_dev).properties['DEVLINKS'].split():
                 if '/dev/serial/by-' not in a:
-                    found = True
+                    # found = True
                     dev_name = a.replace('/dev/', '')
-                    break
-            if not found:
-                dev_name = root_dev
-            
-            devs['by_name'][dev_name] = {}
-            try:
-                _ser = pyudev.Devices.from_name(context, 'tty', root_dev).properties['ID_SERIAL_SHORT']
-            except KeyError:
-                _ser = 'lame'
+                elif '/dev/serial/by-path/' in a:
+                    by_path = a.replace('/dev/', '')
+                elif '/dev/serial/by-id/' in a:
+                    by_id = a.replace('/dev/', '') 
+            # if not found:
+            # if symlink was not found use the root_dev (i.e. ttyUSB0)
+            dev_name = root_dev if not dev_name else dev_name
+            devs['by_name'][dev_name] = {'by_path': by_path, 'by_id': by_id}
+
+
+            _ser = pyudev.Devices.from_name(context, 'tty', root_dev).get('ID_SERIAL_SHORT')
+            _devpath = pyudev.Devices.from_name(context, 'tty', root_dev).get('DEVPATH')
+            devs['by_name'][dev_name]['id_serial'] = _ser
+            devs['by_name'][dev_name]['devpath'] = _devpath
+            if not _ser:
                 self.error_msgs.append('The Adapter @ ' + root_dev + ' Lacks a serial #... lame!')
+                match={'DEVPATH': '/'.join(_devpath.split(':')[0].split('/')[0:-1])}
+            else:
+                match={'ID_SERIAL_SHORT': _ser}
             for _dev in context.list_devices(subsystem='tty', DEVNAME='/dev/' + root_dev):
-                devs['by_name'][dev_name]['id_path'] = _dev.properties['ID_PATH']
-                devs['by_name'][dev_name]['id_ifnum'] = _dev.properties['ID_USB_INTERFACE_NUM']
-                devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT')
-            for _dev in context.list_devices(subsystem='usb', ID_SERIAL_SHORT=_ser):
+                devs['by_name'][dev_name]['id_path'] = _dev.get('ID_PATH')
+                devs['by_name'][dev_name]['id_ifnum'] = _dev.get('ID_USB_INTERFACE_NUM')
+                # devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT')                
+            for _dev in context.list_devices(subsystem='usb', **match):
                 devs['by_name'][dev_name]['id_prod'] = _dev.get('ID_MODEL_ID')
                 devs['by_name'][dev_name]['id_model'] = _dev.get('ID_MODEL')
                 devs['by_name'][dev_name]['id_vendorid'] = _dev.get('ID_VENDOR_ID')
@@ -562,8 +573,9 @@ class ConsolePi_data():
 
         if response.ok:
             ret = json.loads(response.text)
-            ret = ret['adapters']
-            log.info('[API RQST OUT] Adapters retrieved via API for Remote ConsolePi {}'.format(ip))
+            ret = ret['adapters'] if ret['adapters'] else response.status_code
+            _msg = 'Adapters retrieved via API for Remote ConsolePi {}'.format(ip)
+            log.info('[API RQST OUT] {}'.format(_msg))
             log.debug('[API RQST OUT] Response: \n{}'.format(json.dumps(ret, indent=4, sort_keys=True)))
         else:
             ret = response.status_code
@@ -582,6 +594,7 @@ class ConsolePi_data():
         '''
         rem_ip_list = []
         update = False
+        log = self.log
 
         # if data in includes rem_ip make sure to try that first
         if 'rem_ip' in remote_data and remote_data['rem_ip'] is not None:
@@ -593,12 +606,17 @@ class ConsolePi_data():
                 rem_ip_list.append(_ip)
 
         for _ip in rem_ip_list:
+            log.debug('[API_REACHABLE] verifying {}'.format(_ip))
             _adapters = self.get_adapters_via_api(_ip)
             if _adapters:
                 if not isinstance(_adapters, int): # indicates an html error code was returned
                     if not remote_data['adapters'] == _adapters:
                         remote_data['adapters'] = _adapters
                         update = True
+                elif _adapters == 200:
+                    self.error_msgs.append('Remote @ {} is reachable, but has no adapters attached'.format(remote_data['rem_ip']))
+                    self.error_msgs.append('it\'s still available in remote shell menu')
+
                 # remote was reachable update rem_ip, even if returned bad status_code still reachable
                 if 'rem_ip' not in remote_data or not remote_data['rem_ip'] == _ip:
                     remote_data['rem_ip'] = _ip

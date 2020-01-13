@@ -1095,7 +1095,7 @@ post_install_msg() {
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mConsolePi Commands:\033[m                                                                                                   *"
     echo "*   **Refer to the GitHub for the most recent complete list**                                                           *"
-    echo "*   - ${_cyan}consolepi-menu${_norm}: Launch Console Menu which will provide connection options for connected serial adapters           *"
+    echo -e "*   - ${_cyan}consolepi-menu${_norm}: Launch Console Menu which will provide connection options for connected serial adapters           *"
     echo "*       if cloud config feature is enabled menu will also show adapters on reachable remote ConsolePis                  *"
     echo "*   - consolepi-upgrade: upgrade ConsolePi. - supported update method.                                                  *"
     echo "*   - consolepi-addssids: Add additional known ssids. same as doing sudo /etc/ConsolePi/ssids.sh                        *"

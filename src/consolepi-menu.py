@@ -1433,6 +1433,7 @@ class ConsolePiMenu():
             # Build menu items for each reachable remote ConsolePi
             item = 1
             print('')
+            mlines = []
             for host in sorted(rem):
                 if 'rem_ip' in rem[host] and rem[host]['rem_ip'] is not None:
                 # if rem[host]['rem_ip'] is not None:

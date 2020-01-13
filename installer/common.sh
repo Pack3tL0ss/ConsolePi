@@ -257,7 +257,7 @@ file_diff_update() {
     # -- If both files exist check if they are different --
     if [ -f ${override_dir}/${1##*/} ]; then
         override=true
-        logit "override file found ${1} ... Skipping no changes will be made"
+        logit "override file found ${1##*/} ... Skipping no changes will be made"
     else
         override=false
         if [[ -f ${1} ]] && [[ -f ${2} ]]; then

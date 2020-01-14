@@ -477,10 +477,9 @@ class ConsolePiMenu():
 
         # TODO refactor wait_for_threads to have an all key or accept a list
         with Halo(text='Waiting For threads to complete', spinner='dots1'):
-            config.wait_for_threads()
-            config.wait_for_threads(name='_toggle_refresh') # and not config.wait_for_threads(name='_vrfy')
-            self.error_msgs.appens('Timeout Waiting for init or toggle threads to complete try again later or investigate logs')
-            return
+            if config.wait_for_threads() and config.wait_for_threads(name='_toggle_refresh'): # and not config.wait_for_threads(name='_vrfy')
+                self.error_msgs.append('Timeout Waiting for init or toggle threads to complete try again later or investigate logs')
+                return
 
         # -- // Update Local Adapters \\ --
         if not rem_update:

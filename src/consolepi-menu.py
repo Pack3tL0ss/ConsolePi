@@ -1236,7 +1236,7 @@ class ConsolePiMenu():
                 if not rename:
                     # -- // LOCAL ADAPTERS \\ --
                     # Generate Command executed for Menu Line
-                    menu_actions[str(item)] = {'cmd': _cmd}
+                    menu_actions[str(item)] = {'cmd': _cmd, 'pwr_key': this_dev}
                 else:
                     menu_actions[str(item)] = {'function': self.do_rename_adapter, 'args': [this_dev]}
                     menu_actions['s' + str(item)] = {'function': self.show_adapter_details, 'args': [this_dev]}
@@ -1465,7 +1465,7 @@ class ConsolePiMenu():
                         elif 'method' in r and r['method'].lower() == 'telnet':
                             _cmd = 'sudo -u {0} telnet {1} {2}'.format(config.loc_user, 
                                     ssh_hosts[host]['address'].split(':')[0], _port)
-                        menu_actions[str(item)] = {'cmd': _cmd}
+                        menu_actions[str(item)] = {'cmd': _cmd, 'pwr_key': '/host/' + host, 'no_error_check': True}
                         item += 1
 
                 outer_body.append(mlines)
@@ -1487,6 +1487,8 @@ class ConsolePiMenu():
         if ch == '':
             config.rows, config.cols = config.get_tty_size() # re-calc tty size in case they've adjusted the window
             return
+        elif ch == 'exit':
+            self.exit()
         elif ch in menu_actions and menu_actions[ch] is None:
             return
         elif 'self.' in ch or 'config.' in ch:
@@ -1508,26 +1510,30 @@ class ConsolePiMenu():
             try:
                 if isinstance(menu_actions[ch], dict):
                     if 'cmd' in menu_actions[ch]:
-                        c = shlex.split(menu_actions[ch]['cmd'])
-                        # c = list like (local): [picocom', '/dev/White3_7003', '-b9600', '-fn', '-d8', '-pn']
-                        #               (remote): ['ssh', '-t', 'pi@10.1.30.28', 'remote_launcher.py picocom /dev/AP303P-BARN_7001 -b9600 -fn -d8 -pn']
-
                         # -- // AUTO POWER ON LINKED OUTLETS \\ --
-                        if config.power:  # pylint: disable=maybe-no-member
-                            if '/dev/' in c[1] or ( len(c) >= 4 and '/dev/' in c[3] ):
-                                menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[2]
-                                if c[0] != 'ssh':
-                                    config.exec_auto_pwron(menu_dev)
+                        if config.power and 'pwr_key' in menu_actions[ch]:  # pylint: disable=maybe-no-member
+                            config.exec_auto_pwron(menu_actions[ch]['pwr_key'])
+                            # if '/dev/' in c[1] or ( len(c) >= 4 and '/dev/' in c[3] ):
+                            #     menu_dev = c[1] if c[0] != 'ssh' else c[3].split()[2]
+                            #     if c[0] != 'ssh':
+                            #         config.exec_auto_pwron(menu_dev)
 
                         # --// execute the command \\--
                         try:
-                            result = subprocess.run(c, stderr=subprocess.PIPE)
-                            _stderr = result.stderr.decode('UTF-8')
-                            if _stderr or result.returncode == 1:
-                                _error = error_handler(c, _stderr) # pylint: disable=maybe-no-member
-                                if _error:
-                                    _error = _error.replace('\r', '').split('\n')
-                                    [self.error_msgs.append(i) for i in _error if i] # Remove any trailing empy items after split
+                            if 'no_error_check' in menu_actions[ch] and menu_actions[ch]['no_error_check']:
+                                c = menu_actions[ch]['cmd']
+                                os.system(c)
+                            else:
+                                # c = list like (local): [picocom', '/dev/White3_7003', '-b9600', '-fn', '-d8', '-pn']
+                                #               (remote): ['ssh', '-t', 'pi@10.1.30.28', 'remote_launcher.py picocom /dev/AP303P-BARN_7001 -b9600 -fn -d8 -pn']
+                                c = shlex.split(menu_actions[ch]['cmd'])
+                                result = subprocess.run(c, stderr=subprocess.PIPE)
+                                _stderr = result.stderr.decode('UTF-8')
+                                if _stderr or result.returncode == 1:
+                                    _error = error_handler(c, _stderr) # pylint: disable=maybe-no-member
+                                    if _error:
+                                        _error = _error.replace('\r', '').split('\n')
+                                        [self.error_msgs.append(i) for i in _error if i] # Remove any trailing empy items after split
 
                             # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
                             c = ' '.join([str(i) for i in c])
@@ -1941,8 +1947,7 @@ class ConsolePiMenu():
         self.menu_actions['main_menu']()
 
     def launch_shell(self):
-        iam = subprocess.run(['who', '-m'], stdout=subprocess.PIPE)
-        iam = iam.stdout.decode('UTF-8').strip().split()[0]
+        iam = config.loc_user
         # pylint:disable=anomalous-backslash-in-string
         os.system('echo PS1=\\"consolepi-menu:\\\w\\\$ \\" >/tmp/prompt && ' \
             'echo alias consolepi-menu=\\"exit\\" >>/tmp/prompt &&' \

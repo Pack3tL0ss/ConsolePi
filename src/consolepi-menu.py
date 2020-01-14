@@ -1491,8 +1491,8 @@ class ConsolePiMenu():
             self.exit()
         elif ch in menu_actions and menu_actions[ch] is None:
             return
-        elif 'self.' in ch or 'config.' in ch:
-            _ = 'self.var  = {}'.format(ch)
+        elif 'self.' in ch or 'config.' in ch or 'cloud.' in ch or 'local.' in ch:
+            _ = 'self.var  = {}'.format(ch.replace('local.', ''))
             try:
                 exec(_)
                 if isinstance(self.var, (dict, list)):                    # pylint: disable=maybe-no-member

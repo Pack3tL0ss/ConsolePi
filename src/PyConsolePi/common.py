@@ -450,27 +450,25 @@ class ConsolePi_data():
         '''
         log = self.log
         outlet_by_dev = {}
-        ssh_list = [{'dev': '/host/{}'.format(k)} for k in self.ssh_hosts.keys()] if self.ssh_hosts else []
-        for _list in [serial_list, ssh_list]:
-            for dev in serial_list:
-                # print(dev['dev']) # -- DEBUG --
-                if dev['dev'] not in outlet_by_dev:
-                    outlet_by_dev[dev['dev']] = []
-                # -- get linked outlet details if defined --
-                outlet_dict = None
-                for o in outlets:
-                    outlet = outlets[o]
-                    if 'linked_devs' in outlet and outlet['linked_devs']:
-                        if dev['dev'].replace('/host/', '') in outlet['linked_devs']:
-                            log.info('[PWR OUTLETS] Found Outlet {} linked to {}'.format(o, dev['dev'].replace('/dev/', '')))
-                            address = outlet['address']
-                            if outlet['type'].upper() == 'GPIO':
-                                address = int(outlet['address'])
-                            noff = outlet['noff'] if 'noff' in outlet else True
-                            outlet_dict = {'key': o, 'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
-                            outlet_by_dev[dev['dev']].append(outlet_dict)
+        for dev in serial_list:
+            # print(dev['dev']) # -- DEBUG --
+            if dev['dev'] not in outlet_by_dev:
+                outlet_by_dev[dev['dev']] = []
+            # -- get linked outlet details if defined --
+            outlet_dict = None
+            for o in outlets:
+                outlet = outlets[o]
+                if 'linked_devs' in outlet and outlet['linked_devs']:
+                    if dev['dev'].replace('/host/', '') in outlet['linked_devs']:
+                        log.info('[PWR OUTLETS] Found Outlet {} linked to {}'.format(o, dev['dev'].replace('/dev/', '')))
+                        address = outlet['address']
+                        if outlet['type'].upper() == 'GPIO':
+                            address = int(outlet['address'])
+                        noff = outlet['noff'] if 'noff' in outlet else True
+                        outlet_dict = {'key': o, 'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
+                        outlet_by_dev[dev['dev']].append(outlet_dict)
 
-                dev['outlet'] = outlet_dict
+            dev['outlet'] = outlet_dict
 
         self.outlet_by_dev = outlet_by_dev
         # return serial_list
@@ -774,7 +772,17 @@ class ConsolePi_data():
         if not self.pwr_init_complete:
             if not self.wait_for_threads('init'):
                 if self.pwr.outlet_data:
-                    self.outlet_by_dev = self.map_serial2outlet(self.adapters, self.pwr.outlet_data['linked'])
+                    outlet_by_dev = self.map_serial2outlet(self.adapters, self.pwr.outlet_data['linked'])
+                if self.ssh_hosts:
+                    # prepending /dev/ to use mapser... as /dev/ is prepended to everything in pwr class, 
+                    # should tweak that, for now this'll do
+                    ssh_list = [{'dev': '/dev/{}'.format(k.replace('/host/', ''))} for k in self.ssh_hosts.keys()] if self.ssh_hosts else []
+                    _outlet_by_host = {} if not ssh_list else self.map_serial2outlet(ssh_list, self.pwr.outlet_data['linked'])
+                    outlet_by_host = {}
+                    for k in _outlet_by_host:
+                        outlet_by_host[k.replace('/dev/', '/host/')] = _outlet_by_host[k]
+                self.outlet_by_dev = {**outlet_by_dev, **outlet_by_host}
+
                     # self.local[self.hostname]['adapters'] = self.adapters
             else:
                 self.error_msgs.append('Timeout Waiting for Power threads')

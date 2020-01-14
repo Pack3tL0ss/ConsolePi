@@ -476,7 +476,9 @@ class ConsolePiMenu():
         plog = config.plog
 
         # TODO refactor wait_for_threads to have an all key or accept a list
-        if config.wait_for_threads() and config.wait_for_threads(name='_toggle_refresh'): #and not config.wait_for_threads(name='_vrfy')
+        with Halo(text='Waiting For threads to complete', spinner='dots1'):
+            config.wait_for_threads()
+            config.wait_for_threads(name='_toggle_refresh') # and not config.wait_for_threads(name='_vrfy')
             self.error_msgs.appens('Timeout Waiting for init or toggle threads to complete try again later or investigate logs')
             return
 

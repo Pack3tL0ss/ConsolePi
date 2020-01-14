@@ -96,6 +96,7 @@ class ConsolePi_data():
         self.cloud_svc = None
         self.power = None
         self.debug = None
+        self.dump = False # Additional dataset logging
 
         # build attributes from ConsolePi.conf values
         # and GLOBAL variables
@@ -269,8 +270,7 @@ class ConsolePi_data():
         """
         context = pyudev.Context()
 
-        devs = {'by_name': {}, 'dup_ser': {}}
-        
+        devs = {'by_name': {}, 'dup_ser': {}, 'lame': []}       
         usb_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='usb', subsystem='tty')]
         pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
         root_dev_list = usb_list + pci_list
@@ -278,52 +278,96 @@ class ConsolePi_data():
             # found = False
             # determine if the device already has a udev alias and collect available path options for use on lame adapters
             dev_name = by_path = by_id = None
-            for a in pyudev.Devices.from_name(context, 'tty', root_dev).properties['DEVLINKS'].split():
-                if '/dev/serial/by-' not in a:
-                    # found = True
-                    dev_name = a.replace('/dev/', '')
-                elif '/dev/serial/by-path/' in a:
-                    by_path = a.replace('/dev/', '')
-                elif '/dev/serial/by-id/' in a:
-                    by_id = a.replace('/dev/', '') 
-            # if not found:
-            # if symlink was not found use the root_dev (i.e. ttyUSB0)
+            _dev = pyudev.Devices.from_name(context, 'tty', root_dev)
+            _devlinks = _dev.get('DEVLINKS').split()
+            for _d in _devlinks:
+                if '/dev/serial/by-' not in _d:
+                    dev_name = _d.replace('/dev/', '')
+                elif '/dev/serial/by-path/' in _d:
+                    by_path = _d
+                elif '/dev/serial/by-id/' in _d:
+                    by_id = _d
+
+            # DEBUG 
+            if self.dump:
+                for _props in [_dev.properties, _dev.parent.properties]:
+                    for p in _props:
+                        print(f'{p}:  {_props[p]}')
+                    print('\n')
+                input('Press Any Key to Continue...')
+
             dev_name = root_dev if not dev_name else dev_name
             devs['by_name'][dev_name] = {'by_path': by_path, 'by_id': by_id}
+            devs['by_name'][dev_name]['root_dev'] = True if dev_name == root_dev else False
+            _bus = _dev.get('ID_BUS')
+            _props = _dev.properties if _bus == 'usb' else _dev.parent.properties
+            for p in _props:
+                exec("devs['by_name']['{}']['{}'] = '{}'".format(dev_name, p.lower(), _props[p]))
 
+            # For Pi 4 if useful properties are actually in the parent re-write a few key properties from the orig
+            # _dev level
+            # if _bus != 'usb':
+            devs['by_name'][dev_name]['id_path'] = _dev.get('ID_PATH')
+            devs['by_name'][dev_name]['id_ifnum'] = _dev.get('ID_USB_INTERFACE_NUM')
+            devs['by_name'][dev_name]['id_venmod'] = _dev.get('ID_SERIAL')
+            _ser = devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT')
+            devs['by_name'][dev_name]['z_UP_TIME'] = convert_usecs(_dev.get('USEC_INITIALIZED'))
 
-            _ser = pyudev.Devices.from_name(context, 'tty', root_dev).get('ID_SERIAL_SHORT')
-            _devpath = pyudev.Devices.from_name(context, 'tty', root_dev).get('DEVPATH')
-            devs['by_name'][dev_name]['id_serial'] = _ser
-            devs['by_name'][dev_name]['devpath'] = _devpath
-            if not _ser:
-                self.error_msgs.append('The Adapter @ ' + root_dev + ' Lacks a serial #... lame!')
-                match={'DEVPATH': '/'.join(_devpath.split(':')[0].split('/')[0:-1])}
+            # --- // Handle Multi-Port adapters that use same serial for all interfaces \\ ---
+            # Capture the dict in dup_ser it's later del if no additional devices present with the same serial
+            # Capture path and ifnum for any subsequent devs if ser is already in the dup_ser dict
+            if _ser not in devs['dup_ser']:
+                devs['dup_ser'][_ser] = {}
+                _d = devs['by_name'][dev_name]
+                for p in ['id_prod', 'id_model', 'id_vendorid', 'id_vendor', 'id_venmod', 'by_path', 'by_id']:
+                    devs['dup_ser'][_ser][p] = None if p not in _d else _d[p]
+                devs['dup_ser'][_ser]['id_paths'] = [devs['by_name'][dev_name]['id_path']]
+                devs['dup_ser'][_ser]['id_ifnums'] = [devs['by_name'][dev_name]['id_ifnum']]
             else:
-                match={'ID_SERIAL_SHORT': _ser}
-            for _dev in context.list_devices(subsystem='tty', DEVNAME='/dev/' + root_dev):
-                devs['by_name'][dev_name]['id_path'] = _dev.get('ID_PATH')
-                devs['by_name'][dev_name]['id_ifnum'] = _dev.get('ID_USB_INTERFACE_NUM')
-                # devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT')                
-            for _dev in context.list_devices(subsystem='usb', **match):
-                devs['by_name'][dev_name]['id_prod'] = _dev.get('ID_MODEL_ID')
-                devs['by_name'][dev_name]['id_model'] = _dev.get('ID_MODEL')
-                devs['by_name'][dev_name]['id_vendorid'] = _dev.get('ID_VENDOR_ID')
-                devs['by_name'][dev_name]['id_vendor'] = _dev.get('ID_VENDOR')
-                devs['by_name'][dev_name]['root_dev'] = True if dev_name == root_dev else False
+                devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
+                devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
 
-                if _ser in devs['dup_ser']:
-                    devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
-                    devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
-                else:
-                    devs['dup_ser'][_ser] = {
-                        'id_prod': devs['by_name'][dev_name]['id_prod'],
-                        'id_model': devs['by_name'][dev_name]['id_model'],
-                        'id_vendorid': devs['by_name'][dev_name]['id_vendorid'],
-                        'id_vendor': devs['by_name'][dev_name]['id_vendor'],
-                        'id_paths': [devs['by_name'][dev_name]['id_path']],
-                        'id_ifnums': [devs['by_name'][dev_name]['id_ifnum']]
-                        }
+
+            # --- // Handle Lame Adapters whcih present no serial (id_serial_short) \\ ---
+            # add key for any w no serial to a list referenced later
+            if not devs['by_name'][dev_name]['id_serial']:
+                self.error_msgs.append('The Adapter @ ' + root_dev + ' Lacks a serial #... lame!')
+                _d = devs['by_name'][dev_name]
+                devs['lame'].append(dev_name)
+                # devs['lame'] = {_d['id_path']: {}}
+                # for p in ['id_prod', 'id_model', 'id_vendorid', 'id_vendor', 'id_path', 'id_ifnum', 'id_venmod', 'by_path', 'by_id']:
+                #     devs['lame'][_d['id_path']][p] = None if p not in _d else _d[p]
+                    
+            # if not found:
+            # if symlink was not found use the root_dev (i.e. ttyUSB0)
+            
+            
+            
+
+            # _ser = pyudev.Devices.from_name(context, 'tty', root_dev).get('ID_SERIAL_SHORT')
+            # _dev = pyudev.Devices.from_name(context, 'tty', root_dev)
+            # _ser = _dev.get('ID_SERIAL_SHORT')
+            # # _devpath = pyudev.Devices.from_name(context, 'tty', root_dev).get('DEVPATH')
+            # devs['by_name'][dev_name]['id_serial'] = _ser
+            # devs['by_name'][dev_name]['devpath'] = _devpath
+            # if not _ser:
+                # self.error_msgs.append('The Adapter @ ' + root_dev + ' Lacks a serial #... lame!')
+                # match={'DEVPATH': '/'.join(_devpath.split(':')[0].split('/')[0:-1])}
+            # else:
+                # match={'ID_SERIAL_SHORT': _ser}
+            # for _dev in context.list_devices(subsystem='tty', DEVNAME='/dev/' + root_dev):
+                # devs['by_name'][dev_name]['id_path'] = _dev.get('ID_PATH')
+            #     devs['by_name'][dev_name]['id_ifnum'] = _dev.get('ID_USB_INTERFACE_NUM')
+                # devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT') 
+                # devs['by_name'][dev_name]['id_path'] = _dev.get('ID_PATH')
+                # devs['by_name'][dev_name]['id_ifnum'] = _dev.get('ID_USB_INTERFACE_NUM')
+                # devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT') 
+            # for _dev in context.list_devices(subsystem='usb', **match):
+                # devs['by_name'][dev_name]['id_prod'] = _dev.parent.get('ID_MODEL_ID')
+                # devs['by_name'][dev_name]['id_model'] = _dev.parent.get('ID_MODEL')
+                # devs['by_name'][dev_name]['id_vendorid'] = _dev.parent.get('ID_VENDOR_ID')
+                # devs['by_name'][dev_name]['id_vendor'] = _dev.get('ID_VENDOR')
+                # devs['by_name'][dev_name]['root_dev'] = True if dev_name == root_dev else False
                         
         del_list = []
         for _ser in devs['dup_ser'] :
@@ -333,6 +377,9 @@ class ConsolePi_data():
         if del_list:
             for i in del_list:
                 del devs['dup_ser'][i]
+        # if del_list:
+        # _dups = devs['dup_ser']
+        # devs['dup_ser'] = [ _dups[i] for i in _dups if len(_dups[i]['id_paths']) > 1 ]
 
         return devs if key is None else devs['by_name'][key.replace('/dev/', '')]    
 
@@ -1133,6 +1180,19 @@ def json_print(obj):
 def format_eof(file):
     cmd = 'sed -i -e :a -e {} {}'.format('\'/^\\n*$/{$d;N;};/\\n$/ba\'', file)
     return bash_command(cmd, eval_errors=False)
+
+def convert_usecs(usecs):
+    if usecs is not None:
+        usecs = int(usecs)
+        seconds=(usecs/1000000)%60
+        seconds = int(seconds)
+        minutes=(usecs/(1000*60))%60
+        minutes = int(minutes)
+        hours=(usecs/(1000*60*60))%24
+    else:
+        return
+
+    return ("%d:%d:%d" % (hours, minutes, seconds))
 
 def append_to_file(file, line):
     '''Determine if last line of file includes a newline character

@@ -550,6 +550,8 @@ class Outlets:
 
         The function makes using full path of the serial device optional
         in power.json so user can define flr01_neIDF vs /dev/flr01_neIDF
+
+        Also strips /host/ from var used in hosts.json defined hosts
         
         Used By: pwr_get_outlets_from_file on init
         
@@ -567,6 +569,7 @@ class Outlets:
         dev = [dev] if not isinstance(dev, list) else dev
         ret_list = []
         for d in dev:
+            d = d.replace('/host/', '') # TODO get config.ssh_hosts to determine which way to go...
             if with_path:
                 if '/dev/' not in d:
                     d = '/dev/{}'.format(d) 

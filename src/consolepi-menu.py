@@ -1520,7 +1520,9 @@ class ConsolePiMenu():
 
                         # --// execute the command \\--
                         try:
-                            if 'no_error_check__' in menu_actions[ch] and menu_actions[ch]['no_error_check__']: # changed to DEBUG should always skip over this
+                            # --- TODO CHANGE THIS!!! switched back to handle cipher error, but banner txt is send back
+                            # via stderr. so not ideal as is
+                            if 'no_error_check__' in menu_actions[ch] and menu_actions[ch]['no_error_check__']:
                                 c = menu_actions[ch]['cmd']
                                 os.system(c)
                             else:

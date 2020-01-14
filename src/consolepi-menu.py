@@ -1947,7 +1947,7 @@ class ConsolePiMenu():
         self.menu_actions['main_menu']()
 
     def launch_shell(self):
-        iam = config.loc_user
+        iam = self.config.loc_user
         # pylint:disable=anomalous-backslash-in-string
         os.system('echo PS1=\\"consolepi-menu:\\\w\\\$ \\" >/tmp/prompt && ' \
             'echo alias consolepi-menu=\\"exit\\" >>/tmp/prompt &&' \

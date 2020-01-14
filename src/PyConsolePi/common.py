@@ -779,7 +779,7 @@ class ConsolePi_data():
                     # then swap back after match operation.
                     menu_dev = menu_dev.replace('/host/', '/dev/')
                     ssh_list = [{'dev': '/dev/{}'.format(k.replace('/host/', ''))} for k in self.ssh_hosts.keys()] if self.ssh_hosts else []
-                    log.debug('AUTO PwrOn ssh_hosts list {}'.format(ssh_list))
+                    log.debug('[AUTO PwrOn] ssh_hosts list {}'.format(ssh_list))
                     _outlet_by_host = {} if not ssh_list else self.map_serial2outlet(ssh_list, self.pwr.outlet_data['linked'])
                     outlet_by_host = {}
                     for k in _outlet_by_host:

@@ -774,8 +774,10 @@ class ConsolePi_data():
                 if self.pwr.outlet_data:
                     outlet_by_dev = self.map_serial2outlet(self.adapters, self.pwr.outlet_data['linked'])
                 if self.ssh_hosts:
-                    # prepending /dev/ to use mapser... as /dev/ is prepended to everything in pwr class, 
-                    # should tweak that, for now this'll do
+                    # pwr_get_outlets_from_file prepends everything from power.json with /dev/
+                    # swap /host/ for /dev/ to use logic below alredy done for serial devices
+                    # then swap back after match operation.
+                    menu_dev = menu_dev.replace('/host/', '/dev/')
                     ssh_list = [{'dev': '/dev/{}'.format(k.replace('/host/', ''))} for k in self.ssh_hosts.keys()] if self.ssh_hosts else []
                     _outlet_by_host = {} if not ssh_list else self.map_serial2outlet(ssh_list, self.pwr.outlet_data['linked'])
                     outlet_by_host = {}
@@ -787,7 +789,6 @@ class ConsolePi_data():
             else:
                 self.error_msgs.append('Timeout Waiting for Power threads')
                 log.error('Timeout Waiting for Power threads')
-        # menu_dev = menu_dev.replace('/dev/', '') if menu_dev not in self.outlet_by_dev else menu_dev
         if self.outlet_by_dev is not None and menu_dev in self.outlet_by_dev:    # See Dictionary Reference for structure
             for outlet in self.outlet_by_dev[menu_dev]:
                 _addr = outlet['address']

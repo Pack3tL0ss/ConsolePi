@@ -475,6 +475,11 @@ class ConsolePiMenu():
         log = config.log
         plog = config.plog
 
+        # TODO refactor wait_for_threads to have an all key or accept a list
+        if config.wait_for_threads() and config.wait_for_threads(name='_toggle_refresh'): #and not config.wait_for_threads(name='_vrfy')
+            self.error_msgs.appens('Timeout Waiting for init or toggle threads to complete try again later or investigate logs')
+            return
+
         # -- // Update Local Adapters \\ --
         if not rem_update:
             config.local = {config.hostname: {'adapters': config.get_adapters(), 'interfaces': config.get_if_ips(), 'rem_ip': config.get_ip_w_gw(), 'user': 'pi'}}

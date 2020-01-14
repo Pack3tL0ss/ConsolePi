@@ -903,6 +903,21 @@ def error_handler(cmd, stderr):
             return 'skipped: keys already exist on the remote system'
         elif '/usr/bin/ssh-copy-id: INFO:' in stderr:
             pass # no need to re-display these
+        # ssh cipher suite errors
+        elif 'no matching cipher found. Their offer:' in stderr:
+            print('Connection Error: {}\n'.format(stderr))
+            cipher = stderr.split('offer:')[1].strip().split(',')
+            aes_cipher = [c for c in cipher if 'aes' in c]
+            if aes_cipher:
+                cipher = aes_cipher[-1]
+            else:
+                cipher = cipher[-1]
+            cmd += ['-c', cipher]
+            
+            print('Reattempting Connection using cipher {}'.format(cipher))
+            r = subprocess.run(cmd)
+            if r.returncode:
+                return 'Error on Retry Attempt' # TODO better way... handle banners... paramiko?
         else:
             return stderr   # return value that was passed in
     # Handle hung sessions always returncode=1 doesn't always present stderr

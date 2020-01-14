@@ -1520,7 +1520,7 @@ class ConsolePiMenu():
 
                         # --// execute the command \\--
                         try:
-                            if 'no_error_check' in menu_actions[ch] and menu_actions[ch]['no_error_check']:
+                            if 'no_error_check__' in menu_actions[ch] and menu_actions[ch]['no_error_check__']: # changed to DEBUG should always skip over this
                                 c = menu_actions[ch]['cmd']
                                 os.system(c)
                             else:

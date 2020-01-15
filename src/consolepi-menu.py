@@ -410,11 +410,9 @@ class ConsolePiMenu():
             if this['rem_ip'] is None:
                 log.warning('[GET REM] Found {0} in Local Cloud Cache: UNREACHABLE'.format(remotepi))
                 this['fail_cnt'] = 1 if 'fail_cnt' not in this else this['fail_cnt'] + 1
-                if ('fail_cnt' in this and this['fail_cnt'] < 3) or 'fail_cnt' not in this: # Removal Error will display no need for both
-                    self.error_msgs.append('Cached Remote \'{}\' is unreachable'.format(remotepi))
-
                 self.pop_list.append(remotepi)  # Remove Unreachable remote from cache
-                self.cache_update_pending = True
+                # -- error_msg updated in cache_update
+                self.cache_update_pending = True 
             else:
                 if update_cache:
                     log.info('[GET REM] Updating Cache - Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, this['rem_ip']))

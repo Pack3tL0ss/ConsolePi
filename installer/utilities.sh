@@ -157,10 +157,17 @@ util_exec() {
             ;;
         ansible)
             if [[ $2 == "install" ]]; then
-                cmd_list=("-apt-install" "$apt_pkg_name")
+                cmd_list=(
+                    "-l" "Updating apt with ansible repo"
+                    "s" "-f" "failed to update apt sources with ansible repo" 'echo "deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main" > /etc/apt/sources.list.d/ansible.list' \
+                    "-s" "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367" \
+                    "apt update" \
+                    "-apt-install" "$apt_pkg_name"
+                    )
             elif [[ $2 == "remove" ]]; then
                 cmd_list=(
                     "-apt-purge" "$apt_pkg_name" \
+                    "-s" "rm /etc/apt/sources.list.d/ansible.list" \
                     '-logit' "ansible removed however the hidden directory (.ansible) created in the /home/<user>/.ansible and any files in it were retained" \
                     )
             fi

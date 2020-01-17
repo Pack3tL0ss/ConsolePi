@@ -1149,19 +1149,6 @@ def format_eof(file):
     cmd = 'sed -i -e :a -e {} {}'.format('\'/^\\n*$/{$d;N;};/\\n$/ba\'', file)
     return bash_command(cmd, eval_errors=False)
 
-def convert_usecs(usecs):
-    if usecs is not None:
-        usecs = int(usecs)
-        seconds=(usecs/1000000)%60
-        seconds = int(seconds)
-        minutes=(usecs/(1000*60))%60
-        minutes = int(minutes)
-        hours=(usecs/(1000*60*60))%24
-    else:
-        return
-
-    return ("%d:%d:%d" % (hours, minutes, seconds))
-
 def append_to_file(file, line):
     '''Determine if last line of file includes a newline character
     write line provided on the next line
@@ -1189,6 +1176,19 @@ def uptime():
     with open('/proc/uptime', 'r') as f:
         uptime_seconds = float(f.readline().split()[0])
         return uptime_seconds
+
+def convert_usecs(usecs):
+    if usecs is not None:
+        usecs = int(usecs)
+        seconds = round(uptime() - (usecs/1000000))%60
+        minutes = (usecs/(1000000*60))%60
+        minutes = int(minutes)
+        hours = (usecs/(1000000*60*60))%24
+        days = (usecs/(1000000*60*60*24))
+    else:
+        return
+
+    return ("%d days, %d hours, %d minues, %d seconds" % (days, hours, minutes, seconds))
 
 # DEBUGGING Should not be called directly
 if __name__ == '__main__':

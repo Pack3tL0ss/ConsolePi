@@ -8,7 +8,7 @@ SUBSYSTEM!="tty", GOTO="END"
 SUBSYSTEMS=="usb", IMPORT{builtin}="usb_id", IMPORT{builtin}="hwdb --subsystem=usb"
 KERNEL!="ttyUSB[0-9]*|ttyACM[0-9]*", GOTO="END"
 SUBSYSTEMS=="usb-serial", ENV{.ID_PORT}="$attr{port_number}"
-ENV{ID_SERIAL}=="", GOTO="BYPATH-DEVS"
+ENV{ID_SERIAL_SHORT}=="", IMPORT{builtin}="path_id", GOTO="BYPATH-POINTERS"
 SUBSYSTEMS=="usb", ENV{ID_USB_INTERFACE_NUM}="$attr{bInterfaceNumber}"
 # ENV{ID_USB_INTERFACE_NUM}=="", GOTO="END"
 

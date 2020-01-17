@@ -184,11 +184,17 @@ class ConsolePiMenu():
 
         # sub to make change or append to udev rules file
         def add_to_udev(udev_line, section_marker, label=None):
-            found = ser_label_exists = get_next = False # init
+            found = ser_label_exists = get_next = update_file = False # init
             goto = '' # init
             if os.path.isfile(config.RULES_FILE):   # pylint: disable=maybe-no-member
                 with open(config.RULES_FILE) as x:  # pylint: disable=maybe-no-member
                     for line in x:
+                        # temporary for those that have the original file
+                        if 'ID_SERIAL' in line and 'IMPORT' not in line:
+                            _old = 'ENV{ID_SERIAL}=="", GOTO="BYPATH-POINTERS"'
+                            _new = 'ENV{ID_SERIAL_SHORT}=="", IMPORT{builtin}="path_id", GOTO="BYPATH-POINTERS"'
+                            cmd = "sed -i 's/{}/{}/' {}".format(_old, _new, config.RULES_FILE) # pylint: disable=maybe-no-member
+                            update_file = True
                         if line.strip() == udev_line.strip():
                             return # Line is already in file Nothing to do.
                         if get_next:
@@ -202,6 +208,10 @@ class ConsolePiMenu():
                             ser_label_exists = True
 
                     last_line = line
+                if update_file:
+                    error = bash_command(cmd)
+                    if error:
+                        self.error_msgs.append(error)
 
                 goto = goto.split('GOTO=')[1].replace('"', '').strip() if 'GOTO=' in goto else None
                 if goto is None:
@@ -247,11 +257,9 @@ class ConsolePiMenu():
 
         if user_input_bool(' Please Confirm Rename {} --> {}'.format(c_from_name, c_to_name)):
             _files = [config.SER2NET_FILE, config.RULES_FILE] # pylint: disable=maybe-no-member
-            # if 'ttyUSB' in from_name or 'ttyACM' in from_name:
             for i in config.adapters:
                 if i['dev'] == '/dev/{}'.format(from_name):
                     _idx = config.adapters.index(i)
-                    # config.adapters[_idx]['dev'] = '/dev/{}'.format(to_name) # -- update name in adapter list
                     break
             _dev = config.adapters[_idx] # dict
             baud = _dev['baud']
@@ -283,11 +291,11 @@ class ConsolePiMenu():
                 devs = config.detect_adapters()
                 if from_name in devs['by_name']:
                     _tty = devs['by_name'][from_name]
-                    id_prod = _tty['id_prod']
+                    id_prod = _tty['id_model_id']
                     id_model = _tty['id_model'] # pylint: disable=unused-variable
-                    id_vendorid = _tty['id_vendorid']
+                    id_vendorid = _tty['id_vendor_id']
                     id_vendor = _tty['id_vendor'] # pylint: disable=unused-variable
-                    id_serial = _tty['id_serial']
+                    id_serial = _tty['id_serial_short']
                     id_ifnum = _tty['id_ifnum']
                     id_path = _tty['id_path']
                     root_dev = _tty['root_dev']
@@ -329,30 +337,67 @@ class ConsolePiMenu():
 
                     # -- // Update for adapters that lack serial (map usb port) \\ --
                 else:
-                    config.log.warn('[ADD ADAPTER] Unable to add udev rule: idVendor={}, idProduct={}, serial#={}'.format(
+                    config.log.warning('[ADD ADAPTER] Lame adapter missing key detail: idVendor={}, idProduct={}, serial#={}'.format(
                                 id_vendorid, id_prod, id_serial))
-                    print('''
-                        This Device Does not present a serial # (LAME!).  So the adapter itself can\'t be uniquely identified.
-                        If the adapter will remain plugged into the same port (directly or on HUB).  The name / alias can be
-                        mapped to the USB port.  Any adapter or device for that matter that is plugged into this port will
-                        use this alias.
+                    print('\n\n This Device Does not present a serial # (LAME!).  So the adapter itself can\'t be uniquely identified.\n' \
+                          ' There are 2 options for naming this device:')
 
-                        Alternatively We can just do a non-persistent rename, which will go away once the you exit the menu.
-
-                        ''')
-
-                    do_bypath = user_input_bool(' Permanently map an alias to the USB port')
-                    if not do_bypath:
-                        do_temp = user_input_bool(' Give the Adapter a non persistent name for the duration of this menu session')
-                        if do_temp:
-                            pass # by not setting an error the name will be updated below
+                    mlines = [
+                        'Map it to the USB port it\'s plugged in to' \
+                        '\n\tAnytime a {} {} tty device is plugged into the port it\n\tis currently plugged into it will adopt the {} alias'.format(
+                            _tty['id_vendor_from_database'], _tty['id_model_from_database'], to_name
+                            ),
+                        'Map it by vedor ({0}) and model ({1}) alone.' \
+                            '\n\tThis will only work if this is the only {0} {1} adapter you plan to plug in'.format(
+                            _tty['id_vendor_from_database'], _tty['id_model_from_database']
+                            )#,
+                        # 'Temporary mapping' \
+                        # '\n\tnaming will only persist during this menu session\n'
+                    ]
+                    self.menu_formatting('body', text=mlines)
+                    print('\n b. back (abort rename)\n')
+                    valid_ch = {
+                        '1': 'by_path',
+                        '2': 'by_id'#,
+                    #    '3': 'temp'
+                    }
+                    valid = False
+                    while not valid:
+                        print(' Please Select an option')
+                        ch = self.wait_for_input(lower=True)
+                        if ch == 'b':
+                            return
+                        elif ch in valid_ch:
+                            _path = valid_ch[ch]
+                            valid = True
                         else:
-                            error = ['Unable to add udev rule adapter missing details', 'idVendor={}, idProduct={}, serial#={}'.format(
-                                id_vendorid, id_prod, id_serial)]
+                            print('invalid choice {} Try Again.'.format(ch))
+
+                    udev_line = None
+                    if valid_ch[ch] == 'temp':
+                        error = True
+                        print('The Temporary rename feature is not yet implemented')
+                        pass # by not setting an error the name will be updated below
+                    elif valid_ch[ch] == 'by_path':
+                        udev_line = (
+                            'SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(
+                            id_vendorid, id_prod), 'ENV{{ID_PATH}}=="{}", SYMLINK+="{}"'.format(id_path, to_name),
+                        )
+                    elif valid_ch[ch] == 'by_id':
+                        udev_line = (
+                            'SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(
+                                id_vendorid, id_prod), 
+                            'ENV{{ID_USB_INTERFACE_NUM}}=="{}", SYMLINK+="{}", GOTO="END"'.format(_tty['id_ifnum'], to_name)
+                        )
                     else:
-                        udev_line = ('SUBSYSTEM=="tty", ENV{ID_PATH}=="{}", SYMLINK+="{}"'.format(id_path, to_name))
-                        # TODO add line with vendor & model - need lame ass adapter with no serial to test
-                        #   This would at least limit the alias to that vendor/model adapter.
+                        error = ['Unable to add udev rule adapter missing details', 'idVendor={}, idProduct={}, serial#={}'.format(
+                            id_vendorid, id_prod, id_serial)]
+                                            
+                    while udev_line:
+                        error = add_to_udev(udev_line[0], '# END BYPATH-POINTERS')
+                        error = add_to_udev(udev_line[1], '# END BYPATH-DEVS', label='{}_{}'.format(id_vendorid, id_prod))
+                        error = do_ser2net_line(to_name=to_name, baud=baud, dbits=dbits, parity=parity, flow=flow)
+                        break
 
             #TODO simplify once ser2net existing verified
             else:   # renaming previously named port.
@@ -373,19 +418,15 @@ class ConsolePiMenu():
 
             if not error:
                 # Update adapter variables with new_name
-                # for _dev in config.adapters:
-                #     if _dev['dev'].replace('/dev/', '') == from_name:
                 _dev = config.adapters[_idx]
                 if not _dev['dev'].replace('/dev/', '') == from_name:
-                    self.error_msgs.append('DEV NOTE ERROR in do_rename logic')
+                    self.error_msgs.append('DEV NOTE: ERROR in do_rename logic')
                 _dev['dev'] = '/dev/' + to_name
                 if not use_def:
                     _dev['baud'] = baud
                     _dev['flow'] = flow
                     _dev['parity'] = parity
                     _dev['dbits'] = dbits
-                        # break
-                # self.data['local'] = config.local
                 if from_name in config.new_adapters['by_name']:
                     config.new_adapters['by_name'][to_name] = config.new_adapters['by_name'][from_name]
                     del config.new_adapters['by_name'][from_name]
@@ -414,6 +455,9 @@ class ConsolePiMenu():
                 # -- error_msg updated in cache_update
                 self.cache_update_pending = True 
             else:
+                if 'fail_cnt' in this:
+                    this['fail_cnt'] = 0
+                    self.cache_update_pending = True 
                 if update_cache:
                     log.info('[GET REM] Updating Cache - Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, this['rem_ip']))
 

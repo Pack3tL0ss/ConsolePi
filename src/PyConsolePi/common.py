@@ -306,11 +306,10 @@ class ConsolePi_data():
 
             # For Pi 4 if useful properties are actually in the parent re-write a few key properties from the orig
             # _dev level
-            # if _bus != 'usb':
             devs['by_name'][dev_name]['id_path'] = _dev.get('ID_PATH')
             devs['by_name'][dev_name]['id_ifnum'] = _dev.get('ID_USB_INTERFACE_NUM')
-            devs['by_name'][dev_name]['id_venmod'] = _dev.get('ID_SERIAL')
-            _ser = devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT')
+            devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL')
+            _ser = devs['by_name'][dev_name]['id_serial_short'] = _dev.get('ID_SERIAL_SHORT')
             devs['by_name'][dev_name]['z_UP_TIME'] = convert_usecs(_dev.get('USEC_INITIALIZED'))
 
             # --- // Handle Multi-Port adapters that use same serial for all interfaces \\ ---
@@ -330,44 +329,11 @@ class ConsolePi_data():
 
             # --- // Handle Lame Adapters whcih present no serial (id_serial_short) \\ ---
             # add key for any w no serial to a list referenced later
-            if not devs['by_name'][dev_name]['id_serial']:
-                self.error_msgs.append('The Adapter @ ' + root_dev + ' Lacks a serial #... lame!')
-                _d = devs['by_name'][dev_name]
-                devs['lame'].append(dev_name)
-                # devs['lame'] = {_d['id_path']: {}}
-                # for p in ['id_prod', 'id_model', 'id_vendorid', 'id_vendor', 'id_path', 'id_ifnum', 'id_venmod', 'by_path', 'by_id']:
-                #     devs['lame'][_d['id_path']][p] = None if p not in _d else _d[p]
-                    
-            # if not found:
-            # if symlink was not found use the root_dev (i.e. ttyUSB0)
-            
-            
-            
-
-            # _ser = pyudev.Devices.from_name(context, 'tty', root_dev).get('ID_SERIAL_SHORT')
-            # _dev = pyudev.Devices.from_name(context, 'tty', root_dev)
-            # _ser = _dev.get('ID_SERIAL_SHORT')
-            # # _devpath = pyudev.Devices.from_name(context, 'tty', root_dev).get('DEVPATH')
-            # devs['by_name'][dev_name]['id_serial'] = _ser
-            # devs['by_name'][dev_name]['devpath'] = _devpath
-            # if not _ser:
-                # self.error_msgs.append('The Adapter @ ' + root_dev + ' Lacks a serial #... lame!')
-                # match={'DEVPATH': '/'.join(_devpath.split(':')[0].split('/')[0:-1])}
-            # else:
-                # match={'ID_SERIAL_SHORT': _ser}
-            # for _dev in context.list_devices(subsystem='tty', DEVNAME='/dev/' + root_dev):
-                # devs['by_name'][dev_name]['id_path'] = _dev.get('ID_PATH')
-            #     devs['by_name'][dev_name]['id_ifnum'] = _dev.get('ID_USB_INTERFACE_NUM')
-                # devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT') 
-                # devs['by_name'][dev_name]['id_path'] = _dev.get('ID_PATH')
-                # devs['by_name'][dev_name]['id_ifnum'] = _dev.get('ID_USB_INTERFACE_NUM')
-                # devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL_SHORT') 
-            # for _dev in context.list_devices(subsystem='usb', **match):
-                # devs['by_name'][dev_name]['id_prod'] = _dev.parent.get('ID_MODEL_ID')
-                # devs['by_name'][dev_name]['id_model'] = _dev.parent.get('ID_MODEL')
-                # devs['by_name'][dev_name]['id_vendorid'] = _dev.parent.get('ID_VENDOR_ID')
-                # devs['by_name'][dev_name]['id_vendor'] = _dev.get('ID_VENDOR')
-                # devs['by_name'][dev_name]['root_dev'] = True if dev_name == root_dev else False
+            if not devs['by_name'][dev_name]['id_serial_short']:
+                if 'ttyUSB' in dev_name or 'ttyACM' in dev_name:
+                    self.error_msgs.append('The Adapter @ ' + root_dev + ' Lacks a serial #... lame!')
+                # _d = devs['by_name'][dev_name]
+                # devs['lame'].append(dev_name)
                         
         del_list = []
         for _ser in devs['dup_ser'] :
@@ -831,6 +797,8 @@ class ConsolePi_data():
                     outlet_by_host = {}
                     for k in _outlet_by_host:
                         outlet_by_host[k.replace('/dev/', '/host/')] = _outlet_by_host[k]
+                else:
+                    outlet_by_host = {}
                 self.outlet_by_dev = {**outlet_by_dev, **outlet_by_host}
 
                     # self.local[self.hostname]['adapters'] = self.adapters
@@ -932,7 +900,7 @@ def error_handler(cmd, stderr):
                     choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
                     if choice.lower() in ['y', 'yes']:
                         _cmd = shlex.split(stderr.split('remove with:\r\n')[1].split('\r\n')[0].replace('ERROR:   ', ''))
-                        _cmd = ['sudo -u {}'.format(os.getlogin())]
+                        _cmd = shlex.split('sudo -u {}'.format(os.getlogin())) + _cmd
                         subprocess.run(_cmd)
                         print('\n')
                         subprocess.run(cmd)
@@ -1216,6 +1184,11 @@ def append_to_file(file, line):
 
     with open(file, 'a+') as f:
         f.write(line)
+
+def uptime():  
+    with open('/proc/uptime', 'r') as f:
+        uptime_seconds = float(f.readline().split()[0])
+        return uptime_seconds
 
 # DEBUGGING Should not be called directly
 if __name__ == '__main__':

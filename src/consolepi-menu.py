@@ -1403,8 +1403,8 @@ class ConsolePiMenu():
             os.system('clear')
 
         # Launch to Power Menu if no adapters or remotes are found
-        if not loc and not rem and config.power and config.outlets:
-            self.error_msgs.append('No Adapters Found, Outlets Found... Launching to Power Menu')
+        if not loc and not rem and config.power:
+            self.error_msgs.append('No Adapters Found, Outlets Defined... Launching to Power Menu')
             self.error_msgs.append('use option "b" to access main menu options')
             if config.pwr.dli_exists and not config.pwr.linked_exists:
                 self.exec_menu('d')

@@ -110,7 +110,6 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 ![consolepi-menu image](readme_content/consolepi-use-diagram.jpg)
 
 **Another look at the menu**
-*(No Power Relays defined in this one)*
 
 ![consolepi-menu image](readme_content/menu.png)
 

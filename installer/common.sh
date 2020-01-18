@@ -232,6 +232,9 @@ systemd_diff_update() {
                     logit "${1} systemd unit file created/updated" || 
                     logit "FAILED to create/update ${1} systemd service" "WARNING"
                 sudo systemctl daemon-reload 1>/dev/null 2>> $log_file || logit "Failed to reload Daemons: ${1}" "WARNING"
+                # TODO consider logic change. to only enable on upgrade if we find it in enabled state
+                #  This logic would appear to always enable the service in some cases we don't want that 
+                #  installer will disable / enable after if necessary, but this would retain user customizations
                 if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
                     if [[ -f /etc/systemd/system/${1}.service ]]; then
                         sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file

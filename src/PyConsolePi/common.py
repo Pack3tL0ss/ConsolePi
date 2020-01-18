@@ -3,6 +3,7 @@
 import logging
 import netifaces as ni
 import os
+import stat
 import pwd
 import grp
 import json
@@ -877,6 +878,9 @@ def set_perm(file):
     gid = grp.getgrnam("consolepi").gr_gid
     if os.geteuid() == 0:
         os.chown(file, 0, gid)
+    os.chmod('/etc/ConsolePi/cloud.json', (
+        stat.S_IWGRP + stat.S_IRGRP + stat.S_IWRITE + stat.S_IREAD)
+        )
 
 # Get Individual Variables from Config
 def get_config(var):

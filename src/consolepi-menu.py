@@ -1226,6 +1226,9 @@ class ConsolePiMenu():
             # Build menu items for each serial adapter found on remote ConsolePis
             item = 1
             for host in sorted(rem):
+                if not 'rem_ip' in rem[host]:
+                    config.log.warning('[KEY_MENU] {} lacks rem_ip skipping'.format(host)) 
+                    continue
                 if rem[host]['rem_ip'] is not None:
                     rem_ip = rem[host]['rem_ip']
                     rem_user = rem[host]['user'] if 'user' in rem[host] else rem_user

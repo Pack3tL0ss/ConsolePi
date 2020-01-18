@@ -110,7 +110,6 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 ![consolepi-menu image](readme_content/consolepi-use-diagram.jpg)
 
 **Another look at the menu**
-*(No Power Relays defined in this one)*
 
 ![consolepi-menu image](readme_content/menu.png)
 
@@ -251,13 +250,13 @@ The schema or explanation of fields:
 {
   "unique_name_for_outlet_grp": [required, string] ... this is how the outlet is described in the power sub-menu 
   {
-    "type": [required, valid values = "GPIO" or "tasmota"]
-    "address": [required, integer(GPIO pin (BCM numbering)) if type is "GPIO" OR string(ip address) if type is "tasmota"]
+    "type": [required, valid values = "GPIO", "tasmota", "dli"]
+    "address": [required, integer(GPIO pin (BCM numbering)) if type is "GPIO" OR string(ip address) if type is "tasmota" or "dli"]
     "noff": [required for type GPIO, bool] ... indicates if outlet is normally off (true) or normally on (false)
     "username": [required for dli, str] username used to access the dli
     "password": [required for dli, str] password used to access the dli
-    "linked": [required, bool] ... indicates if outlet is linked to serial adapters (true) or not (false)
-    "linked_devs": [required if linked, list of str] each str in the list specifies a linked serial adapter (include /dev/)
+    "linked": *Depricated* [required, bool] ... indicates if outlet is linked to serial adapters (true) or not (false) *Should be depricated logic is based on existence of linked_devs*
+    "linked_devs": [required to enable outlet linkage with adapter or host, list of str] each str in the list specifies a linked serial adapter (including /dev/ prefix is no longer required, alias will suffice)
     "linked_ports": [required if dli and is linked (has linked_devs), list of int], The Ports on the dli that are linked to the adapter(s).
   }
 }

@@ -10,12 +10,24 @@
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && sudo git status | head -1 | awk '{print $3}' && popd >/dev/null || echo "master")
+if [ ! -z $1 ] && [ "$1" = 'local-dev' ] ; then
+    branch=dev
+    local_dev=true
+else
+    branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && sudo git status | head -1 | awk '{print $3}' && popd >/dev/null || echo "master")
+    local_dev=false
+fi
 
 get_common() {
-    wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
+    if ! $local_dev ; then
+        wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
+    else
+        sudo -u pi sftp pi@kabrewpi:/etc/ConsolePi/installer/common.sh /tmp/common.sh
+    fi
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
+    # overwrite the default source directory to local repo when running local tests
+    $local_dev && consolepi_source='pi@kabrewpi:/etc/ConsolePi'
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
     header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
 }
@@ -24,7 +36,7 @@ remove_first_boot() {
     # SD-Card created using Image Creator Script launches installer automatically - remove first-boot launch
     process="Remove exec on first-boot"
     sudo sed -i "s#consolepi-install##g" /home/pi/.bashrc
-    grep -q consolepi-install /home/pi/.bashrc && 
+    grep -q consolepi-install /home/pi/.bashrc &&
         logit "Failed to remove first-boot verify /etc/rc.local" "WARNING"
 }
 
@@ -37,16 +49,16 @@ do_apt_update() {
     else
         logit "Skipping Source Update - Already Updated today"
     fi
-    
+
     logit "Upgrading ConsolePi via apt. This may take a while"
     sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
-    
+
     logit "Performing dist-upgrade"
     sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
 
     logit "Tidying up (autoremove)"
     apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
-        
+
     logit "Installing git via apt"
     apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
     logit "Process Complete"
@@ -59,7 +71,7 @@ pre_git_prep() {
 
         # remove old bluemenu.sh script replaced with consolepi-menu.py
         process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"
-        if [[ -f /etc/ConsolePi/src/bluemenu.sh ]]; then 
+        if [[ -f /etc/ConsolePi/src/bluemenu.sh ]]; then
             rm /etc/ConsolePi/src/bluemenu.sh &&
                 logit "Removed old menu script will be replaced during pull" ||
                     logit "ERROR Found old menu script but unable to remove (/etc/ConsolePi/src/bluemenu.sh)" "WARNING"
@@ -83,15 +95,15 @@ pre_git_prep() {
     process="ConsolePi-Upgrade-Prep (create consolepi group)"
     for user in pi; do
         if [[ ! $(groups $user) == *"consolepi"* ]]; then
-            if ! $(grep -q consolepi /etc/group); then 
-                sudo groupadd consolepi && 
-                logit "Added consolepi group" || 
+            if ! $(grep -q consolepi /etc/group); then
+                sudo groupadd consolepi &&
+                logit "Added consolepi group" ||
                 logit "Error adding consolepi group" "WARNING"
             else
                 logit "consolepi group already exists"
             fi
-            sudo usermod -a -G consolepi $user && 
-                logit "Added ${user} user to consolepi group" || 
+            sudo usermod -a -G consolepi $user &&
+                logit "Added ${user} user to consolepi group" ||
                     logit "Error adding ${user} user to consolepi group" "WARNING"
         else
             logit "all good ${user} user already belongs to consolepi group"
@@ -132,13 +144,19 @@ pre_git_prep() {
 git_ConsolePi() {
     process="git Clone/Update ConsolePi"
     cd "/etc"
-    if [ ! -d $consolepi_dir ]; then 
+    if [ ! -d $consolepi_dir ]; then
         logit "Clean Install git clone ConsolePi"
         git clone "${consolepi_source}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
+        # if [ ! -z $branch ] && [ $branch != 'master' ] ; then
+        #     pushd ${consolepi_dir} >/dev/null
+        #     git checkout $branch && logit "Success checkout $branch branch" || 
+        #         ( popd >/dev/null && logit "Failed to checkout $branch branch" "ERROR" )
+        #     popd >/dev/null
+        # fi
     else
         cd $consolepi_dir
         logit "Directory exists Updating ConsolePi via git"
-        git pull 1>/dev/null 2>> $log_file && 
+        git pull 1>/dev/null 2>> $log_file &&
             logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "ERROR"
     fi
     [[ ! -d $bak_dir ]] && sudo mkdir $bak_dir
@@ -158,17 +176,17 @@ do_pyvenv() {
 
     # -- Ensure python3-pip is installed --
     if [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]]; then
-        sudo apt-get install -y python3-pip 1>/dev/null 2>> $log_file && 
+        sudo apt-get install -y python3-pip 1>/dev/null 2>> $log_file &&
             logit "Success - Install python3-pip" ||
             logit "Error - installing Python3-pip" "ERROR"
     fi
-    
+
     if [ ! -d ${consolepi_dir}venv ]; then
         # -- Ensure python3 virtualenv is installed --
         venv_ver=$(sudo python3 -m pip list --format columns | grep virtualenv | awk '{print $2}')
         if [ -z $venv_ver ]; then
             logit "python virtualenv not installed... installing"
-            sudo python3 -m pip install virtualenv 1>/dev/null 2>> $log_file && 
+            sudo python3 -m pip install virtualenv 1>/dev/null 2>> $log_file &&
                 logit "Success - Install virtualenv" ||
                 logit "Error - installing virtualenv" "ERROR"
         else
@@ -177,7 +195,7 @@ do_pyvenv() {
 
         # -- Create ConsolePi venv --
         logit "Creating ConsolePi virtualenv"
-        sudo python3 -m virtualenv ${consolepi_dir}venv 1>/dev/null 2>> $log_file && 
+        sudo python3 -m virtualenv ${consolepi_dir}venv 1>/dev/null 2>> $log_file &&
             logit "Success - Creating ConsolePi virtualenv" ||
             logit "Error - Creating ConsolePi virtualenv" "ERROR"
     else
@@ -193,8 +211,9 @@ do_pyvenv() {
     fi
 
     # -- *Always* update venv packages based on requirements file --
+    [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"
     logit "pip install/upgrade ConsolePi requirements - This can take some time."
-    sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 1>/dev/null 2>> $log_file &&
+    sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/${req_file} 1>/dev/null 2>> $log_file &&
         logit "Success - pip install/upgrade ConsolePi requirements" ||
         logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
 
@@ -213,7 +232,7 @@ do_pyvenv() {
 do_logging() {
     process="Configure Logging"
     logit "Configure Logging in /var/log/ConsolePi"
-    
+
     # Create /var/log/ConsolePi dir if it doesn't exist
     if [[ ! -d "/var/log/ConsolePi" ]]; then
         sudo mkdir /var/log/ConsolePi 1>/dev/null 2>> $log_file || logit "Failed to create Log Directory"
@@ -228,8 +247,8 @@ do_logging() {
     # Update permissions
     sudo chgrp -R consolepi /var/log/ConsolePi || logit "Failed to update group for log file" "WARNING"
     if [ ! $(stat -c "%a" /var/log/ConsolePi/cloud.log) == 664 ]; then
-        sudo chmod g+w /var/log/ConsolePi/* && 
-            logit "Logging Permissions Updated (group writable)" || 
+        sudo chmod g+w /var/log/ConsolePi/* &&
+            logit "Logging Permissions Updated (group writable)" ||
             logit "Failed to make log files group writable" "WARNING"
     fi
 
@@ -239,7 +258,7 @@ do_logging() {
         cat $tmp_log >> $log_file
         rm $tmp_log
     else
-        if [ -f $tmp_log ]; then 
+        if [ -f $tmp_log ]; then
             echo "ERROR: tmp log found when it should not have existed" | tee -a $final_log
             echo "-------------------------------- contents of leftover tmp log --------------------------------" >> $final_log
             cat $tmp_log >> $final_log
@@ -247,13 +266,13 @@ do_logging() {
             rm $tmp_log
         fi
     fi
-   
+
     file_diff_update "${src_dir}ConsolePi.logrotate" "/etc/logrotate.d/ConsolePi"
     unset process
 }
 
 # Early versions of ConsolePi placed consolepi-commands in /usr/local/bin natively in the users path.
-# ConsolePi now adds a script in profile.d to display the login banner and update path to include the 
+# ConsolePi now adds a script in profile.d to display the login banner and update path to include the
 # consolepi-commands dir.  This function ensures the old stuff in /usr/local/bin are removed
 do_remove_old_consolepi_commands() {
     process="Remove old consolepi-commands from /usr/local/bin"
@@ -263,7 +282,7 @@ do_remove_old_consolepi_commands() {
         sudo unlink /usr/local/bin/consolepi-* > /dev/null 2>&1
         [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -eq 0 ] &&
             logit "Success - Removing convenience command links created by older version" ||
-            logit "Failure - Verify old consolepi-command scripts/symlinks were removed from /usr/local/bin after the install" "WARNING"  
+            logit "Failure - Verify old consolepi-command scripts/symlinks were removed from /usr/local/bin after the install" "WARNING"
     fi
     unset process
 }
@@ -274,7 +293,7 @@ update_banner() {
     # remove old banner from /etc/motd - remove entire thing nothing useful
     if [ -f /etc/motd ]; then
         grep -q "PPPPPPPPPPPPPPPPP" /etc/motd && motd_exists=true || motd_exists=false
-        if $motd_exists; then 
+        if $motd_exists; then
             mv /etc/motd /bak && sudo touch /etc/motd &&
                 logit "Clear old motd - Success" ||
                 logit "Failed to Clear old motd" "WARNING"

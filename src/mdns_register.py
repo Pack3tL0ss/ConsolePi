@@ -31,8 +31,7 @@ class MDNS_Register:
     def build_info(self, squash=None, local_adapters=None):
         config = self.config
         hostname = self.hostname
-        local_adapters = local_adapters if local_adapters is not None else config.get_local()
-        # local_adapters = config.get_local(do_print=False)
+        local_adapters = local_adapters if local_adapters is not None else config.get_adapters()
         log = config.log
         if_ips = config.get_if_ips()
         
@@ -134,7 +133,7 @@ class MDNS_Register:
         log = config.log
         log.info('[MDNS REG] Cloud Update triggered delaying {} seconds'.format(UPDATE_DELAY))
         time.sleep(UPDATE_DELAY)  # Wait 30 seconds and then update, to accomodate multiple add removes
-        data = {config.hostname: {'adapters': config.get_local(do_print=False), 'interfaces': config.interfaces, 'user': 'pi'}}
+        data = {config.hostname: {'adapters': config.get_adapters(do_print=False), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
         log.debug('[MDNS REG] Final Data set collected for {}: \n{}'.format(config.hostname, data))
 
         if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member

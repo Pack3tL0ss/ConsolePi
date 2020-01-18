@@ -32,24 +32,23 @@ get_config() {
     if [[ ! -f $default_config ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]] && [[ ! -f ${stage_dir}ConsolePi.conf ]]; then
         logit "No Existing Config found - building default"
         # This indicates it's the first time the script has ran
-        echo "cfg_file_ver=${CFG_FILE_VER}                  # Do Not Delete or modify this line"  > "${default_config}"
+        echo "cfg_file_ver=${CFG_FILE_VER}                               # Do Not Delete or modify this line"  > "${default_config}"
         echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" >> "${default_config}"
-        echo "push_all=true                                    # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
-        echo "push_api_key=\"PutYourPBAPIKeyHereChangeMe:\"    # PushBullet API key" >> "${default_config}"
-        echo "push_iden=\"putyourPBidenHere\"                    # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
-        echo "ovpn_enable=true                                    # if enabled will establish VPN connection" >> "${default_config}"
-        echo "vpn_check_ip=\"10.0.150.1\"                        # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
-        echo "net_check_ip=\"8.8.8.8\"                               # used to check internet connectivity" >> "${default_config}"
-        echo "local_domain=\"arubalab.net\"                        # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
-        echo "wlan_ip=\"10.3.0.1\"                        # IP of ConsolePi when in hotspot mode" >> "${default_config}"
+        echo "push_all=true                                # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
+        echo "push_api_key=\"PutYourPBAPIKeyHereChangeMe:\"  # PushBullet API key" >> "${default_config}"
+        echo "push_iden=\"putyourPBidenHere\"                # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
+        echo "ovpn_enable=true                             # if enabled will establish VPN connection" >> "${default_config}"
+        echo "vpn_check_ip=\"10.0.150.1\"                    # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
+        echo "net_check_ip=\"8.8.8.8\"                       # used to check internet connectivity" >> "${default_config}"
+        echo "local_domain=\"arubalab.net\"                  # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
+        echo "wlan_ip=\"10.3.0.1\"                           # IP of ConsolePi when in hotspot mode" >> "${default_config}"
         echo "wlan_ssid=\"ConsolePi\"                        # SSID used in hotspot mode" >> "${default_config}"
         echo "wlan_psk=\"ChangeMe!!\"                        # psk used for hotspot SSID" >> "${default_config}"
-        echo "wlan_country=\"US\"                        # regulatory domain for hotspot SSID" >> "${default_config}"
-        echo "cloud=false                                                   # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
-        echo 'cloud_svc="gdrive"                                            # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
-        echo 'power=false                                                    # Adds support for Power Outlet control' >> "${default_config}"
-        # echo 'tftpd=false                                                    # Enables tftpd-hpa with create rights and root folder /srv/tftp' >> "${default_config}"
-        echo "debug=false                                                   # turns on additional debugging" >> "${default_config}"
+        echo "wlan_country=\"US\"                            # regulatory domain for hotspot SSID" >> "${default_config}"
+        echo "cloud=false                                  # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
+        echo 'cloud_svc="gdrive"                           # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
+        echo 'power=false                                  # Adds support for Power Outlet control' >> "${default_config}"
+        echo "debug=false                                  # turns on additional debugging" >> "${default_config}"
         header
         echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
         echo "which will prompt you for each value. Enter n to exit the script so you can modify the"
@@ -122,8 +121,10 @@ update_config() {
 
 # Update Config overrides: write any supported custom override variables back to file
 update_config_overrides() {
-    [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}       # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
-    echo "debug=${debug}                                                     # turns on additional debugging" >> "${default_config}"
+    [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}                                         # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
+    [ ! -z $skip_utils ]     && echo "skip_utils=${skip_utils}                                                 # when set to true will bypass the utility installer menu during upgrade" >> "${default_config}"
+    # always add debug back to EoF
+    echo "debug=${debug}                                                           # turns on additional debugging" >> "${default_config}"
 }
 
 # Automatically set the DHCP range based on the hotspot IP provided
@@ -258,14 +259,6 @@ collect() {
             read -n 1 -p "Press any key to continue"
         fi
     fi
-
-    # # -- tftpd --
-    # if ! $selected_prompts || [ -z $tftpd ]; then
-    #     header
-    #     [ -z $tftpd ] && tftpd=false
-    #     user_input $tftpd "Do you want to enable a tftp server"
-    #     tftpd=$result
-    # fi
 }
 
 verify() {
@@ -426,6 +419,7 @@ EOF
 }
 
 misc_imports(){
+    # additional imports occur in related functions if import file exists
     process="Perform misc imports"
     if ! $upgrade; then
         # -- ssh authorized keys --
@@ -447,6 +441,7 @@ misc_imports(){
             logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
         fi
 
+        # -- custom overlay file for PoE hat (fan control) --
         found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
         [[ $found_path ]] && logit "overlay file found creating dtbo"
         if [[ $found_path ]]; then 
@@ -844,23 +839,14 @@ do_resize () {
     process="xterm ~ resize"
     if [ ! -f ${src_dir}consolepi-commands/resize ]; then
         # util_main xterm -I -p "xterm | resize"
-        cmd_list=("-apt-install" "xterm" "--pretty=xterm ~ resize" \
+        cmd_list=("-apt-install" "xterm" "--pretty=${process}" \
                   '-s' "export rsz_loc=\$(which resize)" \
                   "-stop" "-nostart" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
-                    "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
+                      "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
                   "-l" "xterm will now be removed as we only installed it to get resize" \
                   "-apt-purge" "xterm"
                 )
         process_cmds "${cmd_list[@]}"
-        # [ -f $(which resize) ] && sudo cp $(which resize) ${src_dir}consolepi-commands/resize && good=true || good=false
-        # if $good; then
-        #     logit "Success - Copy resize binary from xterm"
-        #     logit "xterm will now be removed as we only installed it to get resize"
-        #     util_main xterm -F -p "xterm | resize"
-        #     # apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Success removing xterm left-over deps" || logit "apt-get autoremove after xterm FAILED" "WARNING"
-        # else
-        #     logit "Unable to find resize binary after xterm install" "WARNING"
-        # fi
     else
         logit "resize utility already present"
     fi
@@ -870,7 +856,12 @@ do_resize () {
 # Create or Update ConsolePi API startup service (systemd)
 do_consolepi_api() {
     process="ConsolePi API (systemd)"
-    systemd_diff_update consolepi-api
+    if [ $py3ver -ge 6 ] ; then
+        systemd_diff_update consolepi-api
+    else
+        ! $upgrade && systemd_diff_update consolepi-api-flask
+        logit "A newer version of the ConsolePi API is available but it requires Python>=3.6 ($(python3 -V) is installed) keeping existing API" "WARNING"
+    fi
     unset process
 }
 
@@ -996,7 +987,7 @@ get_serial_udev() {
                 file_diff_update $found_path /etc/udev/rules.d
             else
                 sudo cp $found_path /etc/udev/rules.d
-                sudo udevadm control --reload-rules
+                sudo udevadm control --reload-rules && sudo udevadm trigger
             fi
         fi
     fi
@@ -1065,73 +1056,78 @@ custom_post_install_script() {
 
 # -- Display Post Install Message --
 post_install_msg() {
+    clear
     echo
     echo "*********************************************** Installation Complete ***************************************************"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mNext Steps/Info$*\033[m                                                                                                       *"
+    echo -e "* \033[1;32mNext Steps/Info\033[m                                                                                                       *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mCloud Sync:$*\033[m                                                                                                           *"
+    echo -e "* \033[1;32mCloud Sync:\033[m                                                                                                           *"
     echo "*   if you plan to use cloud sync.  You will need to do some setup on the Google side and Authorize ConsolePi           *"
     echo "*   refer to the GitHub for more details                                                                                *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mOpenVPN:$*\033[m                                                                                                              *"
+    echo -e "* \033[1;32mOpenVPN:\033[m                                                                                                              *"
     echo "*   if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and ovpn_credentials files in    *"
     echo "*   /etc/openvpn/client.  Then run 'consolepi-upgrade' which will add a few lines to the config to enable some          *"
     echo "*   ConsolePi functionality.  There is a .example file for reference as well.                                           *"
     echo "*     You should \"sudo chmod 600 <filename>\" both of the files for added security                                       *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mser2net Usage:$*\033[m                                                                                                        *"
+    echo -e "* \033[1;32mser2net Usage:\033[m                                                                                                        *"
     echo "*   Serial Ports are available starting with telnet port 8001 (ttyUSB#) or 9001 (ttyACM#) incrementing with each        *"
     echo "*   adapter plugged in.  if you configured predictable ports for specific serial adapters those start with 7001.        *"
     echo "*   **OR** just launch the consolepi-menu for a menu w/ detected adapters                                               *"
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mBlueTooth:$*\033[m                                                                                                            *"
+    echo -e "* \033[1;32mBlueTooth:\033[m                                                                                                            *"
     echo "*   ConsolePi should be discoverable (after reboot if this is the initial installation).                                *"
     echo "*   - Configure bluetooth serial on your device and pair with ConsolePi                                                 *"
     echo "*   - On client device attach to the com port created after the step above was completed                                *"
     echo "*   - Once Connected the Console Menu will automatically launch allowing you to connect to any serial devices found     *"
     echo "*   NOTE: The Console Menu is available from any shell session (bluetooth or SSH) via the consolepi-menu command        *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mLogging:$*\033[m                                                                                                              *"
+    echo -e "* \033[1;32mLogging:\033[m                                                                                                              *"
     echo "*   The bulk of logging for remote discovery, adapter detection cloud updates... end up in /var/log/ConsolePi/cloud.log *"
     echo "*   The tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest in syslog                         *"
     echo "*   - openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn   *"
     echo "*   - pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log                *"
     echo "*   - An install log can be found in ${consolepi_dir}installer/install.log                                               *"
     echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mConsolePi Commands:$*\033[m                                                                                                   *"
+    echo -e "* \033[1;32mConsolePi Commands:\033[m                                                                                                   *"
     echo "*   **Refer to the GitHub for the most recent complete list**                                                           *"
-    echo "*   - consolepi-upgrade: upgrade ConsolePi. - supported update method.                                                  *"
-    echo "*   - consolepi-addssids: Add additional known ssids. same as doing sudo /etc/ConsolePi/ssids.sh                        *"
-    echo "*   - consolepi-addconsole: Configure serial adapter to telnet port rules. same as doing sudo /etc/ConsolePi/udev.sh    *"
-    echo "*   - consolepi-menu: Launch Console Menu which will provide connection options for connected serial adapters           *"
-    echo "*       if cloud config feature is enabled menu will also show adapters on reachable remote ConsolePis                  *"
-    echo "*   - consolepi-killvpn: Gracefully terminate openvpn tunnel if one is established                                      *"
-    echo "*   - consolepi-autohotspot: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found  *"
-    echo "*       then fall-back to HotSpot mode if not found or unable to connect.                                               *"
-    echo "*   - consolepi-testhotspot: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot.     *"
-    echo "*       Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa.                 *"
-    echo "*   - consolepi-bton: Make BlueTooth Discoverable and Pairable - this is the default behavior on boot.                  *"
-    echo "*   - consolepi-btoff: Disable BlueTooth Discoverability.  You can still connect if previously paired.                  *"
-    echo "*   - consolepi-details: Refer to GitHub for usage, but in short dumps the data the ConsolePi would run with based      *"
+    echo -e "*   - ${_cyan}consolepi-menu${_norm}: Launch Console Menu which will provide connection options for connected serial adapters           *"
+    echo -e "*       if cloud config feature is enabled menu will also show adapters on reachable remote ConsolePis                  *"
+    echo -e "*   - ${_cyan}consolepi-upgrade${_norm}: upgrade ConsolePi. - supported update method.                                                  *"
+    echo -e "*   - ${_cyan}consolepi-extras${_norm}: Launch optional utilites installer (tftp, ansible, lldp, cockpit, speedtest...(Pi 4 only ))     *"
+    echo -e "*   - ${_cyan}consolepi-addssids${_norm}: Add additional known ssids. same as doing sudo /etc/ConsolePi/ssids.sh                        *"
+    echo -e "*   - ${_cyan}consolepi-addconsole${_norm}: Configure serial adapter to telnet port rules. same as doing sudo /etc/ConsolePi/udev.sh    *"
+    echo -e "*   - ${_cyan}consolepi-killvpn${_norm}: Gracefully terminate openvpn tunnel if one is established                                      *"
+    echo -e "*   - ${_cyan}consolepi-autohotspot${_norm}: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found  *"
+    echo -e "*       then fall-back to HotSpot mode if not found or unable to connect.                                               *"
+    echo -e "*   - ${_cyan}consolepi-testhotspot${_norm}: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot.     *"
+    echo -e "*       Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa.                 *"
+    echo -e "*   - ${_cyan}consolepi-bton${_norm}: Make BlueTooth Discoverable and Pairable - this is the default behavior on boot.                  *"
+    echo -e "*   - ${_cyan}consolepi-btoff${_norm}: Disable BlueTooth Discoverability.  You can still connect if previously paired.                  *"
+    echo -e "*   - ${_cyan}consolepi-details${_norm}: Refer to GitHub for usage, but in short dumps the data the ConsolePi would run with based      *"
     echo "*       on configuration, discovery, etc.  Dumps everything if no args,                                                 *"
     echo "*        valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail       *"
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${INSTALLER_VER}**************************************************************************************"
-    echo -e "\n\n"
+    # Display any warnings 
+    [ $warn_cnt -gt 0 ] && echo -e "\n${_red}---- warnings exist ----${_norm}" && grep warning $log_file && echo ''
     # Script Complete Prompt for reboot if first install
     if $upgrade; then
-        echo "ConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade"
+        echo -e "\nConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade\n"
     else
+        echo
         prompt="A reboot is required, do you want to reboot now"
         go_reboot=$(user_input_bool)
-        $go_reboot && sudo reboot || echo "ConsolePi Install script Complete, Reboot is required"
+        $go_reboot && sudo reboot || echo "\nConsolePi Install script Complete, Reboot is required"
     fi
 }
 
 install2_main() {
+    #-- install.sh does --
     # remove_first_boot
     # updatepi
     # pre_git_prep
@@ -1162,13 +1158,18 @@ install2_main() {
     do_blue_config
     do_consolepi_api
     do_consolepi_mdns
-    ! $upgrade && misc_stuff
-    get_utils
+    ! $upgrade && misc_stuff 
     do_resize
-    util_main
+    if [ ! -z $skip_utils ] && $skip_utils ; then
+        process="optional utilities installer"
+        logit "utilities menu bypassed by config variable"
+        unset process
+    else
+        get_utils
+        util_main
+    fi
     get_known_ssids
     get_serial_udev
     custom_post_install_script
-    # move_log
     post_install_msg
 }

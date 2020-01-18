@@ -21,6 +21,8 @@ get_util_status () {
     aoss_dir=$(grep "ansible python module location" /tmp/ansible_ver | cut -d'=' -f 2 | cut -d' ' -f 2)/modules/network/arubaoss
     pycmd=python$(tail -1 /tmp/ansible_ver | awk '{print $4}' | cut -d'.' -f 1)
     which $pycmd >/dev/null 2>&1 || ( logit "Failed to determine Ansible Python Ver" "WARNING" && pycmd=python)
+    cpit_status=$(dpkg -l | grep " cockpit " | awk '{print $1,$3}')
+    [[ "$cpit_status" =~ "ii" ]] && UTIL_VER['cockpit']="${cpit_status/ii }" || UTIL_VER['cockpit']=
 
     if [[ ! -z $a_role ]] && [[ -d $a_role ]]; then
         cx_mod_installed=true
@@ -45,9 +47,9 @@ get_util_status () {
             logit "aruba-ansible-modules is partially installed, the aos-sw modules deployed via aruba-ansible-module-installer.py is missing" "WARNING"
         unset process
     fi
-    [ -z $model_pretty ] && get_pi_info > /dev/null
+    [ -z "$model_pretty" ] && get_pi_info > /dev/null
     if [[ "$model_pretty" =~ "Pi 4" ]] ; then
-        UTIL_VER['speed_test']=$( [ -f /var/www/html/speedtest.js ] && echo installed )
+        UTIL_VER['speed_test']=$( [ -f /var/www/speedtest/speedtest.js ] && echo installed )
     else
         process='consolepi-extras'
         logit "consolepi-extras (optional utilities/packages installer) omitted speed test option not >= Pi 4"
@@ -155,10 +157,17 @@ util_exec() {
             ;;
         ansible)
             if [[ $2 == "install" ]]; then
-                cmd_list=("-apt-install" "$apt_pkg_name")
+                cmd_list=(
+                    "-l" "Updating apt with ansible repo"
+                    "-s" "-f" "failed to update apt sources with ansible repo" 'echo "deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main" > /etc/apt/sources.list.d/ansible.list' \
+                    "-s" "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367" \
+                    "apt update" \
+                    "-apt-install" "$apt_pkg_name"
+                    )
             elif [[ $2 == "remove" ]]; then
                 cmd_list=(
                     "-apt-purge" "$apt_pkg_name" \
+                    "-s" "rm /etc/apt/sources.list.d/ansible.list" \
                     '-logit' "ansible removed however the hidden directory (.ansible) created in the /home/<user>/.ansible and any files in it were retained" \
                     )
             fi
@@ -240,11 +249,28 @@ util_exec() {
                 return 1
             fi
             ;;
+        cockpit)
+            if [[ $2 == "install" ]]; then
+                cmd_list=(
+                    "-s" "-pf" "Update /etc/bash/bashrc for cockpit ~ ConsolePi" 
+                    "echo -e \"# read consolepi profile script for cockpit tty\\nif [ ! -z \\\$COCKPIT_REMOTE_PEER ] && [[ ! \\\"\\\$PATH\\\" =~ \\\"consolepi-commands\\\" ]] ; then\\n\\t[ -f \\\"/etc/ConsolePi/src/consolepi.sh\\\" ] && . /etc/ConsolePi/src/consolepi.sh\\nfi\" >>/etc/bash.bashrc"
+                    "-logit" 'Installing cockpit this will take a few...'
+                    "-apt-install" "$apt_pkg_name"
+                )
+            elif [[ $2 == "remove" ]]; then
+                cmd_list=(
+                    "-logit" 'Removing cockpit this will take a few...'
+                    "-s" "-f" "remove cockpit ~ ConsolePi lines from /etc/bash/bashrc"
+                        "sed -i '/consolepi profile script for cockpit tty/,/fi/d' /etc/bash.bashrc"
+                    "-apt-purge" "$apt_pkg_name"
+                )
+            fi
+            ;;
         *)
             if [[ $2 == "install" ]]; then
                 cmd_list=("-apt-install" "$apt_pkg_name")
             elif [[ $2 == "remove" ]]; then
-                cmd_list=("-apt-purge $apt_pkg_name")
+                cmd_list=("-apt-purge" "$apt_pkg_name")
             fi
             ;;
     esac
@@ -365,9 +391,7 @@ util_main() {
 }
 
 # -- // SCRIPT ROOT \\ --
-#echo "$BASH_SOURCE == $0"
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"utilities.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then
-    # unset process
     backtitle="ConsolePi Extras"
     util_main ${@}
 else

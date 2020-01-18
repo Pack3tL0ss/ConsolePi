@@ -1,3 +1,9 @@
 #!/usr/bin/env bash
 
+echo stopping daemon to re-launch in shell
+sudo systemctl stop consolepi-mdnsbrowse
 sudo /etc/ConsolePi/src/mdns_browser.py show
+echo restarting daemon
+sudo systemctl start consolepi-mdnsbrowse
+echo -e "\nDaemon Status\n"
+sudo systemctl status consolepi-mdnsbrowse

@@ -4,10 +4,11 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-INSTALLER_VER=39
+INSTALLER_VER=40
 CFG_FILE_VER=7
 cur_dir=$(pwd)
 iam=$(who -m |  awk '{print $1}')
+[ -z $iam ] && iam=$SUDO_USER # cockpit shell
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"
@@ -24,6 +25,8 @@ tmp_log="/tmp/consolepi_install.log"
 final_log="/var/log/ConsolePi/install.log"
 cloud_cache="/etc/ConsolePi/cloud.json"
 override_dir="/etc/ConsolePi/src/override"
+py3ver=$(python3 -V | cut -d. -f2)
+warn_cnt=0
 
 # Terminal coloring
 _norm='\e[0m'
@@ -98,13 +101,14 @@ logit() {
     #       default status is INFO if none provided.
     [ -z "$process" ] && process="UNDEFINED"
     message=$1                                      # 1st arg = the log message
-    [ -z "${2}" ] && status="INFO" || status=$2
+    [ -z "${2}" ] && status="INFO" || status=${2^^} # to upper
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
     if [[ "${status}" == "ERROR" ]]; then
         fatal=true
         status="${_red}${status}${_norm}"
     elif [[ ! "${status}" == "INFO" ]]; then
         status="${_yellow}${status}${_norm}"
+        [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
     fi
     
     # Log to stdout and log-file
@@ -228,6 +232,9 @@ systemd_diff_update() {
                     logit "${1} systemd unit file created/updated" || 
                     logit "FAILED to create/update ${1} systemd service" "WARNING"
                 sudo systemctl daemon-reload 1>/dev/null 2>> $log_file || logit "Failed to reload Daemons: ${1}" "WARNING"
+                # TODO consider logic change. to only enable on upgrade if we find it in enabled state
+                #  This logic would appear to always enable the service in some cases we don't want that 
+                #  installer will disable / enable after if necessary, but this would retain user customizations
                 if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
                     if [[ -f /etc/systemd/system/${1}.service ]]; then
                         sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file
@@ -254,7 +261,7 @@ file_diff_update() {
     # -- If both files exist check if they are different --
     if [ -f ${override_dir}/${1##*/} ]; then
         override=true
-        logit "override file found ${1} ... Skipping no changes will be made"
+        logit "override file found ${1##*/} ... Skipping no changes will be made"
     else
         override=false
         if [[ -f ${1} ]] && [[ -f ${2} ]]; then
@@ -376,6 +383,9 @@ get_pi_info() {
     logit "$version running on $cpu Revision: $rev"
     logit "$(uname -a)"
     dpkg -l | grep -q raspberrypi-ui && logit "Raspbian with Desktop" || logit "Raspbian Lite"
+    logit "Python 3 Version $(python3 -V)"
+    [ $py3ver -lt 6 ] && logit "${_red}DEPRICATION WARNING:${_norm} Python 3.5 will no longer be supported by ConsolePi in a future release." "warning" &&
+        logit "You should re-image ConsolePi using the current Raspbian release" "warning"
     unset process
 }
 

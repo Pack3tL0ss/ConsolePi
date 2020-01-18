@@ -1,41 +1,4 @@
-#!/etc/ConsolePi/venv/bin/python3
+#!/usr/bin/env bash
 
-import json
-import sys
-from consolepi.common import ConsolePi_data
-# from consolepi.power import Outlets
-
-config = ConsolePi_data(do_print=False)
-
-hostname = config.hostname
-# adapters = config.get_local(do_print=False)
-adapters = config.adapters
-# interfaces = config.get_if_ips()
-interfaces = config.interfaces
-outlets = config.outlets
-# remotes = config.get_local_cloud_file()
-remotes = config.remotes
-# details = {hostname: {'adapters': adapters, 'interfaces': interfaces, 'outlets': outlets, 'user': 'pi'}, 'remotes': remotes}
-details = config.local
-details['remotes'] = remotes
-
-if len(sys.argv) > 1:
-    if sys.argv[1] == 'adapters':
-        print(json.dumps(adapters, indent=4, sort_keys=True))
-    elif sys.argv[1] == 'interfaces':
-        print(json.dumps(interfaces, indent=4, sort_keys=True))
-    elif sys.argv[1] == 'outlets':
-        print(json.dumps(outlets, indent=4, sort_keys=True))
-    elif sys.argv[1] == 'remotes':
-        print(json.dumps(remotes, indent=4, sort_keys=True))
-    elif sys.argv[1] == 'local':
-        details.pop('remotes', '')
-        print(json.dumps(details, indent=4, sort_keys=True))
-    else:
-        try:
-            print('\nRemote Cache data for {}:\n{}'.format(sys.argv[1], json.dumps(details['remotes'][sys.argv[1]], indent=4, sort_keys=True)))
-        except KeyError:
-            print('!!!  {} Not Found printing entire data set   !!!'.format(sys.argv[1]))
-            print(json.dumps(details, indent=4, sort_keys=True))        
-else:
-    print(json.dumps(details, indent=4, sort_keys=True))
+BETTER_EXCEPTIONS=1
+consolepi-py /etc/ConsolePi/src/consolepi-details.py "${@}"

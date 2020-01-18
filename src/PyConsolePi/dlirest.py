@@ -320,6 +320,8 @@ class DLI:
                 if port == 'all':
                     if func == 'toggle':
                         raise Exception('all specified without desired end state')
+            else:
+                raise Exception('desired state required when port type is not int')
 
         # --// perform the func on the port(s) \\--#
         # -- single port passed into method --
@@ -351,7 +353,7 @@ class DLI:
                 print('Invalid value for func argument') # TODO logging exception
             if TIMING:
                 print('[TIMING] {} {} {}: {}'.format(self.fqdn, func, port, time.time() - start)) # TIMING
-        # -- something else (should be list of slice) passed in --
+        # -- something else (should be list or slice) passed in --
         else:
             ret_val = []
             for p in port:

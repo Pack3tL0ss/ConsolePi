@@ -7,6 +7,8 @@ config = ConsolePi_data(do_print=False)
 
 def main():
     log = config.log
+    # data = {config.hostname: {'adapters': config.get_adapters(), 'interfaces': config.get_if_ips(), 'user': config.USER}} # pylint: disable=maybe-no-member
+    # data = {config.hostname: {'adapters': config.adapters, 'interfaces': config.interfaces, 'rem_ip': config.ip_w_gw, 'user': config.USER}} # pylint: disable=maybe-no-member
     data = config.local
     log.debug('[CLOUD TRIGGER (IP)]: Final Data set collected for {}: \n{}'.format(config.hostname, data))
     log.info('[CLOUD TRIGGER (IP)]: Cloud Update triggered by IP Update')

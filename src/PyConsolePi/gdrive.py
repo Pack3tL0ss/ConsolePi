@@ -5,7 +5,6 @@ import json
 import socket
 import os.path
 import time
-
 # -- google stuff --
 from googleapiclient import discovery
 import pickle
@@ -27,6 +26,22 @@ class GoogleDrive:
         self.creds = None
         self.file_id = None
         self.sheets_svc = None
+
+    def exec_request(self, _request):
+        log = self.log
+        result = None
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                result = _request.execute()
+                break
+            except Exception as e:
+                log.error(('[GDRIVE]: Exception while communicating with Gdrive\n {}'.format(e)))
+            if attempt > 2:
+                log.error(('[GDRIVE]: Giving up after {} attempts'.format(attempt)))
+                break
+        return result
 
     # Authenticate find file_id and build services
     def auth(self):
@@ -109,8 +124,11 @@ class GoogleDrive:
                 'title': 'ConsolePi.csv'
             }
         }
-        spreadsheet = service.spreadsheets().create(body=spreadsheet,
-                                                    fields='spreadsheetId').execute()
+        # spreadsheet = service.spreadsheets().create(body=spreadsheet,
+        #                                             fields='spreadsheetId').execute()
+        request = service.spreadsheets().create(body=spreadsheet,
+                                                    fields='spreadsheetId')
+        spreadsheet = self.exec_request(request)                                                    
         return '{0}'.format(spreadsheet.get('spreadsheetId'))
 
     # Auto Resize gdrive columns to match content
@@ -119,9 +137,10 @@ class GoogleDrive:
         log = self.log
         service = self.sheets_svc
         body = {"requests": [{"autoResizeDimensions": {"dimensions": {"sheetId": 0, "dimension": "COLUMNS", "startIndex": 0, "endIndex": 2}}}]}
-        response = service.spreadsheets().batchUpdate(
+        request = service.spreadsheets().batchUpdate(
             spreadsheetId=self.file_id,
-            body=body).execute()
+            body=body)
+        response = self.exec_request(request)
         log.debug('[GDRIVE]: resize_cols response: {}'.format(response))
 
     def update_files(self, data):
@@ -150,10 +169,10 @@ class GoogleDrive:
             }
 
             # find out if this ConsolePi already has a row use that row in range
-            result = service.spreadsheets().values().get(
-                spreadsheetId=spreadsheet_id, range='A:B').execute()
-            # TODO add exception catcher for HttpError 503 service currently unreachable with retries
-            log.info('[GDRIVE]: Reading from Cloud Config') # .format(result.get('values')))
+            request = service.spreadsheets().values().get(
+                spreadsheetId=spreadsheet_id, range='A:B')
+            result = self.exec_request(request)
+            log.info('[GDRIVE]: Reading from Cloud Config')
             if result.get('values') is not None:
                 x = 1
                 for row in result.get('values'):
@@ -177,7 +196,7 @@ class GoogleDrive:
                 log.info('[GDRIVE]: Adding ' + str(k) + ' to Google Drive Config')
                 request = service.spreadsheets().values().append(spreadsheetId=spreadsheet_id, range=range_,
                                                                  valueInputOption=value_input_option, body=value_range_body)
-            request.execute()
+            self.exec_request(request)
             cnt += 1
         self.resize_cols()
         return remote_consoles

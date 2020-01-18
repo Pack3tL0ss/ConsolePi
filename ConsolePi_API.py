@@ -24,7 +24,7 @@ def get_adapters():
     # subsequent API calls from all other ConsolePi on the network
     if int(time()) - last_update > 20:
         last_update = int(time())
-        return jsonify({'adapters': config.get_local(do_print=False)})
+        return jsonify({'adapters': config.get_adapters(do_print=False)})
     else:
         return jsonify({'adapters': config.adapters})
 
@@ -42,7 +42,7 @@ def get_ifaces():
 def get_outlets():
     log_request('outlets')
     # -- Collect Outlet Details remove sensitive data --
-    outlets = config.get_outlets()
+    outlets = config.pwr.pwr_get_outlets()
     if outlets and 'linked' in outlets:
         for grp in outlets['linked']:
             for x in ['username', 'password']:
@@ -53,7 +53,7 @@ def get_outlets():
 @app.route('/api/v1.0/details', methods=['GET'])
 def get_details():
     log_request('details')
-    return jsonify({config.hostname: {'adapters': config.get_local(), 'interfaces': config.get_if_ips(), 'user': user}})
+    return jsonify({config.hostname: {'adapters': config.get_adapters(), 'interfaces': config.get_if_ips(), 'user': user}})
 
 if __name__ == '__main__':
     serve(app, host='0.0.0.0', port=5000)

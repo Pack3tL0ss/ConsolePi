@@ -1119,7 +1119,8 @@ post_install_msg() {
     if $upgrade; then
         echo -e "\nConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade\n"
     else
-        prompt="\nA reboot is required, do you want to reboot now"
+        echo
+        prompt="A reboot is required, do you want to reboot now"
         go_reboot=$(user_input_bool)
         $go_reboot && sudo reboot || echo "\nConsolePi Install script Complete, Reboot is required"
     fi

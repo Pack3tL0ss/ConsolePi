@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 
-echo 'Launching consolepi Python Virtual Environment'
+
+[[ -z "$1" ]] && echo 'Launching consolepi Python Virtual Environment'
 sudo /etc/ConsolePi/venv/bin/python3 "$@"

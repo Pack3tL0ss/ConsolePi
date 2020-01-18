@@ -159,7 +159,7 @@ util_exec() {
             if [[ $2 == "install" ]]; then
                 cmd_list=(
                     "-l" "Updating apt with ansible repo"
-                    "s" "-f" "failed to update apt sources with ansible repo" 'echo "deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main" > /etc/apt/sources.list.d/ansible.list' \
+                    "-s" "-f" "failed to update apt sources with ansible repo" 'echo "deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main" > /etc/apt/sources.list.d/ansible.list' \
                     "-s" "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367" \
                     "apt update" \
                     "-apt-install" "$apt_pkg_name"

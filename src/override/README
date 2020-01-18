@@ -6,8 +6,18 @@ they will be replaced with the template version.
 This behavior can be bypassed for files you've chosen to make custom modifications to simply by placing a file with the same
 name in this Directory.  You can just 'touch' the file it doens't matter if it has any content.
 
-- NOTE: /etc/default/tftpd-hpa is not part of the updgrade, once it's installed the upgrade will just verify it's installed if tftpd=true in the config
-  the config is not directly related to ConsolePi functions, so the upgrader doesn't check it once installed.
+The following files are supported by override
+    > however weather or not the upgrade modifies the enabled state I need to double check in some scenarios (primarily autohotspot which disables dnsmasq and hostapd services)
 
-The following files are currently supported for override
-- Feature was just implemented, need to double-check, but should be at or near 100% coverage on support of the override function for system files
+[SYSTEM CONFIGURATION FILES]
+- dhcpcd.conf
+- dnsmasq.conf NOTE: dnsmasq should now only impact wlan0 (unless modified and overriden) there is an eth0 speciffic unit file in /etc/ConsolePi/src/systemd that can be enabled 
+    for wired dhcp.  This will be a configuration option in the near future.
+- hostapd (/etc/default)
+- interfaces (/etc/network)
+- hosts (/etc) # /etc/hosts is updated to add the hostname so clients connecting to the hotspot can connect via hostname
+
+[SYSTEMD UNIT FILES]    must include the .service extension
+- bluetooth.service
+- rfcomm.service
+- autohotspot.service

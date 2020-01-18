@@ -588,14 +588,14 @@ class ConsolePi_data():
                                     remote_consoles[_] = current_remotes[_] 
                                     log.info('[CACHE UPD] {} Keeping existing data based *existence* of update time which is lacking in this update from {}'.format(_, remote_consoles[_]['source']))
 
-            with open(local_cloud_file, 'w') as cloud_file:
-                for _try in range(0, 2):
-                    try:
+            for _try in range(0, 2):
+                try:
+                    with open(local_cloud_file, 'w') as cloud_file:
                         cloud_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
                         set_perm(local_cloud_file) # a hack to deal with perms as consolepi-details is called witout a wrapper the del option uses this function
                         break
-                    except PermissionError:
-                        set_perm(local_cloud_file)
+                except PermissionError:
+                    set_perm(local_cloud_file)
 
         else:
             log.warning('[CACHE UPD] cache update called with no data passed, doing nothing')

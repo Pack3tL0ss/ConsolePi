@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
 BETTER_EXCEPTIONS=1
-sudo /etc/ConsolePi/src/consolepi-details.py "${@}"
+consolepi-py /etc/ConsolePi/src/consolepi-details.py "${@}"

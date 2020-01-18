@@ -311,7 +311,8 @@ class ConsolePi_data():
             devs['by_name'][dev_name]['id_ifnum'] = _dev.get('ID_USB_INTERFACE_NUM')
             devs['by_name'][dev_name]['id_serial'] = _dev.get('ID_SERIAL')
             _ser = devs['by_name'][dev_name]['id_serial_short'] = _dev.get('ID_SERIAL_SHORT')
-            devs['by_name'][dev_name]['z_UP_TIME'] = convert_usecs(_dev.get('USEC_INITIALIZED'))
+            # TODO Dont think this is accurate should investigate usec_initialized
+            # devs['by_name'][dev_name]['z_UP_TIME'] = convert_usecs(_dev.get('USEC_INITIALIZED'))
 
             # --- // Handle Multi-Port adapters that use same serial for all interfaces \\ ---
             # Capture the dict in dup_ser it's later del if no additional devices present with the same serial

@@ -620,7 +620,7 @@ class ConsolePi_data():
         try:
             response = requests.request("GET", url, headers=headers, timeout=2)
         except (OSError, TimeoutError) as e:
-            log.error('[API RQST OUT] exception occured retrieving adapters via API for Remote ConsolePi {}\n{}'.format(ip, e))
+            log.warning('[API RQST OUT] exception occured retrieving adapters via API for Remote ConsolePi {}\n{}'.format(ip, e))
             return False
 
         if response.ok:

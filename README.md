@@ -30,6 +30,8 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
               - [GPIO Connected Relays](#gpio-connected-relays)
               - [WiFi Smart Outlets (tasmota)](#wifi-smart-outlets-tasmota)
               - [DLI Web/Ethernet Power Switch](#dli-webethernet-power-switch)
+      - [Manual Host Entries](#manual-host-entries)
+      - [ConsolePi Extras](#consolepi-extras)
  - [Installation](#installation)
      - [Automated Installation](#1-automated-installation)
      - [Semi-Automatic Install](#2-semi-automatic-install)
@@ -47,31 +49,40 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
  - [Credits](#credits)
 ------
 
+## *!!!Deprication Warning!!!*
+Python 3.6 or greater will soon be required for the menu to work properly.  This simply means if you have a ConsolePi running Raspbian prior to Buster you should build a new one using the Buster image.  The upgrade is fairly painless given you can pre-stage a ton of stuff in a ConsolePi_stage folder and use the ConsolePi_image_creator script to build an image on a new micro-sd card.
+
 # What's New
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
 
-### DEC 2019 *Major Update*
-- refactored the menu formatter.  When multiple ConsolePis are clustered it will populate the colums in a more intuitive way
-    > This is still evolving, but an improvement.  
-- Completely Replaced consolepi-addconsole function with more capable option which is also available in the menu
-    - Accomodates a couple of problematic adapters.  Multi-Port pig-tail with a single serial # and adapters that lack a serial #
-        however the latter is not tested yet, and it's a compromise, that essentially maps the USB port (any serail adapter plugged into the port would 
-        use the assigned alias)
-- FIX TTY SIZING!! Prior to this update, if the device you connect to resized the terminal smaller than your native tty size you were stuck with that after disconnecting until you resized manually using stty or a similar mechanism.  That is no longer necessary, on exit of any serial session the display is automatically resized based on the terminals available rows/cols.
-- Optional Utilities Selector presented during consolepi-install / consolepi-upgrade
+### JAN 2019 *MONSTER Update*
+- Additional improvements to in menu rename function / `consolepi-addconsole`
+    - Added support for adapters that don't have a serial #, this was added prior, but would actually crash the menu (oops), I finally found a crappy adapter that lacks a serial # to test with as a result that function should now work.  It will be a compromise, essentially it will either need to be the only adapter of that kind (modelid/vendorid) or always be plugged into the same USB port.
+    - Added a connect option in the rename menu (So you can connect to the adapter directly from that menu... useful if you need to verify what's what.)
+
+- `consolepi-extras` or the Optional utilities menu presented during the install/upgrade further enhanced
     - This installs/uninstalls optional packages useful for many ConsolePi users.
-    The packages currently included:
-        - tftpd: (with ability to read/write), this actually was there prior, but moved to this new menu
-        - lldpd: this is useful as another mechansim to get the IP of the ConsolePi by querying the switch you've plugged it into.
-        - ansible: Useful if you want to tinker with Ansible.  Not configured yet, the script just installs it.
-
-
+        - ansible: Changed to use a different ppa to source the package, vs the default raspbian repo
+        - Aruba ansible modules: Added option to install modules for networking products from Aruba Networks.
+        - SpeedTest: Added An HTML 5 speed Test https://github.com/librespeed/speedtest. This option will only be available on Pi 4 models (makes little sense on anything older)
+        - cockpit: Provides a Dashboard to monitor the ConsolePi, as well as a web based tty.
+            > Note Making network configuration changes via Cockpit may conflict with the AutoHotSpot function
+- dhcp server process (dnsmasq) for autohotspot is now a unique process just for wlan0, this allows you to have a separate process for the wired port without impacting the hotspot.  wired-dhcp will be a configurable option in a future build, an example systemd file for a separate dnsmasq process bound to the wired port is in /etc/ConsolePi/src/systemd
+- ConsolePi_image_creator script which is used to prep an SD card for a headless ConsolePi install re-worked / improved, had to back down some ciphers no longer allowed by curl to match the raspberrypi.org cert (the script will pull the latest image if not found in the script dir).
+- API changed to fastAPI for those that are on Raspbian Buster (Python 3.6+ is required), for systems running with python 3.5 or prior the current API remains.  FastAPI adds a swagger interface to ConsolePi.  The API will continue to be improved in future releases.
+- Changed remote connectivity verification to use the API rather than attempting a socket connection on the SSH port.  This ensures both connectivity and that the adapter data presented in the menu for the remote is current.
+- Added support for manually configured hosts (additional TELNET or ssh hosts you want to show up in the menu).  These are configured in hosts.json and support outlet linkage in the same way serial adapters do.  Just be sure the all names are unique.  This works, but needs some minor tweaks, when ssh to some devices the banner text is actually sent via stderr which is hidden until you exit the way it's setup currently.
+- The **major** part of the work in this build was to make menu-load more async.  Verification of remote connectivity is now done asynchronously each remote is verified in parallel, then the menu loads once they are all finished.  The same for power control if tasmota or dli outlets need to be queried for outlet state, this is done in the background, the menu will load and allow those threads to run in the background.  If you go to the power menu prior to them being complete, you'll get a spinner while they finish.  All of this results in a much faster menu-load.  Auto Power On when connecting to devices/hosts with linked outlets also occurs in the background on launch.
+- Plenty of other various tweaks.  
 
 # Features
 
 ## **Serial Console Server**
 This is the core feature of ConsolePi.  Connect USB to serial adapters to ConsolePi, then access the devices on those adapters via the ConsolePi.  Supports TELNET directly to the adapter, or connect to ConsolePi via SSH or BlueTooth and select the adapter from the menu.  A menu is launched automatically when connecting via BlueTooth, use `consolepi-menu` to launch the menu from an SSH connection.  The menu will show connection options for any locally connected adapters, as well as connections to any remote ConsolePis discovered via Cluster/sync.
+
+For guidance on USB to serial adapters check out the sh#t list [here](adapters.md)
+> There are some lame adapters that don't burn a serial # to the chip, this makes assigning a unique name/TELNET port more challenging).  The link above is a page where we note what chipsets are solid and which ones are a PITA.
 
 ## **AutoHotSpot**
 
@@ -255,9 +266,9 @@ The schema or explanation of fields:
     "noff": [required for type GPIO, bool] ... indicates if outlet is normally off (true) or normally on (false)
     "username": [required for dli, str] username used to access the dli
     "password": [required for dli, str] password used to access the dli
-    "linked": *Depricated* [required, bool] ... indicates if outlet is linked to serial adapters (true) or not (false) *Should be depricated logic is based on existence of linked_devs*
-    "linked_devs": [required to enable outlet linkage with adapter or host, list of str] each str in the list specifies a linked serial adapter (including /dev/ prefix is no longer required, alias will suffice)
-    "linked_ports": [required if dli and is linked (has linked_devs), list of int], The Ports on the dli that are linked to the adapter(s).
+    "linked": *Depricated* If there are linked_devs defined it's linked
+    "linked_devs": [required to enable outlet linkage with adapter or host, str or list of str] each str in the list specifies a linked serial adapter (including /dev/ prefix is no longer required, alias will suffice)
+    "linked_ports": [required if dli, int or list of ints], The Ports on the dli that are linked to the adapter(s).
   }
 }
 ```
@@ -297,8 +308,7 @@ Then your power.json file should look something like this:
     "OutletA": {
         "type": "tasmota",
         "address": "10.3.0.11",
-        "linked": true,
-        "linked_devs": ["/dev/Aruba2930F_cloud-lab", "/dev/SDBranchGW1_cloud-lab"]
+        "linked_devs": ["/dev/Aruba2930F_cloud-lab", "SDBranchGW1_cloud-lab"]
         }
 }
 ```
@@ -313,18 +323,16 @@ Just add the definition for the dli in power.json which should look something li
         "address": "labpower1.example.com",
         "username": "apiuser",
         "password": "redacted",
-        "linked": true,
         "linked_ports": [5, 6],
-        "linked_devs": ["/dev/2530IAP"]
+        "linked_devs": "2530IAP"
         },
     "labpower2": {
         "type": "dli",
         "address": "labpower2.example.com",
         "username": "apiuser",
         "password": "redacted",
-        "linked": true,
         "linked_ports": 8,
-        "linked_devs": ["/dev/2530IAP", "/dev/Aruba6300"]
+        "linked_devs": ["/dev/2530IAP", "Aruba6300"]
         },
     "dli_with_no_linked_outlets": {
         "type": "dli",
@@ -335,11 +343,51 @@ Just add the definition for the dli in power.json which should look something li
 }
 
 ```
-**The Above Example highlight different options**
+**The Above Example highlights different options**
 - Outlet Group "labpower1" has multiple ports linked to a single adapter.  Both ports would be powered on when connecting to that adapter.
 - Outlet Group "labpower2" has a single port linked to multiple adapters.  Connecting to either adapter via the menu will result in the port being powered
+- As shown in Outlet Group "labpower2" the /dev/ prefix is now optional.
 - The last Outlet Group defines the dli, but has no linkages.  This outlet group won't appear in the power menu invoked by 'p', but dlis have thier own dedicated menu 'd' that displays all ports on the dli.
 - Notice `/dev/2530IAP` is linked in 2 different outlet groups, meaning a connection to 2530IAP will power on labpower1 port 5 and 6, as well as, labpower2 port 8.
+> More granular port linkage mappings for dli will come when I switch to a single yaml for all configs.
+
+### Manual Host Entries
+The Manual Host Entries Feature allows you to manually define other SSH or TELNET endpoints that you want to appear in the menu.  These entries don't currently show up in the main menu on launch, they will appear in the `s` remote shell menu.  Manual host entries do support outlet linkages (Auto Power On when connecting throught he menu) To enable this feature simply create a hosts.json file in /etc/ConsolePi with the following structure:
+
+```
+{
+    "8320T": {
+        "method": "ssh",
+        "address": "10.0.30.41",
+        "user": "wade"
+    },
+    "8320B": {
+        "method": "ssh",
+        "address": "10.0.30.42",
+        "user": "wade"
+    },
+    "5900T": {
+        "method": "ssh",
+        "address": "172.30.0.7:22",
+        "user": "wade"
+    },
+    "5900T_console": {
+        "method": "telnet",
+        "address": "labdigi.example.com:7007"
+    },
+    "LabDigi1": {
+        "method": "ssh",
+        "user": "wade",
+        "address": "labdigi.example.com"
+    }
+}
+```
+**The Above Example highlights different options**
+- The address field can be a IP or FQDN and a custom port can be included by appending :port to the end of the address
+- All but 5900T_console are ssh.
+- 5900T and 5900T_console show the address with port defined (optional)
+- outlet linkages with these devices are supported by adding the device name in linked_devs for an outlet defined in power.json
+    > Ensure names are unique across both hosts defined here and the adapters defined via the menu or `consolepi-addconsole`.  If there is a conflict the serial adapter wins.
 
 # Installation
 

@@ -20,3 +20,18 @@
 - lots of other little tweaks
 <br>**11/07/2019**
 - New rename function directly from menu.  Rename adapters already defined by `consolepi-addconsole` (or manually) or adapters that have never been defined.
+
+### DEC 2019 *Major Update*
+- refactored the menu formatter.  When multiple ConsolePis are clustered it will populate the colums in a more intuitive way
+    > This is still evolving, but an improvement.  
+- Completely Replaced consolepi-addconsole function with more capable option which is also available in the menu
+    - Accomodates a couple of problematic adapters.  Multi-Port pig-tail with a single serial # and adapters that lack a serial #
+        however the latter is not tested yet, and it's a compromise, that essentially maps the USB port (any serail adapter plugged into the port would 
+        use the assigned alias)
+- FIX TTY SIZING!! Prior to this update, if the device you connect to resized the terminal smaller than your native tty size you were stuck with that after disconnecting until you resized manually using stty or a similar mechanism.  That is no longer necessary, on exit of any serial session the display is automatically resized based on the terminals available rows/cols.
+- Optional Utilities Selector presented during consolepi-install / consolepi-upgrade
+    - This installs/uninstalls optional packages useful for many ConsolePi users.
+    The packages currently included:
+        - tftpd: (with ability to read/write), this actually was there prior, but moved to this new menu
+        - lldpd: this is useful as another mechansim to get the IP of the ConsolePi by querying the switch you've plugged it into.
+        - ansible: Useful if you want to tinker with Ansible.  Not configured yet, the script just installs it.

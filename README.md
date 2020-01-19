@@ -49,7 +49,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
  - [Credits](#credits)
 ------
 
-## *!!!Deprication Warning!!!*
+## *!!!Deprecation Warning!!!*
 Python 3.6 or greater will soon be required for the menu to work properly.  This simply means if you have a ConsolePi running Raspbian prior to Buster you should build a new one using the Buster image.  The upgrade is fairly painless given you can pre-stage a ton of stuff in a ConsolePi_stage folder and use the ConsolePi_image_creator script to build an image on a new micro-sd card.
 
 # What's New

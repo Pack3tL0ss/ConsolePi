@@ -618,7 +618,11 @@ class ConsolePiMenu():
         during print of multiple columns
         '''
         # if str was passed place in list to iterate over
-        body = [body] if isinstance(body[0], str) else body
+        if isinstance(body, str):
+            body = [body]
+        # ensure body is a list of lists for mapping with list of subs
+        body = [body] if len(body) >= 1 and isinstance(body[0], str) else body
+
         if subs is not None:
             subs = [subs] if not isinstance(subs, list) else subs
         i = 0

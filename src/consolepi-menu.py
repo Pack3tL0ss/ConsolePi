@@ -1,20 +1,20 @@
 #!/etc/ConsolePi/venv/bin/python
 
-import ast
+# import ast
 import json
 import os
 import re
-import readline
+import readline # NoQA - allows input to accept backspace
 import shlex
 import subprocess
 import sys
-import time
+# import time
 import threading
 from collections import OrderedDict as od
 
-import pyudev
+# import pyudev
 # --// ConsolePi imports \\--
-from consolepi.common import (ConsolePi_data, bash_command, check_reachable, json_print, format_eof, get_serial_prompt,
+from consolepi.common import (ConsolePi_data, bash_command, check_reachable, get_serial_prompt,
                               error_handler, user_input_bool, append_to_file)
 from halo import Halo
 from log_symbols import LogSymbols as log_sym  # Enum
@@ -26,6 +26,7 @@ rem_user = 'pi'
 rem_pass = None
 MIN_WIDTH = 55
 MAX_COLS = 5
+
 
 class ConsolePiMenu():
 
@@ -74,7 +75,7 @@ class ConsolePiMenu():
         if config.power:
             if not os.path.isfile(config.POWER_FILE):
                 config.plog('Outlet Control Function enabled but no power.json configuration found - Disabling feature',
-                    level='warning')
+                            level='warning')
                 self.error_msgs.append('Outlet Control Disabled by Script - No power.json found')
                 config.power = False
         if config.power and config.pwr.outlet_data['failures']:
@@ -98,7 +99,7 @@ class ConsolePiMenu():
                 self.menu_actions['p'] = self.power_menu
             elif config.pwr.dli_exists: # if no linked outlets but dlis defined p sends to dli_menu
                 self.menu_actions['p'] = self.dli_menu
-                
+
             if config.pwr.dli_exists:
                 self.menu_actions['d'] = self.dli_menu
         if not config.root:
@@ -106,8 +107,7 @@ class ConsolePiMenu():
             self.error_msgs.append('Use consolepi-menu to launch menu')
         self.udev_pending = False
 
-
-        self.colors = { # Bold with normal foreground
+        self.colors = {  # Bold with normal foreground
             'green': '\033[1;32m',
             'red': '\033[1;31m',
             'yellow': '\033[1;33m',
@@ -117,7 +117,6 @@ class ConsolePiMenu():
             True: '{{green}}ON{{norm}}',
             False: '{{red}}OFF{{norm}}'
         }
-
 
     def do_rename_adapter(self, from_name):
         from_name = from_name.replace('/dev/', '')
@@ -140,12 +139,12 @@ class ConsolePiMenu():
 
         # sub to perform change in ser2net.conf
         def do_ser2net_line(to_name=None, baud=self.baud, dbits=self.data_bits, parity=self.parity,
-            flow=self.flow, existing=False, match_txt=None):
+                            flow=self.flow, existing=False, match_txt=None):
             parity = ser2net_parity[parity]
             flow = ser2net_flow[flow]
             if os.path.isfile(config.SER2NET_FILE):  # pylint: disable=maybe-no-member
                 if not existing:
-                    ports = [re.findall(r'^(7[0-9]{3}):telnet',line) for line in open(config.SER2NET_FILE) if line.startswith('7')]  # pylint: disable=maybe-no-member
+                    ports = [re.findall(r'^(7[0-9]{3}):telnet', line) for line in open(config.SER2NET_FILE) if line.startswith('7')]  # pylint: disable=maybe-no-member
                     if ports:
                         next_port = int(max(ports)[0]) + 1
                     else:
@@ -163,28 +162,29 @@ class ConsolePiMenu():
                 next_port = '7001' # added here looks like flawed logic below
                 if res:
                     return res
-                else: # TODO this logic looks flawed
+                else:  # TODO this logic looks flawed
                     next_port = '7001'
 
             ser2net_line = ('{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} 1STOPBIT {flow} banner'.format(
-            telnet_port=next_port,
-            alias=to_name,
-            baud=baud,
-            dbits=dbits,
-            parity=parity,
-            flow=flow))
+                            telnet_port=next_port,
+                            alias=to_name,
+                            baud=baud,
+                            dbits=dbits,
+                            parity=parity,
+                            flow=flow))
 
             if not existing:
-                append_to_file(config.SER2NET_FILE, ser2net_line) # pylint: disable=maybe-no-member
+                append_to_file(config.SER2NET_FILE, ser2net_line)  # pylint: disable=maybe-no-member
             else:
                 ser2net_line = ser2net_line.replace('/', r'\/')
-                cmd = "sudo sed -i 's/.*{}.*/{}/'  {}".format(match_txt, ser2net_line, config.SER2NET_FILE)  # pylint: disable=maybe-no-member
-                pass
+                cmd = "sudo sed -i 's/.*{}.*/{}/'  {}".format(
+                            match_txt, ser2net_line, config.SER2NET_FILE)  # pylint: disable=maybe-no-member
+
                 return bash_command(cmd)
 
         # sub to make change or append to udev rules file
         def add_to_udev(udev_line, section_marker, label=None):
-            found = ser_label_exists = get_next = update_file = False # init
+            found = ser_label_exists = get_next = update_file = False  # init
             goto = '' # init
             if os.path.isfile(config.RULES_FILE):   # pylint: disable=maybe-no-member
                 with open(config.RULES_FILE) as x:  # pylint: disable=maybe-no-member
@@ -193,10 +193,10 @@ class ConsolePiMenu():
                         if 'ID_SERIAL' in line and 'IMPORT' not in line:
                             _old = 'ENV{ID_SERIAL}=="", GOTO="BYPATH-POINTERS"'
                             _new = 'ENV{ID_SERIAL_SHORT}=="", IMPORT{builtin}="path_id", GOTO="BYPATH-POINTERS"'
-                            cmd = "sed -i 's/{}/{}/' {}".format(_old, _new, config.RULES_FILE) # pylint: disable=maybe-no-member
+                            cmd = "sed -i 's/{}/{}/' {}".format(_old, _new, config.RULES_FILE)  # pylint: disable=maybe-no-member
                             update_file = True
                         if line.strip() == udev_line.strip():
-                            return # Line is already in file Nothing to do.
+                            return  # Line is already in file Nothing to do.
                         if get_next:
                             goto = line
                             get_next = False
@@ -386,13 +386,13 @@ class ConsolePiMenu():
                     elif valid_ch[ch] == 'by_id':
                         udev_line = (
                             'SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(
-                                id_vendorid, id_prod), 
+                                id_vendorid, id_prod),
                             'ENV{{ID_USB_INTERFACE_NUM}}=="{}", SYMLINK+="{}", GOTO="END"'.format(_tty['id_ifnum'], to_name)
                         )
                     else:
                         error = ['Unable to add udev rule adapter missing details', 'idVendor={}, idProduct={}, serial#={}'.format(
                             id_vendorid, id_prod, id_serial)]
-                                            
+
                     while udev_line:
                         error = add_to_udev(udev_line[0], '# END BYPATH-POINTERS')
                         error = add_to_udev(udev_line[1], '# END BYPATH-DEVS', label='{}_{}'.format(id_vendorid, id_prod))
@@ -453,11 +453,11 @@ class ConsolePiMenu():
                 this['fail_cnt'] = 1 if 'fail_cnt' not in this else this['fail_cnt'] + 1
                 self.pop_list.append(remotepi)  # Remove Unreachable remote from cache
                 # -- error_msg updated in cache_update
-                self.cache_update_pending = True 
+                self.cache_update_pending = True
             else:
                 if 'fail_cnt' in this:
                     this['fail_cnt'] = 0
-                    self.cache_update_pending = True 
+                    self.cache_update_pending = True
                 if update_cache:
                     log.info('[GET REM] Updating Cache - Found {0} in Local Cloud Cache, reachable via {1}'.format(remotepi, this['rem_ip']))
 
@@ -1283,7 +1283,7 @@ class ConsolePiMenu():
             mlines.append(menu_line)
 
             if not remote:
-                _cmd = 'picocom {0} -b{1} -f{2} -d{3} -p{4}'.format(this_dev, baud, flow, dbits, parity)
+                _cmd = 'picocom {0} -b{1} -f{2} -d{3} -y{4}'.format(this_dev, baud, flow, dbits, parity)
                 if not rename:
                     # -- // LOCAL ADAPTERS \\ --
                     # Generate Command executed for Menu Line
@@ -1295,7 +1295,7 @@ class ConsolePiMenu():
                     menu_actions['c' + str(item)] = {'cmd': _cmd}
             else:
                 # -- // REMOTE ADAPTERS \\ --
-                _cmd = 'sudo -u {rem_user} ssh -t {0}@{1} "{2} picocom {3} -b{4} -f{5} -d{6} -p{7}"'.format(
+                _cmd = 'sudo -u {rem_user} ssh -t {0}@{1} "{2} picocom {3} -b{4} -f{5} -d{6} -y{7}"'.format(
                     rem[host]['user'], rem[host]['rem_ip'], config.REM_LAUNCH, _dev['dev'], # pylint: disable=maybe-no-member
                     baud, flow, dbits, parity, rem_user=rem_user)
                 menu_actions[str(item)] = {'cmd': _cmd}

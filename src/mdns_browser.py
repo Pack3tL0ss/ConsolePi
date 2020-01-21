@@ -1,23 +1,23 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-""" Browse for other ConsolePis on the network """
+""" Browse for other ConsolePis on the network
+"""
 
-import socket
-import time
-from typing import cast
 import json
-from threading import Thread
 import sys
-from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
-from consolepi.common import check_reachable
+import time
+
 from consolepi.common import ConsolePi_data
+from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
+
 try:
-    import better_exceptions # pylint: disable=import-error
+    import better_exceptions  # NoQA pylint: disable=import-error
 except Exception:
     pass
 
 # HOSTNAME = socket.gethostname()
-RESTART_INTERVAL = 300 # time in seconds browser service will restart
+RESTART_INTERVAL = 300  # time in seconds browser service will restart
+
 
 class MDNS_Browser:
 
@@ -26,18 +26,16 @@ class MDNS_Browser:
         self.show = show
         self.log = log if log is not None else self.config.log
         self.stop = False
-        # self.zc = self.run()
-        # self.update = self.config.update_local_cloud_file
         self.if_ips = self.config.interfaces
         self.ip_list = []
         for _iface in self.if_ips:
             self.ip_list.append(self.if_ips[_iface]['ip'])
-        self.discovered = [] # for display when running interactively
-        self.d_discovered = [] # used for systemd (doesn't reset)
+        self.discovered = []    # for display when running interactively, resets @ every restart
+        self.d_discovered = []  # used when running as daemon (doesn't reset)
         self.startup_logged = False
 
     def on_service_state_change(self,
-        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange) -> None:
+                                zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange) -> None:
         mdns_data = None
         update_cache = False
         config = self.config
@@ -53,7 +51,7 @@ class MDNS_Browser:
                         # -- DEBUG --
                         properties_decode = {}
                         for key in properties:
-                            key_dec = key.decode("utf-8")                          
+                            key_dec = key.decode("utf-8")
                             properties_decode[key_dec] = properties[key].decode("utf-8")
                         log_out = json.dumps(properties_decode, indent=4, sort_keys=True)
                         log.debug('[MDNS DSCVRY] {} Properties Discovered via mdns:\n{}'.format(
@@ -63,8 +61,10 @@ class MDNS_Browser:
                         user = properties[b'user'].decode("utf-8")
                         interfaces = json.loads(properties[b'interfaces'].decode("utf-8"))
 
-                        rem_ip = None if hostname not in config.remotes or 'rem_ip' not in config.remotes[hostname] else config.remotes[hostname]['rem_ip']
-                        cur_known_adapters = [] if hostname not in config.remotes or not config.remotes[hostname]['adapters'] else config.remotes[hostname]['adapters']
+                        rem_ip = None if hostname not in config.remotes or 'rem_ip' not in config.remotes[hostname] \
+                            else config.remotes[hostname]['rem_ip']
+                        cur_known_adapters = [] if hostname not in config.remotes or not config.remotes[hostname]['adapters'] \
+                            else config.remotes[hostname]['adapters']
 
                         # -- Log new entry only if this is the first time it's been discovered --
                         if hostname not in self.d_discovered:
@@ -79,20 +79,23 @@ class MDNS_Browser:
                                 from_mdns_adapters = None
                         except KeyError:
                             from_mdns_adapters = None
-                            
-                        mdns_data = {hostname: {'interfaces': interfaces,
-                            'adapters': from_mdns_adapters if from_mdns_adapters is not None else cur_known_adapters,
-                            'user': user,
-                            'rem_ip': rem_ip,
-                            'source': 'mdns',
-                            'upd_time': int(time.time())}
-                            }
+
+                        mdns_data = {
+                            hostname: {
+                                'interfaces': interfaces,
+                                'adapters': from_mdns_adapters if from_mdns_adapters is not None else cur_known_adapters,
+                                'user': user,
+                                'rem_ip': rem_ip,
+                                'source': 'mdns',
+                                'upd_time': int(time.time())}
+                                }
 
                         # update from API only if no adapter data exists either in cache or from mdns that triggered this
                         # adapter data is updated on menu_launch
-                        if not mdns_data[hostname]['adapters']:
-                            log.info('[MDNS DSCVRY] {} provided no adapter data Collecting via API'.format(info.server.split('.')[0]))
-                            # TODO check this don't think it should be needed had a hung process on one of my Pis added it to be safe
+                        if not mdns_data[hostname]['adapters'] or hostname not in config.remotes:
+                            log.info('[MDNS DSCVRY] {} provided no adapter data Collecting via API'.format(
+                                    info.server.split('.')[0]))
+                            # TODO check this don't think needed had a hung process on one of my Pis added it to be safe
                             try:
                                 update_cache, mdns_data[hostname] = config.api_reachable(mdns_data[hostname])
                             except Exception:
@@ -105,20 +108,23 @@ class MDNS_Browser:
                             print(hostname + '({}) Discovered via mdns:'.format(rem_ip if rem_ip is not None else '?'))
                             # print(json.dumps(mdns_data, indent=4, sort_keys=True))
                             print('{}\n{}'.format(
-                                'mdns: None' if from_mdns_adapters is None else 'mdns: {}'.format([d['dev'] for d in from_mdns_adapters]),
-                                'cache: None' if cur_known_adapters is None else 'cache: {}'.format([d['dev'] for d in cur_known_adapters])))
+                                'mdns: None' if from_mdns_adapters is None else 'mdns: {}'.format(
+                                            [d['dev'] for d in from_mdns_adapters]),
+                                'cache: None' if cur_known_adapters is None else 'cache: {}'.format(
+                                            [d['dev'] for d in cur_known_adapters])))
                             print('Discovered ConsolePis: {}'.format(self.discovered))
                             print("\npress Ctrl-C to exit...\n")
 
-                        log.debug('[MDNS DSCVRY] {} Final data set:\n{}'.format(info.server.split('.')[0], json.dumps(mdns_data, indent=4, sort_keys=True)))
+                        log.debug('[MDNS DSCVRY] {} Final data set:\n{}'.format(info.server.split('.')[0],
+                                                                                json.dumps(mdns_data, indent=4, sort_keys=True)))
                         if update_cache:
                             config.update_local_cloud_file(remote_consoles=mdns_data)
-                            log.info('[MDNS DSCVRY] {} Local Cache Updated after mdns discovery'.format(info.server.split('.')[0]))
+                            log.info('[MDNS DSCVRY] {} Local Cache Updated after mdns discovery'.format(
+                                    info.server.split('.')[0]))
                     else:
                         log.warning('[MDNS DSCVRY] {}: No properties found'.format(info.server.split('.')[0]))
             else:
                 log.warning('[MDNS DSCVRY] {}: No info found'.format(info))
-
 
     def run(self):
         log = self.log
@@ -126,33 +132,19 @@ class MDNS_Browser:
         if not self.startup_logged:
             log.info("[MDNS DSCVRY] Discovering ConsolePis via mdns")
             self.startup_logged = True
-        browser = ServiceBrowser(zeroconf, "_consolepi._tcp.local.", handlers=[self.on_service_state_change])  # pylint: disable=unused-variable
+        browser = ServiceBrowser(zeroconf, "_consolepi._tcp.local.", handlers=[self.on_service_state_change])  # NoQA pylint: disable=unused-variable
         return zeroconf
 
-# if __name__ == '__main__':
-#     if len(sys.argv) > 1:
-#         mdns = MDNS_Browser(show=True)
-#         print("\nBrowsing services, press Ctrl-C to exit...\n")
-#     else:
-#         mdns = MDNS_Browser()
-        
-#     try:
-#         while True:
-#             time.sleep(0.1)
-#     except KeyboardInterrupt:
-#         pass
-#     finally:
-#         mdns.zc.close()
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         mdns = MDNS_Browser(show=True)
-        RESTART_INTERVAL = 30 # when running in interactive mode reduce restart interval
+        RESTART_INTERVAL = 30  # when running in interactive mode reduce restart interval
         # mdns.zc = mdns.run()
         print("\nBrowsing services, press Ctrl-C to exit...\n")
     else:
         mdns = MDNS_Browser()
-    
+
     try:
         while True:
             mdns.zc = mdns.run()
@@ -162,7 +154,7 @@ if __name__ == '__main__':
                 time.sleep(0.1)
             mdns.zc.close()
             mdns.discovered = []
-                
+
     except KeyboardInterrupt:
         pass
     finally:

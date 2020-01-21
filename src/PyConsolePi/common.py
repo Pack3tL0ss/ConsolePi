@@ -4,17 +4,16 @@ import logging
 import netifaces as ni
 import os
 import stat
-import pwd
+# import pwd
 import grp
 import json
 import socket
 import subprocess
-import shlex
 import threading
 import requests
 import time
 import shlex
-from pathlib import Path
+# from pathlib import Path
 import pyudev
 import psutil
 from sys import stdin
@@ -40,13 +39,14 @@ REM_HOSTS_FILE = '/etc/ConsolePi/hosts.json'
 CLOUD_LOG_FILE = '/var/log/ConsolePi/cloud.log'
 RULES_FILE = '/etc/udev/rules.d/10-ConsolePi.rules'
 SER2NET_FILE = '/etc/ser2net.conf'
-USER = 'pi' # currently not used, user pi is hardcoded using another user may have unpredictable results as it hasn't been tested
+USER = 'pi'  # currently not used, user pi is hardcoded using another user may have unpredictable results as it hasn't been tested
 # HOME = str(Path.home())
 POWER_FILE = '/etc/ConsolePi/power.json'
 VALID_BAUD = ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']
 REM_LAUNCH = '/etc/ConsolePi/src/remote_launcher.py'
-if not 'consolepi-commands' in os.environ["PATH"]:
+if 'consolepi-commands' not in os.environ["PATH"]:
     os.environ["PATH"] += os.pathsep + '/etc/ConsolePi/src/consolepi-commands'
+
 
 class ConsolePi_Log:
 
@@ -66,7 +66,7 @@ class ConsolePi_Log:
         handler.setFormatter(formatter)
         log.addHandler(handler)
         return log
-    
+
     def log_print(self, msg, level='info', end='\n'):
         getattr(self.log, level)(msg)
         if self.do_print:
@@ -97,7 +97,7 @@ class ConsolePi_data():
         self.cloud_svc = None
         self.power = None
         self.debug = None
-        self.dump = False # Additional dataset logging
+        self.dump = False  # Additional dataset logging
 
         # build attributes from ConsolePi.conf values
         # and GLOBAL variables
@@ -129,27 +129,18 @@ class ConsolePi_data():
         self.spin = Halo(spinner='dots')
         self.do_print = do_print
         self.log_file = log_file
-        cpi_log = ConsolePi_Log(log_file=log_file, do_print=do_print, debug=self.debug) # pylint: disable=maybe-no-member
+        cpi_log = ConsolePi_Log(log_file=log_file, do_print=do_print, debug=self.debug)  # pylint: disable=maybe-no-member
         self.log = cpi_log.log
         self.plog = cpi_log.plog
         self.pwr = Outlets(POWER_FILE, log=self.log)
         self.hostname = socket.gethostname()
         self.error_msgs = []
-        # self.outlet_failures = {}
-        # self.outlets = None # if not self.power or not os.path.isfile(POWER_FILE) else self.outlets # pylint: disable=maybe-no-member
         self.outlet_by_dev = None
         self.pwr_init_complete = False
-        if self.power: # pylint: disable=maybe-no-member
+        if self.power:  # pylint: disable=maybe-no-member
             if os.path.isfile(POWER_FILE):
-                # self.pwr.outlet_data = self.pwr.pwr_get_outlets_from_file()['linked']
                 if self.pwr.outlet_data:
-                    # self.get_outlet_types(self.pwr.outlet_data)
-                    self.pwr.pwr_start_update_threads(self.pwr.outlet_data) # Update status for each outlet in background
-                    # - this thread monitors pwr threads and updates init_complete
-                    # threading.Thread(target=self.wait_for_threads).start()
-                    # self.wait_for_threads()
-
-                    # self.outlet_by_dev = (self.outlets['linked'])
+                    self.pwr.pwr_start_update_threads(self.pwr.outlet_data)  # Update status for each outlet in background
             else:
                 self.pwr_init_complete = True
                 self.log.warning('Powrer Outlet Control is enabled but no power.json defined - Disabling')
@@ -157,8 +148,7 @@ class ConsolePi_data():
         self.adapters = self.get_adapters(do_print=do_print)
         self.interfaces = self.get_if_ips()
         self.ip_list = self.get_ip_list()
-        self.ip_w_gw = self.get_ip_w_gw()   # used by cloud update as most likely reachable rem_ip ~ still verified by Pi consuming
-        # self.local = {self.hostname: {'adapters': self.adapters, 'interfaces': self.interfaces, 'user': 'pi'}}
+        self.ip_w_gw = self.get_ip_w_gw()   # used by cloud update as most likely reachable rem_ip ~ still verified by other Pi
         self.local = self.local_data_repr()
         self.remotes = self.get_local_cloud_file()
         if stdin.isatty():
@@ -167,11 +157,13 @@ class ConsolePi_data():
         self.new_adapters = self.detect_adapters()
         try:
             self.loc_user = os.getlogin()
-        except:
-            self.loc_user = os.getenv('SUDO_USER') # testing for cockpit terminal
+        except Exception:
+            self.loc_user = os.getenv('SUDO_USER')  # testing for cockpit terminal
         self.ssh_hosts = self.get_local_cloud_file(local_cloud_file=REM_HOSTS_FILE)
         if self.ssh_hosts:
-            threading.Thread(target=self.telnet_install_thread, kwargs={'host_dict': self.ssh_hosts}, name='telnet_install_verify').start()
+            # verify TELNET is installed if hosts of type TELNET are defined.
+            threading.Thread(target=self.telnet_install_thread,
+                             kwargs={'host_dict': self.ssh_hosts}, name='telnet_install_verify').start()
 
     def telnet_install_thread(self, host_dict=None):
         host_dict = self.ssh_hosts if host_dict is None else host_dict
@@ -180,17 +172,16 @@ class ConsolePi_data():
             if 'method' in host_dict[h] and host_dict[h]['method'].lower() == 'telnet':
                 tel_found = True
                 break
-                
+
         if not tel_found:
             return True
 
         r = check_install_apt_pkg('telnet')
         if r[0] != 0:
-            self.log.error('[VRFY TELNET INSTALLED] verify TELNET installed returned an error\n{}'.format(r[1]) )
+            self.log.error('[VRFY TELNET INSTALLED] verify TELNET installed returned an error\n{}'.format(r[1]))
             self.error_msgs.append('Error returned during TELNET (installed) verification')
         else:
             return True
-
 
     def get_tty_size(self):
         size = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE)
@@ -202,13 +193,14 @@ class ConsolePi_data():
         Called by consolepi-menu refresh
         '''
         log = self.log
-        if self.power: # pylint: disable=maybe-no-member
+        if self.power:  # pylint: disable=maybe-no-member
             outlets = self.pwr.outlet_data if outlets is None else outlets
             if not self.pwr_init_complete or refresh:
-                _outlets = self.pwr.pwr_get_outlets(outlet_data=outlets, upd_linked=upd_linked, failures=self.pwr.outlet_data['failures'])
-                # self.outlets = _outlets['linked']
-                # self.outlet_failures = _outlets['failures']
-                # self.dli_pwr = _outlets['dli_power']
+                _outlets = self.pwr.pwr_get_outlets(
+                    outlet_data=outlets,
+                    upd_linked=upd_linked,
+                    failures=self.pwr.outlet_data['failures']
+                    )
                 self.pwr.outlet_data = _outlets
             else:
                 _outlets = outlets
@@ -226,8 +218,11 @@ class ConsolePi_data():
         interfaces = self.interfaces if interfaces is None else interfaces
         rem_ip = self.ip_w_gw if rem_ip is None else rem_ip
         # outlets = self.outlets if outlets is None else outlets
-        local = {self.hostname: {'adapters': adapters, 'interfaces': interfaces, 'rem_ip': rem_ip, 'user': self.USER}} # pylint: disable=maybe-no-member
-
+        local = {self.hostname: {
+                                'adapters': adapters,
+                                'interfaces': interfaces,
+                                'rem_ip': rem_ip,
+                                'user': self.USER}}
         return local
 
     def get_config_all(self):
@@ -242,10 +237,10 @@ class ConsolePi_data():
                     if '"' in value:
                         value = value.replace('"', '', 1)
                         value = value.split('"')[0]
-                    
+
                     if 'true' in value.lower() or 'false' in value.lower():
                         value = True if 'true' in value.lower() else False
-                    
+
                     if isinstance(value, str):
                         try:
                             value = int(value)
@@ -265,13 +260,13 @@ class ConsolePi_data():
         Returns
         -------
         dict
-            udev alias/symlink if defined/found as key or root device if not. 
+            udev alias/symlink if defined/found as key or root device if not.
             /dev/ is stripped: (ttyUSB0 | AP515).  Each device has it's attrs
             in a dict.
         """
         context = pyudev.Context()
 
-        devs = {'by_name': {}, 'dup_ser': {}, 'lame': []}       
+        devs = {'by_name': {}, 'dup_ser': {}, 'lame': []}
         usb_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='usb', subsystem='tty')]
         pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
         root_dev_list = usb_list + pci_list
@@ -289,11 +284,11 @@ class ConsolePi_data():
                 elif '/dev/serial/by-id/' in _d:
                     by_id = _d
 
-            # DEBUG 
+            # DEBUG
             if self.dump:
                 for _props in [_dev.properties, _dev.parent.properties]:
                     for p in _props:
-                        print(f'{p}:  {_props[p]}')
+                        print('{}:  {}'.format(p, _props[p]))
                     print('\n')
                 input('Press Any Key to Continue...')
 
@@ -328,7 +323,6 @@ class ConsolePi_data():
                 devs['dup_ser'][_ser]['id_paths'].append(devs['by_name'][dev_name]['id_path'])
                 devs['dup_ser'][_ser]['id_ifnums'].append(devs['by_name'][dev_name]['id_ifnum'])
 
-
             # --- // Handle Lame Adapters whcih present no serial (id_serial_short) \\ ---
             # add key for any w no serial to a list referenced later
             if not devs['by_name'][dev_name]['id_serial_short']:
@@ -336,9 +330,9 @@ class ConsolePi_data():
                     self.error_msgs.append('The Adapter @ ' + root_dev + ' Lacks a serial #... lame!')
                 # _d = devs['by_name'][dev_name]
                 # devs['lame'].append(dev_name)
-                        
+
         del_list = []
-        for _ser in devs['dup_ser'] :
+        for _ser in devs['dup_ser']:
             if len(devs['dup_ser'][_ser]['id_paths']) == 1:
                 del_list.append(_ser)
 
@@ -349,7 +343,7 @@ class ConsolePi_data():
         # _dups = devs['dup_ser']
         # devs['dup_ser'] = [ _dups[i] for i in _dups if len(_dups[i]['id_paths']) > 1 ]
 
-        return devs if key is None else devs['by_name'][key.replace('/dev/', '')]    
+        return devs if key is None else devs['by_name'][key.replace('/dev/', '')]
 
     # TODO run get_local in blocking thread abort additional calls if thread already running
     # TODO assign defaults here if not found in ser2net instead of in consolepi-menu
@@ -377,13 +371,13 @@ class ConsolePi_data():
                     break
             if not found:
                 final_tty_list.append('/dev/' + root_dev)
-        
+
         # get telnet port definition from ser2net.conf
         # and build adapters dict
         serial_list = []
         for tty_dev in final_tty_list:
-            tty_port = 9999 # using 9999 as an indicator there was no def for the device.
-            flow = 'n' # default if no value found in file
+            tty_port = 9999  # using 9999 as an indicator there was no def for the device.
+            flow = 'n'  # default if no value found in file
             # serial_list.append({tty_dev: {'port': tty_port}}) # PLACEHOLDER FOR REFACTOR with dev name as key
             # -- extract defined TELNET port and connection parameters from ser2net.conf --
             if os.path.isfile('/etc/ser2net.conf'):
@@ -404,14 +398,14 @@ class ConsolePi_data():
                                 if option in VALID_BAUD:
                                     baud = int(option)
                                 elif 'DATABITS' in option:
-                                    dbits = int(option.replace('DATABITS', '')) # int 5 - 8
+                                    dbits = int(option.replace('DATABITS', ''))  # int 5 - 8
                                     if dbits < 5 or dbits > 8:
                                         if do_print:
                                             print('Invalid value for "data bits" found in ser2net.conf falling back to 8')
                                         log.error('Invalid Value for data bits found in ser2net.conf: {}'.format(option))
                                         dbits = 8
                                 elif option in ['EVEN', 'ODD', 'NONE']:
-                                    parity = option[0].lower() # converts to e o n
+                                    parity = option[0].lower()  # converts to e o n
                                 elif option in ['XONXOFF', 'RTSCTS']:
                                     if option == 'XONXOFF':
                                         flow = 'x'
@@ -427,26 +421,24 @@ class ConsolePi_data():
                 self.error_msgs.append(msg)
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
 
-            if tty_port == 9999: # No ser2net definition found for this adapter - should not occur
+            if tty_port == 9999:  # No ser2net definition found for this adapter - should not occur
                 msg = 'No ser2net.conf definition found for {}'.format(tty_dev.replace('/dev/', ''))
                 log.error('[GET ADAPTERS] ' + msg)
                 self.error_msgs.append(msg)
                 self.error_msgs.append('Use option \'c\' to change connection settings for ' + tty_dev.replace('/dev/', ''))
                 serial_list.append({'dev': tty_dev, 'port': tty_port})
             else:
-                serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud, 'dbits': dbits,
-                        'parity': parity, 'flow': flow})
-                            
-        # if self.outlets:
-        #     serial_list = self.map_serial2outlet(serial_list, self.outlets) ### TODO refresh kwarg to force pwr_get_outlets() line 200
-        
+                serial_list.append({'dev': tty_dev, 'port': tty_port, 'baud': baud,
+                                    'dbits': dbits, 'parity': parity, 'flow': flow})
+
         if stdin.isatty() and do_print:
             if len(serial_list) > 0:
-                self.spin.succeed('[GET ADAPTERS] Detecting Locally Attached Serial Adapters\n\t' \
-                    'Found {} Locally attached serial adapters'.format(len(serial_list))) #\GET ADAPTERS
+                self.spin.succeed('[GET ADAPTERS] Detecting Locally Attached Serial Adapters\n\t'
+                                  'Found {} Locally attached serial adapters'.format(len(serial_list)))
             else:
-                self.spin.warn('[GET ADAPTERS] Detecting Locally Attached Serial Adapters\n\tNo Locally attached serial adapters found')
-        
+                self.spin.warn('[GET ADAPTERS] Detecting Locally Attached Serial Adapters\n\t'
+                               'No Locally attached serial adapters found')
+
         self.adapters = serial_list
         return serial_list
 
@@ -480,7 +472,8 @@ class ConsolePi_data():
                         if outlet['type'].upper() == 'GPIO':
                             address = int(outlet['address'])
                         noff = outlet['noff'] if 'noff' in outlet else True
-                        outlet_dict = {'key': o, 'type': outlet['type'], 'address': address, 'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
+                        outlet_dict = {'key': o, 'type': outlet['type'], 'address': address,
+                                       'noff': noff, 'is_on': outlet['is_on'], 'grp_name': o}
                         outlet_by_dev[dev['dev']].append(outlet_dict)
 
             dev['outlet'] = outlet_dict
@@ -490,14 +483,15 @@ class ConsolePi_data():
         return outlet_by_dev
 
     def get_if_ips(self):
-        log=self.log
+        log = self.log
         if_list = ni.interfaces()
         log.debug('[GET IFACES] interface list: {}'.format(if_list))
         if_data = {}
         for _if in if_list:
             if _if != 'lo':
                 try:
-                    if_data[_if] = {'ip': ni.ifaddresses(_if)[ni.AF_INET][0]['addr'], 'mac': ni.ifaddresses(_if)[ni.AF_LINK][0]['addr']}
+                    if_data[_if] = {'ip': ni.ifaddresses(_if)[ni.AF_INET][0]['addr'],
+                                    'mac': ni.ifaddresses(_if)[ni.AF_LINK][0]['addr']}
                 except KeyError:
                     log.info('[GET IFACES] No IP Found for {} skipping'.format(_if))
         log.debug('[GET IFACES] Completed Iface Data: {}'.format(if_data))
@@ -513,7 +507,7 @@ class ConsolePi_data():
     def get_ip_w_gw(self):
         try:
             return self.get_if_ips()[ni.gateways()['default'][ni.AF_INET][1]]['ip']
-        except:
+        except Exception:
             return
 
     def get_local_cloud_file(self, local_cloud_file=LOCAL_CLOUD_FILE):
@@ -524,7 +518,7 @@ class ConsolePi_data():
         return data
 
     def update_local_cloud_file(self, remote_consoles=None, current_remotes=None, local_cloud_file=LOCAL_CLOUD_FILE):
-        '''Update local cloud cache (cloud.json)
+        '''Update local cloud cache (cloud.json).
 
         Verifies the newly discovered data is more current than what we already know and updates the local cloud.json file if so
         The Menu uses cloud.json to populate remote menu items
@@ -535,8 +529,8 @@ class ConsolePi_data():
                 - func will retrieve this if not provided
             local_cloud_file The path to the local cloud file (global var cloud.json)
 
-        return:
-            remote_consoles: Dict, The resulting remote console dict representing what's deemed to be the most recent for each host
+        returns:
+        dict: The resulting remote console dict representing the most recent data for each remote.
         '''
         # NEW gets current remotes from file and updates with new
         log = self.log
@@ -547,24 +541,25 @@ class ConsolePi_data():
                     current_remotes = self.remotes
 
         # update current_remotes dict with data passed to function
-        # TODO # can refactor to check both when there is a conflict and use api to verify consoles, but I *think* logic below should work.
+        # TODO # can refactor to check both when there is a conflict and use api to verify consoles,
+        # but I *think* logic below should work.
         if len(remote_consoles) > 0:
             if current_remotes is not None:
                 for _ in current_remotes:
                     if _ not in remote_consoles:
-                        if 'fail_cnt' in current_remotes[_] and current_remotes[_]['fail_cnt'] >=2:
+                        if 'fail_cnt' in current_remotes[_] and current_remotes[_]['fail_cnt'] >= 2:
                             pass
                         else:
                             remote_consoles[_] = current_remotes[_]
                     else:
                         # -- DEBUG --
-                        log.debug('[CACHE UPD] \n--{}-- \n    remote upd_time: {}\n    remote rem_ip: {}\n    remote source: {}\n    cache rem upd_time: {}\n    cache rem_ip: {}\n    cache source: {}\n'.format(
+                        log.debug('[CACHE UPD] \n--{}-- \n    remote upd_time: {}\n    remote rem_ip: {}\n    remote source: {}\n    cache rem upd_time: {}\n    cache rem_ip: {}\n    cache source: {}\n'.format(  # NoQA
                             _,
-                            time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(remote_consoles[_]['upd_time'])) if 'upd_time' in remote_consoles[_] else None,
+                            time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(remote_consoles[_]['upd_time'])) if 'upd_time' in remote_consoles[_] else None,  # NoQA
                             remote_consoles[_]['rem_ip'] if 'rem_ip' in remote_consoles[_] else None,
                             remote_consoles[_]['source'] if 'source' in remote_consoles[_] else None,
-                            time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(current_remotes[_]['upd_time'])) if 'upd_time' in current_remotes[_] else None,
-                            current_remotes[_]['rem_ip'] if 'rem_ip' in current_remotes[_] else None, 
+                            time.strftime('%a %x %I:%M:%S %p %Z', time.localtime(current_remotes[_]['upd_time'])) if 'upd_time' in current_remotes[_] else None,  # NoQA
+                            current_remotes[_]['rem_ip'] if 'rem_ip' in current_remotes[_] else None,
                             current_remotes[_]['source'] if 'source' in current_remotes[_] else None,
                             ))
                         # -- END DEBUG --
@@ -577,31 +572,34 @@ class ConsolePi_data():
                                 if current_remotes[_]['upd_time'] > remote_consoles[_]['upd_time']:
                                     remote_consoles[_] = current_remotes[_]
                                     log.info('[CACHE UPD] {} Keeping existing data based on more current update time'.format(_))
-                                else: 
-                                    # -- fail_cnt persistence so Unreachable ConsolePi learned from Gdrive sync can still be flushed
+                                else:
+                                    # -- fail_cnt persistence so Unreachable remote learned from Gdrive sync can still be flushed
                                     # -- after 3 failed connection attempts.
                                     if 'fail_cnt' not in remote_consoles[_] and 'fail_cnt' in current_remotes[_]:
                                         remote_consoles[_]['fail_cnt'] = current_remotes[_]['fail_cnt']
                                     if current_remotes[_]['upd_time'] == remote_consoles[_]['upd_time']:
-                                        log.warning('[CACHE UPD] {} current cache update time and {} update time is equal but contents of dict don\'t match'.format(_, remote_consoles[_]['source']))
+                                        log.warning('[CACHE UPD] {} current cache update time and {} update time is equal'
+                                                    ' but contents of dict don\'t match'.format(_, remote_consoles[_]['source']))
                                     else:
-                                        log.info('[CACHE UPD] {} Updating data from {} based on more current update time'.format(_, remote_consoles[_]['source']))
+                                        log.info('[CACHE UPD] {} Updating data from {} '
+                                                 'based on more current update time'.format(_, remote_consoles[_]['source']))
                             elif 'upd_time' in current_remotes[_]:
-                                    remote_consoles[_] = current_remotes[_] 
-                                    log.info('[CACHE UPD] {} Keeping existing data based *existence* of update time which is lacking in this update from {}'.format(_, remote_consoles[_]['source']))
+                                remote_consoles[_] = current_remotes[_]
+                                log.info('[CACHE UPD] {} Keeping existing data based *existence* of update time '
+                                         'which is lacking in this update from {}'.format(_, remote_consoles[_]['source']))
 
             for _try in range(0, 2):
                 try:
                     with open(local_cloud_file, 'w') as cloud_file:
                         cloud_file.write(json.dumps(remote_consoles, indent=4, sort_keys=True))
-                        set_perm(local_cloud_file) # a hack to deal with perms as consolepi-details is called witout a wrapper the del option uses this function
+                        set_perm(local_cloud_file)  # a hack to deal with perms ~ consolepi-details del func
                         break
                 except PermissionError:
                     set_perm(local_cloud_file)
 
         else:
             log.warning('[CACHE UPD] cache update called with no data passed, doing nothing')
-        
+
         return remote_consoles
 
     def get_adapters_via_api(self, ip):
@@ -631,7 +629,8 @@ class ConsolePi_data():
             log.debug('[API RQST OUT] Response: \n{}'.format(json.dumps(ret, indent=4, sort_keys=True)))
         else:
             ret = response.status_code
-            log.error('[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi {}\n{}:{}'.format(ip, ret, response.text))
+            log.error('[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi {}\n{}:{}'.format(
+                                                                                            ip, ret, response.text))
         return ret
 
     def api_reachable(self, remote_data: dict):
@@ -639,7 +638,7 @@ class ConsolePi_data():
 
         params:
             remote_data:dict, The ConsolePi dictionary for the remote (from cache file)
-        
+
         returns:
             tuple [0]: Bool, indicating if data is different than cache
                   [1]: dict, Updated ConsolePi dictionary for the remote
@@ -661,7 +660,7 @@ class ConsolePi_data():
             log.debug('[API_REACHABLE] verifying {}'.format(_ip))
             _adapters = self.get_adapters_via_api(_ip)
             if _adapters:
-                if not isinstance(_adapters, int): # indicates an html error code was returned
+                if not isinstance(_adapters, int):  # indicates an html error code was returned
                     if not remote_data['adapters'] == _adapters:
                         remote_data['adapters'] = _adapters
                         update = True
@@ -676,12 +675,11 @@ class ConsolePi_data():
                 break  # Stop Looping through interfaces we found a reachable one
             else:
                 remote_data['rem_ip'] = None
-        
+
         return (update, remote_data)
-        
-    
+
     def canbeint(self, _str):
-        try: 
+        try:
             int(_str)
             return True
         except ValueError:
@@ -702,7 +700,7 @@ class ConsolePi_data():
             rem_list = []
             for _ in sorted(self.remotes):
                 if 'rem_ip' in self.remotes[_] and self.remotes[_]['rem_ip'] is not None:
-                    rem_list.append(self.remotes[_]['rem_ip'])            
+                    rem_list.append(self.remotes[_]['rem_ip'])
         # copy keys to remote(s)
         return_list = []
         for _rem in rem_list:
@@ -722,12 +720,12 @@ class ConsolePi_data():
         log = self.log
         start = time.time()
         do_log = False
-        found = False    
+        found = False
         while True:
             found = False
             for t in threading.enumerate():
                 if name in t.name:
-                    found = do_log = True 
+                    found = do_log = True
                     t.join(timeout - 1)
 
             if not found:
@@ -741,7 +739,7 @@ class ConsolePi_data():
                 log.error('[{0} {1} WAIT] Timeout Waiting for {0} Threads to Complete, elapsed time: {2}'.format(
                     name.strip('_').upper(), thread_type.upper(), time.time() - start))
                 break
-        
+
         if thread_type == 'power':
             if not found:
                 if self.power and self.pwr.outlet_data:
@@ -754,7 +752,7 @@ class ConsolePi_data():
                             if 'dli' in self.pwr.outlet_data and o in self.pwr.outlet_data['dli']:
                                 del self.pwr.outlet_data['dli'][o]
                     self.outlets = None if not self.pwr.outlet_data['linked'] else self.pwr.outlet_data['linked']
-                    self.outlet_failures = self.pwr.outlet_data['failures']                       
+                    self.outlet_failures = self.pwr.outlet_data['failures']
                     self.dli_pwr = self.pwr.outlet_data['dli_power']
                 else:
                     self.outlet_failures = {}
@@ -770,7 +768,8 @@ class ConsolePi_data():
         '''
         print('Checking for and Powering on any outlets linked to {} in the background'.format(menu_dev.replace('/dev/', '')))
         # self.auto_pwron_thread(menu_dev) # swap to debug directly (disable thread)
-        threading.Thread(target=self.auto_pwron_thread, args=(menu_dev,), name='auto_pwr_on_' + menu_dev.replace('/dev/', '')).start()
+        threading.Thread(target=self.auto_pwron_thread, args=(menu_dev,),
+                         name='auto_pwr_on_' + menu_dev.replace('/dev/', '')).start()
         self.log.debug('[AUTO PWRON] Active Threads: {}'.format(
             [t.name for t in threading.enumerate() if t.name != 'MainThread']
             ))
@@ -778,7 +777,7 @@ class ConsolePi_data():
     def auto_pwron_thread(self, menu_dev):
         '''Ensure any outlets linked to device are powered on
 
-        Called by consolepi_menu exec_menu function and remote_launcher (for sessions to remotes) 
+        Called by consolepi_menu exec_menu function and remote_launcher (for sessions to remotes)
         when a connection initiated with adapter.  Powers any linked outlets associated with the
         adapter on.
 
@@ -787,8 +786,6 @@ class ConsolePi_data():
         Returns:
             No Return - Updates class attributes
         '''
-        # Outlet by dev None indicates it may still be updating
-        # outlet_by_dev is dict after process runs (can be empty dict if no outlets defined)
         log = self.log
         if not self.pwr_init_complete:
             if not self.wait_for_threads('init'):
@@ -799,7 +796,7 @@ class ConsolePi_data():
                     # swap /host/ for /dev/ to use logic below alredy done for serial devices
                     # then swap back after match operation.
                     menu_dev = menu_dev.replace('/host/', '/dev/')
-                    ssh_list = [{'dev': '/dev/{}'.format(k.replace('/host/', ''))} for k in self.ssh_hosts.keys()] if self.ssh_hosts else []
+                    ssh_list = [{'dev': '/dev/{}'.format(k.replace('/host/', ''))} for k in self.ssh_hosts.keys()] if self.ssh_hosts else []  # NoQA
                     log.debug('[AUTO PwrOn] ssh_hosts list {}'.format(ssh_list))
                     _outlet_by_host = {} if not ssh_list else self.map_serial2outlet(ssh_list, self.pwr.outlet_data['linked'])
                     outlet_by_host = {}
@@ -808,8 +805,6 @@ class ConsolePi_data():
                 else:
                     outlet_by_host = {}
                 self.outlet_by_dev = {**outlet_by_dev, **outlet_by_host}
-
-                    # self.local[self.hostname]['adapters'] = self.adapters
             else:
                 self.error_msgs.append('Timeout Waiting for Power threads')
                 log.error('Timeout Waiting for Power threads')
@@ -819,58 +814,37 @@ class ConsolePi_data():
 
                 # -- // DLI web power switch Auto Power On \\ --
                 if outlet['type'].lower() == 'dli':
-                    # host_short = _addr.split('.')[0] if '.' in _addr and not self.canbeint(_addr.split('.')[0]) else _addr
-                    # is_on is a dict for dli outlets
-                    # 'is_on': {<dli-port>: 'name': <dli-port-name>, 'state': <True|False>} ... where True = ON
-                    # ports_to_pwr = []
                     for p in outlet['is_on']:
                         log.debug('[Auto PwrOn] Power ON {} Linked Outlet {}:{} p{}'.format(menu_dev, outlet['type'], _addr, p))
-                        # self.spin.start('Ensuring linked outlet: [{}]:{} port: {}({}) is powered on'.format(
-                            # outlet['type'], host_short, p, outlet['is_on'][p]['name']))
                         if not outlet['is_on'][p]['state']:   # This is just checking what's in the dict not querying the DLI
-                            # ports_to_pwr.append(p)
                             r = self.pwr.pwr_toggle(outlet['type'], outlet['address'], desired_state=True, port=p)
                             if isinstance(r, bool):
                                 if r:
-                                    # self.spin.succeed()
-                                    # start a thread to update outlet state in background
-                                    threading.Thread(target=self.outlet_update, kwargs={'refresh': True, 'upd_linked': True}, name='auto_pwr_refresh_dli').start()
-                                    # self.pwr.pwr_start_update_threads(upd_linked=True, t_name='refresh')
-                                # else:
-                                    # self.spin.fail()
+                                    threading.Thread(target=self.outlet_update, kwargs={'refresh': True,
+                                                     'upd_linked': True}, name='auto_pwr_refresh_dli').start()
                             else:
-                                # self.spin.fail('Error operating linked outlet {} @ {} ({})'.format(
-                                #     menu_dev.replace('/dev/', ''), outlet['address'], r))
                                 log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
                                 self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
-                        # else: # Outlet is already in powered on state
-                        #     self.spin.succeed()
+
                 # -- // GPIO & TASMOTA Auto Power On \\ --
                 else:
                     log.debug('[Auto PwrOn] Power ON {} Linked Outlet {}:{}'.format(menu_dev, outlet['type'], _addr))
-                    # msg = 'Ensuring linked outlet: {} ({}:{}) is powered on'.format(
-                    #         outlet['grp_name'], outlet['type'], outlet['address'])
-                    # self.spin.start(msg)
                     r = self.pwr.pwr_toggle(outlet['type'], outlet['address'], desired_state=True,
-                        noff=outlet['noff'] if outlet['type'].upper() == 'GPIO' else True)
-                    # TODO Below (first if) should never happen just a fail-safe after refactoring the returns from power.py Can eventually remove
-                    if not isinstance(r, bool) and isinstance(r, int) and r <= 1: 
+                                            noff=outlet['noff'] if outlet['type'].upper() == 'GPIO' else True)
+                    # TODO Below (first if) should never happen fail-safe after refactoring the returns from power.py
+                    # Can eventually remove
+                    if not isinstance(r, bool) and isinstance(r, int) and r <= 1:
                         self.error_msgs.append('the return from {} {} was an int({})'.format(
                             outlet['type'], outlet['address'], r
                         ))
                     elif isinstance(r, int) and r > 1:  # return is an error
-                        # self.spin.fail('{}\n{} {}'.format(
-                        #     msg, self.log_sym_error, self.http_codes[r]))
                         r = False
                     else:   # return is bool which is what we expect
                         if r:
                             self.pwr.outlet_data['linked'][outlet['key']]['state'] = r
                             self.outlets = self.pwr.outlet_data['linked']
-                            # self.spin.succeed()
-                            # threading.Thread(target=config.pwr_get_outlets, name='auto_pwr_refresh_' + outlet['type']).start()
                             self.pwr.pwr_get_outlets(upd_linked=True)
                         else:
-                            # self.spin.fail()
                             self.error_msgs.append('Error operating linked outlet @ {}'.format(outlet['address']))
                             log.warning('{} Error operating linked outlet @ {}'.format(menu_dev, outlet['address']))
 
@@ -882,6 +856,7 @@ def set_perm(file):
     os.chmod('/etc/ConsolePi/cloud.json', (
         stat.S_IWGRP + stat.S_IRGRP + stat.S_IWRITE + stat.S_IREAD)
         )
+
 
 # Get Individual Variables from Config
 def get_config(var):
@@ -900,6 +875,7 @@ def get_config(var):
         var_out = True if 'true' in var_out.lower() else False
 
     return var_out
+
 
 def error_handler(cmd, stderr):
     if stderr and 'FATAL: cannot lock /dev/' not in stderr:
@@ -928,7 +904,7 @@ def error_handler(cmd, stderr):
         elif 'All keys were skipped because they already exist on the remote system' in stderr:
             return 'skipped: keys already exist on the remote system'
         elif '/usr/bin/ssh-copy-id: INFO:' in stderr:
-            pass # no need to re-display these
+            pass  # no need to re-display these
         # ssh cipher suite errors
         elif 'no matching cipher found. Their offer:' in stderr:
             print('Connection Error: {}\n'.format(stderr))
@@ -939,11 +915,11 @@ def error_handler(cmd, stderr):
             else:
                 cipher = cipher[-1]
             cmd += ['-c', cipher]
-            
+
             print('Reattempting Connection using cipher {}'.format(cipher))
             r = subprocess.run(cmd)
             if r.returncode:
-                return 'Error on Retry Attempt' # TODO better way... handle banners... paramiko?
+                return 'Error on Retry Attempt'  # TODO better way... handle banners... paramiko?
         else:
             return stderr   # return value that was passed in
     # Handle hung sessions always returncode=1 doesn't always present stderr
@@ -952,6 +928,7 @@ def error_handler(cmd, stderr):
             subprocess.run(cmd)
         else:
             return 'User Abort or Failure to kill existing session to {}'.format(cmd[1].replace('/dev/', ''))
+
 
 def bash_command(cmd, do_print=False, eval_errors=True, return_stdout=False):
     # subprocess.run(['/bin/bash', '-c', cmd])
@@ -968,18 +945,21 @@ def bash_command(cmd, do_print=False, eval_errors=True, return_stdout=False):
     if eval_errors:
         if _stderr:
             return error_handler(getattr(response, 'args'), _stderr)
-        
+
     return _stdout if return_stdout else None
+
 
 def check_install_apt_pkg(pkg: str, verify_cmd=None):
     verify_cmd = 'which pkg' if verify_cmd is None else verify_cmd
     resp = bash_command(verify_cmd, return_stdout=True)
     if not resp:
-        resp = subprocess.run(['/bin/bash', '-c', 'apt install -y {}'.format(pkg)], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        resp = subprocess.run(['/bin/bash', '-c', 'apt install -y {}'.format(pkg)],
+                              stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     else:
         resp = (0, resp)
 
     return (resp.returncode, resp.stdout.decode('UTF-8') if resp.returncode == 0 else resp.stderr.decode('UTF-8'))
+
 
 def is_valid_ipv4_address(address):
     try:
@@ -1028,7 +1008,7 @@ def check_reachable(ip, port, timeout=2):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
         try:
-            sock.connect((_ip, 53 if cnt == 0 and len(test_set) > 1 else port ))
+            sock.connect((_ip, 53 if cnt == 0 and len(test_set) > 1 else port))
             reachable = True
         except (socket.error, TimeoutError):
             reachable = False
@@ -1038,6 +1018,7 @@ def check_reachable(ip, port, timeout=2):
         if not reachable:
             break
     return reachable
+
 
 def user_input_bool(question):
     '''Ask User Y/N Question require Y/N answer
@@ -1054,8 +1035,7 @@ def user_input_bool(question):
         answer = input(question + '? (y/n): ').lower().strip()
     except KeyboardInterrupt:
         return False
-    while not(answer == "y" or answer == "yes" or \
-              answer == "n" or answer == "no"):
+    while answer not in ['yes', 'y', 'no', 'n']:
         print("Input yes or no")
         answer = input(question + '? (y/n):').lower().strip()
     if answer[0] == "y":
@@ -1063,12 +1043,13 @@ def user_input_bool(question):
     else:
         return False
 
+
 def find_procs_by_name(name, dev):
     '''Return the pid of process matching name, where dev was referenced in the cmdline options
 
     Used by kill hung process
 
-    Params: 
+    Params:
         name:str, name of process to find
         dev:str, dev which needs to be in the cmdline arguments for the process
 
@@ -1078,9 +1059,10 @@ def find_procs_by_name(name, dev):
     ppid = None
     for p in psutil.process_iter(attrs=["name", "cmdline"]):
         if name == p.info['name'] and dev in p.info['cmdline']:
-            ppid = p.pid # if p.ppid() == 1 else p.ppid()
+            ppid = p.pid  # if p.ppid() == 1 else p.ppid()
             break
     return ppid
+
 
 def terminate_process(pid):
     '''send terminate, then kill if still alive to pid
@@ -1100,6 +1082,7 @@ def terminate_process(pid):
             break
         x += 1
 
+
 def kill_hung_session(dev):
     '''Kill hung picocom session
 
@@ -1109,10 +1092,12 @@ def kill_hung_session(dev):
     '''
     ppid = find_procs_by_name('picocom', dev)
     retry = 0
-    msg = '\n{} appears to be in use (may be a previous hung session).\nDo you want to Terminate the existing session'.format(dev.replace('/dev/', ''))
+    msg = '\n{} appears to be in use (may be a previous hung session).\nDo you want to Terminate the existing session'.format(
+                                                                                                      dev.replace('/dev/', ''))
     if ppid is not None and user_input_bool(msg):
         while ppid is not None and retry < 3:
-            print('An Existing session is already established to {}.  Terminating process {}'.format(dev.replace('/dev/', ''), ppid))
+            print('An Existing session is already established to {}.  Terminating process {}'.format(
+                                                                      dev.replace('/dev/', ''), ppid))
             try:
                 terminate_process(ppid)
                 time.sleep(3)
@@ -1127,6 +1112,7 @@ def kill_hung_session(dev):
                 ppid = find_procs_by_name('picocom', dev)
             retry += 1
     return ppid is None
+
 
 def get_serial_prompt(dev, commands=None, **kwargs):
     '''Attempt to get prompt from serial device
@@ -1153,18 +1139,21 @@ def get_serial_prompt(dev, commands=None, **kwargs):
     msg = ser.read(2048)
     return msg.decode('UTF-8')
 
+
 def json_print(obj):
     print(json.dumps(obj, indent=4, sort_keys=True))
+
 
 def format_eof(file):
     cmd = 'sed -i -e :a -e {} {}'.format('\'/^\\n*$/{$d;N;};/\\n$/ba\'', file)
     return bash_command(cmd, eval_errors=False)
 
+
 def append_to_file(file, line):
     '''Determine if last line of file includes a newline character
     write line provided on the next line
 
-    params: 
+    params:
         file: file to write to
         line: line to write
     '''
@@ -1175,7 +1164,7 @@ def append_to_file(file, line):
     with open(file) as f:
         _lines = f.readlines()
         _last = _lines[-1]
-    
+
     # prepend newline if last line of file lacks it to prevent appending to that line
     if '\n' not in _last:
         line = '\n{}'.format(line)
@@ -1183,30 +1172,32 @@ def append_to_file(file, line):
     with open(file, 'a+') as f:
         f.write(line)
 
-def uptime():  
+
+def uptime():
     with open('/proc/uptime', 'r') as f:
         uptime_seconds = float(f.readline().split()[0])
         return uptime_seconds
 
+
 def convert_usecs(usecs):
     if usecs is not None:
         usecs = int(usecs)
-        seconds = round(uptime() - (usecs/1000000))%60
-        minutes = (usecs/(1000000*60))%60
+        seconds = round(uptime() - (usecs/1000000)) % 60
+        minutes = (usecs/(1000000*60)) % 60
         minutes = int(minutes)
-        hours = (usecs/(1000000*60*60))%24
+        hours = (usecs/(1000000*60*60)) % 24
         days = (usecs/(1000000*60*60*24))
     else:
         return
 
     return ("%d days, %d hours, %d minues, %d seconds" % (days, hours, minutes, seconds))
 
+
 # DEBUGGING Should not be called directly
 if __name__ == '__main__':
     c = ConsolePi_data()
     c.exec_auto_pwron('/dev/2930F-Stage-Top')
     if not c.pwr_init_complete:
-        from halo import Halo
         with Halo(text='Waiting for pwr init Threads to complete'):
             c.wait_for_threads()
             json_print(c.outlet_by_dev)

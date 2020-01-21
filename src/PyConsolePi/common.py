@@ -950,13 +950,23 @@ def bash_command(cmd, do_print=False, eval_errors=True, return_stdout=False):
 
 
 def check_install_apt_pkg(pkg: str, verify_cmd=None):
-    verify_cmd = 'which pkg' if verify_cmd is None else verify_cmd
-    resp = bash_command(verify_cmd, return_stdout=True)
-    if not resp:
+    verify_cmd = 'which {}'.format(pkg) if verify_cmd is None else verify_cmd
+
+    def verify(verify_cmd):
+        if isinstance(verify_cmd, str):
+            verify_cmd = shlex.split(verify_cmd)
+        r = subprocess.run(verify_cmd,
+                           stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        return r.returncode == 0
+
+    if not verify(verify_cmd):
         resp = subprocess.run(['/bin/bash', '-c', 'apt install -y {}'.format(pkg)],
                               stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        if resp != 0:
+            if verify(verify_cmd):
+                return (0, '{} Install Success'.format(pkg))
     else:
-        resp = (0, resp)
+        return (0, 'Already Installed')
 
     return (resp.returncode, resp.stdout.decode('UTF-8') if resp.returncode == 0 else resp.stderr.decode('UTF-8'))
 

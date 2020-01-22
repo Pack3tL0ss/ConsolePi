@@ -133,8 +133,8 @@ class ConsolePiMenu():
         }
         ser2net_flow = {
             'n': '',
-            'x': ' -XONXOFF',
-            'y': ' -RTSCTS'
+            'x': ' XONXOFF',
+            'h': ' RTSCTS'
         }
 
         # sub to perform change in ser2net.conf

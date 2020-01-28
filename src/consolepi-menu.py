@@ -1299,9 +1299,9 @@ class ConsolePiMenu():
                     menu_actions['c' + str(item)] = {'cmd': _cmd}
             else:
                 # -- // REMOTE ADAPTERS \\ --
-                _cmd = 'sudo -u {rem_user} ssh -t {0}@{1} "{2} picocom {3} -b{4} -f{5} -d{6} -y{7}"'.format(
+                _cmd = 'sudo -u {loc_user} ssh -t {0}@{1} "{2} picocom {3} -b{4} -f{5} -d{6} -y{7}"'.format(
                     rem[host]['user'], rem[host]['rem_ip'], config.REM_LAUNCH, _dev['dev'], # pylint: disable=maybe-no-member
-                    baud, flow, dbits, parity, rem_user=rem_user)
+                    baud, flow, dbits, parity, loc_user=config.loc_user)
                 menu_actions[str(item)] = {'cmd': _cmd}
             item += 1
 

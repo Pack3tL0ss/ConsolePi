@@ -335,7 +335,7 @@ main_menu() {
             # depricated screen in favor of picocom
             ## screen "/dev/${tty_list[$((selection - 1))]##*/}" $baud
             # -- Always use native dev (ttyUSB#) --
-            picocom "/dev/${tty_list[$((selection - 1))]##*/}" -b $baud -f $flow -d $dbits -y $parity
+            picocom "/dev/${tty_list[$((selection - 1))]##*/}" --baud $baud --flow $flow --databits $dbits --parity $parity
         elif (( $selection > 0 )) && (( $selection < $((${#tty_list[@]}+${#rem_cmd_list[@]}+1)) )); then
             exec="${rem_cmd_list[$((selection-${#tty_list[@]}-1))]} -b $baud -f $flow -d $dbits -y $parity"
             $exec

@@ -487,13 +487,16 @@ class ConsolePiMenu():
             else:
                 spin.warn('[GET REM] Querying Remotes via API to verify reachability and adapter data\n\tNo Remote ConsolePis Discovered/Found')
         else:
-            log.error('[GET REM] Remote verify threads Still running / exceeded timeout')
+            msg = 'Remote verify threads Still running / exceeded timeout'
+            log.error('[GET REM] ' + msg)
+            self.error_msgs.append(msg)
+            spin.warn(msg)
 
         # update local cache if any ConsolePis found UnReachable
         if self.cache_update_pending:
             if len(self.pop_list) > 0:
                 for remotepi in self.pop_list:
-                    if data[remotepi]['fail_cnt'] >= 3: # remove from local cache after 3 failures (cloud or mdns will repopulate if discovered)
+                    if data[remotepi]['fail_cnt'] >= 3:  # remove from local cache after 3 failures (cloud or mdns will repopulate if discovered)
                         removed = data.pop(remotepi)
                         log.warning('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
                             remotepi, removed['fail_cnt']))
@@ -549,7 +552,7 @@ class ConsolePiMenu():
                 self.spin.succeed(_msg + '\n\tFound {} Remotes via Gdrive Sync'.format(len(remote_consoles)))
             elif 'Gdrive-Error:' in remote_consoles:
                 self.spin.fail('{}\n\t{} {}'.format(_msg, self.log_sym_error, remote_consoles))
-                self.error_msgs.append(remote_consoles) # display error returned from gdrive module
+                self.error_msgs.append(remote_consoles)  # display error returned from gdrive module
             else:
                 self.spin.warn(_msg + '\n\tNo Remotes Found via Gdrive Sync')
             if len(remote_consoles) > 0:
@@ -557,7 +560,7 @@ class ConsolePiMenu():
                 log.info(_msg)
                 self.spin.start(_msg)
                 config.update_local_cloud_file(remote_consoles)
-                self.spin.succeed(_msg) # no real error correction here
+                self.spin.succeed(_msg)  # no real error correction here
             else:
                 plog('[MENU REFRESH] No Remote ConsolePis found on {}'.format(config.cloud_svc), level='warning')
         else:
@@ -653,7 +656,7 @@ class ConsolePiMenu():
         # # -- won't fit in a single column calc sections we can put in the column
         # # #if not tot_body_rows < tty_body_avail:   # Force at least 2 cols while testing
         _r = []
-        [_r.append(r) for r in _rows if r not in _r] # deteremine if all sections are of equal size (common for dli)
+        [_r.append(r) for r in _rows if r not in _r]  # deteremine if all sections are of equal size (common for dli)
         if len(_r) == 1 or force_cols:
             for x in range(0, len(line_dict['body']['sections'])):
                 _iter_start_stop.append([x, x + 1])
@@ -666,7 +669,7 @@ class ConsolePiMenu():
                     _end += 1
                 else:
                     if r > tty_body_avail and _end > 1:
-                        if _begin != _end - 1: # Indicates the individual section is > then avail rows so give up until paging implemented
+                        if _begin != _end - 1:  # Indicates the individual section is > then avail rows so give up until paging implemented
                             _end = _end - 1
                     if not _end == (len(_rows)):
                         _iter_start_stop.append([_begin, _end])
@@ -1287,7 +1290,7 @@ class ConsolePiMenu():
             mlines.append(menu_line)
 
             if not remote:
-                _cmd = 'picocom {0} -b{1} -f{2} -d{3} -y{4}'.format(this_dev, baud, flow, dbits, parity)
+                _cmd = 'picocom {0} --baud {1} --flow {2} --databits {3} --parity {4}'.format(this_dev, baud, flow, dbits, parity)
                 if not rename:
                     # -- // LOCAL ADAPTERS \\ --
                     # Generate Command executed for Menu Line
@@ -1299,7 +1302,7 @@ class ConsolePiMenu():
                     menu_actions['c' + str(item)] = {'cmd': _cmd}
             else:
                 # -- // REMOTE ADAPTERS \\ --
-                _cmd = 'sudo -u {loc_user} ssh -t {0}@{1} "{2} picocom {3} -b{4} -f{5} -d{6} -y{7}"'.format(
+                _cmd = 'sudo -u {loc_user} ssh -t {0}@{1} "{2} picocom {3} --baud {4} --flow {5} --databits {6} --parity {7}"'.format(
                     rem[host]['user'], rem[host]['rem_ip'], config.REM_LAUNCH, _dev['dev'], # pylint: disable=maybe-no-member
                     baud, flow, dbits, parity, loc_user=config.loc_user)
                 menu_actions[str(item)] = {'cmd': _cmd}

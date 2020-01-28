@@ -123,6 +123,7 @@ update_config() {
 update_config_overrides() {
     [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}                                         # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
     [ ! -z $skip_utils ]     && echo "skip_utils=${skip_utils}                                                 # when set to true will bypass the utility installer menu during upgrade" >> "${default_config}"
+    [ ! -z $default_baud ]   && echo "default_baud=${default_baud}                                             # will override the default baud when no matching device in ser2net.conf" >> "${default_config}"
     # always add debug back to EoF
     echo "debug=${debug}                                                           # turns on additional debugging" >> "${default_config}"
 }
@@ -436,7 +437,7 @@ misc_imports(){
             mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
             logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
             logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
-        else
+        elif $cloud ; then 
             logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
             logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
         fi

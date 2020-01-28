@@ -14,7 +14,7 @@ if [ ! -z $1 ] && [ "$1" = 'local-dev' ] ; then
     branch=dev
     local_dev=true
 else
-    branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && sudo git status | head -1 | awk '{print $3}' && popd >/dev/null || echo "master")
+    branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
     local_dev=false
 fi
 

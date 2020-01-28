@@ -647,7 +647,7 @@ class ConsolePi_data():
         update = False
         log = self.log
 
-        # if data in includes rem_ip make sure to try that first
+        # if inbound data includes rem_ip make sure to try that first
         if 'rem_ip' in remote_data and remote_data['rem_ip'] is not None:
             rem_ip_list.append(remote_data['rem_ip'])
 

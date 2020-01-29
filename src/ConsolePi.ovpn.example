@@ -47,3 +47,8 @@ key-direction 1
 # run push script to send notification of successful VPN connection
 script-security 2
 up "/etc/ConsolePi/src/dhcpcd.exit-hook OVPN"
+
+# -- These are necessary for DNS resolution if you have a private DNS server in your environment --
+# -- requires script-security 2 to be effective                                                  --
+up /etc/openvpn/update-resolv-conf
+down /etc/openvpn/update-resolv-conf

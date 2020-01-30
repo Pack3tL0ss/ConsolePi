@@ -283,9 +283,9 @@ verify() {
 
     echo " ConsolePi Hot Spot IP:                                   $wlan_ip"
     echo "  *hotspot DHCP Range:                                    ${wlan_dhcp_start} to ${wlan_dhcp_end}"
-    echo " ConsolePi Hot Spot SSID:                                 $wlan_ssid"
-    echo " ConsolePi Hot Spot psk:                                  $wlan_psk"
-    echo " ConsolePi Hot Spot regulatory domain:                    $wlan_country"
+    echo " ConsolePi HotSpot SSID:                                  $wlan_ssid"
+    echo " ConsolePi HotSpot psk:                                   $wlan_psk"
+    echo " ConsolePi HotSpot regulatory domain:                     $wlan_country"
     echo " ConsolePi Cloud Support:                                 $cloud"
     $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
     echo " ConsolePi Power Control Support:                         $power"

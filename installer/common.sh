@@ -412,12 +412,12 @@ do_systemd_enable_load_start() {
 }
 
 process_cmds() {
-    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname')
+    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg')
     ret=0
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
         # echo -e "DEBUG:\n\tcmd=${cmd}\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
-        # echo -e "DEBUG ~ Currently evaluating: '$1'"
+        # echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
         case "$1" in
             -stop) # will stop function from exec remaining commands on failure (witout exit 1)
                 stop=true
@@ -456,21 +456,35 @@ process_cmds() {
                 shift
                 ;;
             -apt-install) # install pkg via apt
-                case "$3" in
-                    --pretty=*)
-                        pname=${3/*=}
-                        _shift=3
-                        ;;
-                    *)
-                        pname=$2
-                        _shift=2
-                        ;;
-                esac
+                shift
+                go=true; while (( "$#" )) && $go ; do
+                    # echo -e "DEBUG apt-install ~ Currently evaluating: '$1'" # -- DEBUG LINE --
+                    case "$1" in
+                        --pretty=*)
+                            pname=${1/*=}
+                            shift
+                            ;;
+                        --exclude=*)
+                            pexclude=${1/*=}
+                            shift
+                            ;;
+                        *)
+                            if [[ -z $pkg ]] ; then
+                                pkg=$1
+                                [[ -z $pname ]] && pname=$1
+                                shift
+                            else
+                                go=false
+                            fi
+                            ;;
+                    esac
+                done
                 pmsg="Success - Install $pname (apt)"
                 fmsg="Error - Install $pname (apt)"
                 stop=true
-                cmd="sudo apt-get -y install $2"
-                shift $_shift
+                [[ ! -z $pexclude ]] && cmd="sudo apt-get -y install $pkg ${pexclude}-" || 
+                    cmd="sudo apt-get -y install $pkg"
+                # shift $_shift
                 ;;
             -apt-purge) # purge pkg followed by autoremove
                 case "$3" in
@@ -533,6 +547,7 @@ process_cmds() {
             if eval "$cmd" >>"$out" 2>>"$err"; then
                 ! $silent && logit "$pmsg"
                 # if cmd was an apt-get purge - automatically issue autoremove to clean unnecessary deps
+                # TODO re-factor to only do purge at the end of all other proccesses
                 if [[ "$cmd" =~ "purge" ]]; then
                     logit "Tidying Up packages that are no longer in use (apt autoremove)"
                     sudo apt-get -y autoremove >/dev/null 2>>$log_file &&

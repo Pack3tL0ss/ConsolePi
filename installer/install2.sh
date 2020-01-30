@@ -646,13 +646,9 @@ ovpn_graceful_shutdown() {
 install_autohotspotn () {
     process="AutoHotSpotN"
     logit "Install/Update AutoHotSpotN"
-    
-    systemd_diff_update autohotspot
-    logit "Enabling Startup script."
-    systemctl enable autohotspot.service 1>/dev/null 2>> $log_file &&
-    logit "Successfully enabled autohotspot.service" ||
-    logit "Failed to enable autohotspot.service" "WARNING"
 
+    systemd_diff_update autohotspot
+  
     logit "Installing hostapd via apt."
     if ! $(which hostapd >/dev/null); then
         apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
@@ -672,13 +668,28 @@ install_autohotspotn () {
     else
         logit "dnsmasq v${dnsmasq_ver} already installed"
     fi
+
+    [[ -f ${override_dir}/hostapd.service ]] && hostapd_override=true || hostapd_override=false
+    [[ -f ${override_dir}/dnsmasq.service ]] && dnsmasq_override=true || dnsmasq_override=false
+    if ! $hostapd_override ; then 
+        logit "disabling hostapd (handled by AutoHotSpotN)."
+        sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file &&
+            logit "ensured hostapd.service is unmasked" || 
+                logit "failed to unmask hostapd.service" "WARNING"
+        sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file && 
+            logit "hostapd autostart disabled Successfully" ||
+                logit "An error occurred disabling hostapd autostart - verify after install" "WARNING"
+    else
+        logit "skipped hostapd disable - hostapd.service is overriden"
+    fi
     
-    logit "disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)."
-    sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file && logit "ensured hostapd.service is unmasked" || logit "failed to unmask hostapd.service" "WARNING"
-    sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file ; res=$?
-    sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file || ((res+=$?))
-    [[ $res == 0 ]] && logit "hostapd and dnsmasq autostart disabled Successfully" ||
-        logit "An error occurred disabling hostapd and/or dnsmasq autostart - verify after install" "WARNING"
+    if ! dnsmasq_override ; then
+        sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file && 
+            logit "dnsmasq on wlan interface autostart disabled Successfully" ||
+                logit "An error occurred disabling dnsmasq (for wlan0) autostart - verify after install" "WARNING"
+    else
+        logit "skipped dnsmasq on wlan interface disable - dnsmasq.service is overriden"
+    fi
 
     logit "Create/Configure hostapd.conf"
     convert_template hostapd.conf /etc/hostapd/hostapd.conf wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_country=${wlan_country}

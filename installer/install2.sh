@@ -683,7 +683,7 @@ install_autohotspotn () {
         logit "skipped hostapd disable - hostapd.service is overriden"
     fi
     
-    if ! dnsmasq_override ; then
+    if ! $dnsmasq_override ; then
         sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file && 
             logit "dnsmasq on wlan interface autostart disabled Successfully" ||
                 logit "An error occurred disabling dnsmasq (for wlan0) autostart - verify after install" "WARNING"
@@ -798,6 +798,7 @@ do_blue_config() {
     fi
     
     # Configure blue user alias for consolepi-menu command (overriding the symlink to the full menu with cloud support)
+    # TODO change this to use .bash_login or .bash_profile bashrc works lacking those files, more appropriate to use .profile over .bashrc anyway
     if [[ ! $(sudo grep "alias consolepi-menu" /home/blue/.bashrc) ]]; then
         sudo echo alias consolepi-menu=\"/etc/ConsolePi/src/consolepi-menu.sh\" | sudo tee -a /home/blue/.bashrc > /dev/null && 
             logit "BlueTooth User Configured to launch menu on Login" || 

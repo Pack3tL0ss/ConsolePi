@@ -693,8 +693,8 @@ install_autohotspotn () {
     
     logit "disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)."
     sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file && logit "ensured hostapd.service is unmasked" || logit "failed to unmask hostapd.service" "WARNING"
-    sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file && res=$?
-    sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file && ((res=$?+$res))
+    sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file ; res=$?
+    sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file || ((res+=$?))
     [[ $res == 0 ]] && logit "hostapd and dnsmasq autostart disabled Successfully" ||
         logit "An error occurred disabling hostapd and/or dnsmasq autostart - verify after install" "WARNING"
 
@@ -871,6 +871,15 @@ do_consolepi_mdns() {
     process="ConsolePi mDNS (systemd)"
     systemd_diff_update consolepi-mdnsreg
     systemd_diff_update consolepi-mdnsbrowse
+    for d in 'avahi-daemon.socket' 'avahi-daemon.service' ; do
+        _error=false
+        if ! systemctl status "$d" | grep -q disabled ; then
+            [[ "$d" =~ "socket" ]] && logit "disabling ${d%.*} ConsolePi has it's own mdns daemon"
+            systemctl stop "$d" >/dev/null 2>&1 || _error=true
+            systemctl disable "$d" 2>/dev/null || _error=true
+            $_error && logit "Error occured: stop - disable $d Check daemon status" "warning"
+        fi
+    done
     unset process
 }
 

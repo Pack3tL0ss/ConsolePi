@@ -392,31 +392,13 @@ set_timezone() {
 
 # -- if ipv6 is enabled present option to disable it --
 disable_ipv6()  {
-    if ! sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
-        process="Disable ipv6"
-            prompt="Do you want to disable ipv6"
-            dis_ipv6=$(user_input_bool)
-
-            if $dis_ipv6; then
-                if sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
-                    logit "ipv6 aleady disabled"
-                else
-sudo cat << EOF | sudo tee -a /etc/sysctl.conf  > /dev/null
-
-# Disable ipv6
-net.ipv6.conf.all.disable_ipv6 = 1 
-net.ipv6.conf.default.disable_ipv6 = 1
-net.ipv6.conf.lo.disable_ipv6 = 1
-EOF
-                    if sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
-                        logit "Disable ipv6 Success"
-                    else
-                        logit "FAILED to disable ipv6" "WARNING"
-                    fi
-                fi
-            fi
-        unset process
+    process="Disable ipv6"
+    prompt="Do you want to disable ipv6"
+    dis_ipv6=$(user_input_bool)
+    if $dis_ipv6; then
+        file_diff_update "${src_dir}99-noipv6.conf" /etc/sysctl.d/99-noipv6.conf
     fi
+    unset process
 }
 
 misc_imports(){

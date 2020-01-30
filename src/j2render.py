@@ -13,6 +13,7 @@ Creates file in /tmp/ directory (/tmp/argv[1]) used to compare against system fi
 import jinja2
 import sys
 
+
 def parse_args():
     parameter_dict = {}
     for user_input in sys.argv[3:]:
@@ -22,6 +23,7 @@ def parse_args():
         varvalue = user_input.split("=")[1]
         parameter_dict[varname] = varvalue
     return parameter_dict
+
 
 parameter_dict = parse_args()
 templateLoader = jinja2.FileSystemLoader(searchpath="/etc/ConsolePi/src/j2/")

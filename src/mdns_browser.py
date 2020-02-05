@@ -61,8 +61,13 @@ class MDNS_Browser:
                         user = properties[b'user'].decode("utf-8")
                         interfaces = json.loads(properties[b'interfaces'].decode("utf-8"))
 
-                        rem_ip = None if hostname not in config.remotes or 'rem_ip' not in config.remotes[hostname] \
-                            else config.remotes[hostname]['rem_ip']
+                        if len(interfaces) == 1:
+                            rem_ip = [interfaces[i]['ip'] for i in interfaces]
+                            rem_ip = rem_ip[0]
+                        else:
+                            rem_ip = None if hostname not in config.remotes or 'rem_ip' not in config.remotes[hostname] \
+                                else config.remotes[hostname]['rem_ip']
+
                         cur_known_adapters = [] if hostname not in config.remotes or not config.remotes[hostname]['adapters'] \
                             else config.remotes[hostname]['adapters']
 
@@ -118,7 +123,7 @@ class MDNS_Browser:
                         log.debug('[MDNS DSCVRY] {} Final data set:\n{}'.format(info.server.split('.')[0],
                                                                                 json.dumps(mdns_data, indent=4, sort_keys=True)))
                         if update_cache:
-                            config.update_local_cloud_file(remote_consoles=mdns_data)
+                            config.remotes = config.update_local_cloud_file(remote_consoles=mdns_data)
                             log.info('[MDNS DSCVRY] {} Local Cache Updated after mdns discovery'.format(
                                     info.server.split('.')[0]))
                     else:

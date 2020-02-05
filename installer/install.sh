@@ -22,7 +22,7 @@ get_common() {
     if ! $local_dev ; then
         wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
     else
-        sudo -u pi sftp pi@kabrewpi:/etc/ConsolePi/installer/common.sh /tmp/common.sh
+        sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
     fi
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1

@@ -4,7 +4,7 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-INSTALLER_VER=40
+INSTALLER_VER=43
 CFG_FILE_VER=7
 cur_dir=$(pwd)
 iam=$(who -m |  awk '{print $1}')
@@ -24,7 +24,7 @@ wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log" 
 final_log="/var/log/ConsolePi/install.log"
 cloud_cache="/etc/ConsolePi/cloud.json"
-override_dir="/etc/ConsolePi/src/override"
+override_dir="/etc/ConsolePi/src/override" # TODO NO TRAILING / make others that way
 py3ver=$(python3 -V | cut -d. -f2)
 warn_cnt=0
 
@@ -396,28 +396,32 @@ convert_template() {
 }
 
 do_systemd_enable_load_start() {
-    status=$(systemctl is-enabled $1 2>&1)
-    if [ "$status" == "disabled" ]; then
-        sudo systemctl enable $1 1>/dev/null 2>> $log_file  && logit "${1} systemd unit file enabled" || 
-                    logit "FAILED to enable ${1} systemd unit file" "WARNING"
-    elif [ "$status" == "enabled" ]; then
-        logit "$1 unit file already enabled"
-    elif [[ "$status" =~ "No such file or directory" ]]; then
-        logit "$1 unit file not found" "ERROR" 
+    if [[ ! -f "${override_dir}/${1}.service" ]] ; then
+        status=$(systemctl is-enabled $1 2>&1)
+        if [ "$status" == "disabled" ]; then
+            sudo systemctl enable $1 1>/dev/null 2>> $log_file  && logit "${1} systemd unit file enabled" || 
+                        logit "FAILED to enable ${1} systemd unit file" "WARNING"
+        elif [ "$status" == "enabled" ]; then
+            logit "$1 unit file already enabled"
+        elif [[ "$status" =~ "No such file or directory" ]]; then
+            logit "$1 unit file not found" "ERROR" 
+        fi
+        # Will only exectue if systemd script enabled
+        sudo systemctl daemon-reload 2>> $log_file || logit "daemon-reload failed, check logs" "WARNING"
+        sudo systemctl stop $1 >/dev/null 2>&1
+        sudo systemctl start $1 1>/dev/null 2>> $log_file || logit "$1 failed to start, may be normal depending on service/hardware" "WARNING"
+    else
+        logit "Skipping enable and start $1 - override found"
     fi
-    # Will only exectue if systemd script enabled
-    sudo systemctl daemon-reload 2>> $log_file || logit "daemon-reload failed, check logs" "WARNING"
-    sudo systemctl stop $1 >/dev/null 2>&1
-    sudo systemctl start $1 1>/dev/null 2>> $log_file || logit "$1 failed to start, may be normal depending on service/hardware" "WARNING"
 }
 
 process_cmds() {
-    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname')
+    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg')
     ret=0
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
         # echo -e "DEBUG:\n\tcmd=${cmd}\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
-        # echo -e "DEBUG ~ Currently evaluating: '$1'"
+        # echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
         case "$1" in
             -stop) # will stop function from exec remaining commands on failure (witout exit 1)
                 stop=true
@@ -456,21 +460,35 @@ process_cmds() {
                 shift
                 ;;
             -apt-install) # install pkg via apt
-                case "$3" in
-                    --pretty=*)
-                        pname=${3/*=}
-                        _shift=3
-                        ;;
-                    *)
-                        pname=$2
-                        _shift=2
-                        ;;
-                esac
+                shift
+                go=true; while (( "$#" )) && $go ; do
+                    # echo -e "DEBUG apt-install ~ Currently evaluating: '$1'" # -- DEBUG LINE --
+                    case "$1" in
+                        --pretty=*)
+                            pname=${1/*=}
+                            shift
+                            ;;
+                        --exclude=*)
+                            pexclude=${1/*=}
+                            shift
+                            ;;
+                        *)
+                            if [[ -z $pkg ]] ; then
+                                pkg=$1
+                                [[ -z $pname ]] && pname=$1
+                                shift
+                            else
+                                go=false
+                            fi
+                            ;;
+                    esac
+                done
                 pmsg="Success - Install $pname (apt)"
                 fmsg="Error - Install $pname (apt)"
                 stop=true
-                cmd="sudo apt-get -y install $2"
-                shift $_shift
+                [[ ! -z $pexclude ]] && cmd="sudo apt-get -y install $pkg ${pexclude}-" || 
+                    cmd="sudo apt-get -y install $pkg"
+                # shift $_shift
                 ;;
             -apt-purge) # purge pkg followed by autoremove
                 case "$3" in
@@ -533,6 +551,7 @@ process_cmds() {
             if eval "$cmd" >>"$out" 2>>"$err"; then
                 ! $silent && logit "$pmsg"
                 # if cmd was an apt-get purge - automatically issue autoremove to clean unnecessary deps
+                # TODO re-factor to only do purge at the end of all other proccesses
                 if [[ "$cmd" =~ "purge" ]]; then
                     logit "Tidying Up packages that are no longer in use (apt autoremove)"
                     sudo apt-get -y autoremove >/dev/null 2>>$log_file &&

@@ -1,7 +1,6 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 from consolepi.common import ConsolePi_data
-from consolepi.common import bash_command
 from zeroconf import ServiceInfo, Zeroconf
 import time
 import json
@@ -11,33 +10,28 @@ import threading
 import struct
 from consolepi.gdrive import GoogleDrive
 try:
-    import better_exceptions # pylint: disable=import-error
-    bash_command('export BETTER_EXCEPTIONS=1')
+    import better_exceptions  # NoQA pylint: disable=import-error
 except ImportError:
     pass
 
 UPDATE_DELAY = 30
 
+
 class MDNS_Register:
 
     def __init__(self):
         self.config = ConsolePi_data(do_print=False)
-        self.hostname = self.config.hostname
         self.zeroconf = Zeroconf()
         self.context = pyudev.Context()
 
-    # Have now hard-coded this to *not* send adapter data, the payload is typically too large
-    # ConsolePi that discovers will follow up discovery with an API call to gather adapter data
     def build_info(self, squash=None, local_adapters=None):
         config = self.config
-        hostname = self.hostname
+        hostname = config.hostname
         local_adapters = local_adapters if local_adapters is not None else config.get_adapters()
         log = config.log
         if_ips = config.get_if_ips()
-        
-        local_data = {'hostname': hostname,
-            'user': 'pi'
-        }
+        # TODO change advertised user when option added to config to specify
+        local_data = {'hostname': hostname, 'user': 'pi'}
 
         # if squash is None: # if data set is too large for mdns browser on other side will retrieve via API
         if squash is not None:
@@ -83,7 +77,7 @@ class MDNS_Register:
             log.info('[MDNS REG] mdns_refresh thread Completed')
 
         if device is not None:
-            abort_mdns=False
+            abort_mdns = False
             for thread in threading.enumerate():
                 if 'mdns_refresh' in thread.name:
                     log.debug('[MDNS REG] Another mdns_refresh thread already queued, this thread will abort')
@@ -96,7 +90,7 @@ class MDNS_Register:
 
             log.info('[MDNS REG] detected change: {} {}'.format(device.action, device.sys_name))
             if config.cloud:     # pylint: disable=maybe-no-member
-                abort=False
+                abort = False
                 for thread in threading.enumerate():
                     if 'cloud_update' in thread.name:
                         log.debug('[MDNS REG] Another cloud Update thread already queued, this thread will abort')
@@ -121,8 +115,10 @@ class MDNS_Register:
             try:
                 info = self.build_info(squash='adapters')
             except struct.error as e:
-                log.warning('[MDNS REG] data is still too big for mdns, reducing interface payload \n    {} {}'.format(e.__class__.__name__, e))
-                log.debug('[MDNS REG] offending interface data \n    {}'.format(json.dumps(config.interfaces, indent=4, sort_keys=True)))
+                log.warning('[MDNS REG] data is still too big for mdns, reducing interface payload \n'
+                            '    {} {}'.format(e.__class__.__name__, e))
+                log.debug('[MDNS REG] offending interface data \n    {}'.format(
+                          json.dumps(config.interfaces, indent=4, sort_keys=True)))
                 # Still too big - Try reducing advertised interfaces (generally an issue with WAN emulator)
                 info = self.build_info(squash='interfaces')
 
@@ -133,7 +129,9 @@ class MDNS_Register:
         log = config.log
         log.info('[MDNS REG] Cloud Update triggered delaying {} seconds'.format(UPDATE_DELAY))
         time.sleep(UPDATE_DELAY)  # Wait 30 seconds and then update, to accomodate multiple add removes
-        data = {config.hostname: {'adapters': config.get_adapters(do_print=False), 'interfaces': config.get_if_ips(), 'user': 'pi'}}
+        # TODO change advertised user when option added to config to specify
+        data = {config.hostname: {'adapters': config.get_adapters(do_print=False),
+                                  'interfaces': config.get_if_ips(), 'user': 'pi'}}
         log.debug('[MDNS REG] Final Data set collected for {}: \n{}'.format(config.hostname, data))
 
         if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member
@@ -153,10 +151,9 @@ class MDNS_Register:
         info = self.try_build_info()
 
         zeroconf.register_service(info)
-        # monitor udev for add - remove of usb-serial adapters 
+        # monitor udev for add - remove of usb-serial adapters
         monitor = pyudev.Monitor.from_netlink(self.context)
-        # monitor.filter_by('usb-serial')    
-        monitor.filter_by('usb')    
+        monitor.filter_by('usb')
         observer = pyudev.MonitorObserver(monitor, name='udev_monitor', callback=self.update_mdns)
         observer.start()
         try:
@@ -170,8 +167,7 @@ class MDNS_Register:
             zeroconf.close()
             observer.send_stop()
 
+
 if __name__ == '__main__':
     mdnsreg = MDNS_Register()
     mdnsreg.run()
-
-

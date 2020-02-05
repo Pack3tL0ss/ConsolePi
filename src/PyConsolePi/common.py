@@ -637,10 +637,10 @@ class ConsolePi_data():
         '''Check Rechability & Fetch adapter data via API for remote ConsolePi
 
         params:
-            remote_data:dict, The ConsolePi dictionary for the remote (from cache file)
+            remote_data:dict, The current ConsolePi dictionary for the remote (from cache file)
 
         returns:
-            tuple [0]: Bool, indicating if data is different than cache
+            tuple [0]: Bool, indicating if data from API is different than cache
                   [1]: dict, Updated ConsolePi dictionary for the remote
         '''
         rem_ip_list = []
@@ -656,6 +656,7 @@ class ConsolePi_data():
             if _ip not in rem_ip_list and _ip not in self.ip_list:
                 rem_ip_list.append(_ip)
 
+        remote_data['rem_ip'] = None
         for _ip in rem_ip_list:
             log.debug('[API_REACHABLE] verifying {}'.format(_ip))
             _adapters = self.get_adapters_via_api(_ip)
@@ -672,9 +673,7 @@ class ConsolePi_data():
                 if 'rem_ip' not in remote_data or not remote_data['rem_ip'] == _ip:
                     remote_data['rem_ip'] = _ip
                     update = True
-                break  # Stop Looping through interfaces we found a reachable one
-            else:
-                remote_data['rem_ip'] = None
+                break
 
         return (update, remote_data)
 
@@ -688,7 +687,8 @@ class ConsolePi_data():
     def gen_copy_key(self, rem_ip=None, rem_user=USER):
         hostname = self.hostname
         loc_user = self.loc_user
-        loc_home = bash_command('sudo -u pi printenv | grep HOME= | cut -d= -f2', eval_errors=False, return_stdout=True)
+        # loc_home = bash_command('sudo -u pi printenv | grep HOME= | cut -d= -f2', eval_errors=False, return_stdout=True)
+        loc_home = os.getenv('HOME')
         # generate local key file if it doesn't exist
         if not os.path.isfile(loc_home + '/.ssh/id_rsa'):
             print('\n\nNo Local ssh cert found, generating...')

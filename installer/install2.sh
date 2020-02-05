@@ -283,9 +283,9 @@ verify() {
 
     echo " ConsolePi Hot Spot IP:                                   $wlan_ip"
     echo "  *hotspot DHCP Range:                                    ${wlan_dhcp_start} to ${wlan_dhcp_end}"
-    echo " ConsolePi Hot Spot SSID:                                 $wlan_ssid"
-    echo " ConsolePi Hot Spot psk:                                  $wlan_psk"
-    echo " ConsolePi Hot Spot regulatory domain:                    $wlan_country"
+    echo " ConsolePi HotSpot SSID:                                  $wlan_ssid"
+    echo " ConsolePi HotSpot psk:                                   $wlan_psk"
+    echo " ConsolePi HotSpot regulatory domain:                     $wlan_country"
     echo " ConsolePi Cloud Support:                                 $cloud"
     $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
     echo " ConsolePi Power Control Support:                         $power"
@@ -392,31 +392,13 @@ set_timezone() {
 
 # -- if ipv6 is enabled present option to disable it --
 disable_ipv6()  {
-    if ! sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
-        process="Disable ipv6"
-            prompt="Do you want to disable ipv6"
-            dis_ipv6=$(user_input_bool)
-
-            if $dis_ipv6; then
-                if sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
-                    logit "ipv6 aleady disabled"
-                else
-sudo cat << EOF | sudo tee -a /etc/sysctl.conf  > /dev/null
-
-# Disable ipv6
-net.ipv6.conf.all.disable_ipv6 = 1 
-net.ipv6.conf.default.disable_ipv6 = 1
-net.ipv6.conf.lo.disable_ipv6 = 1
-EOF
-                    if sudo grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf; then
-                        logit "Disable ipv6 Success"
-                    else
-                        logit "FAILED to disable ipv6" "WARNING"
-                    fi
-                fi
-            fi
-        unset process
+    process="Disable ipv6"
+    prompt="Do you want to disable ipv6"
+    dis_ipv6=$(user_input_bool)
+    if $dis_ipv6; then
+        file_diff_update "${src_dir}99-noipv6.conf" /etc/sysctl.d/99-noipv6.conf
     fi
+    unset process
 }
 
 misc_imports(){
@@ -664,13 +646,9 @@ ovpn_graceful_shutdown() {
 install_autohotspotn () {
     process="AutoHotSpotN"
     logit "Install/Update AutoHotSpotN"
-    
-    systemd_diff_update autohotspot
-    logit "Enabling Startup script."
-    systemctl enable autohotspot.service 1>/dev/null 2>> $log_file &&
-    logit "Successfully enabled autohotspot.service" ||
-    logit "Failed to enable autohotspot.service" "WARNING"
 
+    systemd_diff_update autohotspot
+  
     logit "Installing hostapd via apt."
     if ! $(which hostapd >/dev/null); then
         apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
@@ -690,13 +668,28 @@ install_autohotspotn () {
     else
         logit "dnsmasq v${dnsmasq_ver} already installed"
     fi
+
+    [[ -f ${override_dir}/hostapd.service ]] && hostapd_override=true || hostapd_override=false
+    [[ -f ${override_dir}/dnsmasq.service ]] && dnsmasq_override=true || dnsmasq_override=false
+    if ! $hostapd_override ; then 
+        logit "disabling hostapd (handled by AutoHotSpotN)."
+        sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file &&
+            logit "ensured hostapd.service is unmasked" || 
+                logit "failed to unmask hostapd.service" "WARNING"
+        sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file && 
+            logit "hostapd autostart disabled Successfully" ||
+                logit "An error occurred disabling hostapd autostart - verify after install" "WARNING"
+    else
+        logit "skipped hostapd disable - hostapd.service is overriden"
+    fi
     
-    logit "disabling hostapd and dnsmasq autostart (handled by AutoHotSpotN)."
-    sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file && logit "ensured hostapd.service is unmasked" || logit "failed to unmask hostapd.service" "WARNING"
-    sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file && res=$?
-    sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file && ((res=$?+$res))
-    [[ $res == 0 ]] && logit "hostapd and dnsmasq autostart disabled Successfully" ||
-        logit "An error occurred disabling hostapd and/or dnsmasq autostart - verify after install" "WARNING"
+    if ! $dnsmasq_override ; then
+        sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file && 
+            logit "dnsmasq on wlan interface autostart disabled Successfully" ||
+                logit "An error occurred disabling dnsmasq (for wlan0) autostart - verify after install" "WARNING"
+    else
+        logit "skipped dnsmasq on wlan interface disable - dnsmasq.service is overriden"
+    fi
 
     logit "Create/Configure hostapd.conf"
     convert_template hostapd.conf /etc/hostapd/hostapd.conf wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_country=${wlan_country}
@@ -805,6 +798,7 @@ do_blue_config() {
     fi
     
     # Configure blue user alias for consolepi-menu command (overriding the symlink to the full menu with cloud support)
+    # TODO change this to use .bash_login or .bash_profile bashrc works lacking those files, more appropriate to use .profile over .bashrc anyway
     if [[ ! $(sudo grep "alias consolepi-menu" /home/blue/.bashrc) ]]; then
         sudo echo alias consolepi-menu=\"/etc/ConsolePi/src/consolepi-menu.sh\" | sudo tee -a /home/blue/.bashrc > /dev/null && 
             logit "BlueTooth User Configured to launch menu on Login" || 
@@ -871,6 +865,15 @@ do_consolepi_mdns() {
     process="ConsolePi mDNS (systemd)"
     systemd_diff_update consolepi-mdnsreg
     systemd_diff_update consolepi-mdnsbrowse
+    for d in 'avahi-daemon.socket' 'avahi-daemon.service' ; do
+        _error=false
+        if ! systemctl status "$d" | grep -q disabled ; then
+            [[ "$d" =~ "socket" ]] && logit "disabling ${d%.*} ConsolePi has it's own mdns daemon"
+            systemctl stop "$d" >/dev/null 2>&1 || _error=true
+            systemctl disable "$d" 2>/dev/null || _error=true
+            $_error && logit "Error occured: stop - disable $d Check daemon status" "warning"
+        fi
+    done
     unset process
 }
 

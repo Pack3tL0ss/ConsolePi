@@ -24,7 +24,7 @@ wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log" 
 final_log="/var/log/ConsolePi/install.log"
 cloud_cache="/etc/ConsolePi/cloud.json"
-override_dir="/etc/ConsolePi/src/override"
+override_dir="/etc/ConsolePi/src/override" # TODO NO TRAILING / make others that way
 py3ver=$(python3 -V | cut -d. -f2)
 warn_cnt=0
 
@@ -396,7 +396,7 @@ convert_template() {
 }
 
 do_systemd_enable_load_start() {
-    if [[ ! -f "${override_dir}${1}.service" ]] ; then
+    if [[ ! -f "${override_dir}/${1}.service" ]] ; then
         status=$(systemctl is-enabled $1 2>&1)
         if [ "$status" == "disabled" ]; then
             sudo systemctl enable $1 1>/dev/null 2>> $log_file  && logit "${1} systemd unit file enabled" || 

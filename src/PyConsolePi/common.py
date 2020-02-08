@@ -666,7 +666,7 @@ class ConsolePi_data():
                         remote_data['adapters'] = _adapters
                         update = True
                 elif _adapters == 200:
-                    self.error_msgs.append('Remote @ {} is reachable, but has no adapters attached'.format(remote_data['rem_ip']))
+                    self.error_msgs.append('Remote @ {} is reachable, but has no adapters attached'.format(_ip))
                     self.error_msgs.append('it\'s still available in remote shell menu')
 
                 # remote was reachable update rem_ip, even if returned bad status_code still reachable

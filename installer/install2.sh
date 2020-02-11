@@ -453,80 +453,85 @@ misc_imports(){
 
 install_ser2net () {
     # To Do add check to see if already installed / update
-    process="Install ser2net"
+    process="Install ser2net via apt"
     logit "${process} - Starting"
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
-    # if [[ -z $ser2net_ver ]] || ( [ ! -z $ser2net_ver ] && [ ! "$ser2net_ver" = "$ser2net_source_version" ] ); then
     if [[ -z $ser2net_ver ]]; then
-        logit "Installing ser2net from source"
-        cd /usr/local/bin
+        apt-get -y install ser2net 1>/dev/null 2>> $log_file &&
+            logit "ser2net install Success" ||
+            logit "ser2net install Failed." "WARNING"
+    #################################################################################
+    # Changed to install from apt now that apt isn't so far behind
+    # scripting below remaining for future option to install from src ser2net 4.x
+    #################################################################################
+    #     logit "Installing ser2net from source"
+    #     cd /usr/local/bin
 
-        logit "Retrieve and extract package"
-        wget -q "${ser2net_source}" -O ./ser2net.tar.gz 1>/dev/null 2>> $log_file && 
-            logit "Successfully pulled ser2net from source" || logit "Failed to pull ser2net from source" "ERROR"
+    #     logit "Retrieve and extract package"
+    #     wget -q "${ser2net_source}" -O ./ser2net.tar.gz 1>/dev/null 2>> $log_file && 
+    #         logit "Successfully pulled ser2net from source" || logit "Failed to pull ser2net from source" "ERROR"
 
-        tar -zxvf ser2net.tar.gz 1>/dev/null 2>> $log_file &&
-            logit "ser2net extracted" ||
-            logit "Failed to extract ser2net from source" "ERROR"
+    #     tar -zxvf ser2net.tar.gz 1>/dev/null 2>> $log_file &&
+    #         logit "ser2net extracted" ||
+    #         logit "Failed to extract ser2net from source" "ERROR"
 
-        rm -f /usr/local/bin/ser2net.tar.gz || logit "Failed to remove tar.gz" "WARNING"
-        cd ser2net-${ser2net_source_version}/
+    #     rm -f /usr/local/bin/ser2net.tar.gz || logit "Failed to remove tar.gz" "WARNING"
+    #     cd ser2net-${ser2net_source_version}/
 
-        logit "./configure ser2net"
-        ./configure 1>/dev/null 2>> $log_file &&
-            logit "./configure ser2net Success" ||
-            logit "ser2net ./configure Failed" "ERROR"
+    #     logit "./configure ser2net"
+    #     ./configure 1>/dev/null 2>> $log_file &&
+    #         logit "./configure ser2net Success" ||
+    #         logit "ser2net ./configure Failed" "ERROR"
 
-        logit "ser2net make - be patient, this takes a few."
-        make 1>/dev/null 2>> $log_file &&
-            logit "ser2net make Success" ||
-            logit "ser2net make Failed" "ERROR"
+    #     logit "ser2net make - be patient, this takes a few."
+    #     make 1>/dev/null 2>> $log_file &&
+    #         logit "ser2net make Success" ||
+    #         logit "ser2net make Failed" "ERROR"
             
-        logit "ser2net make install, make clean"
-        make install 1>/dev/null 2>> $log_file &&
-            logit "ser2net make install Success" ||
-            logit "ser2net make install Failed" "ERROR"
+    #     logit "ser2net make install, make clean"
+    #     make install 1>/dev/null 2>> $log_file &&
+    #         logit "ser2net make install Success" ||
+    #         logit "ser2net make install Failed" "ERROR"
 
-        make clean 1>/dev/null 2>> $log_file &&
-            logit "ser2net make clean Success" ||
-            logit "ser2net make clean Failed" "WARNING"
-        cd $cur_dir
+    #     make clean 1>/dev/null 2>> $log_file &&
+    #         logit "ser2net make clean Success" ||
+    #         logit "ser2net make clean Failed" "WARNING"
+    #     cd $cur_dir
         
-        do_ser2net=true
-        if ! $upgrade; then
-            found_path=$(get_staged_file_path "ser2net.conf")
-            if [[ $found_path ]]; then 
-            cp $found_path "/etc" &&
-                logit "Found ser2net.conf in ${found_path}.  Copying to /etc" ||
-                logit "Error Copying your pre-staged ${found_path} file" "WARNING"
-                do_ser2net=false
-            fi
-        fi
+    #     do_ser2net=true
+    #     if ! $upgrade; then
+    #         found_path=$(get_staged_file_path "ser2net.conf")
+    #         if [[ $found_path ]]; then 
+    #         cp $found_path "/etc" &&
+    #             logit "Found ser2net.conf in ${found_path}.  Copying to /etc" ||
+    #             logit "Error Copying your pre-staged ${found_path} file" "WARNING"
+    #             do_ser2net=false
+    #         fi
+    #     fi
 
-        if $do_ser2net; then
-            logit "Building ConsolePi Config for ser2net"
-            cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $log_file || 
-                logit "ser2net Failed to copy config file from ConsolePi src" "ERROR"
-        fi
+    #     if $do_ser2net; then
+    #         logit "Building ConsolePi Config for ser2net"
+    #         cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $log_file || 
+    #             logit "ser2net Failed to copy config file from ConsolePi src" "ERROR"
+    #     fi
 
         
-        logit "Building init for ser2net"
-        cp /etc/ConsolePi/src/systemd/ser2net.init /etc/init.d/ser2net 2>> $log_file || 
-            logit "ser2net Failed to copy init file from ConsolePi src" "ERROR"
+    #     logit "Building init for ser2net"
+    #     cp /etc/ConsolePi/src/systemd/ser2net.init /etc/init.d/ser2net 2>> $log_file || 
+    #         logit "ser2net Failed to copy init file from ConsolePi src" "ERROR"
             
-        chmod +x /etc/init.d/ser2net 2>> $log_file || 
-            logit "ser2net Failed to make init executable" "WARNING"
+    #     chmod +x /etc/init.d/ser2net 2>> $log_file || 
+    #         logit "ser2net Failed to make init executable" "WARNING"
         
-        logit "ser2net Enable init"
-        /lib/systemd/systemd-sysv-install enable ser2net 1>/dev/null 2>> $log_file && 
-            logit "ser2net init file enabled" ||
-            logit "ser2net failed to enable init file (start on boot)" "WARNING"
+    #     logit "ser2net Enable init"
+    #     /lib/systemd/systemd-sysv-install enable ser2net 1>/dev/null 2>> $log_file && 
+    #         logit "ser2net init file enabled" ||
+    #         logit "ser2net failed to enable init file (start on boot)" "WARNING"
             
-        systemctl daemon-reload || 
-            logit "systemctl failed to reload daemons" "WARNING"
+    #     systemctl daemon-reload || 
+    #         logit "systemctl failed to reload daemons" "WARNING"
     else
         logit "Ser2Net ${ser2net_ver} already installed. No Action Taken re ser2net"
-        logit "Ser2Net Upgrade is a Potential future function of this script"
     fi
         
     logit "${process} - Complete"
@@ -715,6 +720,7 @@ install_autohotspotn () {
         logit "iw $iw_ver already installed/current."
     fi
         
+    # TODO place update in sysctl.d same as disbale ipv6
     logit "Enable IP-forwarding (/etc/sysctl.conf)"
     if $(! grep -q net.ipv4.ip_forward=1 /etc/sysctl.conf); then
     sed -i '/^#net\.ipv4\.ip_forward=1/s/^#//g' /etc/sysctl.conf 1>/dev/null 2>> $log_file && logit "Enable IP-forwarding - Success" ||
@@ -1126,7 +1132,7 @@ post_install_msg() {
         echo
         prompt="A reboot is required, do you want to reboot now"
         go_reboot=$(user_input_bool)
-        $go_reboot && sudo reboot || echo "\nConsolePi Install script Complete, Reboot is required"
+        $go_reboot && sudo reboot || echo -e "\nConsolePi Install script Complete, Reboot is required"
     fi
 }
 

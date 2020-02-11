@@ -2,6 +2,7 @@
 # /readme_content/*.jpg
 /bak
 ConsolePi.conf
+ConsolePi.yaml
 ConsolePi.cloud
 cloud.data
 *.data

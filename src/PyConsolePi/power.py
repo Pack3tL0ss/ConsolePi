@@ -167,12 +167,12 @@ class Outlets:
         return outlet_data
 
     def pwr_start_update_threads(self, upd_linked=False, failures={}, t_name='init'):
-        kwargs = {'upd_linked':upd_linked, 'failures': failures}
+        kwargs = {'upd_linked': upd_linked, 'failures': failures}
         outlet_data = self.outlet_data['linked'] if 'linked' in self.outlet_data else None
         if not failures:
             if 'failures' in outlet_data:
                 failures = outlet_data['failures']
-        if failures: # re-attempt connection to failed power controllers on refresh
+        if failures:  # re-attempt connection to failed power controllers on refresh
             outlet_data = {**outlet_data, **failures}
             failures = {}
 
@@ -187,8 +187,6 @@ class Outlets:
                 if not found:
                     threading.Thread(target=self.pwr_get_outlets, args=[{k: outlet_data[k]}], kwargs=kwargs, name=t_name + '_pwr_' + k).start()
 
-
-
     def pwr_get_outlets(self, outlet_data=None, upd_linked=False, failures={}):
         '''Get Details for Outlets defined in power.json
 
@@ -198,21 +196,12 @@ class Outlets:
                 all ports for the dli.
             failures,dict: when refreshing outlets pass in previous failures so they can be re-tried
         '''
-        # if not self.outlet_data:
-        #     if path.isfile(self.power_file):
-        #         with open (self.power_file, 'r') as _power_file:
-        #             outlet_data = _power_file.read()
-        #         outlet_data = json.loads(outlet_data, object_pairs_hook=od)
-        #     else:
-        #         outlet_data = None
-        #         return
-        # else:
-        #     outlet_data = self.outlet_data['linked'] if 'linked' in self.outlet_data else None
+        # TODO remove update_linked logic move to common
 
         if outlet_data is None:
             outlet_data = self.outlet_data
 
-        if outlet_data is not None: # Nothing in power.json or file doesn't exist
+        if outlet_data is not None:  # Nothing in power.json or file doesn't exist
             if 'dli_power' in outlet_data:
                 dli_power = outlet_data['dli_power']
             elif 'dli_power' in self.outlet_data:
@@ -226,7 +215,7 @@ class Outlets:
             elif 'failures' in self.outlet_data and self.outlet_data['failures']:
                 failures = self.outlet_data['failures']
 
-        if failures: # re-attempt connection to failed power controllers on refresh
+        if failures:  # re-attempt connection to failed power controllers on refresh
             outlet_data = {**outlet_data, **failures}
             failures = {}
 
@@ -254,7 +243,7 @@ class Outlets:
                     print('{}'.format('=' * len(dbg_line)))
 
                 # - Check the power.json data for some required information
-                all_good = True # initial value
+                all_good = True  # initial value
                 for _ in ['address', 'username', 'password']:
                     if _ not in outlet or outlet[_] is None:
                         all_good = False
@@ -262,7 +251,7 @@ class Outlets:
                         failures[k]['error'] = '[PWR-DLI {}] {} missing from {} configuration - skipping'.format(k, _, failures[k]['address']) 
                         # Log here, delete item from dict? TODO
                         break
-                    
+
                 if all_good:
                     (this_dli, _update) = self.load_dli(outlet['address'], outlet['username'], outlet['password'])
                     if this_dli is None or this_dli.dli is None:

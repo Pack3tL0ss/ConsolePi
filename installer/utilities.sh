@@ -14,15 +14,23 @@ fi
 
 get_util_status () {
     UTIL_VER['tftpd']=$(in.tftpd -V 2>/dev/null | awk '{print $2}'|cut -d, -f1)
+    PKG_EXPLAIN['tftpd']="tftp server"
+
     UTIL_VER['lldpd']=$(lldpd -v 2>/dev/null)
+    PKG_EXPLAIN['lldpd']="Enables lldp on wired ports, for discovery of ConsolePi info from lldp capable device it's connected to"
+
     ansible --version > /tmp/ansible_ver 2>/dev/null
     UTIL_VER['ansible']=$(head -1 /tmp/ansible_ver | awk '{print $2}')
+    PKG_EXPLAIN['ansible']="open source automation framework/engine."
+
     a_role="${home_dir}.ansible/roles/arubanetworks.aoscx_role"
     aoss_dir=$(grep "ansible python module location" /tmp/ansible_ver | cut -d'=' -f 2 | cut -d' ' -f 2)/modules/network/arubaoss
     pycmd=python$(tail -1 /tmp/ansible_ver | awk '{print $4}' | cut -d'.' -f 1)
     which $pycmd >/dev/null 2>&1 || ( logit "Failed to determine Ansible Python Ver" "WARNING" && pycmd=python)
+
     cpit_status=$(dpkg -l | grep " cockpit " | awk '{print $1,$3}')
     [[ "$cpit_status" =~ "ii" ]] && UTIL_VER['cockpit']="${cpit_status/ii }" || UTIL_VER['cockpit']=
+    PKG_EXPLAIN['cockpit']="Glanceable Web DashBoard with web tty (reach it on port 9090)"
 
     if [[ ! -z $a_role ]] && [[ -d $a_role ]]; then
         cx_mod_installed=true
@@ -38,6 +46,7 @@ get_util_status () {
     ( $cx_mod_installed || $sw_mod_installed ) && a_mod_status='partially installed' || unset a_mod_status
     ( $cx_mod_installed && $sw_mod_installed ) && a_mod_status='installed'
     UTIL_VER['aruba_ansible_modules']=$( echo $a_mod_status )
+    PKG_EXPLAIN['aruba_ansible_modules']="Aruba Networks modules for ansible"
     # warn if aruba-ansible-modules is not completely installed and add option to menu to install
     if [[ $a_mod_status == 'partially installed' ]]; then
         process="build utilities menu"
@@ -50,25 +59,27 @@ get_util_status () {
     [ -z "$model_pretty" ] && get_pi_info > /dev/null
     if [[ "$model_pretty" =~ "Pi 4" ]] ; then
         UTIL_VER['speed_test']=$( [ -f /var/www/speedtest/speedtest.js ] && echo installed )
+        PKG_EXPLAIN['speed_test']="self-hosted network speed-test"
     else
         process='consolepi-extras'
         logit "consolepi-extras (optional utilities/packages installer) omitted speed test option not >= Pi 4"
         unset process
     fi
     # UTIL_VER['wireshark~tshark']=$( which wireshark )
+    # PKG_EXPLAIN['wireshark~tshark']="packet capture software"
     util_list_i=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort))
     util_list_f=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort -rn))
     sudo rm /tmp/ansible_ver 2>/dev/null
 
 
 
-    i=0; for u in ${util_list_i[@]}; do
+    sep=': '; i=0; for u in ${util_list_i[@]}; do
         pretty=${u//_/ }
-        [[ "$u" =~ "sw_mod" ]] && pretty="Install Missing aos-switch Ansible Module"
-        [[ "$u" =~ "cx_mod" ]] && pretty="Install Missing aos-cx Ansible Module"
+        [[ "$u" =~ "sw_mod" ]] && pretty="Install Missing aos-switch Ansible Module" && sep=''
+        [[ "$u" =~ "cx_mod" ]] && pretty="Install Missing aos-cx Ansible Module" && sep=''
         ASK_OPTIONS[$i]=$u; ((i+=1)) # hidden tag
         if [ -z "${UTIL_VER[$u]}" ]; then
-            ASK_OPTIONS[$i]=$pretty; ((i+=1)) # item text formatted version of tag
+            ASK_OPTIONS[$i]="${pretty}${sep}${PKG_EXPLAIN[$u]}"; ((i+=1)) # item text formatted version of tag
             ASK_OPTIONS[$i]=NO; ((i+=1)) # item not checked (not installed)
         else
             if [[ ${UTIL_VER[$u]} = [0-9]* ]]; then
@@ -88,7 +99,7 @@ do_ask() {
     if [ ! -z "$ASK_OPTIONS" ]; then
         # height width list-height
         utils=$(whiptail --notags --nocancel --separate-output --title "Optional Packages/Tools" --backtitle "$backtitle"  \
-        --checklist "\nUse SpaceBar to toggle\nSelect item to Install, Un-Select to Remove" $((list_len+10)) 55 $list_len \
+        --checklist "\nUse SpaceBar to toggle\nSelect item to Install, Un-Select to Remove" $((list_len+10)) 125 $list_len \
         "${ASK_OPTIONS[@]}" 3>&1 1>&2 2>&3)
         # return to util_main if user pressed esc
         ret=$? && [[ $ret != 0 ]] && return $ret
@@ -158,7 +169,7 @@ util_exec() {
         ansible)
             if [[ $2 == "install" ]]; then
                 cmd_list=(
-                    "-l" "Updating apt with ansible repo"
+                    "-l" "adding ansible repo to apt sources"
                     "-s" "-f" "failed to update apt sources with ansible repo" 'echo "deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main" > /etc/apt/sources.list.d/ansible.list' \
                     "-s" "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367" \
                     "apt update" \
@@ -340,6 +351,7 @@ util_main() {
     if [ -z $1 ]; then
     # -- // GLOBALS \\ --
         declare -A UTIL_VER
+        declare -A PKG_EXPLAIN
         declare -a INSTALLED
         declare -a ASK_OPTIONS
         get_util_status

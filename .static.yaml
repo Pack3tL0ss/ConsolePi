@@ -1,0 +1,16 @@
+%YAML 1.2
+# This file should not be modified.  Static variables/paths used throughout ConsolePi
+---
+CONSOLEPI_VER: 2020-2.9
+CONFIG_FILE_YAML: /etc/ConsolePi/ConsolePi.yaml
+CONFIG_FILE: /etc/ConsolePi/ConsolePi.conf # For backward compat, use yaml config going forward
+POWER_FILE: /etc/ConsolePi/power.json # For backward compat, use yaml config going forward
+REM_HOSTS_FILE: /etc/ConsolePi/hosts.json # For backward compat, use yaml config going forward
+LOCAL_CLOUD_FILE: /etc/ConsolePi/cloud.json
+CLOUD_CREDS_FILE: /etc/ConsolePi/cloud/gdrive/.credentials/credentials.json
+LOG_FILE: /var/log/ConsolePi/consolepi.log
+RULES_FILE: /etc/udev/rules.d/10-ConsolePi.rules
+SER2NET_FILE: /etc/ser2net.conf # To Be Removed.  ser2net cfg will be determined by program (to support 4.x yaml)
+REM_LAUNCH: /etc/ConsolePi/src/remote_launcher.py
+VALID_BAUD: ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']
+FALLBACK_USER: pi # if rem_user is missing from config, or for a remote...

@@ -1,0 +1,17 @@
+---------------------------------  ConsolePi Example Customizations ---------------------------------
+
+ConsolePi Configures itself with what I hope is the most commonly desired set of functionality.
+
+The Upgrade process verifies some system files match whats in the repo, so that any enhancements that
+involved changes to those files will be deployed.  In order to accomodate customization of the system
+files involved without ConsolePi interfering during `consolepi-upgrade`.  An override mechanism exists.
+To bypass validation of any of the system files/configurations that ConsolePi verifies, place a files
+with the same name in the overrides directory.  i.e. `touch rfcomm.service` will skip verification of
+the rfcomm systemd unit file.  See the README in the override directory for more info.
+
+This directory is simply a collection of example customizations that some might find useful.  If 
+contributing an example please place a comment block at the top explaining what functionality/purpose
+use-case etc. it provides.
+
+remember to place a file with the same name in the override directory if using these or any
+customizations.

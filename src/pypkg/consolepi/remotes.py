@@ -27,13 +27,13 @@ class Remotes():
         CLOUD_CREDS_FILE = config.static.get('CLOUD_CREDS_FILE')
         if not CLOUD_CREDS_FILE:
             self.no_creds_error()
-        if self.do_cloud and cpi.config.cfg.get('cloud_svc') == 'gdrive':
+        if self.do_cloud and cpi.config.cloud_svc == 'gdrive':
             if cpi.utils.is_reachable('www.googleapis.com', 443):
                 self.local_only = False
                 if not cpi.utils.valid_file(CLOUD_CREDS_FILE):
                     self.no_creds_error()
             else:
-                cpi.config.log_and_show('failed to connect to {cloud_svc} - operating in local only mode',
+                cpi.config.log_and_show(f'failed to connect to {cpi.config.cloud_svc} - operating in local only mode',
                                         log=cpi.config.log.warning)
                 self.local_only = True
         self.data = self.get_remote(data=cpi.config.remotes)
@@ -186,8 +186,8 @@ class Remotes():
                 config.log_and_show(f'[MENU REFRESH] No Remote ConsolePis found on {cloud_svc}', log=log.warning)
         else:
             if self.do_cloud:
-                cpi.error_msg.append(f'Not Updating from {cloud_svc} due to connection failure')
-                cpi.error_msg.append('Close and re-launch menu if network access has been restored')
+                cpi.error_msgs.append(f'Not Updating from {cloud_svc} due to connection failure')
+                cpi.error_msgs.append('Close and re-launch menu if network access has been restored')
 
         # Update Remote data with data from local_cloud cache
         config.remote = self.get_remote(data=remote_consoles)

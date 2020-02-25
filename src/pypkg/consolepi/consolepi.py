@@ -138,6 +138,8 @@ class ConsolePi():
 
             if not found:
                 if name == 'init' and thread_type == 'power':
+                    if not self.pwr.data.get('dli_power'):
+                        self.pwr.dli_exists = False
                     self.pwr_init_complete = True
                 if do_log:
                     log.info('[{0} {1} WAIT] {0} Threads have Completed, elapsed time: {2}'.format(

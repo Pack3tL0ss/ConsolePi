@@ -26,6 +26,7 @@ class Config():
         self.REM_LAUNCH = self.static.get('REM_LAUNCH', '/etc/ConsolePi/src/remote_launcher.py')
         self.cfg_yml = self.get_config_all(self.static.get('CONFIG_FILE_YAML'))
         self.cfg = self.cfg_yml.get('CONFIG')
+        self.cloud_svc = self.cfg.get('cloud_svc')
         self.log = self.get_logger()
 
         self.ser2net_conf = self.get_ser2net()

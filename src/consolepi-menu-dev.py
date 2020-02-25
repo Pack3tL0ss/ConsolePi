@@ -50,14 +50,22 @@ class ConsolePiMenu(Rename):
 
     def do_menu_load_warnings(self):
         '''Displays and logs warnings based on data collected/validated during menu load.'''
+
+        # -- // Not running as root \\ --
         if not self.cpi.config.root:
             self.cpi.config.log_and_show('Running without sudo privs ~ Results may vary!\n'
                                          'Use consolepi-menu to launch menu', logit=False)
+
+        # -- // Remotes with older API schema \\ --
         for adapters in [self.cpi.remotes.data[r].get('adapters', {}) for r in self.cpi.remotes.data]:
             if isinstance(adapters, list):
                 _msg = 'You have remotes running older versions ~ older API schema.  You Should Upgrade those Remotes'
                 self.cpi.config.log_and_show(_msg, log=self.cpi.config.log.warning)
                 break
+
+        # -- // No Local Adapters Found \\ --
+        if not self.cpi.local.adapters:
+            self.cpi.error_msgs.append('No Local Adapters Detected')
 
     # =======================
     #     MENUS FUNCTIONS
@@ -75,7 +83,7 @@ class ConsolePiMenu(Rename):
                 the specific logical grouping of menu-items. body and subs lists should be of = len
             header: The main Header text for the menu
             footer: an optional text string or list of strings to be added to the menu footer.
-            foot_opts: {list} - list of 'strs' to match key from footer_options dict defined in 
+            foot_opts: {list} - list of 'strs' to match key from footer_options dict defined in
                 menu_formatting method.  Determines what menu options are displayed in footer.
                 (defaults options: x. Exit)
             col_pad: how many spaces will be placed between horizontal menu sections.
@@ -84,7 +92,7 @@ class ConsolePiMenu(Rename):
             foot_fmt: {dict} - Optional formatting dict.  top-level should be designated keywork that
                 specifies supported formatting options (_rjust = right justify).  2nd level should be
                 the footer_options key to match on where the value = the text.  Example:
-                foot_fmt={'_rjust': {'back': 'menu # alone will toggle the port'}} ~ will result in 
+                foot_fmt={'_rjust': {'back': 'menu # alone will toggle the port'}} ~ will result in
                 b.  Back                                            menu # alone will toggle the port
                 where 'b.  Back' comes from the pre-defined foot_opts dict.
             do_cols: bool, If specified and set to False will bypass horizontal column printing and
@@ -241,10 +249,10 @@ class ConsolePiMenu(Rename):
             _tot_width = MIN_WIDTH if _tot_width < MIN_WIDTH else _tot_width
 
         # -- // Generate Final Body Rows \\ --
-        _final_rows = []
+        # _final_rows = []
         pad = ' ' * col_pad
+        _final_rows = [] if not body['sections'] else body['sections'][0]
 
-        _final_rows = body['sections'][0]
         for s in body['sections']:
             if body['sections'].index(s) == 0:
                 continue
@@ -258,7 +266,10 @@ class ConsolePiMenu(Rename):
                 _final_rows = [a + pad + b for a, b in zip(_final_rows, s)]
 
         # --// PRINT MENU \\--
-        _tot_width = len(_final_rows[0]) if len(_final_rows[0]) > _tot_width else _tot_width
+        if _final_rows:
+            _tot_width = len(_final_rows[0]) if len(_final_rows[0]) > _tot_width else _tot_width
+        else:
+            _tot_width = 0
         self.menu_cols = _tot_width  # FOR DEBUGGING
         self.menu_formatting('header', text=header, width=_tot_width, do_print=True)
         if subhead:
@@ -289,10 +300,10 @@ class ConsolePiMenu(Rename):
         max_len = None
         # footer options also supports an optional formatting dict
         # place '_rjust' in the list and the subsequent item should be a dict
-        # 
+        #
         # _rjust: {dict} right justify addl text on same line with
-        # one of the other footer options.  
-        # i.e. 
+        # one of the other footer options.
+        # i.e.
         footer_options = {
             'power': ['p', 'Power Control Menu'],
             'dli': ['d', '[dli] Web Power Switch Menu'],
@@ -723,6 +734,11 @@ class ConsolePiMenu(Rename):
         if not cpi.pwr_init_complete:
             with Halo(text='Ensuring Outlet init threads are complete', spinner='dots'):
                 cpi.wait_for_threads('init')
+
+        if not pwr.dli_exists:
+            cpi.error_msgs.append('All Defined dli web Power Switches are unreachable')
+            return
+
         dli_dict = pwr.data['dli_power']
         while choice not in ['x', 'b']:
             # if not self.DEBUG:
@@ -868,8 +884,9 @@ class ConsolePiMenu(Rename):
                 if 'rem_ip' not in rem[host]:
                     config.log.warning('[KEY_MENU] {} lacks rem_ip skipping'.format(host))
                     continue
-                if rem[host]['rem_ip'] is not None:
-                    rem_ip = rem[host].get('rem_ip')
+
+                rem_ip = rem[host].get('rem_ip')
+                if rem_ip:
                     rem_user = rem[host].get('user', config.static.get('FALLBACK_USER', 'pi'))
                     mlines.append(f'{host} @ {rem_ip}')
                     this = (host, rem_ip, rem_user)
@@ -983,6 +1000,11 @@ class ConsolePiMenu(Rename):
 
             slines = []
             mlines, menu_actions, item = self.gen_adapter_lines(loc, rename=True)  # pylint: disable=unused-variable
+
+            if not mlines:
+                cpi.error_msgs.append('No Local Adapters')
+                break
+
             slines.append('Select Adapter to Rename')   # list of strings index to index match with body list of lists
             footer = {'before': [
                 's#. Show details for the adapter i.e. \'s1\'',
@@ -1000,7 +1022,6 @@ class ConsolePiMenu(Rename):
             self.print_mlines(mlines, header='Define/Rename Local Adapters', footer=footer, subs=slines, do_format=False)
             menu_actions['x'] = self.exit
 
-            # choice = input(" >> ").lower()
             choice = self.wait_for_input(lower=True, terminate=False)
             if choice in menu_actions:
                 if not choice == 'b':
@@ -1023,6 +1044,9 @@ class ConsolePiMenu(Rename):
         loc = cpi.local.adapters
         pwr = cpi.pwr
         rem = remotes.data
+        outer_body = []
+        slines = []
+        item = 1
 
         menu_actions = {
             'h': self.picocom_help,
@@ -1030,33 +1054,32 @@ class ConsolePiMenu(Rename):
             'x': self.exit,
             'sh': cpi.launch_shell
         }
-        if config.power and cpi.pwr.data:
-            if cpi.pwr.linked_exists or cpi.pwr.gpio_exists or cpi.pwr.tasmota_exists:
+        if config.power and pwr.data:
+            if pwr.linked_exists or pwr.gpio_exists or pwr.tasmota_exists:
                 menu_actions['p'] = self.power_menu
-            elif cpi.pwr.dli_exists:  # if no linked outlets but dlis defined p sends to dli_menu
+            elif pwr.dli_exists:  # if no linked outlets but dlis defined p sends to dli_menu
                 menu_actions['p'] = self.dli_menu
 
-            if cpi.pwr.dli_exists:
+            if pwr.dli_exists:
                 menu_actions['d'] = self.dli_menu
 
         # DIRECT LAUNCH TO POWER IF NO ADAPTERS (given there are outlets)
         if not loc and not rem and config.power:
             cpi.error_msgs.append('No Adapters Found, Outlets Defined... Launching to Power Menu')
             cpi.error_msgs.append('use option "b" to access main menu options')
-            if config.pwr.dli_exists and not config.pwr.linked_exists:
-                self.exec_menu('d')
+            if pwr.dli_exists and not pwr.linked_exists:
+                self.exec_menu('d', menu_actions)
             else:
-                self.exec_menu('p')
+                self.exec_menu('p', menu_actions)
 
         # Build menu items for each locally connected serial adapter
-        outer_body = []
-        slines = []
-        mlines, loc_menu_actions, item = self.gen_adapter_lines(loc)
-        if loc_menu_actions:
-            menu_actions = {**loc_menu_actions, **menu_actions}
+        if loc:
+            mlines, loc_menu_actions, item = self.gen_adapter_lines(loc)
+            if loc_menu_actions:
+                menu_actions = {**loc_menu_actions, **menu_actions}
 
-        outer_body.append(mlines)   # list of lists where each list = printed menu lines
-        slines.append('[LOCAL] Directly Connected')   # Sub-heads: list of str idx to idx match with outer_body list of lists
+            outer_body.append(mlines)   # list of lists where each list = printed menu lines
+            slines.append('[LOCAL] Directly Connected')   # Sub-heads: list of str idx to idx match with outer_body list of lists
 
         # Build menu items for each serial adapter found on remote ConsolePis
         for host in sorted(rem):
@@ -1193,20 +1216,16 @@ class ConsolePiMenu(Rename):
         if not self.debug and calling_menu not in ['dli_menu', 'power_menu']:
             os.system('clear')
 
-        if choice is None:
+        if not choice or choice.lower() in menu_actions and menu_actions[choice.lower()] is None:
+            self.rows, self.cols = utils.get_tty_size()  # re-calc tty size in case they've adjusted the window
             return
         else:
             ch = choice.lower()
 
-        if ch == '':
-            self.rows, self.cols = utils.get_tty_size()  # re-calc tty size in case they've adjusted the window
-            return
-        elif ch == 'exit':
+        if ch == 'exit':
             self.exit()
-        elif ch in menu_actions and menu_actions[ch] is None:
-            return
         elif 'self.' in ch or 'config.' in ch or 'cloud.' in ch or 'local.' in ch or 'cpi.' in ch or 'remotes.' in ch \
-             or 'this.' in ch:
+             or 'pwr.' in ch or 'this.' in ch:
             local = cpi.local  # NoQA
             remotes = cpi.remotes
             cloud = remotes.cloud  # NoQA

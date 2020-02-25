@@ -150,20 +150,21 @@ class Local():
     def get_if_info(self):
         '''Build and return dict with interface info.'''
         log = self.config.log
-        if_list = [i for i in ni.interfaces() if i != 'lo']
-        if_w_gw = ni.gateways()['default'][ni.AF_INET][1]
-        if_data = {_if: {'ip': ni.ifaddresses(_if)[ni.AF_INET][0].get('addr'),
-                         'mac': ni.ifaddresses(_if)[ni.AF_LINK][0].get('addr'),
+        if_list = [i for i in ni.interfaces() if i != 'lo' and 'docker' not in i]
+        if_w_gw = ni.gateways()['default'].get(ni.AF_INET, {1: None})[1]
+        if_data = {_if: {'ip': ni.ifaddresses(_if).get(ni.AF_INET, {0: {}})[0].get('addr'),
+                         'mac': ni.ifaddresses(_if).get(ni.AF_LINK, {0: {}})[0].get('addr'),
                          'isgw': True if _if == if_w_gw else False} for _if in if_list
-                   if ni.ifaddresses(_if)[ni.AF_INET][0].get('addr') is not None and
-                   'docker' not in _if}
+                   if ni.ifaddresses(_if).get(ni.AF_INET, {0: {}})[0].get('addr')
+                   }
 
-        if_data['_ip_w_gw'] = if_data[if_w_gw]['ip']
+        if_data['_ip_w_gw'] = if_data.get(if_w_gw, {'ip': None})['ip']
         log.debug('[GET IFACES] Completed Iface Data: {}'.format(if_data))
         return if_data
 
     def get_ip_list(self):
-        return [ni.ifaddresses(i)[ni.AF_INET][0]['addr'] for i in ni.interfaces() if i != 'lo' and 'docker' not in i]
+        return [ni.ifaddresses(i).get(ni.AF_INET, {0: {}})[0].get('addr')
+                for i in ni.interfaces() if i != 'lo' and 'docker' not in i]
 
 
 if __name__ == '__main__':

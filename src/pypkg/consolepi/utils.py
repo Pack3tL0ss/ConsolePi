@@ -115,11 +115,18 @@ class Utils():
         if stderr and 'FATAL: cannot lock /dev/' not in stderr:
             # Handle key change Error
             if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in stderr:
+                print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n'
+                      '@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @\n'
+                      '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n'
+                      'IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!\n'
+                      'Someone could be eavesdropping on you right now (man-in-the-middle attack)!\n'
+                      'It is also possible that a host key has just been changed.'
+                      )
                 while True:
                     try:
                         choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
                         if choice.lower() in ['y', 'yes']:
-                            _cmd = shlex.split(stderr.split('remove with:\r\n')[1].split('\r\n')[0].replace('ERROR:   ', ''))
+                            _cmd = shlex.split(stderr.replace('\r', '').split('remove with:\n')[1].split('\n')[0].replace('ERROR:   ', ''))  # NoQA
                             _cmd = shlex.split('sudo -u {}'.format(user)) + _cmd
                             subprocess.run(_cmd)
                             print('\n')

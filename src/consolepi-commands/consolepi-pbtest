@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
 
+# Initiates test of ConsolePi automated actions based on IP changes
+#   IF No args: provided it will initiate a test, and use your configured local_domain
+#               to skip openvpn if enabled.
+#   Optional first Arg: [static|<some new domain>].  The keyword static, will initiate a test
+#                       on the fallback to static flow used to enable dhcp server on eth interface
+#                       any other string will be used as the new domain, which will trigger openvpn
+#                       test
+#
 . /etc/ConsolePi/ConsolePi.conf
 
 echo -e "\n         ConsolePi PushBullet Test"
 ! $push && echo "!!! PushBullet Notifications are not enabled in the config !!!" 
 echo -e "Sending test data to simulate new DHCP address\n"
 sudo /etc/ConsolePi/src/dhcpcd.exit-hook test "$@"
-echo "Test Complete - You Should have a PushBullet Message"
-echo -e "The Notification will display a random IP in the Subject (used to trick the process and invoke the test\n"
+echo -e "Test Complete - You Should have a PushBullet Message\n"
+echo -e "The Notification will display a random IP in the Subject"
+echo -e "(used to trigger the push, your real IP details should be in the body)\n"

@@ -329,6 +329,13 @@ class ConsolePiMenu(Rename):
         # Think I process errors here and maybe in print_mlines as well
         # addl processing in FOOTER
         if self.error_msgs:
+            _temp_error_msgs = self.error_msgs
+            for _error in _temp_error_msgs:
+                if isinstance(_error, str) and '\n' in _error:
+                    _e = _error.split('\n')
+                    self.error_msgs.remove(_error)
+                    self.error_msgs += _e
+
             _error_lens = []
             for _error in self.error_msgs:
                 if isinstance(_error, list):

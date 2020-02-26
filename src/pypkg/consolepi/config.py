@@ -29,17 +29,17 @@ class Config():
         self.cloud_svc = self.cfg.get('cloud_svc')
         self.log = self.get_logger()
 
+        try:
+            self.loc_user = os.getlogin()
+        except Exception:
+            self.loc_user = os.getenv('SUDO_USER', os.getenv('USER'))
+
         self.ser2net_conf = self.get_ser2net()
         self.hosts = self.get_hosts()
         self.outlets = self.get_outlets_from_file()
         self.remotes = self.get_json_file(self.static.get('LOCAL_CLOUD_FILE'))
         self.power = self.cfg.get('power')
         self.root = True if os.geteuid() == 0 else False
-
-        try:
-            self.loc_user = os.getlogin()
-        except Exception:
-            self.loc_user = os.getenv('SUDO_USER', os.getenv('USER'))
 
     def get_logger(self):
         '''Return custom log object.'''
@@ -190,11 +190,11 @@ class Config():
             if hosts[h].get('method').lower() == 'ssh':
                 port = 22 if ':' not in hosts[h]['address'] else hosts[h]['address'].split(':')[1]
                 _user_str = '' if not hosts[h].get('username') else f'{hosts[h].get("username")}@'
-                hosts[h]['cmd'] = f"ssh -t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
+                hosts[h]['cmd'] = f"sudo -u {self.loc_user} ssh -t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
             elif hosts[h].get('method').lower() == 'telnet':
                 port = 23 if ':' not in hosts[h]['address'] else hosts[h]['address'].split(':')[1]
                 _user_str = '' if not hosts[h].get('username') else f'-l {hosts[h].get("username")}'
-                hosts[h]['cmd'] = f"telnet {_user_str} {hosts[h]['address'].split(':')[0]} {port}"
+                hosts[h]['cmd'] = f"sudo -u {self.loc_user} telnet {_user_str} {hosts[h]['address'].split(':')[0]} {port}"
 
         groups = [hosts[h].get('group', 'user-defined') for h in hosts]
         host_dict = {'main': {}, 'rshell': {}}

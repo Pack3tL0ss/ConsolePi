@@ -9,7 +9,7 @@
 #     - Establishes OpenVPN connection
 
 # Locally Defined Variables
-## debug=false # Now in config                                                        # For debugging only - additional logs sent to syslog
+do_resolv=true  # Temporary testing Feb 2020
 push_response_log="/var/log/ConsolePi/push_response.log"            # full path to send PushBullet API responses
 ovpn_log="/var/log/ConsolePi/ovpn.log"                              # full path to send openvpn logs
 ovpn_config="/etc/openvpn/client/ConsolePi.ovpn"	            # full path to openvpn configuration
@@ -41,18 +41,24 @@ fi
 [ ! -z $5 ] && new_ip_address="$5"
 [ -z $reason ] && reason="OVPN_CONNECTED"
 
-## set variables if script called from shell for testing ##
-## Usage for test scriptname test [<domain>]  domain is optional used to specify local_domain to test local connection (otherwise script will determine remote and attempt ovpn if enabled) 
-## domain defaults to local_domain, specify anything else to test vpn
-#if [ -z $1 ] && [ $0 != "/lib/dhcpcd/dhcpcd-run-hooks" ]; then
+# set variables if script called from shell for testing ##
+# Usage for test scriptname test [<domain>]  domain is optional used to specify local_domain to test local connection (otherwise script will determine remote and attempt ovpn if enabled) 
+# domain defaults to local_domain, specify anything else to test vpn
 if [[ $1 == "test" ]]; then
-  logger -t puship-DEBUG Setting random test Variables script ran from shell
-  rand1=`shuf -i 3-254 -n 1`
-  rand2=`shuf -i 3-254 -n 1`
-  reason=BOUND
-  interface=eth0
-  new_ip_address="10.1.$rand1.$rand2"
-  [ ! -z $2 ] && new_domain="$2" || new_domain_name="$local_domain"
+    logger -t puship-DEBUG Setting random test Variables script ran from shell
+    rand1=`shuf -i 3-254 -n 1`
+    rand2=`shuf -i 3-254 -n 1`
+    reason=BOUND
+    interface=eth0
+    new_ip_address="10.1.$rand1.$rand2"
+    if [ ! -z $2 ] ; then
+        if [ ${2,,} == "static" ] ; then 
+            reason=STATIC 
+            [ ! -z $3 ] && new_domain="$3" || new_domain_name="$local_domain"
+        else
+            [ ! -z $2 ] && new_domain="$3" || new_domain_name="$local_domain"
+        fi
+    fi
 fi
 
 # >> Debug Messages <<
@@ -81,15 +87,6 @@ StashNewIP() {
     echo $new_ip_address > /tmp/$interface      # Place newip in tmp file for safe keeping new bind after carrier lost results in nul $old_ip_address being passed from dhcpcd so stashing it
     echo "domain=$new_domain_name" >> /tmp/$interface    # Stash new domain, used by HotSpot feature. HotSpot DHCP Server passes this domain to hotspot clients if exists
     echo "last_update=$(date +'%s')" >> /tmp/$interface       # TimeStamp not currently used but can be to put a cap on push frequency if something started causing a lot of them
-}
-
-# >> This Function is depricated and no longer called - will be removed <<
-OldGetCurrentIP() {
-    $debug && logger -t puship-DEBUG Enter GetCurrentIP Function
-    eth0_ip=`ip addr show dev eth0 2>/dev/null | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
-    wlan0_ip=`ip addr show dev wlan0 | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
-    tun0_ip=`ip addr show dev tun0 2>/dev/null | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
-            xgw=`netstat -rn |grep '^0.0.0.0\s*'|cut -d: -f2| awk '{print $2}'`
 }
 
 GetCurrentIP() {
@@ -167,11 +164,16 @@ BuildMsg() {
     done
     pushMsg="$pushMsg %0A GW: $xgw"
     logMsg="$logMsg | GW: $xgw"
+    
+    if $wired_dhcp ; then 
+        do_wired_dhcp_active && dhcp_msg='Running' || dhcp_msg='NOT RUNNING!'
+        pushMsg="$pushMsg %0A wired-dhcp: $dhcp_msg"
+    fi
 }   
 
 # >> Check if IP new_ip_address is same as previously pushed IP <<#
 Check_is_new_ip() {
-    $debug && logger -t puship-DEBUG Enter check_is_new_ip Function Old: "${old_ip_address}" new: "${new_ip_address}"
+    $debug && logger -t puship-DEBUG Enter check_is_new_ip Function Old: ${last_ip:-None} new: "${new_ip_address}"
 
     if [ -f /tmp/$interface ]; then                                                                     # Pull last IP from file if file exists
         last_ip=`head -1 /tmp/$interface`
@@ -182,11 +184,70 @@ Check_is_new_ip() {
     $is_new_ip && StashNewIP
 }
 
+# update_cloud() {
+#     /etc/ConsolePi/cloud/${cloud_svc}/cloud.py && 
+#         logger -t puship-${cloud_svc} Updated cloud Config ||
+#         logger -t puship-${cloud_svc} Error returned while Updating cloud Config
+# }
+
 update_cloud() {
-    /etc/ConsolePi/cloud/${cloud_svc}/cloud.py && 
-        logger -t puship-${cloud_svc} Updated cloud Config ||
-        logger -t puship-${cloud_svc} Error returned while Updating cloud Config
+    logger -t puship-${cloud_svc} Triggering Update in background
+    /etc/ConsolePi/cloud/${cloud_svc}/cloud.py &
 }
+
+do_wired_dhcp_active(){
+    systemctl is-active consolepi-wired-dhcp.service >/dev/null 2>&1 && return 0 || return 1
+}
+
+# start dhcp eth0 specific instance, if tftp is installed start it if it failed to start prior
+start_wired_dhcp () {    
+    if ! do_wired_dhcp_active; then
+        if systemctl start consolepi-wired-dhcp ; then
+            logger -t puship-wired-dhcp: Successfully started dnsmasq for eth0
+            do_wired_nat
+            if which in.tftpd && systemctl systemctl is-enabled tftpd-hpa >/dev/null; then
+                if ! systemctl is-active tftpd.hpa >/dev/null ; then
+                    systemctl start tftpd.hpa && 
+                        logger -t puship-vrfy-tftpd: Successfully started previously failed tftpd service ||
+                        logger -t puship-vrfy-tftpd: Failed to start previously failed tftpd service
+                fi
+            fi
+        else
+            logger -t puship-wired-dhcp: Failure occured starting dnsmasq for eth0
+        fi
+    else
+        do_wired_nat
+    fi
+
+}
+
+do_wired_nat() {
+    if_w_gw=$(netstat -rn | grep "^0.0.0.0" | awk '{print $8}')
+    if [[ "$if_w_gw" == "wlan0" ]]; then 
+        if Ping_Check "$net_check_ip" && $ping_ok ; then
+            logger -t puship-nat Configuring nat out wlan
+            echo 1 > /proc/sys/net/ipv4/ip_forward
+
+            iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
+            iptables -A INPUT -i wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+            iptables -A FORWARD -j ACCEPT
+            logger -t puship-nat Configuring nat out wlan - Success
+
+            if $ovpn_enable && $ovpn_share ; then
+                logger -t puship-ovpn-share: Configuring ConsolePi Shared OpenVPN tunnel
+                if [ ! -z ${interfaces[tun0]} ]; then
+                    iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+                    iptables -A INPUT -i tun0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+                    logger -t puship-ovpn-share: Configure ConsolePi Shared OpenVPN tunnel - Success
+                else
+                    logger -t puship-ovpn-share: Configure ConsolePi Shared OpenVPN tunnel - Skipped, No tunnel interface
+                fi
+            fi
+        else
+            logger -t puship-nat: Bypassed nat configuration do to lack of internet connectivity
+        fi
+    fi
+}    
 
 run() {
     $debug && logger -t puship-DEBUG Enter run Function
@@ -200,13 +261,14 @@ run() {
         $push && logger -t puship $interface IP is same as prior \($new_ip_address\) No Need for Push Notification.
         $cloud && logger -t puship-cloud $interface IP is same as prior \($new_ip_address\) No Need to update cloud.
     fi
+    $wired_dhcp && start_wired_dhcp
 }
 
 # __main__
 [ "${new_domain_name}" = "${local_domain}" ] && remote=false || remote=true
 $debug && [[ -z $local_domain ]] && local_domain="null_local_domain"
-$debug && [[ -z $new_domain_name ]] && new_domain_name="null_cur_domain"
-$debug && logger -t puship Arguments: $0 $1 $interface $3 $4 $new_ip_address $6 $7 $reason "${local_domain}" "${new_domain_name}" $remote
+$debug && [[ -z $new_domain_name ]] && new_domain_msg="null_cur_domain"
+$debug && logger -t puship-DEBUG Arguments: $1 $interface $3 $4 $new_ip_address $6 $7 $reason "${local_domain}" "${new_domain_msg}" $remote
 declare -A interfaces       
 
 case "$reason" in
@@ -215,6 +277,7 @@ case "$reason" in
      BuildMsg "OVPN"
      $push && Push
      $cloud && update_cloud
+     $do_resolv && /etc/openvpn/update-resolv-conf
      $debug && logger -t puship-DEBUG Reached end of OVPN_CONNECTED flow
      exit 0
      ;;
@@ -224,7 +287,12 @@ case "$reason" in
      exit 0
      ;;
   STATIC)
-    [ $interface = "eth0" ] && run || exit 0
+    if [ $interface == "eth0" ] ; then
+        # $wired_dhcp && start_wired_dhcp
+        run
+    fi
+    $debug && logger -t puship-DEBUG Reached end of STATIC flow
+    exit 0
     ;;
   *)
      exit 0

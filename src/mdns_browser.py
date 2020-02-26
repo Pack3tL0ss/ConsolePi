@@ -71,6 +71,11 @@ class MDNS_Browser:
                         cur_known_adapters = [] if hostname not in config.remotes or not config.remotes[hostname]['adapters'] \
                             else config.remotes[hostname]['adapters']
 
+                        # if cur_known_adapters and 'baud' not in cur_known_adapters:
+                        #     cur_known_adapters = []cur_known_adapters[a].get('config') for a in cur_known_adapters if cur_known_adapters[a].get('config')}
+                        #         if cur_known_adapters[a].get('config'):
+                                    
+
                         # -- Log new entry only if this is the first time it's been discovered --
                         if hostname not in self.d_discovered:
                             self.d_discovered.append(hostname)
@@ -112,11 +117,14 @@ class MDNS_Browser:
                             self.discovered.append('{}{}'.format(hostname, '*' if update_cache else ''))
                             print(hostname + '({}) Discovered via mdns:'.format(rem_ip if rem_ip is not None else '?'))
                             # print(json.dumps(mdns_data, indent=4, sort_keys=True))
-                            print('{}\n{}'.format(
-                                'mdns: None' if from_mdns_adapters is None else 'mdns: {}'.format(
-                                            [d['dev'] for d in from_mdns_adapters]),
-                                'cache: None' if cur_known_adapters is None else 'cache: {}'.format(
-                                            [d['dev'] for d in cur_known_adapters])))
+                            try:
+                                print('{}\n{}'.format(
+                                    'mdns: None' if from_mdns_adapters is None else 'mdns: {}'.format(
+                                                [d['dev'] for d in from_mdns_adapters]),
+                                    'cache: None' if cur_known_adapters is None else 'cache: {}'.format(
+                                                [d['dev'] for d in cur_known_adapters])))
+                            except TypeError:
+                                print('EXCEPTION')
                             print('Discovered ConsolePis: {}'.format(self.discovered))
                             print("\npress Ctrl-C to exit...\n")
 

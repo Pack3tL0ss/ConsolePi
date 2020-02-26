@@ -354,9 +354,9 @@ class Remotes():
                         remote_data['adapters'] = _adapters
                         update = True  # update if cached adapters didn't match
                 elif _adapters == 200:
-                    cpi.error_msgs.append(f"Remote {remote_host} is reachable via {_ip},"
-                                          " but has no adapters attached")
-                    cpi.error_msgs.append('it\'s still available in remote shell menu')
+                    config.log_and_show(f"Remote {remote_host} is reachable via {_ip},"
+                                        " but has no adapters attached\nit's still available in remote shell menu",
+                                        logit=False)
 
                 # remote was reachable update rem_ip, even if returned bad status_code still reachable
                 if not remote_data.get('rem_ip', '') == _ip:

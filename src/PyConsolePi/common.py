@@ -491,7 +491,7 @@ class ConsolePi_data():
             if _if != 'lo':
                 try:
                     if_data[_if] = {'ip': ni.ifaddresses(_if)[ni.AF_INET][0]['addr'],
-                                    'mac': ni.ifaddresses(_if)[ni.AF_LINK][0]['addr']}
+                                    'mac': ni.ifaddresses(_if).get(ni.AF_LINK, {0: {'addr': None}})[0]['addr']}
                 except KeyError:
                     log.info('[GET IFACES] No IP Found for {} skipping'.format(_if))
         log.debug('[GET IFACES] Completed Iface Data: {}'.format(if_data))
@@ -652,9 +652,10 @@ class ConsolePi_data():
             rem_ip_list.append(remote_data['rem_ip'])
 
         for _iface in remote_data['interfaces']:
-            _ip = remote_data['interfaces'][_iface]['ip']
-            if _ip not in rem_ip_list and _ip not in self.ip_list:
-                rem_ip_list.append(_ip)
+            if not _iface.startswith('_'):
+                _ip = remote_data['interfaces'][_iface]['ip']
+                if _ip not in rem_ip_list and _ip not in self.ip_list:
+                    rem_ip_list.append(_ip)
 
         remote_data['rem_ip'] = None
         for _ip in rem_ip_list:

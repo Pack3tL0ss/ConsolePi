@@ -306,10 +306,11 @@ class Utils():
         rows, cols = size.stdout.decode('UTF-8').split()
         return int(rows), int(cols)
 
-    def unique(self, _list):
+    # TODO check if using kwarg sort added to fix re-order of error_msgs
+    def unique(self, _list, sort=False):
         out = []
         [out.append(i) for i in _list if i not in out and i is not None]
-        return sorted(out)
+        return out if not sort else sorted(out)
 
     def is_reachable(self, host, port, timeout=3):
         s = socket.socket()

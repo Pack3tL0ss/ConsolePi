@@ -72,18 +72,17 @@ class Config():
         '''Parse bash style cfg vars from cfg file convert to class attributes.'''
         utils = self.utils
         # prefer yaml file for all config items if it exists
-        legacy_cfg = True  # init
+        do_legacy = True
         if yaml_cfg and utils.valid_file(yaml_cfg):
             yml = self.get_yaml_file(yaml_cfg)
             cfg = yml.get('CONFIG', yml)
             if cfg:
-                legacy_cfg = False
+                do_legacy = False
                 for k in cfg:
                     if cfg[k] in ['true', 'false']:
                         cfg[k] = True if cfg[k] == 'true' else False
                 yml['CONFIG'] = cfg
-
-        if legacy_cfg:
+        else:
             cfg = {}
             if utils.valid_file(legacy_cfg):
                 with open(legacy_cfg, 'r') as config:
@@ -106,7 +105,7 @@ class Config():
             self.default_parity = cfg.get('default_parity', DEFAULT_PARITY)
             self.default_flow = cfg.get('default_flow', DEFAULT_FLOW)
 
-            return yml if not legacy_cfg else {'CONFIG': cfg}
+            return yml if not do_legacy else {'CONFIG': cfg}
 
     def get_outlets_from_file(self):
         '''Get outlets defined in power.json
@@ -124,6 +123,9 @@ class Config():
             outlet_data = self.get_json_file(self.static.get('POWER_FILE'))
 
         if not outlet_data:
+            if self.power:
+                self.cpi.error_msgs.append('Power Function Disabled due to lack of configuration')
+            self.outlet_types = []
             return outlet_data
 
         types = []

@@ -37,9 +37,9 @@ class Config():
 
         self.ser2net_conf = self.get_ser2net()
         self.hosts = self.get_hosts()
+        self.power = self.cfg.get('power')
         self.outlets = self.get_outlets_from_file()
         self.remotes = self.get_json_file(self.static.get('LOCAL_CLOUD_FILE'))
-        self.power = self.cfg.get('power')
         self.root = True if os.geteuid() == 0 else False
 
     def get_logger(self):

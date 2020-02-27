@@ -125,6 +125,7 @@ class Config():
         if not outlet_data:
             if self.power:
                 self.cpi.error_msgs.append('Power Function Disabled due to lack of configuration')
+                self.power = False
             self.outlet_types = []
             return outlet_data
 

@@ -25,7 +25,7 @@ class Config():
         self.FALLBACK_USER = self.static.get('FALLBACK_USER', 'pi')
         self.REM_LAUNCH = self.static.get('REM_LAUNCH', '/etc/ConsolePi/src/remote_launcher.py')
         self.cfg_yml = self.get_config_all(yaml_cfg=self.static.get('CONFIG_FILE_YAML'),
-                                           legacy_cfg=self.static.get('CONFIG_FILE_YAML'))
+                                           legacy_cfg=self.static.get('CONFIG_FILE'))
         self.cfg = self.cfg_yml.get('CONFIG')
         self.cloud_svc = self.cfg.get('cloud_svc')
         self.log = self.get_logger()

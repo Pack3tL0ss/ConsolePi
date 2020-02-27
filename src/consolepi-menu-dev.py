@@ -927,7 +927,8 @@ class ConsolePiMenu(Rename):
         if isinstance(adapters, list):
             adapters = {adapters[adapters.index(d)]['dev']: {'config': {k: adapters[adapters.index(d)][k]
                         for k in adapters[adapters.index(d)]}} for d in adapters}
-        # Generate menu_lines for manually configured hosts
+
+        # -- // Manually Defined Hosts \\ --
         elif adapters.get('_hosts'):
             for h in adapters['_hosts']:
                 menu_line = adapters['_hosts'][h].get('menu_line')
@@ -1255,6 +1256,7 @@ class ConsolePiMenu(Rename):
             try:
                 if isinstance(menu_actions[ch], dict):
                     if menu_actions[ch].get('cmd'):
+                        # TimeStamp for picocom session log file if defined
                         menu_actions[ch]['cmd'] = menu_actions[ch]['cmd'].replace('{{timestamp}}', time.strftime('%F_%H.%M'))
                         # -- // AUTO POWER ON LINKED OUTLETS \\ --
                         if config.power and 'pwr_key' in menu_actions[ch]:  # pylint: disable=maybe-no-member
@@ -1276,13 +1278,17 @@ class ConsolePiMenu(Rename):
                                 # (local): [picocom', '/dev/White3_7003', '--baud 9600', '--flow n', '--databits 8', '--parity n']
                                 # (remote): ['ssh', '-t', 'pi@10.1.30.28', 'remote_launcher.py picocom /dev/AP303P-BARN_7001 --baud 9600 ...']  # NoQA
                                 c = shlex.split(menu_actions[ch]['cmd'])
+                                # c = menu_actions[ch]['cmd']
+                                # result = utils.do_shell_cmd(c, do_print=True, handle_errors=True, return_stdout=True, timeout=999999)
                                 result = subprocess.run(c, stderr=subprocess.PIPE)
+
                                 _stderr = result.stderr.decode('UTF-8')
                                 if _stderr or result.returncode == 1:
                                     _error = utils.error_handler(c, _stderr)  # pylint: disable=maybe-no-member
-                                    # if _error:
-                                    #     _error = _error.replace('\r', '').split('\n')
-                                    #     [self.error_msgs.append(i) for i in _error if i]  # Remove any trailing empy items
+                                    if _error:
+                                        print(_error)  # TODO debug line remove
+                                        # _error = _error.replace('\r', '').split('\n')
+                                        # [self.error_msgs.append(i) for i in _error if i]  # Remove any trailing empy items
 
                             # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
                             c = ' '.join([str(i) for i in c])

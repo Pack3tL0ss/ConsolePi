@@ -42,7 +42,8 @@ class Outlets:
 
         self.data = cpi.config.outlets
         # self.pwr_init_complete = False
-        self.pwr_start_update_threads()
+        if cpi.config.power:
+            self.pwr_start_update_threads()
 
     def linked(self):
         pass

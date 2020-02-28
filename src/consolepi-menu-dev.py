@@ -38,8 +38,7 @@ class ConsolePiMenu(Rename):
             True: '{{green}}ON{{norm}}',
             False: '{{red}}OFF{{norm}}'
         }
-        # self.error_msgs = []
-        self.error_msgs = Errors()
+        self.error_msgs = []
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
         # if sys.stdin.isatty():
         #     self.rows, self.cols = self.cpi.utils.get_tty_size()

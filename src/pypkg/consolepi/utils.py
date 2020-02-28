@@ -11,6 +11,7 @@ import grp
 import json
 import threading
 import socket
+from io import StringIO
 
 try:
     loc_user = os.getlogin()
@@ -186,7 +187,24 @@ class Utils():
         ]
         return ''.join([x.replace(i, '') for x in self.listify(output) for i in strip_words])
 
-    def do_shell_cmd(self, cmd, do_print=False, handle_errors=True, return_stdout=False, timeout=5):
+    def shell_cmd(self, cmd, do_print=False, handle_errors=True, return_stdout=False, timeout=None):
+        class ret():
+            def __init__(self, proc, out):
+                self.subprocess = proc
+                self.output = out
+
+        if isinstance(cmd, str):
+            cmd = shlex.split(cmd)
+        s = subprocess
+        with s.Popen(cmd, stderr=s.PIPE, bufsize=1,
+                     universal_newlines=True) as p, StringIO() as buf:
+            for line in p.stderr:
+                print(line, end='')
+                buf.write(line)
+            error = buf.getvalue()
+        return ret(p, error)
+
+    def do_shell_cmd(self, cmd, do_print=False, handle_errors=True, return_stdout=False, tee_stderr=False, timeout=5):
         '''Runs shell cmd (i.e. ssh), sends any stderr output to error_handler.
 
         params:
@@ -198,23 +216,38 @@ class Utils():
         by default there is no return unless there is an error
         return_stdout=True will return tuple returncode, stdout, stderr
         '''
-        if not return_stdout:
-            if isinstance(cmd, str):
-                cmd = shlex.split(cmd)
-            proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, universal_newlines=True)
-            err = proc.communicate(timeout=timeout)[1]
-            if err is not None and do_print:
-                print(self.shell_output_cleaner(err), file=sys.stdout)
-            # if proc.returncode != 0 and handle_errors:
-            if err and handle_errors:
-                err = self.error_handler(cmd, err)
-
-            proc.wait()
-            return err
-        else:  # cmd should be string as entered in bash
+        if return_stdout:
             res = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, universal_newlines=True)
             return res.returncode, res.stdout.strip(), res.stderr.strip()
+
+        elif not return_stdout:
+            if isinstance(cmd, str):
+                cmd = shlex.split(cmd)
+            if not tee_stderr:
+                proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, universal_newlines=True)
+                err = proc.communicate(timeout=timeout)[1]
+                if err is not None and do_print:
+                    print(self.shell_output_cleaner(err), file=sys.stdout)
+                # if proc.returncode != 0 and handle_errors:
+                if err and handle_errors:
+                    err = self.error_handler(cmd, err)
+
+                proc.wait()
+                return err
+            else:  # TESTING - For ssh/telnet host connections banner text returns in stderr
+                s = subprocess
+                with s.Popen(cmd, stderr=s.PIPE, bufsize=1,
+                             universal_newlines=True) as p, StringIO() as buf:
+                    for line in p.stderr:
+                        print(line, end='')
+                        buf.write(line)
+                    error = buf.getvalue()
+                if handle_errors and error and p.returncode != 0:
+                    error = self.error_handler(cmd, err)
+                else:
+                    error = None
+                return error
 
     def check_install_apt_pkg(self, pkg: str, verify_cmd=None):
         verify_cmd = 'which {}'.format(pkg) if verify_cmd is None else verify_cmd

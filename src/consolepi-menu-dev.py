@@ -16,7 +16,6 @@ from halo import Halo
 
 # --// ConsolePi imports \\--
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import Errors  # NoQA
 from consolepi import ConsolePi  # NoQA
 from consolepi import Rename  # NoQA
 from consolepi import Menu  # NoQA

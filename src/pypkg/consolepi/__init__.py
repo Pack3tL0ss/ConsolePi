@@ -5,6 +5,7 @@ from consolepi.local import Local  # NoQA
 from consolepi.remotes import Remotes  # NoQA
 from consolepi.udevrename import Rename  # NoQA
 from consolepi.consolepi import ConsolePi  # NoQA
+from consolepi.menu import Menu  # NoQA
 
 # def get_yaml_file(yaml_file):
 #     '''Return dict from yaml file.'''

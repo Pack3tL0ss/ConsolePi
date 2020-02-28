@@ -124,7 +124,7 @@ class Config():
 
         if not outlet_data:
             if self.power:
-                self.cpi.error_msgs.append('Power Function Disabled due to lack of configuration')
+                self.cpi.error_msgs.append('Power Function Disabled - Configuration Not Found')
                 self.power = False
             self.outlet_types = []
             self.linked_exists = False

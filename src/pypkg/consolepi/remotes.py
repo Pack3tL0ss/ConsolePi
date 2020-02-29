@@ -336,9 +336,9 @@ class Remotes():
         log = config.log
 
         _iface_dict = remote_data['interfaces']
-        rem_ip_list = [_iface_dict[_iface]['ip'] for _iface in _iface_dict
-                       if _iface_dict[_iface]['ip'] not in local.ip_list and
-                       not _iface.startswith('_')]
+        rem_ip_list = [_iface_dict[_iface].get('ip') for _iface in _iface_dict
+                       if not _iface.startswith('_') and
+                       _iface_dict[_iface].get('ip') not in local.ip_list]
 
         # if inbound data includes rem_ip make sure to try that first
         if remote_data.get('rem_ip'):

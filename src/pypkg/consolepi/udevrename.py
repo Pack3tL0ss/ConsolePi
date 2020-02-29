@@ -91,7 +91,7 @@ class Rename():
                 self.con_dict = None
 
             if 'ttyUSB' in from_name or 'ttyACM' in from_name:
-                devs = config.detect_adapters()
+                devs = local.detect_adapters()
                 if from_name in devs['by_name']:
                     _tty = devs['by_name'][from_name]
                     id_prod = _tty['id_model_id']

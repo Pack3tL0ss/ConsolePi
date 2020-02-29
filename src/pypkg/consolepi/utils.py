@@ -21,8 +21,7 @@ except Exception:
 
 class Utils():
     def __init__(self):
-        print(__name__)
-        # self.config = cpi.config
+        pass
 
     def user_input_bool(self, question):
         '''Ask User Y/N Question require Y/N answer
@@ -143,7 +142,7 @@ class Utils():
                     except ValueError:
                         print("\n!! Invalid selection {} please try again.\n".format(choice))
             elif 'All keys were skipped because they already exist on the remote system' in stderr:
-                print('Skipped: key already exists')
+                return 'Skipped - key already exists'
             elif '/usr/bin/ssh-copy-id: INFO:' in stderr:
                 if 'sh: 1:' in stderr:
                     return ''.join(stderr.split('sh: 1:')[1:]).strip()
@@ -171,38 +170,12 @@ class Utils():
                 subprocess.run(cmd)
             else:
                 return 'User Abort or Failure to kill existing session to {}'.format(cmd[1].replace('/dev/', ''))
-    # subprocess.run(['/bin/bash', '-c', cmd])
-    # if not return_stdout:
-    #     response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
-    # else:
-    #     response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-    #     _stdout = response.stdout.decode('UTF-8').strip()
-    # _stderr = response.stderr.decode('UTF-8')
-    # if do_print:
-    #     print(_stderr)
 
     def shell_output_cleaner(self, output):
         strip_words = [
             '/usr/bin/ssh-copy-id: '
         ]
         return ''.join([x.replace(i, '') for x in self.listify(output) for i in strip_words])
-
-    def shell_cmd(self, cmd, do_print=False, handle_errors=True, return_stdout=False, timeout=None):
-        class ret():
-            def __init__(self, proc, out):
-                self.subprocess = proc
-                self.output = out
-
-        if isinstance(cmd, str):
-            cmd = shlex.split(cmd)
-        s = subprocess
-        with s.Popen(cmd, stderr=s.PIPE, bufsize=1,
-                     universal_newlines=True) as p, StringIO() as buf:
-            for line in p.stderr:
-                print(line, end='')
-                buf.write(line)
-            error = buf.getvalue()
-        return ret(p, error)
 
     def do_shell_cmd(self, cmd, do_print=False, handle_errors=True, return_stdout=False, tee_stderr=False, timeout=5):
         '''Runs shell cmd (i.e. ssh), sends any stderr output to error_handler.
@@ -244,7 +217,7 @@ class Utils():
                         buf.write(line)
                     error = buf.getvalue()
                 if handle_errors and error and p.returncode != 0:
-                    error = self.error_handler(cmd, err)
+                    error = self.error_handler(cmd, error)
                 else:
                     error = None
                 return error

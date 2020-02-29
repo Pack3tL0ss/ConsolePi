@@ -75,19 +75,27 @@ class Local():
             dev_name = f'/dev/{root_dev}' if not dev_name else f'/dev/{dev_name}'
             devs[dev_name] = {'by_path': by_path, 'by_id': by_id}
             devs[dev_name]['root_dev'] = True if dev_name == root_dev else False
-            _bus = _dev.get('ID_BUS')
 
-            # Gather all available properties from device parent (usb bus)
-            _props = _dev.properties if _bus == 'usb' else _dev.parent.properties
-            for p in _props:
-                exec(f"devs['{dev_name}']['{p.lower()}'] = '{_props[p]}'")
+            # Gather all available properties from device
+            _props = {p.lower() if p != 'ID_USB_INTERFACE_NUM' else 'id_ifnum': _dev.properties[p]
+                      for p in _dev.properties}
+            devs[dev_name] = {**devs[dev_name], **_props}
 
-            # re-write a few key properties from the orig _dev level
-            devs[dev_name]['id_path'] = _dev.get('ID_PATH')
-            devs[dev_name]['id_ifnum'] = _dev.get('ID_USB_INTERFACE_NUM')
-            devs[dev_name]['id_serial'] = _dev.get('ID_SERIAL')
-            _ser = devs[dev_name]['id_serial_short'] = _dev.get('ID_SERIAL_SHORT')
-            # TODO Dont think this is accurate should investigate usec_initialized
+            # on Pi4 need to get accurate properties from parent usb device
+            usb_dev = {k.lower(): d[k] for d in context.list_devices(DRIVER='usb', ID_BUS='usb')
+                       for k in d.keys() if d.get('DEVPATH') in devs[dev_name]['devpath']}
+            for k in ['id_model_id', 'id_vendor_id']:
+                devs[dev_name][k] = usb_dev[k]
+
+            _ser = devs[dev_name]['id_serial_short'] = _dev.get('ID_SERIAL_SHORT', usb_dev.get('ID_SERIAL_SHORT'))
+
+            # clean up some redundant or less useful properties
+            rm_list = ['devlinks', 'id_model_enc', 'id_path_tag', 'tags', 'major', 'minor',
+                       'usec_initialized', 'id_pci_interface_from_database', 'id_revision']
+            d = {k: v for k, v in devs[dev_name].items() if k not in rm_list}
+            devs[dev_name] = d
+
+            # TODO
             # devs[dev_name]['z_UP_TIME'] = convert_usecs(_dev.get('USEC_INITIALIZED'))
 
             # --- // Handle Multi-Port adapters that use same serial for all interfaces \\ ---

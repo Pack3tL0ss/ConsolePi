@@ -17,9 +17,9 @@ def Response(ok, text, code=None):
     return res(ok, text, code)
 
 
+# TODO bypass_remotes no longer implemented re-implement or remove
 class ConsolePi():
-    def __init__(self):
-        print(__name__)
+    def __init__(self, bypass_remote=False):
         self.error_msgs = []
         self.response = Response
         self.utils = Utils()
@@ -152,7 +152,6 @@ class ConsolePi():
 
     def launch_shell(self):
         iam = self.config.loc_user
-        # pylint:disable=anomalous-backslash-in-string
         os.system('sudo -u {0} echo PS1=\\"consolepi-menu:\\\w\\\$ \\" >/tmp/prompt && '  # NoQA
             'echo alias consolepi-menu=\\"exit\\" >>/tmp/prompt &&'
             'echo PATH=$PATH:/etc/ConsolePi/src/consolepi-commands >>/tmp/prompt && '
@@ -199,7 +198,7 @@ class ConsolePi():
         '''
         hostname = self.local.hostname
         loc_user = self.local.user
-        loc_home = os.getenv('HOME')
+        loc_home = self.local.loc_home
         utils = self.utils
 
         # generate local key file if it doesn't exist
@@ -231,10 +230,4 @@ class ConsolePi():
 
 if __name__ == '__main__':
     cpi = ConsolePi()
-    # cmd = 'sudo -u pi ssh -t pi@10.0.30.111'
-    # p, e = cpi.do_shell_cmd(cmd)
-    # p.stderr
-    # print('\n\n')
-    # e
     cpi.utils.json_print(cpi.local)
-    # print(cpi.cfg_yml['CONFIG'].get('cloud'))

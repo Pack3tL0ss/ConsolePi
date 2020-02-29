@@ -338,15 +338,17 @@ class Menu():
                     msg = 'Error presented to formatter with unexpected type {}'.format(type(_error))
                     log.error(msg)
                     _error = msg
+                if _error == '':  # Remove empty errors
+                    self.error_msgs.remove(_error)
                 for e in self.ignored_errors:
-                    if isinstance(e, re.Pattern) and e.match(_error):
+                    _e = _error.strip('\r\n')
+                    if isinstance(e, re.Pattern) and e.match(_e):
                         self.error_msgs.remove(_error)
                         break
                     elif isinstance(e, str) and (e == _error or e in _error):
                         self.error_msgs.remove(_error)
                         break
                     else:
-                        # _error_lens.append(self.format_line(_error)[0])
                         _error_lens.append(self.format_line(_error).len)
             if _error_lens:
                 width = width if width >= max(_error_lens) + 5 else max(_error_lens) + 5
@@ -489,9 +491,7 @@ class Menu():
                     if isinstance(_error, list):
                         log.error('{} is a list expected string'.format(_error))
                         _error = ' '.join(_error)
-                    # error_len, _error = self.format_line(_error.strip())
                     error = self.format_line(_error.strip())
-                    # x = ((width - (error_len + 4)) / 2)
                     x = ((width - (error.len + 4)) / 2)
                     mlines.append('{0}{1}{2}{3}{0}'.format(
                         self.log_sym_2bang,

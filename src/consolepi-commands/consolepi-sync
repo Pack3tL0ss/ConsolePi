@@ -24,8 +24,8 @@ do_error() {
     local status=$1
     if [[ $status != 0 ]]; then
         echo 'Failed!!' ; echo "\n"
+        [[ $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
         [[ -f $log_file ]] && cat $log_file && rm $log_file
-        dirs $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
         exit 1
     fi
     echo "OK"
@@ -76,8 +76,8 @@ do_loc_pull() {
     IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file}))"
     for f in "${sync_files[@]}" ; do
       dots "Pulling $f via SFTP"
-      pushd ${f##*/} >/dev/null
-      sftp $rem_user@$loc_pull_host:$f ; local rc=$?
+      pushd ${f%/*} >/dev/null
+      sftp $rem_user@$loc_pull_host:${consolepi_dir}/${f} ; local rc=$?
       popd >/dev/null
       do_error $rc
     done

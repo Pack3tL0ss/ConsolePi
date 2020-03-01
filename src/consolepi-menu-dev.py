@@ -39,12 +39,8 @@ class ConsolePiMenu(Rename):
         }
         self.error_msgs = []
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
-        # if sys.stdin.isatty():
-        #     self.rows, self.cols = self.cpi.utils.get_tty_size()
         self.log = self.cpi.config.log
         self.display_con_settings = False
-        self.menu_rows = 0  # Updated in menu_formatting
-        self.menu_cols = 0
         # self.menu = Menu(self.cpi.utils, debug=self.debug, log=self.cpi.config.log)
         self.menu = Menu(self)
         self.menu.ignored_errors = [
@@ -303,22 +299,23 @@ class ConsolePiMenu(Rename):
                         outlets = cpi.outlet_update(refresh=True, upd_linked=True)
 
     def wait_for_input(self, prompt=" >>  ", lower=False, terminate=False, locs={}):
+        menu = self.menu
         try:
             if self.debug:
-                self.menu_rows += 1  # TODO REMOVE AFTER SIMPLIFIED
-                prompt = f' m[r:{self.menu_rows}, c:{self.menu_cols}] a[r:{self.rows}, c:{self.cols}]{prompt}'
+                menu.menu_rows += 1  # TODO REMOVE AFTER SIMPLIFIED
+                prompt = f' m[r:{menu.menu_rows}, c:{menu.menu_cols}] a[r:{menu.rows}, c:{menu.cols}]{prompt}'
             choice = input(prompt) if not lower else input(prompt).lower()
             # DEBUG Func to print attributes/function returns
             if '.' in choice and self.print_attribute(choice, locs):
                 return
-            self.menu_rows = 0  # TODO REMOVE AFTER SIMPLIFIED
+            menu.menu_rows = 0  # TODO REMOVE AFTER SIMPLIFIED
             return choice
         except (KeyboardInterrupt, EOFError):
             if terminate:
                 print('Exiting based on User Input')
                 self.exit()
             else:
-                self.cpi.error_msgs.append('User Aborted')
+                menu.error_msgs.append('User Aborted')
                 print('')  # prevents header and prompt on same line in debug
                 return ''
 

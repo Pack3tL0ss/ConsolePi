@@ -11,6 +11,7 @@ loc_pull_host='ConsolePi-dev'
 upgrade_pip=false
 cp_lib=true
 loc_pull=false
+stash_local=false
 
 dots() {
     local pad=$(printf "%0.1s" "."{1..60})
@@ -27,6 +28,15 @@ do_error() {
         exit 1
     fi
     echo "OK"
+}
+
+user_input_bool() {
+  local prompt = $1
+  while [[ -z $response ]] || [[ ! "$response" =~ ^(yes|y|no|n)$ ]]; do
+    read -ep "${prompt}? (y/N): " local response
+    local response=${response,,}
+    [[ "$response" =~ ^(no|n)$ ]] && exit 0
+  done
 }
 
 do_perms() {
@@ -73,6 +83,23 @@ do_loc_pull() {
   fi
 }
 
+do_stash_local() {
+  if [[ -f $local_pull_file ]] ; then
+    echo " -- Stashing files previously pulled manually"
+    orig_IFS=$IFS
+    IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${local_pull_file}))"
+    for f in "${sync_files[@]}" ; do
+      dots "Stashing $f to $home_dir/.local_pull_stash"
+      mkdir -p $home_dir/.local_pull_stash
+      mv $f $home_dir/.local_pull_stash ; do_error $?
+    done
+    IFS=$orig_IFS
+    user_input_bool "Stash Complete, Proceed with remaining Sync Operations" local response
+  else
+    echo '!! No Local Pull File Found... exitting !!' ; exit 1
+  fi
+}
+
 do_cp_lib() {
   dots "Copying ConsolePi library to site-packages"
   sudo cp /etc/ConsolePi/src/PyConsolePi/* /etc/ConsolePi/venv/lib/python3*/site-packages/consolepi/ ; do_error $?
@@ -107,6 +134,10 @@ process_args() {
               loc_pull=true
               shift
               ;;
+          -stash)
+              stash_local=true
+              shift
+              ;;
           --local_host) # override default local_pull_host (consolepi-dev)
               [[ ! -z "$2" ]] && loc_pull_host=$2 || ( 
                   echo "Missing 1 required parameter with $1 option"
@@ -132,17 +163,14 @@ process_args() {
 
 dev_host_check() {
   if [[ ${HOSTNAME,,} == "consolepi-dev" ]] ; then
-    while [[ -z $response ]] || [[ ! "$response" =~ ^(yes|y|no|n)$ ]]; do
-      read -ep "This appears to be the development ConsolePi, Proceed with Sync? (Y/N): " response
-      response=${response,,}
-      [[ "$response" =~ ^(no|n)$ ]] && exit 0
-    done
+    user_input_bool "This appears to be the development ConsolePi, Proceed with Sync" local response
   fi
 }
 
 main() {
   dev_host_check
   process_args
+  $stash_local && do_stash_local
   do_perms
   ! $loc_pull && do_git_pull || do_loc_pull
   $cp_lib && do_cp_lib

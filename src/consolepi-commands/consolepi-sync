@@ -130,8 +130,8 @@ show_help() {
   echo 
   [[ ! "$1" =~ ^(help|-help|--help)$ ]] && echo "Invalid Input $1"
   echo -e "valid command line options:"
-  line_dots "-pip" "Update pip and dependencies"
-  line_dots "-nocp" "Don't Copy consolpi-library to venv after git pull."
+  line_dots "-pip" "Update pip and dependencies (skipped by default)"
+  line_dots "-nocp" "Don't Copy consolpi-library to venv after git pull (Default is to cp updated Library)."
   echo -e "\nThe Following Options are generally only useful for the developer"
   line_dots "-local" "Syncs files via SFTP from the dev ConsolePi."
   line_dots "-stash" "Stashes files previoulsy synced via SFTP to clean local working dir for git pull"

@@ -12,6 +12,7 @@ upgrade_pip=false
 cp_lib=true
 loc_pull=false
 stash_local=false
+DEBUG=true
 
 dots() {
     local pad=$(printf "%0.1s" "."{1..60})
@@ -32,6 +33,7 @@ do_error() {
 
 user_input_bool() {
   local prompt = $1
+  echo
   while [[ -z $response ]] || [[ ! "$response" =~ ^(yes|y|no|n)$ ]]; do
     read -ep "${prompt}? (y/N): " local response
     local response=${response,,}
@@ -52,8 +54,9 @@ do_perms() {
 
     for d in "${check_list[@]}"; do
       dots "Verifying Permissions for $d"
-      sudo chgrp -R consolepi ${d} 2>> $log_file ; do_error $?
-      sudo chmod g+w -R ${d} 2>> $log_file ; do_error $?
+      sudo chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?
+      sudo chmod g+w -R ${d} 2>> $log_file ; local rc=$?
+      do_error $rc
     done
 }
 
@@ -61,7 +64,7 @@ do_git_pull() {
   pushd /etc/ConsolePi >/dev/null
   branch=$(git rev-parse --abbrev-ref HEAD)
   dots "git pull ConsolePi (${branch})"
-  git pull 2>>$log_file ; rc=$?
+  git pull 2>>$log_file ; local rc=$?
   popd >/dev/null
   do_error $rc
 }
@@ -74,7 +77,7 @@ do_loc_pull() {
     for f in "${sync_files[@]}" ; do
       dots "Pulling $f via SFTP"
       pushd ${f##*/} >/dev/null
-      sftp $loc_pull_user@$loc_pull_host:$f ; rc=$?
+      sftp $loc_pull_user@$loc_pull_host:$f ; local rc=$?
       popd >/dev/null
       do_error $rc
     done
@@ -112,7 +115,9 @@ do_pip_upgrade() {
                       req_file="/etc/ConsolePi/installer/requirements-legacy.txt"
 
   echo  " -- pip install/upgrade ConsolePi requirements - This can take some time."
+  dots "Upgrade pip"
   sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade pip 1>$log_file 2>&1 ; do_error $?
+  dots "Upgrade ConsolePi Dependencies"
   sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade -r ${req_file} 1>$log_file ; do_error $?
 }
 
@@ -202,4 +207,4 @@ main() {
   $upgrade_pip && do_pip_upgrade
 }
 
-main
+main "${@}"

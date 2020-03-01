@@ -65,9 +65,9 @@ do_git_pull() {
   branch=$(git rev-parse --abbrev-ref HEAD)
   dots "git pull ConsolePi (${branch})"
   git_output=$(git pull 1>/dev/null 2>>$log_file) ; local rc=$?
-  echo -e "\n$git_output\n"
   popd >/dev/null
-  do_error $rc
+  [[ $rc -eq 0 ]] && echo -e "OK\n$git_output\n" || (
+    echo "--captured git pull stdout:\n$git_output\n" >> $log_file && do_error $rc)
 }
 
 do_loc_pull() {

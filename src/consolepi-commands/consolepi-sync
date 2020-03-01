@@ -1,19 +1,152 @@
 #!/usr/bin/env bash
 
-pushd /etc/ConsolePi >/dev/null
-sudo git pull
-popd >/dev/null
-sudo cp /etc/ConsolePi/src/PyConsolePi/* /etc/ConsolePi/venv/lib/python3*/site-packages/consolepi/
+consolepi_dir="/etc/ConsolePi"
+log_file="/tmp/consolepi-sync.log"
+iam=$(who -m |  awk '{print $1}')
+[ -z $iam ] && iam=$SUDO_USER # cockpit shell
+[ "$iam" = "root" ] && home_dir="/${iam}" || home_dir="/home/${iam}"
+local_pull_file=$home_dir/local_pull
+rem_user='pi'
+loc_pull_host='ConsolePi-dev'
+upgrade_pip=false
+cp_lib=true
+loc_pull=false
 
-if [[ "$1" == "--pip" ]] ; then
-    py3ver=$(python3 -V | cut -d. -f2)
-    [ $py3ver -ge 6 ] && req_file="/etc/ConsolePi/installer/requirements.txt" ||
-                         req_file="/etc/ConsolePi/installer/requirements-legacy.txt"
+dots() {
+    local pad=$(printf "%0.1s" "."{1..60})
+    printf " * %s%*.*s" "$1" 0 $((60-${#1})) "$pad"
+    return 0
+}
 
-    echo "pip install/upgrade ConsolePi requirements - This can take some time."
-    sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade pip 1>/tmp/cpi_pip.log 2>&1 &&
-    sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade -r ${req_file} 1>/tmp/cpi_pip.log &&
-    rm /tmp/cpi_pip.log && echo "pip and requirements updated without error" || 
-        ( echo "pip upgrade retuned errors displaying log (/tmp/cpi_pip.log)" &&
-          less /tmp/cpi_pip.log | +G )
-fi
+do_error() {
+    local status=$1
+    if [[ $status != 0 ]]; then
+        echo 'Failed!!' ; echo "\n"
+        [[ -f $log_file ]] && cat $log_file && rm $log_file
+        dirs $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
+        exit 1
+    fi
+    echo "OK"
+}
+
+do_perms() {
+    echo " -- Verify Permissions"
+    dots "verify ConsolePi dir exists"
+    [ -d $consolepi_dir ] ; do_error $?
+
+    dots "verify $iam is member of consolepi group"
+    [[ $(groups) =~ 'consolepi' ]] ; do_error $?
+
+    check_list=("$consolepi_dir" "$consolepi_dir/.git")
+    [[ -f $consolepi_dir/.static.yaml ]] && check_list+=("$consolepi_dir/.static.yaml")
+    for d in "${check_list[@]}"; do
+      dots "Verifying Permissions for $d"
+      sudo chgrp -R consolepi ${d} 2>> $log_file || do_error $?
+      sudo chmod g+w -R ${d} 2>> $log_file || do_error $?
+    done
+}
+
+do_git_pull() { 
+  pushd /etc/ConsolePi >/dev/null
+  branch=$(git rev-parse --abbrev-ref HEAD)
+  dots "git pull ConsolePi (${branch})"
+  git pull 2>>$log_file ; rc=$?
+  popd >/dev/null
+  do_error $rc
+}
+
+do_loc_pull() {
+  if [[ -f $local_pull_file ]] ; then
+    echo " -- Performing local only Pull"
+    orig_IFS=$IFS
+    IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${local_pull_file}))"
+    for f in "${sync_files[@]}" ; do
+      dots "Pulling $f via SFTP"
+      pushd ${f##*/} >/dev/null
+      sftp $loc_pull_user@$loc_pull_host:$f ; rc=$?
+      popd >/dev/null
+      do_error $rc
+    done
+    IFS=$orig_IFS
+  else
+    echo '!! No Local Pull File Found... exitting !!' ; exit 1
+  fi
+}
+
+do_cp_lib() {
+  dots "Copying ConsolePi library to site-packages"
+  sudo cp /etc/ConsolePi/src/PyConsolePi/* /etc/ConsolePi/venv/lib/python3*/site-packages/consolepi/ ; do_error $?
+}
+
+do_pip_upgrade() {
+  py3ver=$(python3 -V | cut -d. -f2)
+  [ $py3ver -ge 6 ] && req_file="/etc/ConsolePi/installer/requirements.txt" ||
+                      req_file="/etc/ConsolePi/installer/requirements-legacy.txt"
+
+  echo  " -- pip install/upgrade ConsolePi requirements - This can take some time."
+  sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade pip 1>$log_file 2>&1 ; do_error $?
+  sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade -r ${req_file} 1>$log_file ; do_error $?
+}
+
+
+process_args() {
+    # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
+    while (( "$#" )); do
+        # echo -e "DEBUG:\n\upgrade_pip=${upgrade_pip}\n\cp_lib=$cp_lib\n\loc_pull=${loc_pull}\n\loc_pull_host=${loc_pull_host}\n\rem_user=$rem_user"
+        # echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
+        case "$1" in
+          -pip)
+              upgrade_pip=true
+              shift
+              ;;
+          -nocp)
+              cp_lib=false
+              shift
+              ;;
+          -local)
+              loc_pull=true
+              shift
+              ;;
+          --local_host) # override default local_pull_host (consolepi-dev)
+              [[ ! -z "$2" ]] && loc_pull_host=$2 || ( 
+                  echo "Missing 1 required parameter with $1 option"
+                  exit 1
+                )
+              shift 2
+              ;;
+          --rem_user) # override default rem_user (pi)
+            [[ ! -z "$2" ]] && rem_user=$2 || (
+              echo "Missing 1 required parameter with $1 option"
+              exit 1
+              )
+            ;;
+          *)
+            echo "Invalid Option $1"
+            exit 1
+            ;;
+        esac
+        # echo -e "DEBUG:\n\upgrade_pip=${upgrade_pip}\n\cp_lib=$cp_lib\n\loc_pull=${loc_pull}\n\loc_pull_host=${loc_pull_host}\n\rem_user=$rem_user"
+        # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
+    done
+}
+
+dev_host_check() {
+  if [[ ${HOSTNAME,,} == "consolepi-dev" ]] ; then
+    while [[ -z $response ]] || [[ ! "$response" =~ ^(yes|y|no|n)$ ]]; do
+      read -ep "This appears to be the development ConsolePi, Proceed with Sync? (Y/N): " response
+      response=${response,,}
+      [[ "$response" =~ ^(no|n)$ ]] && exit 0
+    done
+  fi
+}
+
+main() {
+  dev_host_check
+  process_args
+  do_perms
+  ! $loc_pull && do_git_pull || do_loc_pull
+  $cp_lib && do_cp_lib
+  $upgrade_pip && do_pip_upgrade
+}
+
+main

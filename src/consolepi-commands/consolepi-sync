@@ -49,10 +49,11 @@ do_perms() {
 
     check_list=("$consolepi_dir" "$consolepi_dir/.git")
     [[ -f $consolepi_dir/.static.yaml ]] && check_list+=("$consolepi_dir/.static.yaml")
+
     for d in "${check_list[@]}"; do
       dots "Verifying Permissions for $d"
-      sudo chgrp -R consolepi ${d} 2>> $log_file || do_error $?
-      sudo chmod g+w -R ${d} 2>> $log_file || do_error $?
+      sudo chgrp -R consolepi ${d} 2>> $log_file ; do_error $?
+      sudo chmod g+w -R ${d} 2>> $log_file ; do_error $?
     done
 }
 
@@ -135,47 +136,53 @@ show_help() {
 }
 
 process_args() {
-    # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
+    $DEBUG && echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
-        # echo -e "DEBUG:\n\upgrade_pip=${upgrade_pip}\n\cp_lib=$cp_lib\n\loc_pull=${loc_pull}\n\loc_pull_host=${loc_pull_host}\n\rem_user=$rem_user"
-        # echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
-        case "$1" in
-          -pip)
-              upgrade_pip=true
-              shift
-              ;;
-          -nocp)
-              cp_lib=false
-              shift
-              ;;
-          -local)
-              loc_pull=true
-              shift
-              ;;
-          -stash)
-              stash_local=true
-              shift
-              ;;
-          --local-host) # override default local_pull_host (consolepi-dev)
-              [[ ! -z "$2" ]] && loc_pull_host=$2 || ( 
-                  echo "Missing 1 required parameter with $1 option"
-                  exit 1
-                )
-              shift 2
-              ;;
-          --rem-user) # override default rem_user (pi)
-            [[ ! -z "$2" ]] && rem_user=$2 || (
-              echo "Missing 1 required parameter with $1 option"
-              exit 1
+      if $DEBUG; then
+        echo -e "DEBUG:\n\upgrade_pip=${upgrade_pip}\n\cp_lib=$cp_lib\n\loc_pull=${loc_pull}\n\loc_pull_host=${loc_pull_host}\nstash_local=${stash_local}\n\rem_user=$rem_user"
+        echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
+      fi
+
+      case "$1" in
+        -pip)
+            upgrade_pip=true
+            shift
+            ;;
+        -nocp)
+            cp_lib=false
+            shift
+            ;;
+        -local)
+            loc_pull=true
+            shift
+            ;;
+        -stash)
+            stash_local=true
+            shift
+            ;;
+        --local-host) # override default local_pull_host (consolepi-dev)
+            [[ ! -z "$2" ]] && loc_pull_host=$2 || ( 
+                echo "Missing 1 required parameter with $1 option"
+                exit 1
               )
+            shift 2
             ;;
-          *)
-            show_help $1
+        --rem-user) # override default rem_user (pi)
+          [[ ! -z "$2" ]] && rem_user=$2 || (
+            echo "Missing 1 required parameter with $1 option"
             exit 1
-            ;;
-        esac
-        # echo -e "DEBUG:\n\upgrade_pip=${upgrade_pip}\n\cp_lib=$cp_lib\n\loc_pull=${loc_pull}\n\loc_pull_host=${loc_pull_host}\n\rem_user=$rem_user"
-        # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
+            )
+          ;;
+        *)
+          show_help $1
+          exit 1
+          ;;
+      esac
+
+        if $DEBUG; then
+          echo -e "DEBUG:\n\upgrade_pip=${upgrade_pip}\n\cp_lib=$cp_lib\n\loc_pull=${loc_pull}\n\loc_pull_host=${loc_pull_host}\nstash_local=${stash_local}\n\rem_user=$rem_user"
+          echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
+        fi
     done
 }
 
@@ -187,7 +194,7 @@ dev_host_check() {
 
 main() {
   dev_host_check
-  process_args "$@"
+  process_args "${@}"
   $stash_local && do_stash_local
   do_perms
   ! $loc_pull && do_git_pull || do_loc_pull

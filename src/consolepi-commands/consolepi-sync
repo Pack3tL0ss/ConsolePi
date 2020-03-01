@@ -115,7 +115,7 @@ do_pip_upgrade() {
   [ $py3ver -ge 6 ] && req_file="/etc/ConsolePi/installer/requirements.txt" ||
                       req_file="/etc/ConsolePi/installer/requirements-legacy.txt"
 
-  echo -e "\n -- pip install/upgrade ConsolePi requirements - This can take some time."
+  echo -e "\n -- pip install/upgrade ConsolePi requirements - Long Wait Here"
   dots "Upgrade pip"
   sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade pip 1>$log_file 2>&1 ; do_error $?
   dots "Upgrade ConsolePi Dependencies"

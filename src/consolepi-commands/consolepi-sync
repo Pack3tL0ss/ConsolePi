@@ -117,9 +117,9 @@ do_pip_upgrade() {
 
   echo -e "\n -- pip install/upgrade ConsolePi requirements - Long Wait Here"
   dots "Upgrade pip"
-  sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade pip 1>$log_file 2>&1 ; do_error $?
+  sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade pip >>$log_file 2>&1 ; do_error $?
   dots "Upgrade ConsolePi Dependencies"
-  sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade -r ${req_file} 1>$log_file ; do_error $?
+  sudo /etc/ConsolePi/venv/bin/python3 -m pip install --upgrade -r ${req_file} >>$log_file 2>&1; do_error $?
 }
 
 line_dots() {
@@ -207,6 +207,7 @@ main() {
   ! $loc_pull && do_git_pull || do_loc_pull
   $cp_lib && do_cp_lib
   $upgrade_pip && do_pip_upgrade
+  ! $DEBUG && [[ -f $log_file ]] && rm $log_file
 }
 
 main "${@}"

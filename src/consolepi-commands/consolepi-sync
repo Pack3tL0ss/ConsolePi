@@ -64,7 +64,7 @@ do_git_pull() {
   pushd /etc/ConsolePi >/dev/null
   branch=$(git rev-parse --abbrev-ref HEAD)
   dots "git pull ConsolePi (${branch})"
-  git pull 2>>$log_file ; local rc=$?
+  git pull 1>/dev/null 2>>$log_file ; local rc=$?
   popd >/dev/null
   do_error $rc
 }

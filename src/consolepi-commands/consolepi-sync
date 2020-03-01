@@ -23,7 +23,7 @@ dots() {
 do_error() {
     local status=$1
     if [[ $status != 0 ]]; then
-        echo 'Failed!!' ; echo "\n"
+        echo 'Failed!!' ; echo -e "\n"
         [[ $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
         [[ -f $log_file ]] && cat $log_file && rm $log_file
         exit 1

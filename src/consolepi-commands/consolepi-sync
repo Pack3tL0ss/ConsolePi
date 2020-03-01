@@ -123,8 +123,8 @@ do_pip_upgrade() {
 
 line_dots() {
   [[ -z $num_dots ]] && num_dots=30
-  local pad=$(printf "%0.1s" "."{1..$num_dots})
-  printf " * %s%*.*s" "$1" 0 $(($num_dots-${#1})) "$pad"; echo $2
+  local pad=$(printf "%0.1s" "."{1..${num_dots}})
+  printf " %s%*.*s" "$1" 0 $((${num_dots}-${#1})) "${pad}${2}\n"
 }
 
 show_help() {

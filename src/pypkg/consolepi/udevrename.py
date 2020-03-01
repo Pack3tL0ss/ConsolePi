@@ -1,12 +1,6 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-# import sys
-# sys.path.insert(0, '/etc/ConsolePi/src/PyConsolePi')
-# from utils import Utils
 import re
-import subprocess
-import os
-import shlex
 from halo import Halo
 
 
@@ -92,8 +86,8 @@ class Rename():
 
             if 'ttyUSB' in from_name or 'ttyACM' in from_name:
                 devs = local.detect_adapters()
-                if from_name in devs['by_name']:
-                    _tty = devs['by_name'][from_name]
+                if f'/dev/{from_name}' in devs:
+                    _tty = devs[from_name]
                     id_prod = _tty['id_model_id']
                     id_model = _tty['id_model']  # NoQA pylint: disable=unused-variable
                     id_vendorid = _tty['id_vendor_id']
@@ -109,9 +103,9 @@ class Rename():
                     return 'Did you really create an alias with "ttyUSB" or "ttyACM" in it (same as root devices)?\n\t' \
                            'Rename failed cause you\'re silly'
 
+                # -- // ADAPTERS WITH ALL ATTRIBUTES \\ --
                 if id_prod and id_serial and id_vendorid:
-                    # -- // Update for Adapters with serial # \\ --
-                    if id_serial not in devs['dup_ser']:
+                    if id_serial not in devs['_dup_ser']:
                         udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{}", ATTRS{{idProduct}}=="{}", '
                                      'ATTRS{{serial}}=="{}", SYMLINK+="{}"'.format(
                                         id_vendorid, id_prod, id_serial, to_name))
@@ -122,12 +116,12 @@ class Rename():
                             error = self.do_ser2net_line(to_name=to_name, baud=baud, dbits=dbits, parity=parity, flow=flow)
                             break
 
-                    # -- // Update for multi-port adapters presenting same serial for all pig-tails \\ --
+                    # -- // MULTI-PORT ADAPTERS WITH COMMON SERIAL (different ifnums) \\ --
                     else:
                         # SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", ATTRS{serial}=="FT4213OP", GOTO="FT4213OP"  # NoQA
-                        udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", ' \
-                            'ATTRS{{serial}}=="{2}", GOTO="{2}"'.format(
-                                id_vendorid, id_prod, id_serial))
+                        udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", '
+                                     'ATTRS{{serial}}=="{2}", GOTO="{2}"'.format(
+                                      id_vendorid, id_prod, id_serial))
 
                         error = None
                         while not error:
@@ -139,22 +133,21 @@ class Rename():
                             error = self.do_ser2net_line(to_name=to_name, baud=baud, dbits=dbits, parity=parity, flow=flow)
                             break
 
-                    # -- // Update for adapters that lack serial (map usb port) \\ --
+                # -- // LAME ADAPTERS NO SERIAL NUM (map usb port) \\ --
                 else:
-                    config.log.warning('[ADD ADAPTER] Lame adapter missing key detail: idVendor={}, idProduct={}, serial#={}'.format(
+                    config.log.warning('[ADD ADAPTER] Lame adapter missing key detail: idVendor={}, idProduct={}, serial#={}'.format(  # NoQA
                                 id_vendorid, id_prod, id_serial))
-                    print('\n\n This Device Does not present a serial # (LAME!).  So the adapter itself can\'t be uniquely identified.\n' \
-                          ' There are 2 options for naming this device:')
+                    print('\n\n This Device Does not present a serial # (LAME!).  So the adapter itself can\'t be uniquely '
+                          'identified.\n There are 2 options for naming this device:')
 
                     mlines = [
-                        'Map it to the USB port it\'s plugged in to' \
-                        '\n\tAnytime a {} {} tty device is plugged into the port it\n\tis currently plugged into it will adopt the {} alias'.format(
-                            _tty['id_vendor_from_database'], _tty['id_model_from_database'], to_name
-                            ),
+                        'Map it to the USB port it\'s plugged in to'
+                        '\n\tAnytime a {} {} tty device is plugged into the port it\n\tis currently plugged into it will adopt '
+                        'the {} alias'.format(
+                            _tty['id_vendor_from_database'], _tty['id_model_from_database'], to_name),
                         'Map it by vedor ({0}) and model ({1}) alone.'
-                            '\n\tThis will only work if this is the only {0} {1} adapter you plan to plug in'.format(
-                            _tty['id_vendor_from_database'], _tty['id_model_from_database']
-                            )
+                        '\n\tThis will only work if this is the only {0} {1} adapter you plan to plug in'.format(
+                            _tty['id_vendor_from_database'], _tty['id_model_from_database'])
                         # 'Temporary mapping' \
                         # '\n\tnaming will only persist during this menu session\n'
                     ]
@@ -217,7 +210,8 @@ class Rename():
                     rules_file,
                     ''
                     )
-                error = bash_command(cmd)
+                # error = bash_command(cmd)
+                error = utils.do_shell_cmd(cmd)
                 if not error:
                     error = self.do_ser2net_line(to_name=to_name, baud=baud, dbits=dbits, parity=parity, flow=flow,
                                                  existing=True, match_txt='{}:'.format(from_name))
@@ -254,7 +248,7 @@ class Rename():
             dbits {int} -- Adapter databits (default: {self.data_bits})
             parity {str} -- Adapter Parity (default: {self.parity})
             flow {str} -- Adapter flow (default: {self.flow})
-            existing {bool} -- False: Adapter currently has no symlink (root dev), True: Renaming existing symlink (default: {False})
+            existing {bool} -- False(default): Adapter currently has no symlink (root dev), True: Renaming existing symlink
             match_txt {str} --  Used for existing adapters to find the line with the previous symlink entry (default: {None})
 
         Returns:
@@ -401,81 +395,12 @@ class Rename():
                     'add you\'re current rules to the BYSERIAL-DEVS section.'
 
     def trigger_udev(self):
-        # utils = self.cpi.utilsb
+        utils = self.cpi.utils
         cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '  # NoQA
         with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
-            error = bash_command(cmd)
+            # error = bash_command(cmd)
+            error = utils.do_shell_cmd(cmd)
         if not error:
             self.udev_pending = False
         else:
             return error
-
-
-def error_handler(cmd, stderr):
-    if stderr and 'FATAL: cannot lock /dev/' not in stderr:
-        # Handle key change Error
-        if 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!' in stderr:
-            print(stderr.replace('ERROR: ', '').replace('/usr/bin/ssh-copy-id: ', ''))
-            while True:
-                try:
-                    choice = input('\nDo you want to remove the old host key and re-attempt the connection (y/n)? ')
-                    if choice.lower() in ['y', 'yes']:
-                        _cmd = shlex.split(stderr.split('remove with:\r\n')[1].split('\r\n')[0].replace('ERROR:   ', ''))
-                        _cmd = shlex.split('sudo -u {}'.format(os.getlogin())) + _cmd
-                        subprocess.run(_cmd)
-                        print('\n')
-                        subprocess.run(cmd)
-                        break
-                    elif choice.lower() in ['n', 'no']:
-                        break
-                    else:
-                        print("\n!!! Invalid selection {} please try again.\n".format(choice))
-                except (KeyboardInterrupt, EOFError):
-                    print('')
-                    return 'Aborted last command based on user input'
-                except ValueError:
-                    print("\n!! Invalid selection {} please try again.\n".format(choice))
-        elif 'All keys were skipped because they already exist on the remote system' in stderr:
-            return 'skipped: keys already exist on the remote system'
-        elif '/usr/bin/ssh-copy-id: INFO:' in stderr:
-            pass  # no need to re-display these
-        # ssh cipher suite errors
-        elif 'no matching cipher found. Their offer:' in stderr:
-            print('Connection Error: {}\n'.format(stderr))
-            cipher = stderr.split('offer:')[1].strip().split(',')
-            aes_cipher = [c for c in cipher if 'aes' in c]
-            if aes_cipher:
-                cipher = aes_cipher[-1]
-            else:
-                cipher = cipher[-1]
-            cmd += ['-c', cipher]
-
-            print('Reattempting Connection using cipher {}'.format(cipher))
-            r = subprocess.run(cmd)
-            if r.returncode:
-                return 'Error on Retry Attempt'  # TODO better way... handle banners... paramiko?
-        else:
-            return stderr   # return value that was passed in
-    # Handle hung sessions always returncode=1 doesn't always present stderr
-    elif cmd[0] == 'picocom':
-        if kill_hung_session(cmd[1]):
-            subprocess.run(cmd)
-        else:
-            return 'User Abort or Failure to kill existing session to {}'.format(cmd[1].replace('/dev/', ''))
-
-
-def bash_command(cmd, do_print=False, eval_errors=True, return_stdout=False):
-    # subprocess.run(['/bin/bash', '-c', cmd])
-    if not return_stdout:
-        response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE)
-    else:
-        response = subprocess.run(['/bin/bash', '-c', cmd], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        # _stdout = response.stdout.decode('UTF-8').strip()
-    _stderr = response.stderr.decode('UTF-8')
-    if do_print:
-        print(_stderr)
-    # print(response)
-    # if response.returncode != 0:
-    if eval_errors:
-        if _stderr:
-            return error_handler(getattr(response, 'args'), _stderr)

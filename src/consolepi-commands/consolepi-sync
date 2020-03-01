@@ -66,8 +66,11 @@ do_git_pull() {
   dots "git pull ConsolePi (${branch})"
   git_output=$(git pull 1>/dev/null 2>>$log_file) ; local rc=$?
   popd >/dev/null
-  [[ $rc -eq 0 ]] && echo -e "OK\n$git_output\n" || (
-    echo "--captured git pull stdout:\n$git_output\n" >> $log_file && do_error $rc)
+  if [[ $rc -eq 0 ]]; then
+    [[ ! -z "$git_output" ]] && echo -e "OK\n$git_output\n"
+  else
+    echo "--captured git pull stdout:\n$git_output\n" >> $log_file && do_error $rc
+  fi
 }
 
 do_loc_pull() {

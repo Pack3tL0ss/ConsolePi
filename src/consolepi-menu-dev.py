@@ -1074,7 +1074,7 @@ class ConsolePiMenu(Rename):
 
     # Connection SubMenu
     def con_menu(self, rename=False, con_dict=None):
-        # cpi = self.cpi
+        menu = self.menu
         menu_actions = {
             '1': self.baud_menu,
             '2': self.data_bits_menu,
@@ -1096,13 +1096,13 @@ class ConsolePiMenu(Rename):
             self.flow = con_dict['flow']
 
         while True:
-            self.menu_formatting('header', text=' Connection Settings Menu ')
+            menu.menu_formatting('header', text=' Connection Settings Menu ')
             print(' 1. Baud [{}]'.format(self.baud))
             print(' 2. Data Bits [{}]'.format(self.data_bits))
             print(' 3. Parity [{}]'.format(self.parity_pretty[self.parity]))
             print(' 4. Flow [{}]'.format(self.flow_pretty[self.flow]))
             text = ' b.  Back{}'.format(' (Apply Changes to Files)' if rename else '')
-            self.menu_formatting('footer', text=text)
+            menu.menu_formatting('footer', text=text)
 
             ch = self.wait_for_input(lower=True, locs=locals())
             try:
@@ -1112,11 +1112,12 @@ class ConsolePiMenu(Rename):
 
             except KeyError as e:
                 if ch:
-                    self.cpi.error_msgs.append('Invalid selection {}, please try again.'.format(e))
+                    self.menu.error_msgs.append('Invalid selection {}, please try again.'.format(e))
 
     # Baud Menu
     def baud_menu(self):
         config = self.cpi.config
+        menu = self.menu
         menu_actions = od([
             ('1', 300),
             ('2', 1200),
@@ -1131,14 +1132,14 @@ class ConsolePiMenu(Rename):
 
         while True:
             # -- Print Baud Menu --
-            self.menu_formatting('header', text=' Select Desired Baud Rate ')
+            menu.menu_formatting('header', text=' Select Desired Baud Rate ')
 
             for key in menu_actions:
                 # if not callable(menu_actions[key]):
                 _cur_baud = menu_actions[key]
                 print(' {0}. {1}'.format(key, _cur_baud if _cur_baud != self.baud else '[{}]'.format(_cur_baud)))
 
-            self.menu_formatting('footer', text=text)
+            menu.menu_formatting('footer', text=text)
             choice = self.wait_for_input(" Baud >>  ", locs=locals())
             ch = choice.lower()
 
@@ -1169,11 +1170,12 @@ class ConsolePiMenu(Rename):
         return self.baud
 
     def data_bits_menu(self):
+        menu = self.menu
         valid = False
         while not valid:
-            self.menu_formatting('header', text=' Enter Desired Data Bits ')
+            menu.menu_formatting('header', text=' Enter Desired Data Bits ')
             print(' Default 8, Current {}, Valid range 5-8'.format(self.data_bits))
-            self.menu_formatting('footer', text=' b.  Back')
+            menu.menu_formatting('footer', text=' b.  Back')
             choice = self.wait_for_input(' Data Bits >>  ', locs=locals())
             try:
                 if choice.lower() == 'x':
@@ -1192,14 +1194,15 @@ class ConsolePiMenu(Rename):
         return self.data_bits
 
     def parity_menu(self):
+        menu = self.menu
         def print_menu():
-            self.menu_formatting('header', text=' Select Desired Parity ')
+            menu.menu_formatting('header', text=' Select Desired Parity ')
             print(' Default No Parity\n')
             print(' 1. None')
             print(' 2. Odd')
             print(' 3. Even')
             text = ' b.  Back'
-            self.menu_formatting('footer', text=text)
+            menu.menu_formatting('footer', text=text)
         valid = False
         while not valid:
             print_menu()
@@ -1222,14 +1225,15 @@ class ConsolePiMenu(Rename):
         return self.parity
 
     def flow_menu(self):
+        menu = self.menu
         def print_menu():
-            self.menu_formatting('header', text=' Select Desired Flow Control ')
+            menu.menu_formatting('header', text=' Select Desired Flow Control ')
             print(' Default No Flow\n')
             print(' 1. No Flow Control (default)')
             print(' 2. Xon/Xoff (software)')
             print(' 3. RTS/CTS (hardware)')
             text = ' b.  Back'
-            self.menu_formatting('footer', text=text)
+            menu.menu_formatting('footer', text=text)
         valid = False
         while not valid:
             print_menu()

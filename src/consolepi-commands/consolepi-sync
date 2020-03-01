@@ -198,6 +198,7 @@ dev_host_check() {
 }
 
 main() {
+  $DEBUG && echo Args Passed to Script: "${@}"
   dev_host_check
   process_args "${@}"
   $stash_local && do_stash_local

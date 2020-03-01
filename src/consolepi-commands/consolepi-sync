@@ -78,7 +78,7 @@ do_loc_pull() {
       pushd ${f%/*} >/dev/null
       sftp $rem_user@$loc_pull_host:${consolepi_dir}/${f} ; local rc=$?
       popd >/dev/null
-      [[ $rc -gt 0 ]] && echo "Error returned - SFTP GET ${f##*/} exitting..." && exit 1
+      [[ $rc -gt 0 ]] && echo "Error returned - SFTP GET $f exitting..." && exit 1
     done
     IFS=$orig_IFS
   else

@@ -75,11 +75,10 @@ do_loc_pull() {
     orig_IFS=$IFS
     IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file}))"
     for f in "${sync_files[@]}" ; do
-      dots "Pulling $f via SFTP"
       pushd ${f%/*} >/dev/null
       sftp $rem_user@$loc_pull_host:${consolepi_dir}/${f} ; local rc=$?
       popd >/dev/null
-      do_error $rc
+      [[ $rc -gt 0 ]] && echo "Error returned - SFTP GET ${f##*/} exitting..." && exit 1
     done
     IFS=$orig_IFS
   else
@@ -95,7 +94,7 @@ do_stash_local() {
     for f in "${sync_files[@]}" ; do
       dots "Stashing $f to $home_dir/.local_pull_stash"
       mkdir -p $home_dir/.local_pull_stash
-      mv $f $home_dir/.local_pull_stash ; do_error $?
+      mv ${consolepi_dir}/${f} $home_dir/.local_pull_stash ; do_error $?
     done
     IFS=$orig_IFS
     user_input_bool "Stash Complete, Proceed with remaining Sync Operations" local response

@@ -80,6 +80,7 @@ do_loc_pull() {
     orig_IFS=$IFS
     IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file}))"
     for f in "${sync_files[@]}" ; do
+      [[ $f =~ "^#.*" ]] && continue
       pushd $consolepi_dir/${f%/*} >/dev/null
       dots "GET ${f##/*}"
       sftp $rem_user@$loc_pull_host:${consolepi_dir}/${f} >/dev/null 2>&1 ; local rc=$?

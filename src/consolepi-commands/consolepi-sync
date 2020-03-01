@@ -70,14 +70,14 @@ do_git_pull() {
 }
 
 do_loc_pull() {
-  if [[ -f $local_pull_file ]] ; then
+  if [[ -f $loc_pull_file ]] ; then
     echo " -- Performing local only Pull"
     orig_IFS=$IFS
-    IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${local_pull_file}))"
+    IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file}))"
     for f in "${sync_files[@]}" ; do
       dots "Pulling $f via SFTP"
       pushd ${f##*/} >/dev/null
-      sftp $loc_pull_user@$loc_pull_host:$f ; local rc=$?
+      sftp $rem_user@$loc_pull_host:$f ; local rc=$?
       popd >/dev/null
       do_error $rc
     done
@@ -88,10 +88,10 @@ do_loc_pull() {
 }
 
 do_stash_local() {
-  if [[ -f $local_pull_file ]] ; then
+  if [[ -f $loc_pull_file ]] ; then
     echo " -- Stashing files previously pulled manually"
     orig_IFS=$IFS
-    IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${local_pull_file}))"
+    IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file}))"
     for f in "${sync_files[@]}" ; do
       dots "Stashing $f to $home_dir/.local_pull_stash"
       mkdir -p $home_dir/.local_pull_stash

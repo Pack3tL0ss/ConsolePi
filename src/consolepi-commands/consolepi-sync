@@ -141,7 +141,7 @@ show_help() {
 }
 
 process_args() {
-    $DEBUG && echo "DEBUG: ${@}"  ## -- DEBUG LINE --
+    $DEBUG && echo "DEBUG: Args Passed to process_args() ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
       if $DEBUG; then
         echo -e "DEBUG:\nupgrade_pip=${upgrade_pip}\ncp_lib=$cp_lib\nloc_pull=${loc_pull}\nloc_pull_host=${loc_pull_host}\nstash_local=${stash_local}\nrem_user=$rem_user"
@@ -198,7 +198,7 @@ dev_host_check() {
 }
 
 main() {
-  $DEBUG && echo Args Passed to Script: "${@}"
+  $DEBUG && echo DEBUG: Args Passed to Script: "${@}"
   dev_host_check
   process_args "${@}"
   $stash_local && do_stash_local

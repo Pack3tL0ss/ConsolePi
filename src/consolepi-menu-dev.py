@@ -298,7 +298,7 @@ class ConsolePiMenu(Rename):
                     with Halo(text='Refreshing Outlets', spinner='dots'):
                         outlets = cpi.outlet_update(refresh=True, upd_linked=True)
 
-    def wait_for_input(self, prompt=" >>  ", lower=False, terminate=False, locs={}):
+    def wait_for_input(self, prompt=" >> ", lower=False, terminate=False, locs={}):
         menu = self.menu
         try:
             if self.debug:
@@ -897,7 +897,7 @@ class ConsolePiMenu(Rename):
                                                 else:  # dli toggle all
                                                     for t in threading.enumerate():
                                                         if t.name == 'pwr_toggle_refresh':
-                                                            t.join()    # if refresh thread is running join ~ wait for it to complete. 
+                                                            t.join()    # if refresh thread is running join ~ wait for it to complete.
                                                             # TODO Don't think this works or below
                                                             # wouldn't have been necessary.
 

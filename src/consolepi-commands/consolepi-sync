@@ -12,7 +12,7 @@ upgrade_pip=false
 cp_lib=true
 loc_pull=false
 stash_local=false
-DEBUG=true
+DEBUG=false
 
 dots() {
     local pad=$(printf "%0.1s" "."{1..60})
@@ -64,13 +64,13 @@ do_git_pull() {
   pushd /etc/ConsolePi >/dev/null
   branch=$(git rev-parse --abbrev-ref HEAD)
   dots "git pull ConsolePi (${branch})"
-  git_output=$(git pull 1>/dev/null 2>>$log_file) ; local rc=$?
+  git_output=$(git pull >/dev/null 2>>$log_file) ; local rc=$?
   popd >/dev/null
-  echo $rc
-  if [[ $rc -eq 0 ]]; then
-      [[ ! -z "$git_output" ]] && echo -e "OK\n$git_output\n"
+  if [[ $rc -eq 0 ]] ; then
+      echo OK ; [[ ! -z "$git_output" ]] && echo -e "\n${git_output}\n"
   else
-      echo "--captured git pull stdout:\n$git_output\n" >> $log_file && do_error $rc
+      echo -e "\ncaptured git pull stdout:\n${git_output}\n" >> $log_file
+      do_error $rc
   fi
 }
 
@@ -80,7 +80,7 @@ do_loc_pull() {
     orig_IFS=$IFS
     IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file}))"
     for f in "${sync_files[@]}" ; do
-      pushd ${f%/*} >/dev/null
+      pushd $consolepi_dir/${f%/*} >/dev/null
       dots "GET ${f##/*}"
       sftp $rem_user@$loc_pull_host:${consolepi_dir}/${f} >/dev/null 2>&1 ; local rc=$?
       popd >/dev/null
@@ -209,7 +209,8 @@ main() {
   process_args "${@}"
   $stash_local && do_stash_local
   do_perms
-  ! $loc_pull && do_git_pull || do_loc_pull
+  ! $loc_pull && do_git_pull
+  $loc_pull && do_loc_pull
   $cp_lib && do_cp_lib
   $upgrade_pip && do_pip_upgrade
   ! $DEBUG && [[ -f $log_file ]] && rm $log_file

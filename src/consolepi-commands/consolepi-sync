@@ -214,6 +214,7 @@ main() {
   $cp_lib && do_cp_lib
   $upgrade_pip && do_pip_upgrade
   ! $DEBUG && [[ -f $log_file ]] && rm $log_file
+  echo
 }
 
 main "${@}"

@@ -124,10 +124,6 @@ do_pip_upgrade() {
 line_dots() {
   local pad=$(printf "%0.1s" "."{1..40})
   printf " %s%*.*s" "$1" 0 $((40-${#1})) "$pad" ; echo $2
-
-  # [[ -z $num_dots ]] && num_dots=30
-  # local pad=$(printf "%0.1s" "."{1..${num_dots}})
-  # printf " %s%*.*s" "$1" 0 $((${num_dots}-${#1})) "${pad}${2}\n"
 }
 
 show_help() {
@@ -141,6 +137,7 @@ show_help() {
   line_dots "-stash" "Stashes files previoulsy synced via SFTP to clean local working dir for git pull"
   line_dots "--local-host <ip or host>" "Override the default local dev ConsolePi ($loc_pull_host)"
   line_dots "--rem_user <username>" "Override the default user ($rem_user) used during local_pull (sftp to $loc_pull_host)"
+  echo
 }
 
 process_args() {

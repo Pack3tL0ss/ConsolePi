@@ -144,7 +144,7 @@ process_args() {
     $DEBUG && echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
       if $DEBUG; then
-        echo -e "DEBUG:\n\upgrade_pip=${upgrade_pip}\ncp_lib=$cp_lib\nloc_pull=${loc_pull}\nloc_pull_host=${loc_pull_host}\nstash_local=${stash_local}\nrem_user=$rem_user"
+        echo -e "DEBUG:\nupgrade_pip=${upgrade_pip}\ncp_lib=$cp_lib\nloc_pull=${loc_pull}\nloc_pull_host=${loc_pull_host}\nstash_local=${stash_local}\nrem_user=$rem_user"
         echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
       fi
 
@@ -185,7 +185,7 @@ process_args() {
       esac
 
         if $DEBUG; then
-          echo -e "DEBUG:\n\upgrade_pip=${upgrade_pip}\ncp_lib=$cp_lib\nloc_pull=${loc_pull}\nloc_pull_host=${loc_pull_host}\nstash_local=${stash_local}\nrem_user=$rem_user"
+          echo -e "DEBUG:\nupgrade_pip=${upgrade_pip}\ncp_lib=$cp_lib\nloc_pull=${loc_pull}\nloc_pull_host=${loc_pull_host}\nstash_local=${stash_local}\nrem_user=$rem_user"
           echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
         fi
     done

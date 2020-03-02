@@ -214,8 +214,12 @@ class DLI:
                     # for _ in ["critical", "cycle_delay", "locked", "physical_state", "transient_state"]:
                     #     # nul = outlet.pop(_)
                     #     del outlet[_]
-                    outlet_dict[idx] = {'name': outlet['name'], 'state': outlet['state']}
-                    idx += 1
+                    if not outlet.get('error'):
+                        outlet_dict[idx] = {'name': outlet['name'], 'state': outlet['state']}
+                        idx += 1
+                    else:
+                        log.error(f"dli returned error {outlet_list['error']}")
+                        # TODO return class with error for menu
         else:
             self.reachable = self.check_reachable(self.fqdn, port=443 if 'https' in self.scheme else 80)[0]
             if self.reachable:

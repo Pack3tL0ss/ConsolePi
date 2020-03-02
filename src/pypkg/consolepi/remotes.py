@@ -16,6 +16,7 @@ class Remotes():
         # -- init some vars --
         print(__name__)
         self.pop_list = []
+        self.old_api_log_sent = False
         self.log_sym_warn = log_sym.WARNING.value
         self.cpi = cpi
         config = cpi.config
@@ -346,15 +347,22 @@ class Remotes():
                 rem_ip_list.remove(remote_data['rem_ip'])
                 rem_ip_list.insert(0, remote_data['rem_ip'])
 
-        remote_data['rem_ip'] = None
         for _ip in rem_ip_list:
             log.debug(f'[API_REACHABLE] verifying {remote_host}')
             _adapters = self.get_adapters_via_api(_ip)
             if _adapters:
-                if not isinstance(_adapters, int):  # indicates an html error code was returned
-                    if not remote_data['adapters'] == _adapters:
-                        remote_data['adapters'] = _adapters
-                        update = True  # update if cached adapters didn't match
+                if not isinstance(_adapters, int):   # indicates an html error code was returned
+                    if isinstance(_adapters, list):  # indicates need for conversion from old api format
+                        _adapters = {_adapters[_adapters.index(d)]['dev']: {'config': {k: _adapters[_adapters.index(d)][k]
+                                     for k in _adapters[_adapters.index(d)]}} for d in _adapters}
+                        if self.old_api_log_sent:
+                            log.warning(f'{remote_host} provided old api schema.  Recommend Upgrading to current.')
+                            self.old_api_log_sent = True
+                    if remote_data['adapters'] != _adapters:
+                        # always update on __init__ (won't have data attribute)
+                        if not hasattr(self, 'data') or self.data.get(remote_host, {'adapters': {}})['adapters'] != _adapters:
+                            remote_data['adapters'] = _adapters
+                            update = True
                 elif _adapters == 200:
                     config.log_and_show(f"Remote {remote_host} is reachable via {_ip},"
                                         " but has no adapters attached\nit's still available in remote shell menu",

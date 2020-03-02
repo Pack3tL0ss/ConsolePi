@@ -63,7 +63,9 @@ class Local():
             # determine if the device already has a udev alias & collect available path options for use on lame adapters
             dev_name = by_path = by_id = None
             _dev = pyudev.Devices.from_name(context, 'tty', root_dev)
-            _devlinks = _dev.get('DEVLINKS').split()
+            _devlinks = _dev.get('DEVLINKS', '').split()
+            if not _devlinks:   # skip occurs on non rpi
+                continue
             for _d in _devlinks:
                 if '/dev/serial/by-' not in _d:
                     dev_name = _d.replace('/dev/', '')
@@ -74,7 +76,7 @@ class Local():
 
             dev_name = f'/dev/{root_dev}' if not dev_name else f'/dev/{dev_name}'
             devs[dev_name] = {'by_path': by_path, 'by_id': by_id}
-            devs[dev_name]['root_dev'] = True if dev_name == root_dev else False
+            devs[dev_name]['root_dev'] = True if dev_name == f'/dev/{root_dev}' else False
 
             # Gather all available properties from device
             _props = {p.lower() if p != 'ID_USB_INTERFACE_NUM' else 'id_ifnum': _dev.properties[p]

@@ -9,7 +9,8 @@ flow="n"
 parity="n"
 dbits=8
 
-cloud_file="/etc/ConsolePi/cloud.data"
+cloud_file="/etc/ConsolePi/cloud.json"
+resize_bin="/etc/ConsolePi/src/consolepi-commands/resize"
 WORD="default"
 . /etc/ConsolePi/ConsolePi.conf
 # This menu is now only used for bluetooth connections and limited only to local connections
@@ -20,8 +21,8 @@ cloud=false
 
 # -- Get List of all ttyUSB_ devices currently connected --
 get_tty_devices() {
-    tty_list=($(ls -lhF /dev/serial/by-id/ | grep ^l | cut -d'>' -f2|awk -F'/' '{print $3}'))
-    tty_list=($(ls -lhF /dev/serial/by-id/ | grep ^l | cut -d'>' -f2))
+    tty_list=($(ls -lhF /dev/serial/by-id/ 2>/dev/null| grep ^l | cut -d'>' -f2|awk -F'/' '{print $3}'))
+    tty_list=($(ls -lhF /dev/serial/by-id/ 2>/dev/null| grep ^l | cut -d'>' -f2))
 }
 
 # -- If ttyUSB device has defined alias, Display the alias in menu --
@@ -32,6 +33,7 @@ get_tty_name() {
 
 }
 
+# Depricated. Remote Device and power support available via consolepi-menu command
 get_remote_devices() {
     if [[ -f $cloud_file ]]; then
         unset rem_cmd_list
@@ -74,16 +76,18 @@ flow_menu() {
     valid_selection=false
     while ! $valid_selection; do
         valid_selection=true        
-        echo '###################################'
-        echo '##  Select desired flow control  ##'
-        echo '###################################'
-        echo ''
-        echo '1. Xon/Xoff (software)'
-        echo '2. RTS/CTS (hardware)'
-        echo '3. No Flow Control (default)'
-        echo "x. exit - flow will remain: ${flow_pretty}"
-        echo ''
-        read -ep "Select menu item: " selection
+        echo ' ======================================================='
+        echo '  -----------  Select Desired Flow Control  ----------- '
+        echo ' ======================================================='
+        echo
+        echo ' 1. Xon/Xoff (software)'
+        echo ' 2. RTS/CTS (hardware)'
+        echo ' 3. No Flow Control (default)'
+        echo
+        echo " b. Back - flow will remain: ${flow_pretty}"
+        echo
+        echo ' ======================================================='
+        read -ep " Flow >> " selection
         case $selection in
             "1")
              flow="x"
@@ -94,7 +98,7 @@ flow_menu() {
              "3")
              flow="n"
              ;;
-             "x")
+             "b")
              ;;
              *)
              valid_selection=false
@@ -131,16 +135,17 @@ parity_menu() {
     valid_input=false
     while ! $valid_input; do
         valid_input=true
-        echo '##############################'
-        echo '##  Select desired parity   ##'
-        echo '##############################'
-        echo ''
-        echo '1. odd'
-        echo '2. even'
-        echo '3. No Parity (default)'
-        echo "x. exit - parity will remain: ${parity_pretty}"
-        echo ''
-        read -ep "Select menu item: " selection
+        echo ' ======================================================='
+        echo '  --------------  Select Desired Parity  -------------- '
+        echo ' ======================================================='
+        echo
+        echo ' 1. odd'
+        echo ' 2. even'
+        echo ' 3. No Parity (default)'
+        echo " b. Back - parity will remain: ${parity_pretty}"
+        echo
+        echo ' ======================================================='
+        read -ep " Parity >> " selection
         case $selection in
             "1")
              parity="o"
@@ -151,7 +156,7 @@ parity_menu() {
              "3")
              parity="n"
              ;;
-             "x")
+             "b")
              ;;
              *)
              valid_input=false
@@ -161,25 +166,26 @@ parity_menu() {
 
 # -- data-bits selection menu --
 databits_menu() {
-    echo '#################################'
-    echo '##  Select desired data bits   ##'
-    echo '#################################'
-    echo ''
-    echo 'Enter the number of data bits'
-    echo 'Default 8, Valid range 5-8'
-    echo ''
-    echo "x. exit - data bits will remain: ${dbits}"
-    echo ''
+    echo ' ======================================================='
+    echo '  -------------  Enter Desired Data Bits  ------------- '
+    echo ' ======================================================='
+    echo
+    echo ' Enter the number of data bits'
+    echo ' Default 8, Valid range 5-8'
+    echo
+    echo " b. Back - data bits will remain: ${dbits}"
+    echo
+    echo ' ======================================================='
     valid_input=false
     while ! $valid_input; do
-        read -ep "Enter number of data bits: " selection
+        read -ep " Data Bits >> " selection
         if [[ $selection > 4 ]] && [[ $selection < 9 ]]; then
             dbits=$selection
             valid_input=true
-        elif [[ ${selection,,} == "x" ]]; then
+        elif [[ ${selection,,} == "b" ]]; then
             valid_input=true                
         else
-            echo -e  '\n!!Invalid Selection!!\n'
+            echo -e  "Invalid Selection '$selection' please try again."
         fi
     done
 }
@@ -189,31 +195,33 @@ baud_menu() {
     baud_valid=false
     baud_list=(300 1200 9600 19200 57600 115200 0)
     while ! $baud_valid; do
-		echo '#################################'
-		echo '##  Select desired baud rate.  ##'
-		echo '#################################'
-		echo ''
-		echo '1. 300'
-		echo '2. 1200'
-		echo '3. 9600 (default)'
-		echo '4. 19200'
-		echo '5. 57600'            
-		echo '6. 115200'
-		echo '7. custom'
-		echo "x. exit - baud will remain ${baud}"
-		echo ''
-		read -ep "Select menu item: " selection
+        echo ' ======================================================='
+        echo '  ------------  Select Desired Baud Rate  ------------- '
+        echo ' ======================================================='
+		echo
+		echo ' 1. 300'
+		echo ' 2. 1200'
+		echo ' 3. 9600 (default)'
+		echo ' 4. 19200'
+		echo ' 5. 57600'            
+		echo ' 6. 115200'
+		echo ' 7. custom'
+        echo
+		echo " b. Back - baud will remain ${baud}"
+		echo
+        echo '======================================================='
+		read -ep " Select Desired Baud Rate >>" selection
 		
-        if (( ! $selection == "x" )) && (( $selection > 0 )) && (( $selection < 7 )); then
+        if (( ! $selection == "b" )) && (( $selection > 0 )) && (( $selection < 7 )); then
             baud=${baud_list[ (($selection-1)) ]}
             baud_valid=true
         elif (( $selection == 7 )); then
             read -ep "Input baud rate" baud
             baud_valid=true
-        elif (( $selection == "x" )); then
+        elif (( $selection == "b" )); then
             baud_valid=true
         else
-            echo -e "\nInvalid Selection Try Again\n\n"
+            echo -e  "Invalid Selection '$selection' please try again."
         fi
 
     done
@@ -225,18 +233,20 @@ port_config_menu() {
     while ! $valid_input_pcm; do
         do_parity_pretty
         do_flow_pretty
-        echo '#################################'
-        echo '##  Serial Port Configuration  ##'
-        echo '#################################'
-        echo ''
-        echo "1. Change baud (${baud})"
-        echo "2. Change Data Bits (${dbits})"
-        echo "3. Change Parity (${parity_pretty})"
-        echo "4. Change Flow Control (${flow_pretty})"
+        echo ' ======================================================='
+        echo '  ------------  Connection Settings Menu  ------------- '
+        echo ' ======================================================='
+        echo
+        echo " 1. Change baud [${baud}]"
+        echo " 2. Change Data Bits [${dbits}]"
+        echo " 3. Change Parity [${parity_pretty}]"
+        echo " 4. Change Flow Control [${flow_pretty}]"
         [[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
-            echo "x. exit [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
-            echo ''
-            read -ep "Select menu item: " selection
+        echo
+        echo " b. Back [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
+        echo
+        echo ' ======================================================='
+        read -ep " >> " selection
 
         # Re-Print menu until exit
         case $selection in
@@ -252,11 +262,11 @@ port_config_menu() {
              "4")
              flow_menu
              ;;
-             "x")
+             "b")
              valid_input_pcm=true
              ;;
              *)
-              echo -e  '\n!!Invalid Selection!!\n'
+              echo -e  "Invalid Selection '$selection' please try again."
              ;;
         esac
     done
@@ -297,35 +307,36 @@ picocom_help() {
 main_menu() {
     valid_selection=false
     while ! $valid_selection; do
-        clear
+        clear && [ -f "$resize_bin" ] && $resize_bin >/dev/null
         do_flow_pretty
         do_parity_pretty
-        echo '##################### ConsolePi Connection MENU ########################'
+        echo ' ===================================================================='
+        echo '  --------------------- ConsolePi Serial Menu ----------------------'
+        echo ' ===================================================================='
         # Loop through Connected USB-Serial adapters creating menu option for each found
         item=1
         # echo " -- LOCAL CONNECTIONS --"
         echo ''
         for this_tty in ${tty_list[@]}; do 
             get_tty_name    # checks for alias created via udev rules and uses alias as a descriptor if exists
-            echo "${item}. Connect to ${tty_name} Using $WORD settings"
+            echo " ${item}. ${tty_name}" #  Using $WORD settings"
             ((item++))
         done
 
         # Build Menu items for remote devices updated from GDrive
         # get_remote_devices  # Disabled this is now only used for bluetooth user
-        echo ''
-        echo "c. Change Connection Settings [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
-        echo 'r. refresh - detect connected serial adapters'
+        echo
+        echo " c. Change Connection Settings [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
+        echo ' r. refresh - detect connected serial adapters'
         $cloud && echo 'g. refresh - detect connected serial adapters + Update Connections to GDrive enabled ConsolePis'
-        echo 'h. Display picocom help'
-        echo 'x. exit to shell'
-        echo ''
-                echo '########################################################################'
+        echo ' h. Display picocom help'
+        echo ' x. exit to shell'
+        echo
+                echo ' ===================================================================='
         [[ $parity == "n" ]] && parity_txt="N" || parity_txt="-${parity_pretty}-"
-        echo " CURRENT CONNECTION SETTINGS: [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
-        echo '########################################################################'
-        echo ''
-        read -ep "Select menu item > " selection
+        echo "  CURRENT CONNECTION SETTINGS: [${baud} ${dbits}${parity_txt}1 flow: ${flow_pretty}]"
+        echo ' ===================================================================='
+        read -ep " >> " selection
 
         #if selection not defined or selection is non-printable cntrl char set to zero to fail through without error
         ( [[ -z $selection ]] || [[ $selection =~ [[:cntrl:]] ]] ) && selection=0
@@ -356,7 +367,7 @@ main_menu() {
             echo ''
             exit_script
         else
-            echo -e "\nInvalid Selection Try Again\n\n"
+            echo -e  "Invalid Selection '$selection' please try again."
         fi
     done
 }
@@ -368,7 +379,7 @@ exit_script() {
         echo -e "The blue user used in this shell"
         echo -e "has limited permissions"
         echo ''
-        echo -e "'su pi' to gain typical rights"
+        echo -e "'su pi -l' to gain typical rights"
         echo ''
         echo -e "*******************************\n"
     else

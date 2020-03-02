@@ -3,7 +3,8 @@
 consolepi_dir="/etc/ConsolePi"
 log_file="/tmp/consolepi-sync.log"
 iam=$(who -m |  awk '{print $1}')
-[ -z $iam ] && iam=$SUDO_USER # cockpit shell
+[ -z $iam ] && iam=$USER
+[[ $iam == "root" ]] && [[ ! -z $SUDO_USER ]] && iam=$SUDO_USER
 [ "$iam" = "root" ] && home_dir="/${iam}" || home_dir="/home/${iam}"
 loc_pull_file=$home_dir/local_pull
 rem_user='pi'

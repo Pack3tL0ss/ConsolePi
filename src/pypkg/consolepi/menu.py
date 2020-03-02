@@ -4,7 +4,6 @@ import sys
 import logging
 from halo import Halo
 from collections import OrderedDict as od
-import re
 import os
 
 MIN_WIDTH = 55
@@ -17,9 +16,6 @@ class Menu():
         print(__name__)
         self.menu = menu
         self.utils = menu.utils
-        # if log_file is None:
-        #     log_file = '/var/log/ConsolePi/consolepi.log'
-        # self.log = log if log else self.get_logger(log_file)
         self.log = menu.log
         self.go = True
         self.debug = menu.debug
@@ -342,7 +338,7 @@ class Menu():
                     self.error_msgs.remove(_error)
                 for e in self.ignored_errors:
                     _e = _error.strip('\r\n')
-                    if isinstance(e, re.Pattern) and e.match(_e):
+                    if hasattr(e, 'match') and e.match(_e):
                         self.error_msgs.remove(_error)
                         break
                     elif isinstance(e, str) and (e == _error or e in _error):

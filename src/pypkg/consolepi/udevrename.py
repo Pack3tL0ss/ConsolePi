@@ -15,7 +15,7 @@ class Rename():
         self.parity_pretty = {'o': 'Odd', 'e': 'Even', 'n': 'No'}
         self.flow_pretty = {'x': 'Xon/Xoff', 'h': 'RTS/CTS', 'n': 'No'}
 
-# --- // START MONSTER RENAME FUNCTION \\ --- # TODO maybe break this up a bit
+    # --- // START MONSTER RENAME FUNCTION \\ --- # TODO maybe break this up a bit
     def do_rename_adapter(self, from_name):
         '''Rename USB to Serial Adapter
 
@@ -87,7 +87,7 @@ class Rename():
             if 'ttyUSB' in from_name or 'ttyACM' in from_name:
                 devs = local.detect_adapters()
                 if f'/dev/{from_name}' in devs:
-                    _tty = devs[from_name]
+                    _tty = devs[f'/dev/{from_name}']
                     id_prod = _tty['id_model_id']
                     id_model = _tty['id_model']  # NoQA pylint: disable=unused-variable
                     id_vendorid = _tty['id_vendor_id']
@@ -210,12 +210,11 @@ class Rename():
                     rules_file,
                     ''
                     )
-                # error = bash_command(cmd)
-                error = utils.do_shell_cmd(cmd)
+                error = utils.do_shell_cmd(cmd, shell=True)
                 if not error:
                     error = self.do_ser2net_line(to_name=to_name, baud=baud, dbits=dbits, parity=parity, flow=flow,
                                                  existing=True, match_txt='{}:'.format(from_name))
-                if error:
+                else:
                     return [error.split('\n'), 'Failed to change {} --> {} in {}'.format(from_name, to_name, ser2net_file)]
 
             if not error:
@@ -293,7 +292,6 @@ class Rename():
                 else:
                     next_port = ports[0]  # it's the existing port in this case
         else:
-            # res = bash_command('sudo cp /etc/ConsolePi/src/ser2net.conf /etc/', eval_errors=False)
             res = utils.do_shell_cmd('sudo cp /etc/ConsolePi/src/ser2net.conf /etc/', handle_errors=False)
             next_port = '7001'  # added here looks like flawed logic below
             if res:
@@ -316,8 +314,7 @@ class Rename():
             cmd = "sudo sed -i 's/.*{}.*/{}/'  {}".format(
                         match_txt, ser2net_line, ser2net_file)  # pylint: disable=maybe-no-member
 
-            # return bash_command(cmd)
-            return utils.do_shell_cmd(cmd)
+            return utils.do_shell_cmd(cmd, shell=True)
 
     def add_to_udev(self, udev_line, section_marker, label=None):
         '''Add or edit udev rules file with new symlink after adapter rename.
@@ -338,7 +335,7 @@ class Rename():
         utils = cpi.utils
         found = ser_label_exists = get_next = update_file = False  # init
         goto = ''  # init
-        rules_file = config.serial.get('RULES_FILE')
+        rules_file = config.static.get('RULES_FILE')
         if utils.valid_file(rules_file):   # pylint: disable=maybe-no-member
             with open(rules_file) as x:  # pylint: disable=maybe-no-member
                 for line in x:
@@ -384,7 +381,7 @@ class Rename():
         if found:
             udev_line = '{}\\n{}'.format(udev_line, section_marker)
             cmd = "sed -i 's/{}/{}/' {}".format(section_marker, udev_line, rules_file)
-            error = utils.do_shell_cmd(cmd, eval_errors=False)
+            error = utils.do_shell_cmd(cmd, handle_errors=False)
             if error:
                 return error
         else:  # Not Using new 10-ConsolePi.rules template just append to file
@@ -395,11 +392,9 @@ class Rename():
                     'add you\'re current rules to the BYSERIAL-DEVS section.'
 
     def trigger_udev(self):
-        utils = self.cpi.utils
         cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '  # NoQA
         with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
-            # error = bash_command(cmd)
-            error = utils.do_shell_cmd(cmd)
+            error = self.utils.do_shell_cmd(cmd, shell=True)
         if not error:
             self.udev_pending = False
         else:

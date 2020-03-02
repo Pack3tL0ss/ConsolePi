@@ -3,10 +3,18 @@
 import json
 import threading
 import time
+
 import requests
-import RPi.GPIO as GPIO
-from consolepi.power import DLI
+
+try:
+    import RPi.GPIO as GPIO
+    is_rpi = True
+except RuntimeError:
+    is_rpi = False
+
 from halo import Halo
+
+from consolepi.power import DLI
 
 try:
     import better_exceptions
@@ -25,8 +33,9 @@ class Outlets:
         self.cpi = cpi
         self.log = cpi.config.log
         self.spin = Halo(spinner='dots')
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setwarnings(False)
+        if is_rpi:
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
         self._dli = {}
 
         # Some convenience Bools used by menu to determine what options to display
@@ -216,6 +225,8 @@ class Outlets:
             _start = time.time()
             # -- // GPIO \\ --
             if outlet['type'].upper() == 'GPIO':
+                if not is_rpi:
+                    continue
                 noff = True if 'noff' not in outlet else outlet['noff']  # default normally off to True if not provided
                 GPIO.setup(outlet['address'], GPIO.OUT)  # pylint: disable=maybe-no-member
                 outlet_data[k]['is_on'] = bool(GPIO.input(outlet['address'])) if noff \

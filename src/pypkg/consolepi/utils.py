@@ -177,41 +177,43 @@ class Utils():
         ]
         return ''.join([x.replace(i, '') for x in self.listify(output) for i in strip_words])
 
-    def do_shell_cmd(self, cmd, do_print=False, handle_errors=True, return_stdout=False, tee_stderr=False, timeout=5):
-        '''Runs shell cmd (i.e. ssh), sends any stderr output to error_handler.
+    def do_shell_cmd(self, cmd, do_print=False, handle_errors=True, return_stdout=False, tee_stderr=False,
+                     timeout=5, shell=False, **kwargs):
+        '''Runs shell cmd (i.e. ssh) returns stderr if any by default
 
-        params:
-        cmd: str or list of commands/args sent to subprocess
-        handle_errors bool: default True sends stderr to error_handler
-        return_stdout bool: run with shell and return tuple returncode, stdout, stderr
+        Arguments:
+            cmd {str|list} -- commands/args sent to subprocess
 
-        returns:
-        by default there is no return unless there is an error
-        return_stdout=True will return tuple returncode, stdout, stderr
+        Keyword Arguments:
+            do_print {bool} -- Print stderr after cmd completes (default: {False})
+            handle_errors {bool} -- Send stderr to error_handler (default: {True})
+            return_stdout {bool} -- run with shell and return tuple returncode, stdout, stderr (default: {False})
+            tee_stderr {bool} -- stderr is displayed and captured (default: {False})
+            timeout {int} -- subprocess timeout (default: {5})
+            shell {bool} -- run cmd as shell (default: {True})
+
+        Returns:
+            {str|tuple} -- By default there is no return unless there is an error.
+            return_stdout=True will return tuple returncode, stdout, stderr
         '''
         if return_stdout:
             res = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE, universal_newlines=True)
+                                 stderr=subprocess.PIPE, universal_newlines=True, **kwargs)
             return res.returncode, res.stdout.strip(), res.stderr.strip()
+        elif shell:
+            res = subprocess.run(cmd, shell=True, stderr=subprocess.PIPE,
+                                 universal_newlines=True, **kwargs)
+            if res.stderr:
+                return res.stderr if not handle_errors else self.error_handler(cmd, res.stderr)
 
-        elif not return_stdout:
+        else:
             if isinstance(cmd, str):
                 cmd = shlex.split(cmd)
-            if not tee_stderr:
-                proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, universal_newlines=True)
-                err = proc.communicate(timeout=timeout)[1]
-                if err is not None and do_print:
-                    print(self.shell_output_cleaner(err), file=sys.stdout)
-                # if proc.returncode != 0 and handle_errors:
-                if err and handle_errors:
-                    err = self.error_handler(cmd, err)
 
-                proc.wait()
-                return err
-            else:  # TESTING - For ssh/telnet host connections banner text returns in stderr
+            if tee_stderr:
                 s = subprocess
                 with s.Popen(cmd, stderr=s.PIPE, bufsize=1,
-                             universal_newlines=True) as p, StringIO() as buf:
+                             universal_newlines=True, **kwargs) as p, StringIO() as buf:
                     for line in p.stderr:
                         print(line, end='')
                         buf.write(line)
@@ -221,6 +223,17 @@ class Utils():
                 else:
                     error = None
                 return error
+            else:
+                proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, universal_newlines=True, **kwargs)
+                err = proc.communicate(timeout=timeout)[1]
+                if err is not None and do_print:
+                    print(self.shell_output_cleaner(err), file=sys.stdout)
+                # if proc.returncode != 0 and handle_errors:
+                if err and handle_errors:
+                    err = self.error_handler(cmd, err)
+
+                proc.wait()
+                return err
 
     def check_install_apt_pkg(self, pkg: str, verify_cmd=None):
         verify_cmd = 'which {}'.format(pkg) if verify_cmd is None else verify_cmd

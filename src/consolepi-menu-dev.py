@@ -30,6 +30,7 @@ class ConsolePiMenu(Rename):
     def __init__(self, bypass_remote=False):
         self.cpi = ConsolePi(bypass_remote=bypass_remote)
         self.utils = self.cpi.utils
+        self.baud = self.cpi.config.default_baud
         self.go = True
         self.debug = self.cpi.config.cfg.get('debug', False)
         self.spin = Halo(spinner='dots')
@@ -41,22 +42,20 @@ class ConsolePiMenu(Rename):
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
         self.log = self.cpi.config.log
         self.display_con_settings = False
-        # self.menu = Menu(self.cpi.utils, debug=self.debug, log=self.cpi.config.log)
         self.menu = Menu(self)
         self.menu.ignored_errors = [
             re.compile('Connection to .* closed')
         ]
         self.do_menu_load_warnings()
+        self.shell_cmds = ['ping', 'ssh', 'telnet', 'picocom', 'ip ', 'ifconfig', 'netstat', 'sudo ', 'printenv', 'cat ', 'tail ']
         super().__init__()
 
     def print_menu(self, *args, **kwargs):
+        '''combine error_msgs and pass to menu formatter/print functions'''
+
         kwargs['error_msgs'] = self.cpi.error_msgs + self.error_msgs
         self.cpi.error_msgs = self.error_msgs = []
         self.menu.print_mlines(*args, **kwargs)
-
-    def state_formatter(self, state):
-        '''Accept Bool, return power text with color placeholders used in menu'''
-        return '{{green}}ON{{norm}}' if state else '{{red}}OFF{{norm}}'
 
     def print_attribute(self, ch, locs={}):
         '''Debugging Function allowing user to print class attributes / function returns.
@@ -81,7 +80,7 @@ class ConsolePiMenu(Rename):
             _class_str = '.'.join(ch.split('.')[0:-1])
             _attr = ch.split('.')[-1].split('[')[0].split('(')[0]
             if _class_str.split('.')[0] == 'this':
-                _var = f'self.var = locs.get("{_attr}")'
+                _var = f'self.var = locs.get("{_attr}", "Attribute/Variable Not Found")'
                 if '[' in ch:
                     _var += f"[{ch.split('.')[-1].split('[')[1]}"
                 if '(' in ch:
@@ -112,13 +111,36 @@ class ConsolePiMenu(Rename):
                         print(f'{type(self.var)} length: {len(self.var)}')
                     else:
                         print(self.var)
-                        print('type: {}'.format(type(self.var)))
+                        print(f'type: {type(self.var)}\n'
+                              if isinstance(self.var, str) and 'Not Found' not in self.var else '\n')
                     input('Press Enter to Continue... ')
                 except Exception as e:
                     if hasattr(self, 'var'):
                         print(self.var)
                         input('Press Enter to Continue... ')
                     cpi.error_msgs.append(f'DEBUG: {e}')
+                return True
+
+    def exec_shell_cmd(self, cmd):
+        '''Allow user to perform supported commands directly from menu
+
+        Arguments:
+            cmd {str} -- command to be passed to shell
+
+        Returns:
+            bool|None -- True if cmd matched supported cmd
+        '''
+        for c in self.shell_cmds:
+            if c in cmd:
+                try:
+                    if 'sudo ' not in cmd:
+                        cmd = f'sudo -u {self.cpi.local.user} {cmd}'
+                    elif 'sudo -u ' not in cmd:
+                        cmd = cmd.replace('sudo ', '')
+                    subprocess.run(cmd, shell=True)
+                except (KeyboardInterrupt, EOFError):
+                    pass
+                input('Press Enter to Continue... ')
                 return True
 
     def do_menu_load_warnings(self):
@@ -234,7 +256,7 @@ class ConsolePiMenu(Rename):
                     if pwr.data['defined'][r].get('errors'):
                         cpi.error_msgs.append(f'{r} - {pwr.data["defined"][r]["errors"]}')
                         del pwr.data['defined'][r]['errors']
-                    if isinstance(outlet['is_on'], bool):
+                    if isinstance(outlet.get('is_on'), bool):
                         _state = states[outlet['is_on']]
                         state_list.append(outlet['is_on'])
                         _state = menu.format_line(_state).text
@@ -258,7 +280,8 @@ class ConsolePiMenu(Rename):
                             }
                         item += 1
                     else:   # refactored power.py pwr_get_outlets this should never hit
-                        cpi.error_msgs.append(f"DEV NOTE {r} outlet state is not bool: {outlet['error']}")
+                        if outlet.get('is_on'):
+                            cpi.error_msgs.append(f"DEV NOTE {r} outlet state is not bool: {outlet['error']}")
 
             if item > 2:
                 if False in state_list:
@@ -305,8 +328,17 @@ class ConsolePiMenu(Rename):
                 menu.menu_rows += 1  # TODO REMOVE AFTER SIMPLIFIED
                 prompt = f' m[r:{menu.menu_rows}, c:{menu.menu_cols}] a[r:{menu.rows}, c:{menu.cols}]{prompt}'
             choice = input(prompt) if not lower else input(prompt).lower()
+            # debug toggles debug
+            if choice == 'debug':
+                self.cpi.error_msgs.append(f'debug toggled {self.states[self.debug]} --> {self.states[not self.debug]}')
+                self.cpi.error_msgs.append('Changing debug in menu does not impact logging, '
+                                           'Change in Config a re-launch for that.')
+                self.debug = not self.debug
+                return
+            elif self.exec_shell_cmd(choice):
+                return
             # DEBUG Func to print attributes/function returns
-            if '.' in choice and self.print_attribute(choice, locs):
+            elif '.' in choice and self.print_attribute(choice, locs):
                 return
             menu.menu_rows = 0  # TODO REMOVE AFTER SIMPLIFIED
             return choice
@@ -315,7 +347,7 @@ class ConsolePiMenu(Rename):
                 print('Exiting based on User Input')
                 self.exit()
             else:
-                menu.error_msgs.append('User Aborted')
+                menu.error_msgs.append('Operation Aborted')
                 print('')  # prevents header and prompt on same line in debug
                 return ''
 
@@ -329,10 +361,11 @@ class ConsolePiMenu(Rename):
             'dli_menu': self.dli_menu,
             'power_menu': self.power_menu
         }
-        states = self.states
+        # states = self.states
         choice = ''
         if not cpi.pwr_init_complete:
-            with Halo(text='Waiting for Outlet init Threads to Complete...', spinner='dots'):
+            with Halo(text='Waiting for Outlet init Threads to Complete...',
+                      spinner='dots'):
                 cpi.wait_for_threads('init')
 
         if not pwr.dli_exists:
@@ -345,7 +378,7 @@ class ConsolePiMenu(Rename):
             outer_body = []
             slines = []
             for dli in sorted(dli_dict):
-                state_dict = []
+                state_list = []
                 mlines = []
                 port_dict = dli_dict[dli]
                 # strip off all but hostname if address is fqdn
@@ -355,11 +388,11 @@ class ConsolePiMenu(Rename):
                 for port in port_dict:
                     pname = port_dict[port]['name']
                     cur_state = port_dict[port]['state']
-                    state_dict.append(cur_state)
+                    state_list.append(cur_state)
                     to_state = not cur_state
                     on_pad = ' ' if cur_state else ''
                     mlines.append('[{}] {}{}{}'.format(
-                        states[cur_state], on_pad, 'P' + str(port) + ': ' if port != index else '', pname))
+                        self.states[cur_state], on_pad, 'P' + str(port) + ': ' if port != index else '', pname))
                     menu_actions[str(index)] = {
                         'function': pwr.pwr_toggle,
                         'args': ['dli', dli],
@@ -381,10 +414,10 @@ class ConsolePiMenu(Rename):
                     index += 1
 
                 # add final entry for all operations
-                if True not in state_dict:
+                if True not in state_list:
                     _line = 'ALL {{green}}ON{{norm}}'
                     desired_state = True
-                elif False not in state_dict:
+                elif False not in state_list:
                     _line = 'ALL {{red}}OFF{{norm}}'
                     desired_state = False
                 else:
@@ -413,7 +446,7 @@ class ConsolePiMenu(Rename):
                 index += 1
 
                 # Add cycle line if any outlets are currently ON
-                if True in state_dict:
+                if True in state_list:
                     mlines.append('Cycle ALL')
                     menu_actions[str(index)] = {
                         'function': pwr.pwr_cycle,
@@ -502,13 +535,9 @@ class ConsolePiMenu(Rename):
         config = cpi.config
         rem = cpi.remotes.data
         utils = cpi.utils
-        flow_pretty = {
-            'x': 'xon/xoff',
-            'h': 'RTS/CTS',
-            'n': 'NONE'
-        }
         menu_actions = {}
         mlines = []
+        flow_pretty = self.flow_pretty
 
         # If remotes present adapter data in old format convert to new
         if isinstance(adapters, list):
@@ -542,7 +571,7 @@ class ConsolePiMenu(Rename):
             else:
                 def_indicator = '**'
                 self.display_con_settings = True
-            baud = this_dev.get('baud', config.default_baud)
+            baud = this_dev.get('baud', self.baud)
             dbits = this_dev.get('dbits', 8)
             flow = this_dev.get('flow', 'n')
             parity = this_dev.get('parity', 'n')
@@ -807,13 +836,12 @@ class ConsolePiMenu(Rename):
         pwr = cpi.pwr
         config = cpi.config
         utils = cpi.utils
-        # log = config.log
         if not self.debug and calling_menu not in ['dli_menu', 'power_menu']:
             os.system('clear')
 
         if not choice or choice.lower() in menu_actions and menu_actions[choice.lower()] is None:
-            self.rows, self.cols = utils.get_tty_size()  # re-calc tty size in case they've adjusted the window
-            self.cpi.local.adapters = self.cpi.local.build_adapter_dict(refresh=True)  # always refresh local adapters
+            self.menu.rows, self.menu.cols = utils.get_tty_size()  # re-calc tty size in case they've adjusted the window
+            # self.cpi.local.adapters = self.cpi.local.build_adapter_dict(refresh=True)  # always refresh local adapters
             return
 
         if choice.lower() == 'exit':
@@ -1080,7 +1108,7 @@ class ConsolePiMenu(Rename):
             '2': self.data_bits_menu,
             '3': self.parity_menu,
             '4': self.flow_menu,
-            'b': self.main_menu if not rename else self.do_rename_adapter,  # not called
+            'b': self.main_menu if not rename else self.do_rename_adapter,  # not used currently
             'x': self.exit
         }
         if con_dict:
@@ -1097,6 +1125,7 @@ class ConsolePiMenu(Rename):
 
         while True:
             menu.menu_formatting('header', text=' Connection Settings Menu ')
+            print('')
             print(' 1. Baud [{}]'.format(self.baud))
             print(' 2. Data Bits [{}]'.format(self.data_bits))
             print(' 3. Parity [{}]'.format(self.parity_pretty[self.parity]))
@@ -1133,6 +1162,7 @@ class ConsolePiMenu(Rename):
         while True:
             # -- Print Baud Menu --
             menu.menu_formatting('header', text=' Select Desired Baud Rate ')
+            print('')
 
             for key in menu_actions:
                 # if not callable(menu_actions[key]):
@@ -1147,7 +1177,7 @@ class ConsolePiMenu(Rename):
             try:
                 if ch == 'c':
                     while True:
-                        self.baud = self.wait_for_input(' Enter Desired Baud Rate >>  ')
+                        self.baud = self.wait_for_input(' Enter Desired Baud Rate >> ')
                         if not self.baud.isdigit():
                             print('Invalid Entry {}'.format(self.baud))
                         elif int(self.baud) not in std_baud:
@@ -1174,7 +1204,7 @@ class ConsolePiMenu(Rename):
         valid = False
         while not valid:
             menu.menu_formatting('header', text=' Enter Desired Data Bits ')
-            print(' Default 8, Current {}, Valid range 5-8'.format(self.data_bits))
+            print('\n Default 8, Current [{}], Valid range 5-8'.format(self.data_bits))
             menu.menu_formatting('footer', text=' b.  Back')
             choice = self.wait_for_input(' Data Bits >>  ', locs=locals())
             try:
@@ -1195,19 +1225,20 @@ class ConsolePiMenu(Rename):
 
     def parity_menu(self):
         menu = self.menu
+
         def print_menu():
             menu.menu_formatting('header', text=' Select Desired Parity ')
-            print(' Default No Parity\n')
-            print(' 1. None')
-            print(' 2. Odd')
-            print(' 3. Even')
+            print('\n Default No Parity\n')
+            print(f" 1. {'[None]' if self.parity == 'n' else 'None'}")
+            print(f" 2. {'[Odd]' if self.parity == 'o' else 'Odd'}")
+            print(f" 3. {'[Even]' if self.parity == 'e' else 'Even'}")
             text = ' b.  Back'
             menu.menu_formatting('footer', text=text)
         valid = False
         while not valid:
             print_menu()
             valid = True
-            choice = self.wait_for_input(' Parity >>  ', lower=True, locs=locals())
+            choice = self.wait_for_input(' Parity >> ', lower=True, locs=locals())
             if choice == '1':
                 self.parity = 'n'
             elif choice == '2':
@@ -1226,12 +1257,14 @@ class ConsolePiMenu(Rename):
 
     def flow_menu(self):
         menu = self.menu
+
         def print_menu():
             menu.menu_formatting('header', text=' Select Desired Flow Control ')
+            print('')
             print(' Default No Flow\n')
-            print(' 1. No Flow Control (default)')
-            print(' 2. Xon/Xoff (software)')
-            print(' 3. RTS/CTS (hardware)')
+            print(f" 1. {'[None]' if self.flow == 'n' else 'None'}")
+            print(f" 2. {'[Xon/Xoff]' if self.flow == 'x' else 'Xon/Xoff'} (software)")
+            print(f" 3. {'[RTS/CTS]' if self.flow == 'h' else 'RTS/CTS'} (hardware)")
             text = ' b.  Back'
             menu.menu_formatting('footer', text=text)
         valid = False
@@ -1276,7 +1309,7 @@ class ConsolePiMenu(Rename):
             cmd = 'sudo udevadm control --reload && sudo udevadm trigger && '\
                   'sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
             with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
-                error = cpi.utils.do_shell_cmd(cmd)
+                error = cpi.utils.do_shell_cmd(cmd, shell=True)
             if error:
                 print(error)
 

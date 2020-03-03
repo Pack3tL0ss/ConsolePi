@@ -5,6 +5,7 @@ import requests
 import threading
 from halo import Halo
 import time
+from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
 # from consolepi.gdrive import GoogleDrive <-- burried import inside refresh method
 
@@ -13,8 +14,6 @@ class Remotes():
     '''Remotes Object Contains attributes for discovered remote ConsolePis'''
 
     def __init__(self, cpi):
-        # -- init some vars --
-        print(__name__)
         self.pop_list = []
         self.old_api_log_sent = False
         self.log_sym_warn = log_sym.WARNING.value
@@ -98,7 +97,8 @@ class Remotes():
             config.log_and_show('Local cache included entry for self - do you have other ConsolePis using the same hostname?')
 
         # Verify Remote ConsolePi details and reachability
-        spin.start('Querying Remotes via API to verify reachability and adapter data')
+        if stdin.isatty():
+            spin.start('Querying Remotes via API to verify reachability and adapter data')
         for remotepi in data:
             # Launch Threads to verify all remotes in parallel
             threading.Thread(target=verify_remote_thread, args=(remotepi, data), name=f'vrfy_{remotepi}').start()
@@ -106,11 +106,13 @@ class Remotes():
         # -- wait for threads to complete --
         if not cpi.wait_for_threads(name='vrfy_', thread_type='remote'):
             if config.remotes:
-                spin.succeed('[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t'
-                             f'Found {len(config.remotes)} Remote ConsolePis')
+                if stdin.isatty():
+                    spin.succeed('[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t'
+                                 f'Found {len(config.remotes)} Remote ConsolePis')
             else:
-                spin.warn('[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t'
-                          'No Remote ConsolePis Discovered/Found')
+                if stdin.isatty():
+                    spin.warn('[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t'
+                              'No Reachable Remote ConsolePis Discovered')
         else:
             log.error('[GET REM] Remote verify threads Still running / exceeded timeout')
 

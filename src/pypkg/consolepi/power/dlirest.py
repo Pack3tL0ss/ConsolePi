@@ -226,7 +226,7 @@ class DLI:
                 retry = 0
                 while retry <= 2:
                     outlet_list = self.dli.statuslist()
-                    if outlet_list: # can be None if dli suffers transient issue
+                    if outlet_list:  # can be None if dli suffers transient issue
                         for outlet in outlet_list:
                             outlet_dict[outlet[0]] = {'name': outlet[1], 'state': True if outlet[2].upper() == 'ON' else False}
                         break
@@ -239,7 +239,7 @@ class DLI:
                 self.reachable = False
                 self.dli = self.outlets = {}
         if TIMING:
-            print('[TIMING] {} get_dli_outlets: {}'.format(self.fqdn, time.time() - start)) # TIMING
+            print('[TIMING] {} get_dli_outlets: {}'.format(self.fqdn, time.time() - start))
         return outlet_dict  # if len(outlet_dict) > 0 else None
 
     def operate_port(self, port, toState=None, func='toggle'):
@@ -263,7 +263,7 @@ class DLI:
             # use rest API available on newer web power switches (i.e. web power switch Pro)
             if self.rest:
                 if func == 'toggle':
-                    req = getattr(self.dli, 'put') 
+                    req = getattr(self.dli, 'put')
                     headers = {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'}
                     data = json.dumps(toState)
                 elif func == 'cycle':
@@ -290,12 +290,12 @@ class DLI:
                 elif func == 'cycle':
                     if curState:
                         if TIMING:
-                            start = time.time() # TIMING
+                            start = time.time()
                         r = self.dli.cycle(port)
                         if TIMING:
-                            print('[TIMING] {} cycle {}: {}'.format(self.fqdn, port, time.time() - start)) # TIMING
+                            print('[TIMING] {} cycle {}: {}'.format(self.fqdn, port, time.time() - start))
                         return not r
-                    else: 
+                    else:
                         return False  # a False response from cycle indicates port was already off nothing occured
             # -- END TOGGLE SUB --
 
@@ -343,7 +343,7 @@ class DLI:
             if func.lower() == 'toggle':
                 toState = 'ON' if toState else 'OFF'
                 if self.rest:
-                    url=self.base_url + '/outlet?a=' + toState
+                    url = self.base_url + '/outlet?a=' + toState
                     ret_val = self.verify_session(url)
                 else:
                     r = self.dli.geturl(url='outlet?a=' + toState)
@@ -357,7 +357,7 @@ class DLI:
                     ret_val = 200 if r is not None else 400
                 return ret_val
             else:
-                print('Invalid value for func argument') # TODO logging exception
+                print('Invalid value for func argument')  # TODO logging exception
             if TIMING:
                 print('[TIMING] {} {} {}: {}'.format(self.fqdn, func, port, time.time() - start))  # TIMING
         # -- something else (should be list or slice) passed in --

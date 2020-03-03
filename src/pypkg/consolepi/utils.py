@@ -294,9 +294,15 @@ class Utils():
 
     def get_picocom_ver(self):
         '''return version of picocom'''
-        x = subprocess.run('picocom  --help | head -1 | cut -dv -f2', stdout=subprocess.PIPE, shell=True)
-        if x.returncode == 0:
-            return float(x.stdout.decode('UTF-8').strip())
+        x = subprocess.run('which picocom >/dev/null && picocom  --help | head -1 | cut -dv -f2',
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        x = x.stdout.decode('UTF-8').strip()
+        if not x:
+            print("\nConsolePi Menu Requires picocom which doesn't appear to be installed")
+            print("Install with 'sudo apt install picocom'")
+            sys.exit(1)
+        else:
+            return float(x)
 
     def verify_telnet_installed(self, host_dict):
         '''Install TELNET pkg if not already and TELNET hosts are defined

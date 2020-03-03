@@ -87,7 +87,7 @@ class Local():
             usb_dev = {k.lower(): d[k] for d in context.list_devices(DRIVER='usb', ID_BUS='usb')
                        for k in d.keys() if d.get('DEVPATH') in devs[dev_name]['devpath']}
             for k in ['id_model_id', 'id_vendor_id']:
-                devs[dev_name][k] = usb_dev[k]
+                devs[dev_name][k] = usb_dev.get(k)
 
             _ser = devs[dev_name]['id_serial_short'] = _dev.get('ID_SERIAL_SHORT', usb_dev.get('ID_SERIAL_SHORT'))
 

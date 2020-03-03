@@ -23,12 +23,14 @@ class MDNS_Browser:
 
     def __init__(self, log=None, show=False):
         self.cpi = ConsolePi()
+        self.debug = self.cpi.config.cfg.get('debug', False)
         self.show = show
         self.log = log if log is not None else self.cpi.log
         self.stop = False
         self.discovered = []    # for display when running interactively, resets @ every restart
         self.d_discovered = []  # used when running as daemon (doesn't reset)
         self.startup_logged = False
+        self.zc = None
 
     def on_service_state_change(self,
                                 zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange) -> None:
@@ -98,7 +100,7 @@ class MDNS_Browser:
                             try:
                                 print('{}\n{}'.format(
                                     'mdns: None' if from_mdns_adapters is None else 'mdns: {}'.format(
-                                                [d.replace('/dev/', '') for d in from_mdns_adapters] 
+                                                [d.replace('/dev/', '') for d in from_mdns_adapters]
                                                 if not isinstance(from_mdns_adapters, list) else
                                                 [d['dev'].replace('/dev/', '') for d in from_mdns_adapters]),
                                     'cache: None' if cur_known_adapters is None else 'cache: {}'.format(
@@ -124,7 +126,7 @@ class MDNS_Browser:
         log = self.log
         zeroconf = Zeroconf()
         if not self.startup_logged:
-            log.info("[MDNS DSCVRY] Discovering ConsolePis via mdns")
+            log.info(f"[MDNS DSCVRY] Discovering ConsolePis via mdns - Debug Logging: {self.debug}, lvl: {log.level}")
             self.startup_logged = True
         browser = ServiceBrowser(zeroconf, "_consolepi._tcp.local.", handlers=[self.on_service_state_change])  # NoQA pylint: disable=unused-variable
         return zeroconf
@@ -146,10 +148,12 @@ if __name__ == '__main__':
             # re-init zeroconf browser every RESTART_INTERVAL seconds
             while time.time() < start + RESTART_INTERVAL:
                 time.sleep(0.1)
-            mdns.zc.close()
+            if mdns.zc is not None:
+                mdns.zc.close()
             mdns.discovered = []
 
     except KeyboardInterrupt:
         pass
     finally:
-        mdns.zc.close()
+        if mdns.zc is not None:
+            mdns.zc.close()

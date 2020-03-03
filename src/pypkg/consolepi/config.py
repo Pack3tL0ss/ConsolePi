@@ -18,7 +18,6 @@ class Config():
     '''Config object contains all statically defined variables and data from config files.'''
 
     def __init__(self, cpi):
-        print(__name__)
         self.cpi = cpi
         self.utils = cpi.utils
         self.static = self.get_config_all('/etc/ConsolePi/.static.yaml')

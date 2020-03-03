@@ -29,7 +29,6 @@ CYCLE_TIME = 3
 class Outlets:
 
     def __init__(self, cpi):
-        print(__name__)
         self.cpi = cpi
         self.log = cpi.config.log
         self.spin = Halo(spinner='dots')

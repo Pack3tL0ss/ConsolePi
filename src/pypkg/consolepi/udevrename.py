@@ -6,7 +6,6 @@ from halo import Halo
 
 class Rename():
     def __init__(self):
-        print(__name__)
         self.udev_pending = False
         self.baud = self.cpi.config.default_baud
         self.data_bits = self.cpi.config.default_dbits

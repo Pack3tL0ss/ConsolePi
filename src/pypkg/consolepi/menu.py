@@ -13,7 +13,6 @@ MAX_COLS = 5
 class Menu():
 
     def __init__(self, menu):  # utils, debug=False, log=None, log_file=None):
-        print(__name__)
         self.menu = menu
         self.utils = menu.utils
         self.log = menu.log

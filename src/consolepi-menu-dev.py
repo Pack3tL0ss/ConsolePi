@@ -47,7 +47,6 @@ class ConsolePiMenu(Rename):
             re.compile('Connection to .* closed')
         ]
         self.do_menu_load_warnings()
-        self.shell_cmds = ['ping', 'ssh', 'telnet', 'picocom', 'ip ', 'ifconfig', 'netstat', 'sudo ', 'printenv', 'cat ', 'tail ']
         super().__init__()
 
     def print_menu(self, *args, **kwargs):
@@ -67,7 +66,9 @@ class ConsolePiMenu(Rename):
         Returns:
             Bool | None -- True if ch is an attribute No return otherwise
         '''
-        if '.' in ch and len(ch) > 2:
+        _attrs = [a for a in self.cpi.__dir__() if not a.startswith('_')]
+        _attrs += ['cpi', 'this', 'self', 'menu', 'cloud']
+        if '.' in ch and len(ch) > 2 and ch.split('.')[0] in _attrs:
             cpi = self.cpi
             local = cpi.local  # NoQA
             remotes = cpi.remotes
@@ -86,12 +87,15 @@ class ConsolePiMenu(Rename):
                 if '(' in ch:
                     _var += f"({ch.split('.')[-1].split('(')[1]}"
             else:
-                exec(f'self._class = {_class_str}')
-                if hasattr(self._class, _attr):  # NoQA
-                    _var = f"self.var = {ch}"
-                else:
-                    cpi.error_msgs.append(f"DEBUG: '{_class_str}' object has no attribute '{_attr}'")
-                    return True
+                try:
+                    exec(f'self._class = {_class_str}')
+                    if hasattr(self._class, _attr):  # NoQA
+                        _var = f"self.var = {ch}"
+                    else:
+                        cpi.error_msgs.append(f"DEBUG: '{_class_str}' object has no attribute '{_attr}'")
+                        return True
+                except AttributeError as e:
+                    menu.error_msgs.append(f'DEBUG: Attribute error {e}')
 
             if _var:
                 try:
@@ -119,28 +123,6 @@ class ConsolePiMenu(Rename):
                         print(self.var)
                         input('Press Enter to Continue... ')
                     cpi.error_msgs.append(f'DEBUG: {e}')
-                return True
-
-    def exec_shell_cmd(self, cmd):
-        '''Allow user to perform supported commands directly from menu
-
-        Arguments:
-            cmd {str} -- command to be passed to shell
-
-        Returns:
-            bool|None -- True if cmd matched supported cmd
-        '''
-        for c in self.shell_cmds:
-            if c in cmd:
-                try:
-                    if 'sudo ' not in cmd:
-                        cmd = f'sudo -u {self.cpi.local.user} {cmd}'
-                    elif 'sudo -u ' not in cmd:
-                        cmd = cmd.replace('sudo ', '')
-                    subprocess.run(cmd, shell=True)
-                except (KeyboardInterrupt, EOFError):
-                    pass
-                input('Press Enter to Continue... ')
                 return True
 
     def do_menu_load_warnings(self):
@@ -311,9 +293,10 @@ class ConsolePiMenu(Rename):
                 menu_actions['d'] = self.dli_menu
 
             self.print_menu(body, header=header, subhead=subhead, footer=footer)
-            choice = self.wait_for_input(lower=True)
+            choice_c = self.wait_for_input(locs=locals())
+            choice = choice_c.lower
             if choice not in ['b', 'r']:
-                self.exec_menu(choice, menu_actions, calling_menu='power_menu')
+                self.exec_menu(choice_c, menu_actions, calling_menu='power_menu')
             elif choice == 'b':
                 return
             elif choice == 'r':
@@ -321,27 +304,69 @@ class ConsolePiMenu(Rename):
                     with Halo(text='Refreshing Outlets', spinner='dots'):
                         outlets = cpi.outlet_update(refresh=True, upd_linked=True)
 
-    def wait_for_input(self, prompt=" >> ", lower=False, terminate=False, locs={}):
+    def wait_for_input(self, prompt=" >> ", terminate=False, locs={}):
+        '''Get input from user.
+
+        User Can Input One of the following for special handling:
+        'debug': toggles debug (menu only doens't effect logging)
+        'exit': exits the program
+        a 3+ character string with '.' in it:  Which results in the print_attribute
+        debug function being called.
+
+        Other than exit, Any user input matching the above will result in a '' string
+        being returned which results in a menu re-print.
+
+        Keyword Arguments:
+            prompt {str} -- input prompt (default: {" >> "})
+            lower {bool} -- return lower case user input (default: {True})
+            terminate {bool} -- terminates program if Ctrl+C/Ctrl+D (default: {False})
+            locs {dict} -- locals from calling func for use in debug print func (default: {{}})
+
+        Returns:
+            str -- If user input is not 'exit' (which exits the program) will return an
+                   empty str if pre-processed by one of the common funcs
+                   otherwise returns the input provided by the user (lower() by default).
+        '''
         menu = self.menu
+
+        class choice():
+            def __init__(self, clear=False, prompt=prompt):
+                if not clear:
+                    ch = input(prompt)
+                    self.lower = ch.lower()
+                    self.orig = ch
+                else:
+                    self.lower = ''
+                    self.orig = ''
+
         try:
             if self.debug:
                 menu.menu_rows += 1  # TODO REMOVE AFTER SIMPLIFIED
                 prompt = f' m[r:{menu.menu_rows}, c:{menu.menu_cols}] a[r:{menu.rows}, c:{menu.cols}]{prompt}'
-            choice = input(prompt) if not lower else input(prompt).lower()
-            # debug toggles debug
-            if choice == 'debug':
+
+            ch = choice()
+
+            # -- // toggle debug \\ --
+            if ch.lower == 'debug':
                 self.cpi.error_msgs.append(f'debug toggled {self.states[self.debug]} --> {self.states[not self.debug]}')
                 self.cpi.error_msgs.append('Changing debug in menu does not impact logging, '
                                            'Change in Config a re-launch for that.')
                 self.debug = not self.debug
-                return
-            elif self.exec_shell_cmd(choice):
-                return
-            # DEBUG Func to print attributes/function returns
-            elif '.' in choice and self.print_attribute(choice, locs):
-                return
-            menu.menu_rows = 0  # TODO REMOVE AFTER SIMPLIFIED
-            return choice
+                ch = choice(clear=True)
+
+            # -- // always accept 'exit' \\ --
+            elif ch.lower == 'exit':
+                self.exit()
+
+            # -- // Menu Debugging Tool prints attributes/function returns \\ --
+            elif '.' in ch.orig and self.print_attribute(ch.orig, locs):
+                ch = choice(clear=True)
+            else:
+                # return user input back to calling function
+                menu.menu_rows = 0  # TODO REMOVE AFTER SIMPLIFIED
+
+            return ch
+
         except (KeyboardInterrupt, EOFError):
             if terminate:
                 print('Exiting based on User Input')
@@ -479,7 +504,8 @@ class ConsolePiMenu(Rename):
             self.print_menu(outer_body, header=header, footer=footer, subs=slines,
                             force_cols=True, by_tens=True)
 
-            choice = self.wait_for_input(locs=locals())
+            choice_c = self.wait_for_input(locs=locals())
+            choice = choice_c.lower
             if choice == 'r':
                 self.spin.start('Refreshing Outlets')
                 dli_dict = cpi.outlet_update(refresh=True, key='dli_power')
@@ -487,7 +513,7 @@ class ConsolePiMenu(Rename):
             elif choice == 'b':
                 return
             else:
-                self.exec_menu(choice, menu_actions, calling_menu='dli_menu')
+                self.exec_menu(choice_c, menu_actions, calling_menu='dli_menu')
 
     def key_menu(self):
         cpi = self.cpi
@@ -526,9 +552,10 @@ class ConsolePiMenu(Rename):
                       'before': ['a.  {{cyan}}*all*{{norm}} remotes listed above', '']}
             menu_actions['a'] = {'function': cpi.gen_copy_key, 'args': [all_list]}
             self.print_menu(mlines, subs=subs, header=header, footer=footer, do_format=False)
-            choice = self.wait_for_input(locs=locals())
+            choice_c = self.wait_for_input(locs=locals())
+            choice = choice_c.lower
 
-            self.exec_menu(choice, menu_actions, calling_menu='key_menu')
+            self.exec_menu(choice_c, menu_actions, calling_menu='key_menu')
 
     def gen_adapter_lines(self, adapters, item=1, remote=False, rem_user=None, host=None, rename=False):
         cpi = self.cpi
@@ -540,12 +567,13 @@ class ConsolePiMenu(Rename):
         flow_pretty = self.flow_pretty
 
         # If remotes present adapter data in old format convert to new
-        if isinstance(adapters, list):
-            adapters = {adapters[adapters.index(d)]['dev']: {'config': {k: adapters[adapters.index(d)][k]
-                        for k in adapters[adapters.index(d)]}} for d in adapters}
+        # if isinstance(adapters, list):
+        #     adapters = {adapters[adapters.index(d)]['dev']: {'config': {k: adapters[adapters.index(d)][k]
+        #                 for k in adapters[adapters.index(d)]}} for d in adapters}
+        # TODO OK to remove after verification conversion done in get_remote
 
         # -- // Manually Defined Hosts \\ --
-        elif adapters.get('_hosts'):
+        if adapters.get('_hosts'):
             for h in adapters['_hosts']:
                 menu_line = adapters['_hosts'][h].get('menu_line')
                 if not menu_line:
@@ -559,7 +587,7 @@ class ConsolePiMenu(Rename):
                             (_m == 'ssh' and _p == '22') else f'{_a}:{_p}'
                     menu_line = f'{host_pretty} @ {_addr}'
                 mlines.append(menu_line)
-                menu_actions[str(item)] = {'cmd': adapters['_hosts'][h].get('cmd'), 'exec_kwargs': {'tee_stderr': True}}
+                menu_actions[str(item)] = {'cmd': adapters['_hosts'][h].get('cmd'), 'exec_kwargs': {'tee_stderr': True}, 'pwr_key': h}
                 item += 1
 
             return mlines, menu_actions, item
@@ -646,10 +674,11 @@ class ConsolePiMenu(Rename):
             self.print_menu(mlines, header='Define/Rename Local Adapters', footer=footer, subs=slines, do_format=False)
             menu_actions['x'] = self.exit
 
-            choice = self.wait_for_input(lower=True, locs=locals())
+            choice_c = self.wait_for_input(locs=locals())
+            choice = choice_c.lower
             if choice in menu_actions:
                 if not choice == 'b':
-                    self.exec_menu(choice, menu_actions, calling_menu='rename_menu')
+                    self.exec_menu(choice_c, menu_actions, calling_menu='rename_menu')
             else:
                 if choice:
                     if choice != 'b' or direct_launch:
@@ -759,8 +788,9 @@ class ConsolePiMenu(Rename):
         self.print_menu(outer_body, header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
                         footer=text, subs=slines, do_format=False)
 
-        choice = self.wait_for_input(locs=locals())
-        self.exec_menu(choice, menu_actions)
+        choice_c = self.wait_for_input(locs=locals())
+        choice = choice_c.lower
+        self.exec_menu(choice_c, menu_actions)
         return
 
     # ------ // REMOTE SHELL MENU \\ ------ #
@@ -776,7 +806,7 @@ class ConsolePiMenu(Rename):
             'x': self.exit
         }
 
-        while choice.lower() not in ['x', 'b']:
+        while choice not in ['x', 'b']:
             # if not self.DEBUG:
             #     os.system('clear')
             outer_body = []
@@ -797,10 +827,10 @@ class ConsolePiMenu(Rename):
 
             # Build menu items for each manually defined host in hosts.json / ConsolePi.yaml
             if config.hosts:
-                mlines = []
                 for _sub in config.hosts['rshell']:
                     subs.append(_sub)
                     ssh_hosts = config.hosts['rshell'][_sub]
+                    mlines = []
                     for host in sorted(ssh_hosts):
                         r = ssh_hosts[host]
                         if 'address' in r:
@@ -827,8 +857,11 @@ class ConsolePiMenu(Rename):
             self.print_menu(outer_body, header='Remote Shell Menu',
                             subhead='Enter item # to connect to remote',
                             footer=text, subs=subs)
-            choice = self.wait_for_input(locs=locals())
-            self.exec_menu(choice, menu_actions, calling_menu='rshell_menu')
+
+            choice_c = self.wait_for_input(locs=locals())
+            choice = choice_c.lower
+
+            self.exec_menu(choice_c, menu_actions, calling_menu='rshell_menu')
 
     # ------ // EXECUTE MENU SELECTIONS \\ ------ #
     def exec_menu(self, choice, menu_actions, calling_menu='main_menu'):
@@ -839,15 +872,13 @@ class ConsolePiMenu(Rename):
         if not self.debug and calling_menu not in ['dli_menu', 'power_menu']:
             os.system('clear')
 
-        if not choice or choice.lower() in menu_actions and menu_actions[choice.lower()] is None:
+        if not choice.lower or choice.lower in menu_actions and menu_actions[choice.lower] is None:
             self.menu.rows, self.menu.cols = utils.get_tty_size()  # re-calc tty size in case they've adjusted the window
             # self.cpi.local.adapters = self.cpi.local.build_adapter_dict(refresh=True)  # always refresh local adapters
             return
 
-        if choice.lower() == 'exit':
-            self.exit()
         else:
-            ch = choice.lower()
+            ch = choice.lower
             try:  # Invalid Selection
                 if isinstance(menu_actions[ch], dict):
                     if menu_actions[ch].get('cmd'):
@@ -864,6 +895,12 @@ class ConsolePiMenu(Rename):
                             if 'exec_kwargs' in menu_actions[ch]:
                                 c = menu_actions[ch]['cmd']
                                 _error = utils.do_shell_cmd(c, **menu_actions[ch]['exec_kwargs'])
+                                if _error and cpi.autopwr_wait:
+                                    print('\nInitial Attempt Failed, but host is linked to an outlet that was')
+                                    print('off. Host may still be booting\n')
+                                    input('Press Enter when ready to retry connection.')
+                                    _error = utils.do_shell_cmd(c, **menu_actions[ch]['exec_kwargs'])
+                                    cpi.autopwr_wait = False
                             else:
                                 c = shlex.split(menu_actions[ch]['cmd'])
                                 result = subprocess.run(c, stderr=subprocess.PIPE)
@@ -988,8 +1025,9 @@ class ConsolePiMenu(Rename):
                 else:
                     menu_actions[ch]()
             except KeyError as e:
-                cpi.error_msgs.append('Invalid selection {}, please try again.'.format(e))
-                return False  # indicates an error
+                if not cpi.exec_shell_cmd(choice.orig):
+                    cpi.error_msgs.append('Invalid selection {}, please try again.'.format(e))
+                    return False  # indicates an error
         return True
 
     def confirm_and_spin(self, action_dict, *args, **kwargs):
@@ -1133,7 +1171,7 @@ class ConsolePiMenu(Rename):
             text = ' b.  Back{}'.format(' (Apply Changes to Files)' if rename else '')
             menu.menu_formatting('footer', text=text)
 
-            ch = self.wait_for_input(lower=True, locs=locals())
+            ch = self.wait_for_input(locs=locals()).lower
             try:
                 if ch == 'b':
                     break
@@ -1170,14 +1208,13 @@ class ConsolePiMenu(Rename):
                 print(' {0}. {1}'.format(key, _cur_baud if _cur_baud != self.baud else '[{}]'.format(_cur_baud)))
 
             menu.menu_formatting('footer', text=text)
-            choice = self.wait_for_input(" Baud >>  ", locs=locals())
-            ch = choice.lower()
+            ch = self.wait_for_input(" Baud >>  ", locs=locals()).lower
 
             # -- Evaluate Response --
             try:
                 if ch == 'c':
                     while True:
-                        self.baud = self.wait_for_input(' Enter Desired Baud Rate >> ')
+                        self.baud = self.wait_for_input(' Enter Desired Baud Rate >> ').lower
                         if not self.baud.isdigit():
                             print('Invalid Entry {}'.format(self.baud))
                         elif int(self.baud) not in std_baud:
@@ -1206,7 +1243,7 @@ class ConsolePiMenu(Rename):
             menu.menu_formatting('header', text=' Enter Desired Data Bits ')
             print('\n Default 8, Current [{}], Valid range 5-8'.format(self.data_bits))
             menu.menu_formatting('footer', text=' b.  Back')
-            choice = self.wait_for_input(' Data Bits >>  ', locs=locals())
+            choice = self.wait_for_input(' Data Bits >>  ', locs=locals()).orig
             try:
                 if choice.lower() == 'x':
                     self.exit()
@@ -1238,7 +1275,7 @@ class ConsolePiMenu(Rename):
         while not valid:
             print_menu()
             valid = True
-            choice = self.wait_for_input(' Parity >> ', lower=True, locs=locals())
+            choice = self.wait_for_input(' Parity >> ', locs=locals()).lower
             if choice == '1':
                 self.parity = 'n'
             elif choice == '2':
@@ -1270,7 +1307,7 @@ class ConsolePiMenu(Rename):
         valid = False
         while not valid:
             print_menu()
-            choice = self.wait_for_input(' Flow >>  ', lower=True, locs=locals())
+            choice = self.wait_for_input(' Flow >>  ', locs=locals()).lower
             if choice in ['1', '2', '3', 'b', 'x']:
                 valid = True
             try:
@@ -1296,14 +1333,11 @@ class ConsolePiMenu(Rename):
     # -- // Exit The Menu \\ --
     def exit(self):
         self.go = False
+
         cpi = self.cpi
         if cpi.pwr._dli:
-            for address in cpi.pwr._dli:
-                if cpi.pwr._dli[address].dli:
-                    if getattr(cpi.pwr._dli[address], 'rest'):
-                        threading.Thread(target=cpi.pwr._dli[address].dli.close).start()
-                    else:
-                        threading.Thread(target=cpi.pwr._dli[address].dli.session.close).start()
+            threading.Thread(target=cpi.pwr.dli_close_all).start()
+
         # - if exit directly from rename menu after performing a rename trigger / reload udev
         if self.udev_pending:
             cmd = 'sudo udevadm control --reload && sudo udevadm trigger && '\

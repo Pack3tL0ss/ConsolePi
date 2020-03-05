@@ -130,7 +130,6 @@ class Outlets:
                 return 'Unexpected response, port returned on state expected off'
         return r
 
-    # @Halo(text='Loading', spinner='dots')
     def load_dli(self, address, username, password):
         '''
         Returns instace of DLI class
@@ -198,6 +197,20 @@ class Outlets:
                 outlet['is_on'] = {_: self.data['dli_power'][outlet['address']][_] for _ in _p}
 
         return outlet, _p
+
+    def dli_close_all(self, dlis=None):
+        '''Close Connection to any connected dli Web Power Switches
+
+        Arguments:
+            dlis {dict} -- dict of dli objects
+        '''
+        dlis = self._dli if not dlis else dlis
+        for address in dlis:
+            if dlis[address].dli:
+                if getattr(dlis[address], 'rest'):
+                    threading.Thread(target=dlis[address].dli.close).start()
+                else:
+                    threading.Thread(target=dlis[address].dli.session.close).start()
 
     def pwr_get_outlets(self, outlet_data={}, upd_linked=False, failures={}):
         '''Get Details for Outlets defined in power.json

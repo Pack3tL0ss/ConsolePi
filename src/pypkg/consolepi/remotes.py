@@ -309,7 +309,7 @@ class Remotes():
             return False
 
         if response.ok:
-            ret = json.loads(response.text)
+            ret = response.json()
             ret = ret['adapters'] if ret['adapters'] else response.status_code
             _msg = 'Adapters Successfully retrieved via API for Remote ConsolePi {}'.format(ip)
             log.info('[API RQST OUT] {}'.format(_msg))

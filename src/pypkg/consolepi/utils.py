@@ -212,12 +212,26 @@ class Utils():
 
             if tee_stderr:
                 s = subprocess
+                start_time = time.time()
                 with s.Popen(cmd, stderr=s.PIPE, bufsize=1,
-                             universal_newlines=True, **kwargs) as p, StringIO() as buf:
+                             universal_newlines=True, **kwargs) as p, StringIO() as buf1, StringIO() as buf2:
                     for line in p.stderr:
                         print(line, end='')
-                        buf.write(line)
-                    error = buf.getvalue()
+                        # handles login banners which are returned via stderr
+                        if time.time() - start_time < timeout + 5:
+                            buf1.write(line)
+                        else:
+                            buf2.write(line)
+
+                    early_error = buf1.getvalue()
+                    late_error = buf2.getvalue()
+
+                # if connections lasted 20 secs past timeout assume the early stuff was innocuous
+                if time.time() - start_time > timeout + 10:
+                    error = late_error
+                else:
+                    error = early_error
+
                 if handle_errors and error and p.returncode != 0:
                     error = self.error_handler(cmd, error)
                 else:
@@ -361,25 +375,32 @@ class Utils():
         returns:
             list of formatted devs
         '''
-        if udev and not hosts:
+        if udev and not hosts:  # TODO don't think udev is ever passed to this func
             data = udev
             pfx = '/dev/'
             pfx_else = '/host/'
+            print('DEBUG HIT HERE REMOVE THIS')
         else:
             data = hosts.get('_host_list', [])
             pfx = '/host/'
             pfx_else = '/dev/'
 
         dev = [dev] if not isinstance(dev, (list, dict)) else dev
+        # dev_out = {}
         if with_path:
-            for d in dev:
-                if '/' not in d:
-                    _pfx = pfx if pfx + d in data else pfx_else
-                    if isinstance(dev, list):  # dli represented by dict dev: port or port list
-                        dev[dev.index(d)] = _pfx + d
-                    else:
-                        dev[_pfx + d] = dev.pop(d)
-            return dev
+            if isinstance(dev, list):
+                # d1 = [pfx + d for d in dev if '/' not in d and pfx + d in data]
+                d_out = [f'{pfx + d if pfx + d in data else pfx_else + d}' for d in dev if '/' not in d]
+            elif isinstance(dev, dict):
+                d_out = {f'{pfx + d if pfx + d in data else pfx_else + d}': dev[d] for d in dev if '/' not in d}
+            # for d in dev:
+            #     if '/' not in d:
+            #         _pfx = pfx if pfx + d in data else pfx_else
+            #         if isinstance(dev, list):  # dli represented by dict dev: port or port list
+            #             dev[dev.index(d)] = _pfx + d
+            #         else:
+            #             dev_out[_pfx + d] = dev[d]
+            return d_out
         else:  # return dev list with prefixes stripped
             return [d.split('/')[-1] for d in dev] if isinstance(dev, list) \
                 else {d.split('/')[-1]: dev[d] for d in dev}

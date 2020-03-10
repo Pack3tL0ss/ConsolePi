@@ -26,7 +26,7 @@ do_error() {
     if [[ $status != 0 ]]; then
         echo 'Failed!!' ; echo -e "\n"
         [[ $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
-        [[ -f $log_file ]] && cat $log_file && rm $log_file
+        [[ -f $log_file ]] && cat $log_file && ! $DEBUG && rm $log_file
         exit 1
     fi
     echo "OK"
@@ -62,17 +62,27 @@ do_perms() {
 }
 
 do_git_pull() { 
-  pushd /etc/ConsolePi >/dev/null
-  branch=$(git rev-parse --abbrev-ref HEAD)
-  dots "git pull ConsolePi (${branch})"
-  git_output=$(git pull >/dev/null 2>>$log_file) ; local rc=$?
-  popd >/dev/null
-  if [[ $rc -eq 0 ]] ; then
-      echo OK ; [[ ! -z "$git_output" ]] && echo -e "\n${git_output}\n"
-  else
-      echo -e "\ncaptured git pull stdout:\n${git_output}\n" >> $log_file
-      do_error $rc
-  fi
+  go=true
+  while $go ; do
+    pushd /etc/ConsolePi >/dev/null
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    dots "git pull ConsolePi (${branch})"
+    git_output=$(git pull >/dev/null 2>>$log_file) ; local rc=$?
+    popd >/dev/null
+    if [[ $rc -eq 0 ]] ; then
+        echo OK ; [[ ! -z "$git_output" ]] && echo -e "\n${git_output}\n"
+    else
+        echo -e "\ncaptured git pull stdout:\n${git_output}\n" >> $log_file
+        if $stash_local ; then
+          do_stash_local
+          stash_local=false
+          go=true
+        else
+          do_error $rc
+          go=false
+        fi
+    fi
+  done
 }
 
 do_loc_pull() {
@@ -96,19 +106,26 @@ do_loc_pull() {
 }
 
 do_stash_local() {
-  if [[ -f $loc_pull_file ]] ; then
+  if [[ -f $log_file ]] ; then
     echo -e "\n -- Stashing files previously pulled manually"
-    orig_IFS=$IFS
-    IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file}))"
-    for f in "${sync_files[@]}" ; do
+    loc_changes=$(grep 'overwritten by merge' -A 1 /tmp/consolepi-sync.log | grep -v 'overwritten by merge')
+    mkdir -p $home_dir/.local_pull_stash
+    for f in ${loc_changes[@]} ; do
       dots "Stashing $f to $home_dir/.local_pull_stash"
-      mkdir -p $home_dir/.local_pull_stash
       mv ${consolepi_dir}/${f} $home_dir/.local_pull_stash ; do_error $?
+      pushd /etc/ConsolePi >/dev/null
+      branch=$(git rev-parse --abbrev-ref HEAD)
+      git_output=$(git checkout "$f" >/dev/null 2>>$log_file) ; local rc=$?
+      popd >/dev/null
     done
-    IFS=$orig_IFS
-    user_input_bool "Stash Complete, Proceed with remaining Sync Operations" local response
+    # user_input_bool "Stash Complete, Proceed with remaining Sync Operations" local response
+    if [[ $rc -eq 0 ]] ; then
+        echo OK ; [[ ! -z "$git_output" ]] && echo -e "\n${git_output}\n"
+    else
+        do_error "$rc"
+    fi
   else
-    echo '!! No Local Pull File Found... exitting !!' ; exit 1
+    echo '!! No log File Found... No git pull errors to process !!'
   fi
 }
 
@@ -174,6 +191,10 @@ process_args() {
             stash_local=true
             shift
             ;;
+        -debug)
+            DEBUG=true
+            shift
+            ;;
         --local-host) # override default local_pull_host (consolepi-dev)
             [[ ! -z "$2" ]] && loc_pull_host=$2 || ( 
                 echo "Missing 1 required parameter with $1 option"
@@ -209,7 +230,7 @@ dev_host_check() {
 main() {
   dev_host_check
   process_args "${@}"
-  $stash_local && do_stash_local
+  # $stash_local && do_stash_local
   do_perms
   ! $loc_pull && do_git_pull
   $loc_pull && do_loc_pull

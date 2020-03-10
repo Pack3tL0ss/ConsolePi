@@ -232,7 +232,7 @@ class DLI:
                         break
                     retry += 1
                 if not outlet_list:
-                    log.error('[DLI GET OUTLETS] dli @ {} reachable, but failed to fetch statuslist (outlet_list)'.format(self.fqdn))
+                    log.error(f'[DLI GET OUTLETS] dli @ {self.fqdn} reachable, but failed to fetch statuslist (outlet_list)')
                     self.reachable = False
                     self.dli = self.outlets = {}
             else:
@@ -270,7 +270,12 @@ class DLI:
                     req = getattr(self.dli, 'post')
                     headers = {'X-Requested-With': 'XMLHttpRequest'}
                     data = None
-                r = req(f_url, data=data, headers=headers)
+                try:
+                    r = req(f_url, data=data, headers=headers, timeout=10)
+                except (Exception, OSError) as e:
+                    print(e)
+                    log.error(f'EXCEPTION: Unable to Connect {base_url} to {func} port:\n\t{e}')
+                    return 404  # TODO return a return class can't return meaningful error here as is
                 if len(r.text) == 0:
                     return r.status_code
                 else:
@@ -332,7 +337,7 @@ class DLI:
         # --// perform the func on the port(s) \\--#
         # -- single port passed into method --
         if TIMING:
-            start = time.time() # TIMING
+            start = time.time()
         if isinstance(port, int):
             ret_val = toggle_sub(port, toState)
             if TIMING:
@@ -365,7 +370,7 @@ class DLI:
             ret_val = []
             for p in port:
                 if TIMING:
-                    start = time.time() # TIMING
+                    start = time.time()
                 r = toggle_sub(p, toState)
                 if TIMING:
                     print('[TIMING {}] {} {} {}: {}'.format('rest' if self.rest else 'webui',
@@ -433,8 +438,9 @@ class DLI:
                         if r.status_code == 200:
                             _return = r.json()  # TODO - error exception catch
                         else:
-                            log.error('[DLI] Bad status code {} retunred while checking current {} of port'.format(r.status_code, fetch))
-                            _return = '[DLI] Bad status code {} retunred while checking current {} of port'.format(r.status_code, fetch)
+                            _msg = f'[DLI] Bad status code {r.status_code} retunred while checking current {fetch} of port'
+                            log.error(_msg)
+                            _return = _msg
                     except (socket.error, TimeoutError):
                         self.reachable = False
                         log.error('[DLI] {} appears to be unreachable now'.format(_url))

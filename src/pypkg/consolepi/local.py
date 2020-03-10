@@ -5,14 +5,17 @@ import socket
 import netifaces as ni
 import os
 
+from consolepi import utils
+
 
 class Local():
     ''' Class to collect and manage ConsolePis local attributes '''
 
-    def __init__(self, cpi):
-        self.cpi = cpi
-        self.config = self.cpi.config
-        self.default_baud = cpi.config.default_baud
+    def __init__(self, config):
+        # self.cpi = cpi
+        # self.config = self.cpi.config
+        self.config = config
+        self.default_baud = self.config.default_baud
         self.udev_adapters = self.detect_adapters()
         self.adapters = self.build_adapter_dict()
         self.hostname = socket.gethostname()
@@ -20,7 +23,7 @@ class Local():
         self.interfaces = self.get_if_info()
         self.ip_list = self.get_ip_list()
         self.data = self.build_local_dict()
-        self.user = cpi.config.loc_user
+        self.user = self.config.loc_user
         self.loc_home = os.getenv('HOME')
 
     def build_local_dict(self, rem_ip=None, refresh=False):
@@ -151,7 +154,7 @@ class Local():
 
     def get_cpu_serial(self):
         log = self.config.log
-        res = self.cpi.utils.do_shell_cmd("/bin/cat /proc/cpuinfo | grep Serial | awk '{print $3}'", return_stdout=True)
+        res = utils.do_shell_cmd("/bin/cat /proc/cpuinfo | grep Serial | awk '{print $3}'", return_stdout=True)
         if res[0] > 0:
             self.config.log_and_show('Unable to get unique identifier for this pi (cpuserial)', log=log.warning)
         else:

@@ -1,10 +1,12 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import sys
-import logging
+# import logging
 from halo import Halo
 from collections import OrderedDict as od
 import os
+
+from consolepi import utils
 
 MIN_WIDTH = 55
 MAX_COLS = 5
@@ -12,12 +14,13 @@ MAX_COLS = 5
 
 class Menu():
 
-    def __init__(self, menu):  # utils, debug=False, log=None, log_file=None):
-        self.menu = menu
-        self.utils = menu.utils
-        self.log = menu.log
+    def __init__(self, config):  # utils, debug=False, log=None, log_file=None):
+        self.config = config
+        # self.utils = menu.utils
+        # self.log = menu.log
         self.go = True
-        self.debug = menu.debug
+        # self.debug = menu.debug
+        # self.debug = config.debug
         self.spin = Halo(spinner='dots')
         self.states = {
             True: '{{green}}ON{{norm}}',
@@ -27,38 +30,38 @@ class Menu():
         self.ignored_errors = []
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
         if sys.stdin.isatty():
-            self.rows, self.cols = self.utils.get_tty_size()
+            self.rows, self.cols = utils.get_tty_size()
         self.menu_rows = 0  # Updated in menu_formatting
         self.menu_cols = 0
 
-    def get_logger(self, log_file):
-        '''Return custom log object.'''
-        fmtStr = "%(asctime)s [%(module)s:%(funcName)s:%(lineno)d:%(process)d][%(levelname)s]: %(message)s"
-        dateStr = "%m/%d/%Y %I:%M:%S %p"
-        logging.basicConfig(filename=log_file,
-                            # level=logging.DEBUG if self.debug else logging.INFO,
-                            level=logging.DEBUG if self.cfg['debug'] else logging.INFO,
-                            format=fmtStr,
-                            datefmt=dateStr)
-        return logging.getLogger('ConsolePi')
+    # def get_logger(self, log_file):
+    #     '''Return custom log object.'''
+    #     fmtStr = "%(asctime)s [%(module)s:%(funcName)s:%(lineno)d:%(process)d][%(levelname)s]: %(message)s"
+    #     dateStr = "%m/%d/%Y %I:%M:%S %p"
+    #     logging.basicConfig(filename=log_file,
+    #                         # level=logging.DEBUG if self.debug else logging.INFO,
+    #                         level=logging.DEBUG if self.cfg['debug'] else logging.INFO,
+    #                         format=fmtStr,
+    #                         datefmt=dateStr)
+    #     return logging.getLogger('ConsolePi')
 
-    def log_and_show(self, msg, logit=True, showit=True, log=None):
-        if logit:
-            log = self.log.info if log is None else log
-            log(msg)
+    # def log_and_show(self, msg, logit=True, showit=True, log=None):
+    #     if logit:
+    #         log = self.log.info if log is None else log
+    #         log(msg)
 
-        if showit:
-            msg = msg.replace('\t', '').split('\n')
+    #     if showit:
+    #         msg = msg.replace('\t', '').split('\n')
 
-            [self.error_msgs.append(f'{m.split("]")[1].strip() if "]" in m else m}')
-                for m in msg
-                if (']' in m and m.split(']')[1].strip() not in self.error_msgs)
-                or ']' not in m and m not in self.error_msgs]
+    #         [self.error_msgs.append(f'{m.split("]")[1].strip() if "]" in m else m}')
+    #             for m in msg
+    #             if (']' in m and m.split(']')[1].strip() not in self.error_msgs)
+    #             or ']' not in m and m not in self.error_msgs]
 
     # =======================
     #     MENUS FUNCTIONS
     # =======================
-    def print_mlines(self, body, subs=None, header=None, subhead=None, footer=None, foot_opts=['x'], foot_fmt=None, col_pad=4,
+    def print_mlines(self, body, subs=None, header=None, subhead=None, footer=None, foot_fmt=None, col_pad=4,
                      error_msgs=[], force_cols=False, do_cols=True, do_format=True, by_tens=False):
         '''
         format and print current menu.
@@ -71,7 +74,7 @@ class Menu():
                 the specific logical grouping of menu-items. body and subs lists should be of = len
             header: The main Header text for the menu
             footer: an optional text string or list of strings to be added to the menu footer.
-            foot_opts: {list} - list of 'strs' to match key from footer_options dict defined in
+            footer: {dict} - where footer['opts'] is list of 'strs' to match key from footer_options dict defined in
                 menu_formatting method.  Determines what menu options are displayed in footer.
                 (defaults options: x. Exit)
             col_pad: how many spaces will be placed between horizontal menu sections.
@@ -92,12 +95,14 @@ class Menu():
                     menu_action statements should match accordingly
 
         '''
-        utils = self.utils
+        # utils = self.utils
         line_dict = od({'header': {'lines': header}, 'body': {'sections': [], 'rows': [],
                         'width': []}, 'footer': {'lines': footer}})
 
         if error_msgs:
             self.error_msgs += error_msgs
+        self.error_msgs += self.config.error_msgs
+        self.config.error_msgs = []
         '''
         Determine header and footer length used to determine if we can print with
         a single column
@@ -193,7 +198,7 @@ class Menu():
                     _iter_start_stop.append([_begin, _end])
                     break
                 if _pass > len(_rows) + 20:  # should not hit this anymore
-                    self.log_and_show(f'menu formatter exceeded {len(_rows) + 20} passses and gave up!!!')
+                    self.plog(f'menu formatter exceeded {len(_rows) + 20} passses and gave up!!!', log=True)
                     break
                 _pass += 1
 
@@ -282,8 +287,9 @@ class Menu():
     def menu_formatting(self, section, sub=None, text=None, footer={}, width=MIN_WIDTH,
                         l_offset=1, index=1, do_print=True, do_format=True):
 
-        utils = self.utils
-        log = self.log
+        # utils = self.utils
+        log = self.config.log
+        # plog = self.config.plog
         mlines = []
         max_len = None
         # footer options also supports an optional formatting dict
@@ -352,7 +358,7 @@ class Menu():
         # --// HEADER \\--
         if section == 'header':
             # ---- CLEAR SCREEN -----
-            if not self.debug:
+            if not self.config.debug:
                 os.system('clear')
             mlines.append('=' * width)
             line = self.format_line(text)
@@ -463,7 +469,7 @@ class Menu():
 
                 if opts:
                     f = footer_options
-                    foot_text = [f' {f[k][0]}.{" " if len(f[k][0]) == 2 else "  "}{f[k][1]}' for k in opts]
+                    foot_text = [f' {f[k][0]}.{" " if len(f[k][0]) == 2 else "  "}{f[k][1]}' for k in opts if k in f]
 
                 if footer.get('after'):
                     footer['after'] = [footer['after']] if isinstance(footer['after'], str) else footer['after']
@@ -476,8 +482,8 @@ class Menu():
 
                 # log errors if non-match overrides/rjust options were sent
                 if no_match_overrides + no_match_rjust:
-                    self.log_and_show(f'menu_formatting passed options ({",".join(no_match_overrides + no_match_rjust)})'
-                                      ' that lacked a match in footer_options = No impact to menu', log=log.error)
+                    self.config.plog(f'menu_formatting passed options ({",".join(no_match_overrides + no_match_rjust)})'
+                                     ' that lacked a match in footer_options = No impact to menu', log=True, level='error')
 
             # --// ERRORs - append to footer \\-- #
             if len(self.error_msgs) > 0:

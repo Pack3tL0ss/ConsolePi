@@ -650,6 +650,7 @@ class ConsolePiMenu(Rename):
 
     def rename_menu(self, direct_launch=False):
         cpi = self.cpi
+        plog  = cpi.config.plog
         local = cpi.local
         choice = ''
         menu_actions = {}
@@ -690,12 +691,12 @@ class ConsolePiMenu(Rename):
             else:
                 if choice:
                     if choice != 'b' or direct_launch:
-                        cpi.error_msgs.append('Invalid Selection \'{}\''.format(choice))
+                        plog('Invalid Selection \'{}\''.format(choice))
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:
             error = self.trigger_udev()
-            cpi.error_msgs.append(error)
+            plog(error)
 
     # ------ // MAIN MENU \\ ------ #
     def main_menu(self):

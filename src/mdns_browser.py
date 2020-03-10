@@ -9,7 +9,7 @@ from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 
 import sys
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import ConsolePi  # NoQA
+from consolepi.consolepi import ConsolePi  # NoQA
 
 try:
     import better_exceptions  # NoQA pylint: disable=import-error
@@ -87,7 +87,10 @@ class MDNS_Browser:
                                     info.server.split('.')[0]))
                             # TODO check this don't think needed had a hung process on one of my Pis added it to be safe
                             try:
-                                update_cache, mdns_data[hostname] = cpi.remotes.api_reachable(hostname, mdns_data[hostname])
+                                res = cpi.remotes.api_reachable(hostname, mdns_data[hostname])
+                                update_cache = res.update
+                                mdns_data[hostname] = res.data
+                                # reachable = res.reachable
                             except Exception as e:
                                 log.error(f'Exception occured verifying reachability via API for {hostname}:\n{e}')
 
@@ -95,7 +98,7 @@ class MDNS_Browser:
                             if hostname in self.discovered:
                                 self.discovered.remove(hostname)
                             self.discovered.append('{}{}'.format(hostname, '*' if update_cache else ''))
-                            print(hostname + '({}) Discovered via mdns:'.format(rem_ip if rem_ip is not None else '?'))
+                            print(hostname + '({}) Discovered via mdns.'.format(rem_ip if rem_ip is not None else '?'))
 
                             try:
                                 print('{}\n{}'.format(

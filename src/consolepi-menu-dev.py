@@ -65,8 +65,9 @@ class ConsolePiMenu(Rename):
         if '.' in ch and len(ch) > 2 and ch.split('.')[0] in _attrs:
             cpi = self.cpi
             local = cpi.local  # NoQA
-            remotes = cpi.remotes
-            cloud = remotes.cloud  # NoQA
+            if hasattr(cpi, 'remotes'):
+                remotes = cpi.remotes
+                cloud = remotes.cloud  # NoQA
             pwr = cpi.pwr  # NoQA
             config = cpi.config  # NoQA
             utils = cpi.utils  # NoQA

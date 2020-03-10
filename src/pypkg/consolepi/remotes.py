@@ -22,7 +22,7 @@ class Remotes():
         self.pop_list = []
         self.old_api_log_sent = False
         self.log_sym_warn = log_sym.WARNING.value
-        # self.cpi = cpi
+        self.log_sym_error = log_sym.ERROR.value
         self.config = config
         self.local = local
         self.connected = False
@@ -188,6 +188,7 @@ class Remotes():
             elif 'Gdrive-Error:' in remote_consoles:
                 self.spin.fail('{}\n\t{} {}'.format(_msg, self.log_sym_error, remote_consoles))
                 plog(remote_consoles)  # display error returned from gdrive module
+                remote_consoles = []
             else:
                 self.spin.warn(_msg + '\n\tNo Remotes Found via Gdrive Sync')
             if len(remote_consoles) > 0:

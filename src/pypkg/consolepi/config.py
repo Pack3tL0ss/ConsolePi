@@ -2,9 +2,12 @@
 
 
 import json
-import logging
+# import logging
 import os
 import yaml
+
+from consolepi.utils import Utils
+from consolepi import ConsolePiLog
 
 # Global values overriden if variable (lowercase) by the same name exists in ConsolePi.conf
 # i.e. default_baud=115200 will override DEFAULT_BAUD below
@@ -17,17 +20,22 @@ DEFAULT_FLOW = 'n'
 class Config():
     '''Config object contains all statically defined variables and data from config files.'''
 
-    def __init__(self, cpi):
-        self.cpi = cpi
-        self.utils = cpi.utils
-        self.static = self.get_config_all('/etc/ConsolePi/.static.yaml')
+    def __init__(self):
+        # self.cpi = cpi
+        self.utils = Utils()
+        self.static = self.get_config_all('/etc/ConsolePi/.static.yaml', {})
         self.FALLBACK_USER = self.static.get('FALLBACK_USER', 'pi')
         self.REM_LAUNCH = self.static.get('REM_LAUNCH', '/etc/ConsolePi/src/remote_launcher.py')
         self.cfg_yml = self.get_config_all(yaml_cfg=self.static.get('CONFIG_FILE_YAML'),
                                            legacy_cfg=self.static.get('CONFIG_FILE'))
         self.cfg = self.cfg_yml.get('CONFIG')
-        self.cloud_svc = self.cfg.get('cloud_svc')
-        self.log = self.get_logger()
+        self.ovrd = self.cfg_yml.get('OVERRIDE')
+        self.do_overrides()
+        self.cloud_svc = self.cfg.get('cloud_svc', 'gdrive')
+        # self.log = self.get_logger()
+        cpilog = ConsolePiLog(self.static['LOG_FILE'], self.cfg.get('debug', False))
+        self.log = cpilog.log
+        self.plog = cpilog.plog
 
         try:
             self.loc_user = os.getlogin()
@@ -36,36 +44,14 @@ class Config():
 
         self.ser2net_conf = self.get_ser2net()
         self.hosts = self.get_hosts()
-        self.power = self.cfg.get('power')
+        self.power = self.cfg.get('power', False)
         self.outlets = self.get_outlets_from_file()
-        self.remotes = self.get_json_file(self.static.get('LOCAL_CLOUD_FILE'))
+        self.remotes = self.get_remotes_from_file()
+        self.remote_update = self.get_remotes_from_file
         self.root = True if os.geteuid() == 0 else False
 
-    def get_logger(self):
-        '''Return custom log object.'''
-        fmtStr = "%(asctime)s [%(module)s:%(funcName)s:%(lineno)d:%(process)d][%(levelname)s]: %(message)s"
-        dateStr = "%m/%d/%Y %I:%M:%S %p"
-        logging.basicConfig(filename=self.static.get('LOG_FILE'),
-                            # level=logging.DEBUG if self.debug else logging.INFO,
-                            level=logging.DEBUG if self.cfg['debug'] else logging.INFO,
-                            format=fmtStr,
-                            datefmt=dateStr)
-        return logging.getLogger('ConsolePi')
-
-    def log_and_show(self, msg, logit=True, showit=True, log=None):
-        cpi = self.cpi
-        if logit:
-            log = self.log.info if log is None else log
-            log(msg)
-
-        if showit:
-            msg = msg.replace('\t', '').split('\n')
-
-            [cpi.error_msgs.append(f'{m.split("]")[1].strip() if "]" in m else m}')
-                for m in msg
-                if (']' in m and m.split(']')[1].strip() not in cpi.error_msgs)
-                or ']' not in m and m not in cpi.error_msgs]
-            # [cpi.error_msgs.append(m) for m in msg if m not in cpi.error_msgs]
+    def get_remotes_from_file(self):
+        return self.get_json_file(self.static.get('LOCAL_CLOUD_FILE'))
 
     def get_config_all(self, yaml_cfg=None, legacy_cfg=None):
         '''Parse bash style cfg vars from cfg file convert to class attributes.'''
@@ -81,6 +67,7 @@ class Config():
                     if cfg[k] in ['true', 'false']:
                         cfg[k] = True if cfg[k] == 'true' else False
                 yml['CONFIG'] = cfg
+                yml['OVERRIDE'] = yml.get('OVERRIDE')
         else:
             cfg = {}
             if utils.valid_file(legacy_cfg):
@@ -97,14 +84,16 @@ class Config():
                             else:
                                 cfg[var] = value
 
-        if cfg:
-            # Process Globals that can be overriden by values in ConsolePi.conf
-            self.default_baud = cfg.get('default_baud', DEFAULT_BAUD)
-            self.default_dbits = cfg.get('default_dbits', DEFAULT_DBITS)
-            self.default_parity = cfg.get('default_parity', DEFAULT_PARITY)
-            self.default_flow = cfg.get('default_flow', DEFAULT_FLOW)
+        return yml if not do_legacy else {'CONFIG': cfg}
 
-            return yml if not do_legacy else {'CONFIG': cfg}
+    def do_overrides(self):
+        # Process Globals that can be overriden by values in ConsolePi.yaml
+        # if self.ovrd:
+        ovrd = self.ovrd if self.ovrd else {}
+        self.default_baud = ovrd.get('default_baud', DEFAULT_BAUD)
+        self.default_dbits = ovrd.get('default_dbits', DEFAULT_DBITS)
+        self.default_parity = ovrd.get('default_parity', DEFAULT_PARITY)
+        self.default_flow = ovrd.get('default_flow', DEFAULT_FLOW)
 
     def get_outlets_from_file(self):
         '''Get outlets defined in power.json
@@ -166,7 +155,7 @@ class Config():
                 try:
                     return json.load(f)
                 except ValueError as e:
-                    self.log_and_show(f'Unable to load configuration from {json_file}\n\t{e}', log=self.log.warning)
+                    self.plog(f'Unable to load configuration from {json_file}\n\t{e}', level='warning')
 
     def get_yaml_file(self, yaml_file):
         '''Return dict from yaml file.'''
@@ -175,7 +164,7 @@ class Config():
                 try:
                     return yaml.load(f, Loader=yaml.BaseLoader)
                 except ValueError as e:
-                    self.log_and_show(f'Unable to load configuration from {yaml_file}\n\t{e}', log=self.log.warning)
+                    self.plog(f'Unable to load configuration from {yaml_file}\n\t{e}', level='warning')
 
     def get_hosts(self):
         '''Parse user defined hosts.json for inclusion in menu
@@ -242,7 +231,7 @@ class Config():
         ########################################################
         utils = self.utils
         if not utils.valid_file(self.static.get('SER2NET_FILE')):
-            self.log_and_show('No ser2net.conf file found unable to extract port definition', log=self.log.warning)
+            self.plog('No ser2net.conf file found unable to extract port definition', level='warning')
             return {}
 
         ser2net_conf = {}
@@ -275,9 +264,9 @@ class Config():
                     elif 'DATABITS' in option:
                         dbits = int(option.replace('DATABITS', ''))  # int 5 - 8
                         if dbits < 5 or dbits > 8:
-                            self.log_and_show(
-                                f'{tty_dev}: Invalid value for "data bits" found in ser2net.conf falling back to 8'
-                                )
+                            self.plog(
+                                f'{tty_dev}: Invalid value for "data bits" found in ser2net.conf falling back to 8',
+                                level='warning')
                             dbits = 8
                     elif option in ['EVEN', 'ODD', 'NONE']:
                         parity = option[0].lower()  # converts to e o n used by picocom
@@ -292,7 +281,8 @@ class Config():
 
                 # Use baud to determine if options were parsed correctly
                 if baud is None:
-                    self.log_and_show(f'{tty_dev} found in ser2net but unable to parse baud falling back to {self.default_baud}')
+                    self.plog(f'{tty_dev} found in ser2net but unable to parse baud falling back to {self.default_baud}',
+                              level='warning')
                     baud = self.default_baud
 
                 # parse TRACEFILE defined in ser2net.conf

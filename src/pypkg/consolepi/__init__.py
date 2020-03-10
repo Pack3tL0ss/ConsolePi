@@ -200,7 +200,7 @@ class Config(ConsolePiLog):
 
         if not outlet_data:
             if self.power:
-                self.cpi.error_msgs.append('Power Function Disabled - Configuration Not Found')
+                self.plog('Power Function Disabled - Configuration Not Found')
                 self.power = False
             self.outlet_types = []
             self.linked_exists = False

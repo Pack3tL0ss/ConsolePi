@@ -64,6 +64,7 @@ do_perms() {
 do_git_pull() { 
   go=true
   while $go ; do
+    ! $stash_local && go=false
     pushd /etc/ConsolePi >/dev/null
     branch=$(git rev-parse --abbrev-ref HEAD)
     dots "git pull ConsolePi (${branch})"
@@ -76,10 +77,8 @@ do_git_pull() {
         if $stash_local ; then
           do_stash_local
           stash_local=false
-          go=true
         else
           do_error $rc
-          go=false
         fi
     fi
   done

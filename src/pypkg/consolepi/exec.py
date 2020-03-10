@@ -54,9 +54,9 @@ class ConsolePiExec():
         '''
         # config = self.config
         log = self.log
-        if not self.pwr_init_complete:
-            if self.wait_for_threads('init'):
-                return
+        # if not self.pwr_init_complete:
+        if self.wait_for_threads('init'):
+            return
 
         outlets = self.pwr.data
         if 'linked' not in outlets:

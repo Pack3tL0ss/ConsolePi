@@ -186,7 +186,7 @@ class GoogleDrive:
                         cnt = x
                         found = True
                     else:
-                        log.info('[GDRIVE]: {0} found on Google Drive Config'.format(row[0]))
+                        log.info('[GDRIVE]: {0} found in Google Drive Config'.format(row[0]))
                         remote_consoles[row[0]] = json.loads(row[1])
                         remote_consoles[row[0]]['source'] = 'cloud'
                     x += 1

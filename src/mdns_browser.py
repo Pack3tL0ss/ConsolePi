@@ -70,7 +70,7 @@ class MDNS_Browser:
                         # -- Log new entry only if this is the first time it's been discovered --
                         if hostname not in self.d_discovered:
                             self.d_discovered.append(hostname)
-                            log.info('[MDNS DSCVRY] {}({}) Discovered via mdns:'.format(
+                            log.info('[MDNS DSCVRY] {}({}) Discovered via mdns'.format(
                                 hostname, rem_ip if rem_ip is not None else '?'))
 
                         from_mdns_adapters = mdns_data.get('adapters')

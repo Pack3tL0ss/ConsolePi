@@ -72,6 +72,7 @@ do_git_pull() {
     popd >/dev/null
     if [[ $rc -eq 0 ]] ; then
         echo OK ; [[ ! -z "$git_output" ]] && echo -e "\n${git_output}\n"
+        go=false
     else
         echo -e "\ncaptured git pull stdout:\n${git_output}\n" >> $log_file
         if $stash_local ; then

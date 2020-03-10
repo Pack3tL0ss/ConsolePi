@@ -61,26 +61,26 @@ class ConsolePiLog:
         return logging.getLogger('ConsolePi')
 
     def log_print(self, msgs, log=False, show=True, level='info', *args, **kwargs):
-        if isinstance(msgs, list):
-            _msgs = []
-            _logged = []
-            for i in msgs:
-                if log and i not in _logged:
-                    getattr(self.log, level)(i)
-                    _logged.append(i)
-                if '\n' in i:
-                    _msgs += i.split('\n')
-                elif i.startswith('[') and ']' in i:
-                    _msgs.append(i.split('] ', 1)[1])
-                else:
-                    _msgs.append(i.replace('\t', ''))
+        msgs = [msgs] if not isinstance(msgs, list) else msgs
+        _msgs = []
+        _logged = []
+        for i in msgs:
+            if log and i not in _logged:
+                getattr(self.log, level)(i)
+                _logged.append(i)
+            if '\n' in i:
+                _msgs += i.split('\n')
+            elif i.startswith('[') and ']' in i:
+                _msgs.append(i.split('] ', 1)[1])
+            else:
+                _msgs.append(i.replace('\t', ''))
 
-            msgs = []
-            [msgs.append(i) for i in _msgs if i and i not in msgs]
-        else:
-            if log:
-                getattr(self.log, level)(msgs)
-            msgs = [msgs.replace('\t', '')]
+        msgs = []
+        [msgs.append(i) for i in _msgs if i and i not in msgs]
+        # else:
+        #     if log:
+        #         getattr(self.log, level)(msgs)
+        #     msgs = [msgs.replace('\t', '')]
 
         if show:
             self.error_msgs += msgs

@@ -560,7 +560,10 @@ class ConsolePiMenu(Rename):
     def gen_adapter_lines(self, adapters, item=1, remote=False, rem_user=None, host=None, rename=False):
         cpi = self.cpi
         config = cpi.config
-        rem = cpi.remotes.data
+        if hasattr(cpi, 'remotes'):
+            rem = cpi.remotes.data
+        else:
+            rem = {}
         # utils = cpi.utils
         menu_actions = {}
         mlines = []

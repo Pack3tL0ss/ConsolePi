@@ -3,16 +3,35 @@
 BETTER_EXCEPTIONS=1
 if [ ! -z $1 ] && [ "$1" = 'sh' ]; then
     echo "Launching -bash- ConsolePi Serial Console Menu"
-    sudo /etc/ConsolePi/src/consolepi-menu.sh
+    sudo /etc/ConsolePi/src/consolepi-menu.sh; rt=$?
 elif [ ! -z $1 ] && [ "$1" = 'dev' ]; then
     echo "Launching ConsolePi Development Menu"
-    sudo /etc/ConsolePi/src/consolepi-menu-dev.py "${@:2}"
+    sudo /etc/ConsolePi/src/consolepi-menu-dev.py "${@:2}"; rt=$?
+elif [ ! -z $1 ] && [ "$1" = 'dev2' ]; then
+    echo "Launching ConsolePi Development Menu 2"
+    sudo /etc/ConsolePi/src/consolepi-menu-dev2.py "${@:2}"; rt=$?
 else
     if [ ! -z $1 ] && [ "$1" = 'rn' ] ; then
         echo "Launching ConsolePi Adapter Definition/Rename Utility"
     else
         echo "Launching ConsolePi Serial Console Menu"
     fi
+    sudo /etc/ConsolePi/src/consolepi-menu.py "${@}"; rt=$?
+fi
 
-    sudo /etc/ConsolePi/src/consolepi-menu.py "${@}"
+if [[ ${rt} != 0 ]] && [[ "$1" != 'sh' ]] ; then
+    echo -e  "\n\n\nIt appears an error occured in the primary menu\n"
+    echo "The shell based menu acts as a backup menu in the unlikely event"
+    echo "something breaks with the fully functional python based menu."
+    echo
+    echo "The shell menu supports connections to locally attached serial adapters only."
+    echo
+    echo "Please report the error above @ https://github.com/Pack3tL0ss/ConsolePi"
+    echo
+    read -ep "Would you like to launch the (backup) shell menu (y/n)? " ch
+    case "${ch,,}" in
+        y|yes)
+        sudo /etc/ConsolePi/src/consolepi-menu.sh
+        ;;
+    esac
 fi

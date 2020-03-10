@@ -149,7 +149,7 @@ class GoogleDrive:
 
     def update_files(self, data):
         # pylint: disable=maybe-no-member
-        if 'udev' in data.get('adapters'):
+        if 'udev' in data.get('adapters', {}):
             del data['adapters']['udev']
         log = self.log
         log.debug('[GDRIVE]: -->update_files - data passed to function\n{}'.format(json.dumps(data, indent=4, sort_keys=True)))

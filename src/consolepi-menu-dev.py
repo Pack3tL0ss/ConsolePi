@@ -1,25 +1,19 @@
 #!/etc/ConsolePi/venv/bin/python
 
-# import ast
 import json
-import os
-# import re
 import readline # NoQA - allows input to accept backspace
-import shlex
-import subprocess
 import sys
 import re
-import time
 import threading
 from collections import OrderedDict as od
 from halo import Halo
 
 # --// ConsolePi imports \\--
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import ConsolePi  # NoQA
-from consolepi import Rename  # NoQA
-from consolepi import Menu  # NoQA
-# from consolepi.gdrive import GoogleDrive # <-- hidden import burried in refresh method of ConsolePiMenu Class
+from consolepi.consolepi import ConsolePi  # NoQA
+from consolepi.udevrename import Rename  # NoQA
+from consolepi import utils  # NoQA
+# from consolepi.gdrive import GoogleDrive # <-- hidden import burried in refresh method of consolepi.remotes.Remotes(...).refresh
 
 MIN_WIDTH = 55
 MAX_COLS = 5
@@ -27,12 +21,12 @@ MAX_COLS = 5
 
 class ConsolePiMenu(Rename):
 
-    def __init__(self, bypass_remote=False):
-        self.cpi = ConsolePi(bypass_remote=bypass_remote)
-        self.utils = self.cpi.utils
+    def __init__(self, bypass_remotes=False):
+        self.cpi = ConsolePi(bypass_remotes=bypass_remotes)
+        self.cpiexec = self.cpi.cpiexec
+        self.utils = utils
         self.baud = self.cpi.config.default_baud
         self.go = True
-        self.debug = self.cpi.config.cfg.get('debug', False)
         self.spin = Halo(spinner='dots')
         self.states = {
             True: '{{green}}ON{{norm}}',
@@ -42,7 +36,7 @@ class ConsolePiMenu(Rename):
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
         self.log = self.cpi.config.log
         self.display_con_settings = False
-        self.menu = Menu(self)
+        self.menu = self.cpi.menu
         self.menu.ignored_errors = [
             re.compile('Connection to .* closed')
         ]
@@ -52,8 +46,8 @@ class ConsolePiMenu(Rename):
     def print_menu(self, *args, **kwargs):
         '''combine error_msgs and pass to menu formatter/print functions'''
 
-        kwargs['error_msgs'] = self.cpi.error_msgs + self.error_msgs
-        self.cpi.error_msgs = self.error_msgs = []
+        kwargs['error_msgs'] = self.cpi.config.error_msgs + self.error_msgs
+        self.cpi.config.error_msgs = self.error_msgs = []
         self.menu.print_mlines(*args, **kwargs)
 
     def print_attribute(self, ch, locs={}):
@@ -107,8 +101,11 @@ class ConsolePiMenu(Rename):
                         if isinstance(self.var, dict):
                             var = {k: v if not callable(v) else f'{_class_str}{v.__name__}()' for k, v in self.var.items()}
                             for k in var:
-                                if 'function' in var[k]:
-                                    var[k]['function'] = f"{_class_str}{var[k]['function'].__name__}()"
+                                try:
+                                    if 'function' in var[k]:
+                                        var[k]['function'] = f"{_class_str}{var[k]['function'].__name__}()"
+                                except TypeError:
+                                    continue
                         else:
                             var = [v if not callable(v) else f'{_class_str}{v.__name__}()' for v in self.var]
                         print(json.dumps(var, indent=4, sort_keys=True))
@@ -130,19 +127,19 @@ class ConsolePiMenu(Rename):
 
         # -- // Not running as root \\ --
         if not self.cpi.config.root:
-            self.menu.log_and_show('Running without sudo privs ~ Results may vary!\n'
-                                   'Use consolepi-menu to launch menu', logit=False)
+            self.cpi.config.plog('Running without sudo privs ~ Results may vary!\n'
+                                 'Use consolepi-menu to launch menu', log=False)
 
-        # -- // Remotes with older API schema \\ --
-        for adapters in [self.cpi.remotes.data[r].get('adapters', {}) for r in self.cpi.remotes.data]:
-            if isinstance(adapters, list):
-                _msg = 'You have remotes running older versions ~ older API schema.  You Should Upgrade those Remotes'
-                self.menu.log_and_show(_msg, log=self.cpi.config.log.warning)
-                break
+        # # -- // Remotes with older API schema \\ --
+        # for adapters in [self.cpi.remotes.data[r].get('adapters', {}) for r in self.cpi.remotes.data]:
+        #     if isinstance(adapters, list):
+        #         _msg = 'You have remotes running older versions ~ older API schema.  You Should Upgrade those Remotes'
+        #         self.cpi.config.plog(_msg, level='warning')
+        #         break
 
         # -- // No Local Adapters Found \\ --
         if not self.cpi.local.adapters:
-            self.menu.error_msgs.append('No Local Adapters Detected')
+            self.cpi.plog('No Local Adapters Detected')
 
     def picocom_help(self):
         print('##################### picocom Command Sequences ########################\n')
@@ -162,6 +159,7 @@ class ConsolePiMenu(Rename):
         print('\n########################################################################\n')
         input('Press Enter to Continue... ')
 
+    # -- // POWER MENU \\ --
     def power_menu(self, calling_menu='main_menu'):
         cpi = self.cpi
         pwr = cpi.pwr
@@ -177,13 +175,13 @@ class ConsolePiMenu(Rename):
         # Ensure Power Threads are complete
         if not cpi.pwr_init_complete:
             with Halo(text='Waiting for Outlet init threads to complete', spinner='dots'):
-                cpi.wait_for_threads()
+                self.cpiexec.wait_for_threads()
                 outlets = pwr.data['defined']
         else:
-            outlets = cpi.outlet_update()
+            outlets = self.cpiexec.outlet_update()
 
         if not outlets:
-            cpi.error_msgs.append('No Linked Outlets are connected')
+            self.cpi.config.plog('No Linked Outlets are connected', log=False)
             return
 
         while choice not in ['x', 'b']:
@@ -236,7 +234,7 @@ class ConsolePiMenu(Rename):
                 else:
                     # pwr functions put any errors (aborts) in pwr.data[grp]['error']
                     if pwr.data['defined'][r].get('errors'):
-                        cpi.error_msgs.append(f'{r} - {pwr.data["defined"][r]["errors"]}')
+                        self.cpi.config.plog(f'{r} - {pwr.data["defined"][r]["errors"]}', log=False)
                         del pwr.data['defined'][r]['errors']
                     if isinstance(outlet.get('is_on'), bool):
                         _state = states[outlet['is_on']]
@@ -263,7 +261,7 @@ class ConsolePiMenu(Rename):
                         item += 1
                     else:   # refactored power.py pwr_get_outlets this should never hit
                         if outlet.get('is_on'):
-                            cpi.error_msgs.append(f"DEV NOTE {r} outlet state is not bool: {outlet['error']}")
+                            self.cpi.config.plog(f"DEV NOTE {r} outlet state is not bool: {outlet['error']}", log=False)
 
             if item > 2:
                 if False in state_list:
@@ -296,13 +294,13 @@ class ConsolePiMenu(Rename):
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
             if choice not in ['b', 'r']:
-                self.exec_menu(choice_c, menu_actions, calling_menu='power_menu')
+                cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='power_menu')
             elif choice == 'b':
                 return
             elif choice == 'r':
                 if pwr.dli_exists:
                     with Halo(text='Refreshing Outlets', spinner='dots'):
-                        outlets = cpi.outlet_update(refresh=True, upd_linked=True)
+                        outlets = self.cpiexec.outlet_update(refresh=True, upd_linked=True)
 
     def wait_for_input(self, prompt=" >> ", terminate=False, locs={}):
         '''Get input from user.
@@ -328,9 +326,10 @@ class ConsolePiMenu(Rename):
                    otherwise returns the input provided by the user (lower() by default).
         '''
         menu = self.menu
+        config = self.cpi.config
 
         class choice():
-            def __init__(self, clear=False, prompt=prompt):
+            def __init__(self, clear=False):
                 if not clear:
                     ch = input(prompt)
                     self.lower = ch.lower()
@@ -340,7 +339,7 @@ class ConsolePiMenu(Rename):
                     self.orig = ''
 
         try:
-            if self.debug:
+            if config.debug:
                 menu.menu_rows += 1  # TODO REMOVE AFTER SIMPLIFIED
                 prompt = f' m[r:{menu.menu_rows}, c:{menu.menu_cols}] a[r:{menu.rows}, c:{menu.cols}]{prompt}'
 
@@ -348,10 +347,10 @@ class ConsolePiMenu(Rename):
 
             # -- // toggle debug \\ --
             if ch.lower == 'debug':
-                self.cpi.error_msgs.append(f'debug toggled {self.states[self.debug]} --> {self.states[not self.debug]}')
-                self.cpi.error_msgs.append('Changing debug in menu does not impact logging, '
-                                           'Change in Config a re-launch for that.')
-                self.debug = not self.debug
+                config.plog(f'debug toggled {self.states[config.debug]} --> {self.states[not config.debug]}',
+                            log=False)
+                self.cpi.config.debug = not self.cpi.config.debug
+                self.cpi.config.log.setLevel(not self.cpi.config.debug)
                 ch = choice(clear=True)
 
             # -- // always accept 'exit' \\ --
@@ -374,7 +373,7 @@ class ConsolePiMenu(Rename):
             else:
                 menu.error_msgs.append('Operation Aborted')
                 print('')  # prevents header and prompt on same line in debug
-                return ''
+                return choice(clear=True)
 
     # ------ // DLI WEB POWER SWITCH MENU \\ ------ #
     def dli_menu(self, calling_menu='power_menu'):
@@ -391,10 +390,10 @@ class ConsolePiMenu(Rename):
         if not cpi.pwr_init_complete:
             with Halo(text='Waiting for Outlet init Threads to Complete...',
                       spinner='dots'):
-                cpi.wait_for_threads('init')
+                self.cpiexec.wait_for_threads('init')
 
         if not pwr.dli_exists:
-            cpi.error_msgs.append('All Defined dli Web Power Switches are unreachable')
+            cpi.config.plog('All Defined dli Web Power Switches are unreachable', log=False)
             return
 
         dli_dict = pwr.data['dli_power']
@@ -486,11 +485,12 @@ class ConsolePiMenu(Rename):
                 slines.append(host_short)   # list of strings index to index match with body list of lists
 
             header = 'DLI Web Power Switch'
+            subhead = ['enter item # to toggle power state on outlet']
+            if True in state_list:
+                subhead.append('enter c + item # i.e. "c2" to cycle power on outlet')
+            subhead.append('enter r + item # i.e. "r2" to rename the outlet')
+
             footer = {'opts': ['back', 'refresh']}
-            footer['rjust'] = {
-                'back': 'menu # alone will toggle the port,',
-                'refresh': 'c# to cycle or r# to rename [i.e. \'c1\']'
-            }
             if (not calling_menu == 'power_menu' and pwr.data) and (pwr.gpio_exists or pwr.tasmota_exists or pwr.linked_exists):
                 menu_actions['p'] = self.power_menu
                 footer['opts'].insert(0, 'power')
@@ -501,19 +501,19 @@ class ConsolePiMenu(Rename):
                 if 'TASMOTA' in _error:
                     cpi.error_msgs.remove(_error)
 
-            self.print_menu(outer_body, header=header, footer=footer, subs=slines,
+            self.print_menu(outer_body, header=header, subhead=subhead, footer=footer, subs=slines,
                             force_cols=True, by_tens=True)
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
             if choice == 'r':
                 self.spin.start('Refreshing Outlets')
-                dli_dict = cpi.outlet_update(refresh=True, key='dli_power')
+                dli_dict = self.cpiexec.outlet_update(refresh=True, key='dli_power')
                 self.spin.succeed()
             elif choice == 'b':
                 return
             else:
-                self.exec_menu(choice_c, menu_actions, calling_menu='dli_menu')
+                cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='dli_menu')
 
     def key_menu(self):
         cpi = self.cpi
@@ -543,25 +543,25 @@ class ConsolePiMenu(Rename):
                     rem_user = rem[host].get('user', config.static.get('FALLBACK_USER', 'pi'))
                     mlines.append(f'{host} @ {rem_ip}')
                     this = (host, rem_ip, rem_user)
-                    menu_actions[str(item)] = {'function': cpi.gen_copy_key, 'args': [this]}
+                    menu_actions[str(item)] = {'function': self.cpiexec.gen_copy_key, 'args': [this]}
                     all_list.append(this)
                     item += 1
 
             # -- all option to loop through all remotes and deploy keys --
             footer = {'opts': 'back',
                       'before': ['a.  {{cyan}}*all*{{norm}} remotes listed above', '']}
-            menu_actions['a'] = {'function': cpi.gen_copy_key, 'args': [all_list]}
+            menu_actions['a'] = {'function': self.cpiexec.gen_copy_key, 'args': [all_list]}
             self.print_menu(mlines, subs=subs, header=header, footer=footer, do_format=False)
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
 
-            self.exec_menu(choice_c, menu_actions, calling_menu='key_menu')
+            cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='key_menu')
 
     def gen_adapter_lines(self, adapters, item=1, remote=False, rem_user=None, host=None, rename=False):
         cpi = self.cpi
         config = cpi.config
         rem = cpi.remotes.data
-        utils = cpi.utils
+        # utils = cpi.utils
         menu_actions = {}
         mlines = []
         flow_pretty = self.flow_pretty
@@ -579,15 +579,17 @@ class ConsolePiMenu(Rename):
                 if not menu_line:
                     host_pretty = h.replace('/host/', '')
                     _addr = adapters['_hosts'][h]['address']
+                    _m = adapters['_hosts'][h].get('method')
                     if ':' in _addr:
                         _a, _p = _addr.split(':')
                         _a = utils.get_host_short(_a)
-                        _m = adapters['_hosts'][h].get('method')
                         _addr = _a if (_m == 'telnet' and _p == '23') or \
                             (_m == 'ssh' and _p == '22') else f'{_a}:{_p}'
                     menu_line = f'{host_pretty} @ {_addr}'
                 mlines.append(menu_line)
-                menu_actions[str(item)] = {'cmd': adapters['_hosts'][h].get('cmd'), 'exec_kwargs': {'tee_stderr': True}, 'pwr_key': h}
+                menu_actions[str(item)] = {'cmd': adapters['_hosts'][h].get('cmd'),
+                                           'exec_kwargs': {'tee_stderr': True}, 'pwr_key': h,
+                                           'pre_msg': f"Establishing {_m} session To {host_pretty}..."}
                 item += 1
 
             return mlines, menu_actions, item
@@ -618,12 +620,13 @@ class ConsolePiMenu(Rename):
                 fallback_cmd = f'picocom {this_dev} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}'
                 _cmd = this_dev.get('cmd', fallback_cmd)
                 if not rename:
-                    menu_actions[str(item)] = {'cmd': _cmd, 'pwr_key': _dev[0]}
+                    menu_actions[str(item)] = {'cmd': _cmd, 'pwr_key': _dev[0],
+                                               'pre_msg': f"Connecting To {_dev[0].replace('/dev/', '')}..."}
                 else:
                     rn_this = {_dev[0]: adapters[_dev[0]]}
                     menu_actions[str(item)] = {'function': self.do_rename_adapter, 'args': [_dev[0]]}
-                    menu_actions['s' + str(item)] = {'function': cpi.show_adapter_details, 'args': [rn_this]}
-                    menu_actions['c' + str(item)] = {'cmd': _cmd}
+                    menu_actions['s' + str(item)] = {'function': self.cpiexec.show_adapter_details, 'args': [rn_this]}
+                    menu_actions['c' + str(item)] = {'cmd': _cmd, 'pre_msg': f"Connecting To {_dev[0].replace('/dev/', '')}..."}
 
             # -- // REMOTE ADAPTERS \\ --
             # TODO can just make the command once and prepend remote bit for remotes.
@@ -635,7 +638,8 @@ class ConsolePiMenu(Rename):
                 fallback_cmd = f'sudo -u {config.loc_user} ssh -t {rem_user}@{rem[host].get("rem_ip")} \"{config.REM_LAUNCH}' \
                                f' picocom {_dev[0]} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}\"'
                 _cmd = this_dev.get('cmd', fallback_cmd)
-                menu_actions[str(item)] = {'cmd': _cmd}
+                menu_actions[str(item)] = {'cmd': _cmd,
+                                           'pre_msg': f"Connecting To {_dev[0].replace('/dev/', '')} on {host}..."}
             item += 1
 
         return mlines, menu_actions, item
@@ -654,7 +658,7 @@ class ConsolePiMenu(Rename):
             mlines, menu_actions, item = self.gen_adapter_lines(loc, rename=True)
 
             if not mlines:
-                cpi.error_msgs.append('No Local Adapters')
+                cpi.config.plog('No Local Adapters', log=False)
                 break
 
             slines.append('Select Adapter to Rename')   # list of strings index to index match with body list of lists
@@ -678,7 +682,7 @@ class ConsolePiMenu(Rename):
             choice = choice_c.lower
             if choice in menu_actions:
                 if not choice == 'b':
-                    self.exec_menu(choice_c, menu_actions, calling_menu='rename_menu')
+                    cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rename_menu')
             else:
                 if choice:
                     if choice != 'b' or direct_launch:
@@ -693,19 +697,20 @@ class ConsolePiMenu(Rename):
     def main_menu(self):
         cpi = self.cpi
         config = cpi.config
-        remotes = cpi.remotes
         loc = cpi.local.adapters
         pwr = cpi.pwr
-        rem = remotes.data
+        remotes = cpi.remotes
+        rem = cpi.remotes.data
         outer_body = []
         slines = []
         item = 1
+        foot_opts = []
 
         menu_actions = {
             'h': self.picocom_help,
             'r': remotes.refresh,
             'x': self.exit,
-            'sh': cpi.launch_shell
+            # 'sh': self.cpiexec.launch_shell
         }
         if config.power and pwr.data:
             if pwr.linked_exists or pwr.gpio_exists or pwr.tasmota_exists:
@@ -718,12 +723,12 @@ class ConsolePiMenu(Rename):
 
         # DIRECT LAUNCH TO POWER IF NO ADAPTERS (given there are outlets)
         if not loc and not rem and config.power:
-            cpi.error_msgs.append('No Adapters Found, Outlets Defined... Launching to Power Menu')
-            cpi.error_msgs.append('use option "b" to access main menu options')
+            config.plog('No Adapters Found, Outlets Defined... Launching to Power Menu\n'
+                        'use option "b" to access main menu options')
             if pwr.dli_exists and not pwr.linked_exists:
-                self.exec_menu('d', menu_actions)
+                cpi.cpiexec.menu_exec('d', menu_actions)
             else:
-                self.exec_menu('p', menu_actions)
+                cpi.cpiexec.menu_exec('p', menu_actions)
 
         # Build menu items for each locally connected serial adapter
         if loc:
@@ -759,38 +764,41 @@ class ConsolePiMenu(Rename):
                 slines.append(g)
 
         # -- // General Menu Command Options \\ --
-        text = []
-        if self.display_con_settings:
-            text.append(f' c.  Change default Serial Settings **[{self.baud} {self.data_bits}{self.parity.upper()}1'
-                        f' flow={self.flow_pretty[self.flow]}]')
-            menu_actions['c'] = self.con_menu
-        text.append(' h.  Display picocom help')
+        # text = []
+        # TODO currently not functional used only for rename.  ser2net.conf sets con settings
+        # if self.display_con_settings:
+        #     text.append(f' c.  Change default Serial Settings **[{self.baud} {self.data_bits}{self.parity.upper()}1'
+        #                 f' flow={self.flow_pretty[self.flow]}]')
+        #     menu_actions['c'] = self.con_menu
+        if loc or remotes.connected:
+            foot_opts.append('picohelp')
 
         if config.power:  # and config.outlets is not None:
             if pwr.outlets_exists:
-                text.append(' p.  Power Control Menu')
+                foot_opts.append('power')
             if pwr.dli_exists:
-                text.append(' d.  [dli] Web Power Switch Menu')
+                foot_opts.append('dli')
 
         if remotes.connected or config.hosts:
-            text.append(' s.  Remote Shell Menu')
-            menu_actions['s'] = self.rshell_menu
             if remotes.connected:
-                text.append(' k.  Distribute SSH Key to Remote Hosts')
+                foot_opts.append('key')
                 menu_actions['k'] = self.key_menu
 
-        text.append(' sh. Enter Local Shell')
+            foot_opts.append('rshell')
+            menu_actions['rs'] = self.rshell_menu
+
+        # foot_opts.append('shell') # Not really needed can just do bash -l from menu
         if loc:  # and config.root:
-            text.append(' rn. Rename Local Adapters')
+            foot_opts.append('rn')
             menu_actions['rn'] = self.rename_menu
-        text.append(' r.  Refresh')
+        foot_opts.append('refresh')
 
         self.print_menu(outer_body, header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
-                        footer=text, subs=slines, do_format=False)
+                        footer={'opts': foot_opts}, subs=slines, do_format=False)
 
-        choice_c = self.wait_for_input(locs=locals())
+        choice_c = self.wait_for_input(locs=locals(), terminate=True)
         choice = choice_c.lower
-        self.exec_menu(choice_c, menu_actions)
+        cpi.cpiexec.menu_exec(choice_c, menu_actions)
         return
 
     # ------ // REMOTE SHELL MENU \\ ------ #
@@ -807,8 +815,6 @@ class ConsolePiMenu(Rename):
         }
 
         while choice not in ['x', 'b']:
-            # if not self.DEBUG:
-            #     os.system('clear')
             outer_body = []
             mlines = []
             subs = []
@@ -821,7 +827,8 @@ class ConsolePiMenu(Rename):
                     mlines.append(f'{host} @ {rem[host]["rem_ip"]}')
                     _rem_user = rem[host].get('user', config.FALLBACK_USER)
                     _cmd = f'sudo -u {local.user} ssh -t {_rem_user}@{rem[host]["rem_ip"]}'
-                    menu_actions[str(item)] = {'cmd': _cmd}
+                    menu_actions[str(item)] = {'cmd': _cmd,
+                                               'pre_msg': f'Establishing ssh session To {host}...'}
                     item += 1
             outer_body.append(mlines)
 
@@ -830,315 +837,21 @@ class ConsolePiMenu(Rename):
                 for _sub in config.hosts['rshell']:
                     subs.append(_sub)
                     ssh_hosts = config.hosts['rshell'][_sub]
-                    mlines = []
-                    for host in sorted(ssh_hosts):
-                        r = ssh_hosts[host]
-                        if 'address' in r:
-                            mlines.append(f"{host.split('/')[-1]} @ {r['address']}")
-                            _host = r['address'].split(':')[0]
-                            _port = '' if ':' not in r['address'] else r['address'].split(':')[1]
-                            if 'method' in r and r['method'].lower() == 'ssh':
-                                # configure fallback command
-                                _cmd = 'sudo -u {0} ssh -t {3} {1}@{2}'.format(config.loc_user,
-                                                                               r.get('username', config.FALLBACK_USER),
-                                                                               _host, '' if not _port else '-p {}'.format(_port))
-                                _cmd = r.get('cmd', _cmd)
-                            elif 'method' in r and r['method'].lower() == 'telnet':
-                                # configure fallback command
-                                _cmd = 'sudo -u {0} telnet {1} {2}'.format(config.loc_user,
-                                                                           r['address'].split(':')[0], _port)
-                                _cmd = r.get('cmd', _cmd)
-                            menu_actions[str(item)] = {'cmd': _cmd, 'pwr_key': host, 'exec_kwargs': {'tee_stderr': True}}
-                            item += 1
-
+                    mlines, host_menu_actions, item = self.gen_adapter_lines({'_hosts': ssh_hosts}, item=item)
+                    menu_actions = {**menu_actions, **host_menu_actions}
                     outer_body.append(mlines)
 
-            text = ' b.  Back'
+            footer = {'opts': 'back'}
             self.print_menu(outer_body, header='Remote Shell Menu',
                             subhead='Enter item # to connect to remote',
-                            footer=text, subs=subs)
+                            footer=footer, subs=subs)
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
 
-            self.exec_menu(choice_c, menu_actions, calling_menu='rshell_menu')
+            cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rshell_menu')
 
-    # ------ // EXECUTE MENU SELECTIONS \\ ------ #
-    def exec_menu(self, choice, menu_actions, calling_menu='main_menu'):
-        cpi = self.cpi
-        pwr = cpi.pwr
-        config = cpi.config
-        utils = cpi.utils
-        if not self.debug and calling_menu not in ['dli_menu', 'power_menu']:
-            os.system('clear')
-
-        if not choice.lower or choice.lower in menu_actions and menu_actions[choice.lower] is None:
-            self.menu.rows, self.menu.cols = utils.get_tty_size()  # re-calc tty size in case they've adjusted the window
-            # self.cpi.local.adapters = self.cpi.local.build_adapter_dict(refresh=True)  # always refresh local adapters
-            return
-
-        else:
-            ch = choice.lower
-            try:  # Invalid Selection
-                if isinstance(menu_actions[ch], dict):
-                    if menu_actions[ch].get('cmd'):
-                        # TimeStamp for picocom session log file if defined
-                        menu_actions[ch]['cmd'] = menu_actions[ch]['cmd'].replace('{{timestamp}}', time.strftime('%F_%H.%M'))
-
-                        # -- // AUTO POWER ON LINKED OUTLETS \\ --
-                        if config.power and 'pwr_key' in menu_actions[ch]:  # pylint: disable=maybe-no-member
-                            cpi.exec_auto_pwron(menu_actions[ch]['pwr_key'])
-
-                        # --// execute the command \\--
-                        try:
-                            _error = None
-                            if 'exec_kwargs' in menu_actions[ch]:
-                                c = menu_actions[ch]['cmd']
-                                _error = utils.do_shell_cmd(c, **menu_actions[ch]['exec_kwargs'])
-                                if _error and cpi.autopwr_wait:
-                                    print('\nInitial Attempt Failed, but host is linked to an outlet that was')
-                                    print('off. Host may still be booting\n')
-                                    input('Press Enter when ready to retry connection.')
-                                    _error = utils.do_shell_cmd(c, **menu_actions[ch]['exec_kwargs'])
-                                    cpi.autopwr_wait = False
-                            else:
-                                c = shlex.split(menu_actions[ch]['cmd'])
-                                result = subprocess.run(c, stderr=subprocess.PIPE)
-                                _stderr = result.stderr.decode('UTF-8')
-                                if _stderr or result.returncode == 1:
-                                    _error = utils.error_handler(c, _stderr)
-
-                            if _error:
-                                self.cpi.error_msgs.append(_error)
-
-                            # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
-                            c = ' '.join([str(i) for i in c])
-                            if 'picocom' in c:  # pylint: disable=maybe-no-member
-                                os.system('/etc/ConsolePi/src/consolepi-commands/resize >/dev/null')
-
-                        except KeyboardInterrupt:
-                            self.error_msgs.append('Aborted last command based on user input')
-
-                    elif 'function' in menu_actions[ch]:
-                        args = menu_actions[ch]['args'] if 'args' in menu_actions[ch] else []
-                        kwargs = menu_actions[ch]['kwargs'] if 'kwargs' in menu_actions[ch] else {}
-                        confirmed, spin_text, name = self.confirm_and_spin(menu_actions[ch], *args, **kwargs)
-                        if confirmed:
-                            # update kwargs with name from confirm_and_spin method
-                            if menu_actions[ch]['function'].__name__ == 'pwr_rename':
-                                kwargs['name'] = name
-
-                            # // -- CALL THE FUNCTION \\--
-                            if spin_text:  # start spinner if spin_text set by confirm_and_spin
-                                with Halo(text=spin_text, spinner='dots2'):
-                                    response = menu_actions[ch]['function'](*args, **kwargs)
-                            else:  # no spinner
-                                response = menu_actions[ch]['function'](*args, **kwargs)
-
-                            # --// Power Menus \\--
-                            if calling_menu in ['power_menu', 'dli_menu']:
-                                if menu_actions[ch]['function'].__name__ == 'pwr_all':
-                                    with Halo(text='Refreshing Outlet States', spinner='dots'):
-                                        cpi.outlet_update(refresh=True, upd_linked=True)  # TODO can I move this to Outlets Class
-                                else:
-                                    _grp = menu_actions[ch]['key']
-                                    _type = menu_actions[ch]['args'][0]
-                                    _addr = menu_actions[ch]['args'][1]
-                                    # --// EVAL responses for dli outlets \\--
-                                    if _type == 'dli':
-                                        host_short = utils.get_host_short(_addr)
-                                        _port = menu_actions[ch]['kwargs']['port']
-                                        # --// Operations performed on ALL outlets \\--
-                                        if isinstance(response, bool) and _port is not None:
-                                            if menu_actions[ch]['function'].__name__ == 'pwr_toggle':
-                                                self.spin.start('Request Sent, Refreshing Outlet States')
-                                                # threading.Thread(target=self.get_dli_outlets, kwargs={'upd_linked': True, 'refresh': True}, name='pwr_toggle_refresh').start()
-                                                upd_linked = True if calling_menu == 'power_menu' else False  # else dli_menu
-                                                threading.Thread(target=cpi.outlet_update, kwargs={'upd_linked': upd_linked, 'refresh': True}, name='pwr_toggle_refresh').start()
-                                                if _grp in pwr.data['defined']:
-                                                    pwr.data['defined'][_grp]['is_on'][_port]['state'] = response
-                                                elif _port != 'all':
-                                                    pwr.data['dli_power'][_addr][_port]['state'] = response
-                                                else:  # dli toggle all
-                                                    for t in threading.enumerate():
-                                                        if t.name == 'pwr_toggle_refresh':
-                                                            t.join()    # if refresh thread is running join ~ wait for it to complete.
-                                                            # TODO Don't think this works or below
-                                                            # wouldn't have been necessary.
-
-                                                            # toggle all returns True (ON) or False (OFF) if command successfully sent.  In reality the ports
-                                                            # may not be in the  state yet, but dli is working it.  Update menu items to reflect end state
-                                                            for p in pwr.data['dli_power'][_addr]:
-                                                                pwr.data['dli_power'][_addr][p]['state'] = response
-                                                            break
-                                                self.spin.stop()
-                                            # Cycle operation returns False if outlet is off, only valid on powered outlets
-                                            elif menu_actions[ch]['function'].__name__ == 'pwr_cycle' and not response:
-                                                self.error_msgs.append('{} Port {} if Off.  Cycle is not valid'.format(host_short, _port))
-                                            elif menu_actions[ch]['function'].__name__ == 'pwr_rename':
-                                                if response:
-                                                    _name = pwr._dli[_addr].name(_port)
-                                                    if _grp in pwr.data.get('defined', {}):
-                                                        pwr.data['defined'][_grp]['is_on'][_port]['name'] = _name
-                                                    else:
-                                                        # threading.Thread(target=self.get_dli_outlets, kwargs={'upd_linked': True, 'refresh': True}, name='pwr_rename_refresh').start()
-                                                        threading.Thread(target=cpi.outlet_update, kwargs={'upd_linked': True, 'refresh': True}, name='pwr_rename_refresh').start()
-                                                    pwr.data['dli_power'][_addr][_port]['name'] = _name
-                                        # --// str responses are errors append to error_msgs \\--
-                                        # TODO refactor response to use new cpi.response(...)
-                                        elif isinstance(response, str) and _port is not None:
-                                            cpi.error_msgs.append(response)
-                                        # --// Can Remove After Refactoring all responses to bool or str \\--
-                                        elif isinstance(response, int):
-                                            if menu_actions[ch]['function'].__name__ == 'pwr_cycle' and _port == 'all':
-                                                if response != 200:
-                                                    self.error_msgs.append('Error Response Returned {}'.format(response))
-                                            else:  # This is a catch as for the most part I've tried to refactor so the pwr library returns port state on success (True/False)
-                                                if response in [200, 204]:
-                                                    cpi.error_msgs.append('DEV NOTE: check pwr library ret=200 or 204')
-                                                else:
-                                                    cpi.error_msgs.append('Error returned from dli {} when attempting to {} port {}'.format(
-                                                        host_short, menu_actions[ch]['function'].__name__, _port))
-
-                                    # --// EVAL responses for GPIO and tasmota outlets \\--
-                                    else:
-                                        if menu_actions[ch]['function'].__name__ == 'pwr_toggle':
-                                            if _grp in pwr.data.get('defined', {}):
-                                                if isinstance(response, bool):
-                                                    pwr.data['defined'][_grp]['is_on'] = response
-                                                else:
-                                                    pwr.data['defined'][_grp]['errors'] = response
-                                        elif menu_actions[ch]['function'].__name__ == 'pwr_cycle' and not response:
-                                            self.error_msgs.append('Cycle is not valid for Outlets in the off state')
-                                        elif menu_actions[ch]['function'].__name__ == 'pwr_rename':
-                                            self.error_msgs.append('rename not yet implemented for {} outlets'.format(_type))
-                            elif calling_menu in['key_menu', 'rename_menu']:
-                                if response:
-                                    response = [response] if isinstance(response, str) else response
-                                    for _ in response:
-                                        if _:  # strips empty lines
-                                            cpi.error_msgs.append(_)
-                        else:   # not confirmed
-                            cpi.error_msgs.append('Operation Aborted by User')
-                elif menu_actions[ch].__name__ in ['power_menu', 'dli_menu']:
-                    menu_actions[ch](calling_menu=calling_menu)
-                else:
-                    menu_actions[ch]()
-            except KeyError as e:
-                if not cpi.exec_shell_cmd(choice.orig):
-                    cpi.error_msgs.append('Invalid selection {}, please try again.'.format(e))
-                    return False  # indicates an error
-        return True
-
-    def confirm_and_spin(self, action_dict, *args, **kwargs):
-        '''
-        called by the exec menu.
-        Collects user Confirmation if operation warrants it (Powering off or cycle outlets)
-        and Generates appropriate spinner text
-
-        returns tuple
-            0: Bool True if user confirmed False if aborted (set to True when no confirmation reqd)
-            1: str spinner_text used in exec_menu while function runs
-            3: str name (for rename operation)
-        '''
-        pwr = self.cpi.pwr
-        utils = self.cpi.utils
-        menu = self.menu
-        _func = action_dict['function'].__name__
-        _off_str = '{{red}}OFF{{norm}}'
-        _on_str = '{{green}}ON{{norm}}'
-        _cycle_str = '{{red}}C{{green}}Y{{red}}C{{green}}L{{red}}E{{norm}}'
-        _type = _addr = None
-        if 'desired_state' in kwargs:
-            to_state = kwargs['desired_state']
-        if _func in ['pwr_toggle', 'pwr_cycle', 'pwr_rename']:
-            _type = args[0].lower()
-            _addr = args[1]
-            _grp = action_dict['key']
-            if _type == 'dli':
-                port = kwargs['port']
-                if not port == 'all':
-                    port_name = pwr.data['dli_power'][_addr][port]['name']
-                    to_state = not pwr.data['dli_power'][_addr][port]['state']
-            else:
-                port = f'{_type}:{_addr}'
-                port_name = _grp
-                to_state = not pwr.data['defined'][_grp]['is_on']
-        if _type == 'dli' or _type == 'tasmota' or _type == 'esphome':
-            host_short = utils.get_host_short(_addr)
-        else:
-            host_short = None
-
-        prompt = spin_text = name = confirmed = None  # init
-        if _func == 'pwr_all':
-            # self.spin.start('Powering *ALL* Outlets {}'.format(self.states[kwargs['desired_state']]))
-            if kwargs['action'] == 'cycle':
-                prompt = '{} Power Cycle All Powered {} Outlets'.format('' if _type is None else _type + ':' + host_short,
-                                                                        _on_str)
-                spin_text = 'Cycling All{} Ports'.format('' if _type is None else ' ' + _type + ':' + host_short)
-            elif kwargs['action'] == 'toggle':
-                if not kwargs['desired_state']:
-                    prompt = 'Power All{} Outlets {}'.format('' if _type is None else ' ' + _type + ':' + host_short, _off_str)
-                spin_text = 'Powering {} ALL{} Outlets'.format(menu.format_line(kwargs['desired_state']).text,
-                                                               '' if _type is None else _type + ' :' + host_short)
-        elif _func == 'pwr_toggle':
-            if _type == 'dli' and port == 'all':
-                prompt = 'Power {} ALL {} Outlets'.format(
-                    _off_str if not to_state else _on_str, host_short)
-            elif not to_state:
-                if _type == 'dli':
-                    prompt = f'Power {_off_str} {host_short} Outlet {port}({port_name})'
-                else:  # GPIO or TASMOTA
-                    prompt = f'Power {_off_str} Outlet {_grp}({_type}:{_addr})'
-
-            spin_text = 'Powering {} {}Outlet{}'.format(menu.format_line(to_state).text,
-                                                        'ALL ' if port == 'all' else '',
-                                                        's' if port == 'all' else '')
-        elif _func == 'pwr_rename':
-            try:
-                name = input('New name for{} Outlet {}: '.format(
-                    ' ' + host_short if host_short else '',
-                    port_name if not _type == 'dli' else str(port) + '(' + port_name + ')'))
-            except KeyboardInterrupt:
-                name = None
-                confirmed = False
-                print('')  # So header doesn't print on same line as aborted prompt when DEBUG is on
-            if name:
-                old_name = port_name
-                _rnm_str = '{red}{old_name}{norm} --> {green}{name}{norm}'.format(
-                    red='{{red}}', green='{{green}}', norm='{{norm}}', old_name=old_name, name=name)
-                if _type == 'dli':
-                    prompt = 'Rename {} Outlet {}: {} '.format(
-                         host_short, port, _rnm_str)
-                else:
-                    old_name = _grp
-                    prompt = 'Rename Outlet {}:{} {} '.format(
-                        _type, host_short, _rnm_str)
-
-                spin_text = 'Renaming Port'
-
-        elif _func == 'pwr_cycle':
-            if _type == 'dli' and port == 'all':
-                prompt = 'Power {} ALL {} Outlets'.format(
-                    _cycle_str, host_short)
-            elif _type == 'dli':
-                prompt = 'Cycle Power on {} Outlet {}({})'.format(
-                    host_short, port, port_name)
-            else:  # GPIO or TASMOTA
-                prompt = 'Cycle Power on Outlet {}({})'.format(
-                    port_name, port)
-            spin_text = 'Cycling {}Outlet{}'.format('ALL ' if port == 'all' else '', 's' if port == 'all' else '')
-
-        if prompt:
-            prompt = menu.format_line(prompt).text
-            confirmed = confirmed if confirmed is not None else utils.user_input_bool(prompt)
-        else:
-            if _func != 'pwr_rename':
-                confirmed = True
-
-        return confirmed, spin_text, name
-
-    # Connection SubMenu
+    # -- // CONNECTION MENU \\ --
     def con_menu(self, rename=False, con_dict=None):
         menu = self.menu
         menu_actions = {
@@ -1179,9 +892,9 @@ class ConsolePiMenu(Rename):
 
             except KeyError as e:
                 if ch:
-                    self.menu.error_msgs.append('Invalid selection {}, please try again.'.format(e))
+                    self.config.error_msgs.append('Invalid selection {}, please try again.'.format(e))
 
-    # Baud Menu
+    # -- // BAUD MENU \\ --
     def baud_menu(self):
         config = self.cpi.config
         menu = self.menu
@@ -1203,7 +916,6 @@ class ConsolePiMenu(Rename):
             print('')
 
             for key in menu_actions:
-                # if not callable(menu_actions[key]):
                 _cur_baud = menu_actions[key]
                 print(' {0}. {1}'.format(key, _cur_baud if _cur_baud != self.baud else '[{}]'.format(_cur_baud)))
 
@@ -1231,11 +943,12 @@ class ConsolePiMenu(Rename):
                     self.baud = menu_actions[ch]
                     break
             except KeyError as e:
-                if choice:
+                if ch:
                     self.cpi.error_msgs.append('Invalid selection {} please try again.'.format(e))
 
         return self.baud
 
+    # -- // DATA BITS MENU \\ --
     def data_bits_menu(self):
         menu = self.menu
         valid = False
@@ -1260,6 +973,7 @@ class ConsolePiMenu(Rename):
 
         return self.data_bits
 
+    # -- // PARITY MENU \\ --
     def parity_menu(self):
         menu = self.menu
 
@@ -1292,6 +1006,7 @@ class ConsolePiMenu(Rename):
                     self.cpi.error_msgs.append('Invalid selection {} please try again.'.format(choice))
         return self.parity
 
+    # -- // FLOW MENU \\ --
     def flow_menu(self):
         menu = self.menu
 
@@ -1330,7 +1045,7 @@ class ConsolePiMenu(Rename):
 
         return self.flow
 
-    # -- // Exit The Menu \\ --
+    # -- // EXIT \\ --
     def exit(self):
         self.go = False
 
@@ -1353,11 +1068,11 @@ class ConsolePiMenu(Rename):
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1].lower() in ['rn', 'rename', 'addconsole']:
-            menu = ConsolePiMenu(bypass_remote=True)
+            menu = ConsolePiMenu(bypass_remotes=True)
             while menu.go:
                 menu.rename_menu(direct_launch=True)
         else:
-            menu = ConsolePiMenu(bypass_remote=True)
+            menu = ConsolePiMenu(bypass_remotes=True)
             var_in = sys.argv[1].replace('self', 'menu')
             if 'outlet' in var_in:
                 menu.cpi.wait_for_threads()

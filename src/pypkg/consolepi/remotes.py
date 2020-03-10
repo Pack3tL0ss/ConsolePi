@@ -56,13 +56,8 @@ class Remotes():
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
     def get_remote(self, data=None):
         spin = self.spin
-        # cpi_exec = self.exec
-        # cpi = self.cpi
         config = self.config
         log = config.log
-        update_cache = False
-        if data is None:
-            data = config.remotes
 
         def verify_remote_thread(remotepi, data):
             '''sub to verify reacability and api data for remotes
@@ -87,7 +82,7 @@ class Remotes():
                 if this.get('fail_cnt'):
                     this['fail_cnt'] = 0
                     self.cache_update_pending = True
-                if update_cache:
+                if res.update:
                     log.info(f'[GET REM] Updating Cache - Found {0} in Local Cloud Cache, reachable via {1}'.format(
                               remotepi, this['rem_ip']))
 
@@ -124,6 +119,8 @@ class Remotes():
                               'No Reachable Remote ConsolePis Discovered')
         else:
             log.error('[GET REM] Remote verify threads Still running / exceeded timeout')
+            if stdin.isatty():
+                spin.stop()
 
         # update local cache if any ConsolePis found UnReachable
         if self.cache_update_pending:
@@ -144,15 +141,12 @@ class Remotes():
         return data
 
     # Update with Data from ConsolePi.csv on Gdrive and local cache populated by mdns.  Update Gdrive with our data
-    def refresh(self, rem_update=False):
-        # pylint: disable=maybe-no-member
+    def refresh(self):
         remote_consoles = None
         cpiexec = self.cpiexec
-        # cpi = self.cpi
         config = self.config
         plog = config.plog
         local = self.local
-        # config.rows, config.cols = utils.get_tty_size()
         log = config.log
         cloud_svc = config.cfg.get('cloud_svc', 'error')
 
@@ -163,7 +157,7 @@ class Remotes():
                             ' investigate logs')
                 return
 
-        # -- // Update Local Adapters \\ --
+        # -- // Update/Refresh Local Data (Adapters/Interfaces) \\ --
         local.data = local.build_local_dict(refresh=True)
         log.debug(f'Final Data set collected for {local.hostname}: {local.data}')
 
@@ -180,23 +174,33 @@ class Remotes():
             # update sheets function updates local_cloud_file
             _msg = '[MENU REFRESH] Updating to/from {}'.format(cloud_svc)
             log.info(_msg)
-            self.spin.start(_msg)
+            if stdin.isatty():
+                self.spin.start(_msg)
             # -- // SYNC DATA WITH GDRIVE \\ --
-            remote_consoles = self.cloud.update_files(local.data)
+            remote_consoles = self.cloud.update_files(local.data)  # local data refreshed above
             if remote_consoles and 'Gdrive-Error:' not in remote_consoles:
-                self.spin.succeed(_msg + '\n\tFound {} Remotes via Gdrive Sync'.format(len(remote_consoles)))
+                if stdin.isatty():
+                    self.spin.succeed(_msg + '\n\tFound {} Remotes via Gdrive Sync'.format(len(remote_consoles)))
+                    for r in remote_consoles:
+                        if isinstance(remote_consoles[r].get('adapters', {}), list):
+                            remote_consoles[r]['adapters'] = self.convert_adapters(remote_consoles[r]['adapters'])
+                            log.warning(f'Adapter data for {r} retrieved from cloud in old API format... Converted')
             elif 'Gdrive-Error:' in remote_consoles:
-                self.spin.fail('{}\n\t{} {}'.format(_msg, self.log_sym_error, remote_consoles))
+                if stdin.isatty():
+                    self.spin.fail('{}\n\t{} {}'.format(_msg, self.log_sym_error, remote_consoles))
                 plog(remote_consoles)  # display error returned from gdrive module
                 remote_consoles = []
             else:
-                self.spin.warn(_msg + '\n\tNo Remotes Found via Gdrive Sync')
+                if stdin.isatty():
+                    self.spin.warn(_msg + '\n\tNo Remotes Found via Gdrive Sync')
             if len(remote_consoles) > 0:
                 _msg = f'[MENU REFRESH] Updating Local Cache with data from {cloud_svc}'
                 log.info(_msg)
-                self.spin.start(_msg)
+                if stdin.isatty():
+                    self.spin.start(_msg)
                 self.update_local_cloud_file(remote_consoles)
-                self.spin.succeed(_msg)  # no real error correction here
+                if stdin.isatty():
+                    self.spin.succeed(_msg)  # no real error correction here
             else:
                 plog(f'[MENU REFRESH] No Remote ConsolePis found on {cloud_svc}', level='warning')
         else:
@@ -205,8 +209,8 @@ class Remotes():
                      'Close and re-launch menu if network access has been restored', log=False)
                 # cpi.error_msgs.append('Close and re-launch menu if network access has been restored')
 
-        # Update Remote data with data from local_cloud cache
-        config.remote = self.get_remote(data=remote_consoles)
+        # Update Remote data with data from local_cloud cache / cloud
+        self.data = self.get_remote(data=remote_consoles)
 
     def update_local_cloud_file(self, remote_consoles=None, current_remotes=None, local_cloud_file=None):
         '''Update local cloud cache (cloud.json).
@@ -377,8 +381,7 @@ class Remotes():
                 rem_ip = _ip  # Remote is reachable
                 if not isinstance(_adapters, int):   # indicates an html error code was returned
                     if isinstance(_adapters, list):  # indicates need for conversion from old api format
-                        _adapters = {_adapters[_adapters.index(d)]['dev']: {'config': {k: _adapters[_adapters.index(d)][k]
-                                     for k in _adapters[_adapters.index(d)]}} for d in _adapters}
+                        _adapters = self.convert_adapters(_adapters)
                         if self.old_api_log_sent:
                             log.warning(f'{remote_host} provided old api schema.  Recommend Upgrading to current.')
                             self.old_api_log_sent = True
@@ -417,3 +420,7 @@ class Remotes():
             reachable = True
 
         return ApiReachableResponse(update, remote_data, reachable)
+
+    def convert_adapters(self, adapters):
+        return {adapters[adapters.index(d)]['dev']: {'config': {k: adapters[adapters.index(d)][k]
+                for k in adapters[adapters.index(d)]}} for d in adapters}

@@ -10,6 +10,7 @@ from googleapiclient import discovery
 import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from consolepi import Utils
 
 
 # -- GLOBALS --
@@ -19,9 +20,11 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapi
 
 class GoogleDrive:
 
-    def __init__(self, cpi, hostname=None):
-        self.cpi = cpi
-        self.log = cpi.config.log
+    def __init__(self, config, hostname=None):
+        # self.cpi = cpi
+        self.log = config.log
+        self.pull_only = config.ovrd.get('cloud_pull_only', False)
+        self.utils = Utils()
         self.hostname = socket.gethostname() if hostname is None else hostname
         self.creds = None
         self.file_id = None
@@ -45,7 +48,7 @@ class GoogleDrive:
 
     # Authenticate find file_id and build services
     def auth(self):
-        if self.cpi.utils.is_reachable('www.googleapis.com', 443):
+        if self.utils.is_reachable('www.googleapis.com', 443):
             try:
                 if self.creds is None:
                     self.creds = self.get_credentials()
@@ -101,7 +104,7 @@ class GoogleDrive:
         """
         if self.creds is None:
             self.creds = self.get_credentials()
-        
+
         service = discovery.build('drive', 'v3', credentials=self.creds)
         results = service.files().list(
             pageSize=10, fields="nextPageToken, files(id, name)", q="name='ConsolePi.csv'").execute()
@@ -127,8 +130,8 @@ class GoogleDrive:
         # spreadsheet = service.spreadsheets().create(body=spreadsheet,
         #                                             fields='spreadsheetId').execute()
         request = service.spreadsheets().create(body=spreadsheet,
-                                                    fields='spreadsheetId')
-        spreadsheet = self.exec_request(request)                                                    
+                                                fields='spreadsheetId')
+        spreadsheet = self.exec_request(request)
         return '{0}'.format(spreadsheet.get('spreadsheetId'))
 
     # Auto Resize gdrive columns to match content
@@ -136,7 +139,8 @@ class GoogleDrive:
         # pylint: disable=maybe-no-member
         log = self.log
         service = self.sheets_svc
-        body = {"requests": [{"autoResizeDimensions": {"dimensions": {"sheetId": 0, "dimension": "COLUMNS", "startIndex": 0, "endIndex": 2}}}]}
+        body = {"requests": [{"autoResizeDimensions": {"dimensions": {"sheetId": 0, "dimension": "COLUMNS",
+                                                                      "startIndex": 0, "endIndex": 2}}}]}
         request = service.spreadsheets().batchUpdate(
             spreadsheetId=self.file_id,
             body=body)
@@ -145,6 +149,8 @@ class GoogleDrive:
 
     def update_files(self, data):
         # pylint: disable=maybe-no-member
+        if 'udev' in data.get('adapters'):
+            del data['adapters']['udev']
         log = self.log
         log.debug('[GDRIVE]: -->update_files - data passed to function\n{}'.format(json.dumps(data, indent=4, sort_keys=True)))
         if not self.auth():
@@ -204,9 +210,10 @@ class GoogleDrive:
 
 if __name__ == '__main__':
     print('-- Syncing Data With Google Drive --')
-    from consolepi.common import ConsolePi_data
-    from consolepi.common import ConsolePi_Log
-    config = ConsolePi_data(do_print=False)
+    from consolepi import Config
+    from consolepi.local import Local
+    config = Config()
+    local = Local(config)
     gdrive = GoogleDrive(config.log)
     data = gdrive.update_files(config.local)
-    print(json.dumps(data, indent=4, sort_keys=True) if not 'Gdrive-Error' in data else data)
+    print(json.dumps(data, indent=4, sort_keys=True) if 'Gdrive-Error' not in data else data)

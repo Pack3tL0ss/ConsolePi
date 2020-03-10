@@ -19,6 +19,7 @@ class ConsolePiExec():
         self.local = local
         self.menu = menu
         self.autopwr_wait = False
+        self.spin = Halo(spinner='dots')
 
     def exec_auto_pwron(self, pwr_key):
         '''Launch auto_pwron in thread

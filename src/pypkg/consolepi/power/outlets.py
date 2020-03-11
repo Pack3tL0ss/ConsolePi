@@ -13,7 +13,7 @@ except RuntimeError:
     is_rpi = False
 
 from halo import Halo
-
+from consolepi import log
 from consolepi.power import DLI
 
 try:
@@ -33,7 +33,7 @@ class Outlets:
     def __init__(self, config):
         # self.cpi = cpi
         self.config = config
-        self.log = config.log
+        # self.log = config.log
         self.spin = Halo(spinner='dots')
         if is_rpi:
             GPIO.setmode(GPIO.BCM)
@@ -142,7 +142,7 @@ class Outlets:
                                     False indicating class was just instantiated ~ data is fresh
         '''
         if not self._dli.get(address):
-            self._dli[address] = DLI(address, username, password, log=self.log)
+            self._dli[address] = DLI(address, username, password, log=log)
             # --// Return Pass or fail based on reachability \\--
             if self._dli[address].reachable:
                 return self._dli[address], False
@@ -295,7 +295,8 @@ class Outlets:
                             if k in outlet_data:
                                 outlet_data[k]['is_on'] = this_dli[_p]
                             else:
-                                self.log.error('[PWR GET_OUTLETS] {} appears to be unreachable'.format(k))
+                                # self.log.error('[PWR GET_OUTLETS] {} appears to be unreachable'.format(k))
+                                log.error('[PWR GET_OUTLETS] {} appears to be unreachable'.format(k))
 
                             # TODO not actually using the error returned this turned into a hot mess
                             if isinstance(outlet['is_on'], dict) and not outlet['is_on']:
@@ -323,7 +324,8 @@ class Outlets:
 
                 if TIMING:
                     print('[TIMING] this_dli.outlets: {}'.format(time.time() - xstart))  # TIMING
-            config.log.debug(f'dli {k} Updated. Elapsed Time(secs): {time.time() - _start}')
+            # config.log.debug(f'dli {k} Updated. Elapsed Time(secs): {time.time() - _start}')
+            log.debug(f'dli {k} Updated. Elapsed Time(secs): {time.time() - _start}')
             # -- END for LOOP for k in outlet_data --
 
         # Move failed outlets from the keys that populate the menu to the 'failures' key

@@ -8,13 +8,13 @@ import subprocess
 import shlex
 from halo import Halo
 
-from consolepi import utils
+from consolepi import utils, log
 
 
 class ConsolePiExec():
     def __init__(self, config, pwr, local, menu):
         self.config = config
-        self.log = self.config.log
+        # self.log = self.config.log
         self.pwr = pwr
         self.local = local
         self.menu = menu
@@ -36,7 +36,8 @@ class ConsolePiExec():
             print(_msg)
             threading.Thread(target=self.auto_pwron_thread, args=(pwr_key,),
                              name='auto_pwr_on_' + pwr_key_pretty).start()
-            self.log.debug('[AUTO PWRON] Active Threads: {}'.format(
+            # self.log.debug('[AUTO PWRON] Active Threads: {}'.format(
+            log.debug('[AUTO PWRON] Active Threads: {}'.format(
                 [t.name for t in threading.enumerate() if t.name != 'MainThread']
                 ))
 
@@ -54,7 +55,7 @@ class ConsolePiExec():
             No Return - Updates class attributes
         '''
         # config = self.config
-        log = self.log
+        # log = self.log
         # if not self.pwr_init_complete:
         if self.wait_for_threads('init'):
             return
@@ -62,7 +63,8 @@ class ConsolePiExec():
         outlets = self.pwr.data
         if 'linked' not in outlets:
             _msg = 'Error linked key not found in outlet dict\nUnable to perform auto power on'
-            self.config.log_and_show(_msg, log=log.error)
+            # self.config.log_and_show(_msg, log=log.error)
+            log.show(_msg, show=True)
             return
 
         if not outlets['linked'].get(pwr_key):
@@ -101,7 +103,8 @@ class ConsolePiExec():
                         self.autopwr_wait = True
                         # self.pwr.pwr_get_outlets(upd_linked=True)
                     else:
-                        self.config.log_and_show(f"Error operating linked outlet {o}:{outlet['address']}", log=log.warning)
+                        # self.config.log_and_show(f"Error operating linked outlet {o}:{outlet['address']}", log=log.warning)
+                        log.show(f"Error operating linked outlet {o}:{outlet['address']}", show=True)
 
     def exec_shell_cmd(self, cmd):
         '''Determine if cmd is valid shell cmd and execute if so.
@@ -139,7 +142,7 @@ class ConsolePiExec():
             bool: True if threads are still running indicating a timeout
                   None indicates no threads found ~ they have finished
         '''
-        log = self.config.log
+        # log = self.config.log
         start = time.time()
         do_log = False
         found = False
@@ -160,8 +163,9 @@ class ConsolePiExec():
                         name.strip('_').upper(), thread_type.upper(), time.time() - start))
                 break
             elif time.time() - start > timeout:
-                self.config.plog('[{0} {1} WAIT] Timeout Waiting for {0} Threads to Complete, elapsed time: {2}'.format(
-                    name.strip('_').upper(), thread_type.upper(), time.time() - start), log=True, level='error')
+                # self.config.plog('[{0} {1} WAIT] Timeout Waiting for {0} Threads to Complete, elapsed time: {2}'.format(
+                log.error('[{0} {1} WAIT] Timeout Waiting for {0} Threads to Complete, elapsed time: {2}'.format(
+                    name.strip('_').upper(), thread_type.upper(), time.time() - start), show=True)
                 return True
 
     def launch_shell(self):
@@ -179,7 +183,7 @@ class ConsolePiExec():
         '''
         config = self.config
         pwr = self.pwr
-        plog = config.plog
+        # plog = config.plog
         if config.power:
             outlets = pwr.data if outlets is None else outlets
             if not self.pwr_init_complete or refresh:
@@ -196,7 +200,8 @@ class ConsolePiExec():
                 return _outlets[key]
             else:
                 msg = f'Invalid key ({key}) passed to outlet_update. Returning "defined"'
-                plog(msg, log=True, level='error')
+                # plog(msg, log=True, level='error')
+                log.error(msg, show=True)
                 return _outlets['defined']
 
     def gen_copy_key(self, rem_data=None):
@@ -244,7 +249,7 @@ class ConsolePiExec():
     def menu_exec(self, choice, menu_actions, calling_menu='main_menu'):
         pwr = self.pwr
         config = self.config
-        plog = config.plog
+        # plog = config.plog
 
         if not config.debug and calling_menu not in ['dli_menu', 'power_menu']:
             os.system('clear')
@@ -290,7 +295,8 @@ class ConsolePiExec():
                                     _error = utils.error_handler(c, _stderr)
 
                             if _error:
-                                plog(_error)
+                                # plog(_error)
+                                log.show(_error)
 
                             # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
                             c = ' '.join([str(i) for i in c])
@@ -298,7 +304,7 @@ class ConsolePiExec():
                                 os.system('/etc/ConsolePi/src/consolepi-commands/resize >/dev/null')
 
                         except KeyboardInterrupt:
-                            plog('Aborted last command based on user input')
+                            log.show('Aborted last command based on user input')
 
                     elif 'function' in menu_actions[ch]:
                         args = menu_actions[ch]['args'] if 'args' in menu_actions[ch] else []
@@ -355,7 +361,7 @@ class ConsolePiExec():
                                                 self.spin.stop()
                                             # Cycle operation returns False if outlet is off, only valid on powered outlets
                                             elif menu_actions[ch]['function'].__name__ == 'pwr_cycle' and not response:
-                                                plog(f'{host_short} Port {_port} if Off.  Cycle is not valid')
+                                                log.show(f'{host_short} Port {_port} if Off.  Cycle is not valid')
                                             elif menu_actions[ch]['function'].__name__ == 'pwr_rename':
                                                 if response:
                                                     _name = pwr._dli[_addr].name(_port)
@@ -368,18 +374,18 @@ class ConsolePiExec():
                                         # --// str responses are errors append to error_msgs \\--
                                         # TODO refactor response to use new cpi.response(...)
                                         elif isinstance(response, str) and _port is not None:
-                                            plog(response)
+                                            log.show(response)
                                         # --// Can Remove After Refactoring all responses to bool or str \\--
                                         elif isinstance(response, int):
                                             if menu_actions[ch]['function'].__name__ == 'pwr_cycle' and _port == 'all':
                                                 if response != 200:
-                                                    plog('Error Response Returned {}'.format(response))
+                                                    log.show('Error Response Returned {}'.format(response))
                                             else:  # This is a catch as for the most part I've tried to refactor so the pwr library returns port state on success (True/False)
                                                 if response in [200, 204]:
-                                                    plog('DEV NOTE: check pwr library ret=200 or 204')
+                                                    log.show('DEV NOTE: check pwr library ret=200 or 204')
                                                 else:
                                                     _action = menu_actions[ch]['function'].__name__
-                                                    plog(f"Error returned from dli {host_short} when attempting to {_action} port {_port}")
+                                                    log.show(f"Error returned from dli {host_short} when attempting to {_action} port {_port}")
 
                                     # --// EVAL responses for GPIO and tasmota outlets \\--
                                     else:
@@ -390,24 +396,24 @@ class ConsolePiExec():
                                                 else:
                                                     pwr.data['defined'][_grp]['errors'] = response
                                         elif menu_actions[ch]['function'].__name__ == 'pwr_cycle' and not response:
-                                            plog('Cycle is not valid for Outlets in the off state')
+                                            log.show('Cycle is not valid for Outlets in the off state')
                                         elif menu_actions[ch]['function'].__name__ == 'pwr_rename':
-                                            plog('rename not yet implemented for {} outlets'.format(_type))
+                                            log.show('rename not yet implemented for {} outlets'.format(_type))
                             elif calling_menu in['key_menu', 'rename_menu']:
                                 if response:
                                     response = [response] if isinstance(response, str) else response
                                     for _ in response:
                                         if _:  # strips empty lines
-                                            plog(_)
+                                            log.show(_)
                         else:   # not confirmed
-                            plog('Operation Aborted by User')
+                            log.show('Operation Aborted by User')
                 elif menu_actions[ch].__name__ in ['power_menu', 'dli_menu']:
                     menu_actions[ch](calling_menu=calling_menu)
                 else:
                     menu_actions[ch]()
             except KeyError as e:
                 if len(choice.orig) <= 2 or not self.exec_shell_cmd(choice.orig):
-                    plog(f'Invalid selection {e}, please try again.')
+                    log.show(f'Invalid selection {e}, please try again.')
         return True
 
     def confirm_and_spin(self, action_dict, *args, **kwargs):

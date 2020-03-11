@@ -6,7 +6,7 @@ from halo import Halo
 from collections import OrderedDict as od
 import os
 
-from consolepi import utils
+from consolepi import utils, log
 
 MIN_WIDTH = 55
 MAX_COLS = 5
@@ -61,8 +61,8 @@ class Menu():
     # =======================
     #     MENUS FUNCTIONS
     # =======================
-    def print_mlines(self, body, subs=None, header=None, subhead=None, footer=None, foot_fmt=None, col_pad=4,
-                     error_msgs=[], force_cols=False, do_cols=True, do_format=True, by_tens=False):
+    def print_menu(self, body, subs=None, header=None, subhead=None, footer=None, foot_fmt=None, col_pad=4,
+                   force_cols=False, do_cols=True, do_format=True, by_tens=False):
         '''
         format and print current menu.
 
@@ -99,10 +99,10 @@ class Menu():
         line_dict = od({'header': {'lines': header}, 'body': {'sections': [], 'rows': [],
                         'width': []}, 'footer': {'lines': footer}})
 
-        if error_msgs:
-            self.error_msgs += error_msgs
-        self.error_msgs += self.config.error_msgs
-        self.config.error_msgs = []
+        # if error_msgs:
+        #     self.error_msgs += error_msgs
+        self.error_msgs += log.error_msgs
+        log.error_msgs = []
         '''
         Determine header and footer length used to determine if we can print with
         a single column
@@ -198,7 +198,7 @@ class Menu():
                     _iter_start_stop.append([_begin, _end])
                     break
                 if _pass > len(_rows) + 20:  # should not hit this anymore
-                    self.plog(f'menu formatter exceeded {len(_rows) + 20} passses and gave up!!!', log=True)
+                    self.config.plog(f'menu formatter exceeded {len(_rows) + 20} passses and gave up!!!', log=True)
                     break
                 _pass += 1
 
@@ -288,7 +288,7 @@ class Menu():
                         l_offset=1, index=1, do_print=True, do_format=True):
 
         # utils = self.utils
-        log = self.config.log
+        # log = self.config.log
         # plog = self.config.plog
         mlines = []
         max_len = None
@@ -322,25 +322,28 @@ class Menu():
         # TODO Move all menu formatting to it's own library - clean this up
         # Think I process errors here and maybe in print_mlines as well
         # addl processing in FOOTER
+
         if self.error_msgs:
-            _temp_error_msgs = self.error_msgs
-            for _error in _temp_error_msgs:
-                if isinstance(_error, str) and '\n' in _error:
-                    _e = _error.split('\n')
-                    self.error_msgs.remove(_error)
-                    self.error_msgs += _e
+            # _temp_error_msgs = self.error_msgs
+            # for _error in _temp_error_msgs:
+            #     if isinstance(_error, str) and '\n' in _error:
+            #         _e = _error.split('\n')
+            #         self.error_msgs.remove(_error)
+            #         self.error_msgs += _e
 
             _error_lens = []
             for _error in self.error_msgs:
-                if isinstance(_error, list):
-                    log.error('{} is a list expected string'.format(_error))
-                    _error = ' '.join(_error)
-                if not isinstance(_error, str):
-                    msg = 'Error presented to formatter with unexpected type {}'.format(type(_error))
-                    log.error(msg)
-                    _error = msg
-                if _error == '':  # Remove empty errors
-                    self.error_msgs.remove(_error)
+                # if isinstance(_error, list):
+                #     log.error('{} is a list expected string'.format(_error))
+                #     _error = ' '.join(_error)
+                # if not isinstance(_error, str):
+                #     msg = 'Error presented to formatter with unexpected type {}'.format(type(_error))
+                #     log.error(msg)
+                #     _error = msg
+                # if _error == '':  # Remove empty errors
+                #     self.error_msgs.remove(_error)
+
+                # TODO maybe move to log class
                 for e in self.ignored_errors:
                     _e = _error.strip('\r\n')
                     if hasattr(e, 'match') and e.match(_e):
@@ -353,6 +356,7 @@ class Menu():
                         _error_lens.append(self.format_line(_error).len)
             if _error_lens:
                 width = width if width >= max(_error_lens) + 5 else max(_error_lens) + 5
+
             width = width if width <= self.cols else self.cols
 
         # --// HEADER \\--
@@ -487,12 +491,14 @@ class Menu():
 
             # --// ERRORs - append to footer \\-- #
             if len(self.error_msgs) > 0:
-                errors = self.error_msgs = utils.unique(self.error_msgs)
+                # errors = self.error_msgs = utils.unique(self.error_msgs) # no longer needed
+                errors = self.error_msgs
                 for _error in errors:
-                    if isinstance(_error, list):
-                        log.error('{} is a list expected string'.format(_error))
-                        _error = ' '.join(_error)
-                    error = self.format_line(_error.strip())
+                    # if isinstance(_error, list):
+                    #     log.error('{} is a list expected string'.format(_error))
+                    #     _error = ' '.join(_error)
+                    # error = self.format_line(_error.strip())
+                    error = self.format_line(_error)
                     x = ((width - (error.len + 4)) / 2)
                     mlines.append('{0}{1}{2}{3}{0}'.format(
                         self.log_sym_2bang,

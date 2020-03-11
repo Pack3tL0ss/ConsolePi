@@ -2,6 +2,7 @@
 
 import re
 from halo import Halo
+from consolepi import log
 
 
 class Rename():
@@ -134,7 +135,8 @@ class Rename():
 
                 # -- // LAME ADAPTERS NO SERIAL NUM (map usb port) \\ --
                 else:
-                    config.log.warning('[ADD ADAPTER] Lame adapter missing key detail: idVendor={}, idProduct={}, serial#={}'.format(  # NoQA
+                    # config.log.warning('[ADD ADAPTER] Lame adapter missing key detail: idVendor={}, idProduct={}, serial#={}'.format(  # NoQA
+                    log.warning('[ADD ADAPTER] Lame adapter missing key detail: idVendor={}, idProduct={}, serial#={}'.format(  # NoQA
                                 id_vendorid, id_prod, id_serial))
                     print('\n\n This Device Does not present a serial # (LAME!).  So the adapter itself can\'t be uniquely '
                           'identified.\n There are 2 options for naming this device:')
@@ -285,8 +287,10 @@ class Rename():
                 ports = [line.split(':')[0] for line in open(ser2net_file)
                          if line.startswith('7') and match_txt in line]
                 if len(ports) > 1:
-                    cpi.error_msgs.append('multilple lines found in ser2net matching {}'.format(match_txt))
-                    cpi.error_msgs.append('Update Failed, verify {}'.format(ser2net_file))
+                    # cpi.error_msgs.append('multilple lines found in ser2net matching {}'.format(match_txt))
+                    log.show('multilple lines found in ser2net matching {}'.format(match_txt))
+                    # cpi.error_msgs.append('Update Failed, verify {}'.format(ser2net_file))
+                    log.show('Update Failed, verify {}'.format(ser2net_file))
                     return
                 else:
                     next_port = ports[0]  # it's the existing port in this case
@@ -360,7 +364,8 @@ class Rename():
             if update_file:
                 error = utils.do_shell_cmd(cmd)
                 if error:
-                    cpi.error_msgs.append(error)
+                    # cpi.error_msgs.append(error)
+                    log.show(error)
 
             goto = goto.split('GOTO=')[1].replace('"', '').strip() if 'GOTO=' in goto else None
             if goto is None:

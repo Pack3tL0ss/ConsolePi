@@ -10,7 +10,7 @@ from googleapiclient import discovery
 import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from consolepi import Utils
+from consolepi import Utils, log
 
 
 # -- GLOBALS --
@@ -22,7 +22,7 @@ class GoogleDrive:
 
     def __init__(self, config, hostname=None):
         # self.cpi = cpi
-        self.log = config.log
+        # self.log = config.log
         self.pull_only = config.ovrd.get('cloud_pull_only', False)
         self.utils = Utils()
         self.hostname = socket.gethostname() if hostname is None else hostname
@@ -31,7 +31,7 @@ class GoogleDrive:
         self.sheets_svc = None
 
     def exec_request(self, _request):
-        log = self.log
+        # log = self.log
         result = None
         attempt = 0
         while True:
@@ -68,7 +68,7 @@ class GoogleDrive:
 
     # Google sheets API credentials - used to update config on Google Drive
     def get_credentials(self):
-        log = self.log
+        # log = self.log
         log.debug('[GDRIVE]: -->get_credentials() {}'.format(log.name))
         """
         Get credentials for google drive / sheets
@@ -119,7 +119,7 @@ class GoogleDrive:
     # Create spreadsheet to store data if not found (get_file_id returns None)
     def create_sheet(self):
         # pylint: disable=maybe-no-member
-        log = self.log
+        # log = self.log
         service = self.sheets_svc
         log.info('[GDRIVE]: ConsolePi.csv not found on Gdrive. Creating ConsolePi.csv')
         spreadsheet = {
@@ -137,7 +137,7 @@ class GoogleDrive:
     # Auto Resize gdrive columns to match content
     def resize_cols(self):
         # pylint: disable=maybe-no-member
-        log = self.log
+        # log = self.log
         service = self.sheets_svc
         body = {"requests": [{"autoResizeDimensions": {"dimensions": {"sheetId": 0, "dimension": "COLUMNS",
                                                                       "startIndex": 0, "endIndex": 2}}}]}
@@ -151,7 +151,7 @@ class GoogleDrive:
         # pylint: disable=maybe-no-member
         if 'udev' in data.get('adapters', {}):
             del data['adapters']['udev']
-        log = self.log
+        # log = self.log
         log.debug('[GDRIVE]: -->update_files - data passed to function\n{}'.format(json.dumps(data, indent=4, sort_keys=True)))
         if not self.auth():
             return 'Gdrive-Error: Unable to Connect to Gdrive refer to cloud log for details'

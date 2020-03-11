@@ -5,6 +5,7 @@
 # import os
 # import json
 # import subprocess
+# from consolepi import log
 from consolepi import Response
 from consolepi import config
 # from consolepi.config import Config
@@ -24,9 +25,9 @@ class ConsolePi():
         self.response = Response
         self.utils = utils
         self.config = config
-        self.error_msgs = config.error_msgs
-        self.log = self.config.log
-        self.plog = self.config.plog
+        # self.error_msgs = config.error_msgs
+        # self.log = self.config.log
+        # self.plog = self.config.plog
         self.menu = Menu(self.config)
         self.local = Local(self.config)
         if self.config.cfg.get('power'):

@@ -8,7 +8,7 @@ from halo import Halo
 import time
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
-from consolepi import utils
+from consolepi import utils, log
 # from consolepi.exec import ConsolePiExec
 # from consolepi import utils
 # from consolepi.gdrive import GoogleDrive <-- burried import inside refresh method
@@ -39,25 +39,26 @@ class Remotes():
                 if not utils.valid_file(CLOUD_CREDS_FILE):
                     self.no_creds_error()
             else:
-                config.plog(f'failed to connect to {config.cloud_svc} - operating in local only mode',
-                            level="warning")
+                # config.plog(f'failed to connect to {config.cloud_svc} - operating in local only mode',
+                log.warning(f'failed to connect to {config.cloud_svc} - operating in local only mode', show=True)
                 self.local_only = True
-        self.data = self.get_remote(data=config.remote_update())
+        self.data = self.get_remote(data=config.remote_update())  # re-get cloud.json to capture any updates via mdns
 
     def no_creds_error(self):
         config = self.config
         cloud_svc = config.cfg.get('cloud_svc', 'UNDEFINED!')
-        config.plog(f'Required {cloud_svc} credentials files are missing refer to GitHub for details',
-                    log=config.log.warning)
-        config.plog(f'Disabling {cloud_svc} updates', level="warning")
-        config.plog('Cloud Function Disabled by script - No Credentials Found', log=False)
+        # config.plog(f'Required {cloud_svc} credentials files are missing refer to GitHub for details',
+                    # log=config.log.warning)
+        log.warning(f'Required {cloud_svc} credentials files are missing refer to GitHub for details')
+        log.warning(f'Disabling {cloud_svc} updates')
+        log.show('Cloud Function Disabled by script - No Credentials Found')
         self.do_cloud = config.cfg['do_cloud'] = False
 
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
     def get_remote(self, data=None):
         spin = self.spin
         config = self.config
-        log = config.log
+        # log = config.log
 
         def verify_remote_thread(remotepi, data):
             '''sub to verify reacability and api data for remotes
@@ -97,7 +98,8 @@ class Remotes():
 
         if socket.gethostname() in data:
             del data[socket.gethostname()]
-            config.plog('Local cache included entry for self - do you have other ConsolePis using the same hostname?')
+            # config.plog('Local cache included entry for self - do you have other ConsolePis using the same hostname?')
+            log.show('Local cache included entry for self - do you have other ConsolePis using the same hostname?')
 
         # Verify Remote ConsolePi details and reachability
         if stdin.isatty():
@@ -128,10 +130,12 @@ class Remotes():
                 for remotepi in self.pop_list:
                     if data[remotepi]['fail_cnt'] >= 3:  # NoQA remove from local cache after 3 failures (cloud or mdns will repopulate if discovered)
                         removed = data.pop(remotepi)
-                        config.plog('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
-                            remotepi, removed['fail_cnt']), level='warning')
+                        # config.plog('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
+                        #     remotepi, removed['fail_cnt']), level='warning')
+                        log.warning('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
+                            remotepi, removed['fail_cnt']), show=True)
                     else:
-                        config.plog('Cached Remote \'{}\' is unreachable'.format(remotepi), log=False)
+                        log.show('Cached Remote \'{}\' is unreachable'.format(remotepi))
 
             # update local cache file if rem_ip or adapter data changed
             data = self.update_local_cloud_file(data)
@@ -145,16 +149,18 @@ class Remotes():
         remote_consoles = None
         cpiexec = self.cpiexec
         config = self.config
-        plog = config.plog
+        # plog = config.plog
         local = self.local
-        log = config.log
+        # log = config.log
         cloud_svc = config.cfg.get('cloud_svc', 'error')
 
         # TODO refactor wait_for_threads to have an all key or accept a list
         with Halo(text='Waiting For threads to complete', spinner='dots1'):
             if cpiexec.wait_for_threads() and cpiexec.wait_for_threads(name='_toggle_refresh'):
-                config.plog('Timeout Waiting for init or toggle threads to complete try again later or'
-                            ' investigate logs')
+                # config.plog('Timeout Waiting for init or toggle threads to complete try again later or'
+                #             ' investigate logs')
+                log.show('Timeout Waiting for init or toggle threads to complete try again later or'
+                         ' investigate logs')
                 return
 
         # -- // Update/Refresh Local Data (Adapters/Interfaces) \\ --
@@ -188,7 +194,7 @@ class Remotes():
             elif 'Gdrive-Error:' in remote_consoles:
                 if stdin.isatty():
                     self.spin.fail('{}\n\t{} {}'.format(_msg, self.log_sym_error, remote_consoles))
-                plog(remote_consoles)  # display error returned from gdrive module
+                log.show(remote_consoles)  # display error returned from gdrive module
                 remote_consoles = []
             else:
                 if stdin.isatty():
@@ -202,11 +208,11 @@ class Remotes():
                 if stdin.isatty():
                     self.spin.succeed(_msg)  # no real error correction here
             else:
-                plog(f'[MENU REFRESH] No Remote ConsolePis found on {cloud_svc}', level='warning')
+                log.warning(f'[MENU REFRESH] No Remote ConsolePis found on {cloud_svc}', show=True)
         else:
             if self.do_cloud:
-                plog(f'Not Updating from {cloud_svc} due to connection failure\n'
-                     'Close and re-launch menu if network access has been restored', log=False)
+                log.show(f'Not Updating from {cloud_svc} due to connection failure\n'
+                         'Close and re-launch menu if network access has been restored')
                 # cpi.error_msgs.append('Close and re-launch menu if network access has been restored')
 
         # Update Remote data with data from local_cloud cache / cloud
@@ -231,7 +237,7 @@ class Remotes():
         config = self.config
         local_cloud_file = config.static.get('LOCAL_CLOUD_FILE') if local_cloud_file is None else local_cloud_file
 
-        log = config.log
+        # log = config.log
         if len(remote_consoles) > 0:
             # if os.path.isfile(local_cloud_file):
             if current_remotes is None:
@@ -307,7 +313,7 @@ class Remotes():
         adapter dict for remote if successful
         Falsey or response status_code if an error occured.
         '''
-        log = self.config.log
+        # log = self.config.log
         url = f'http://{ip}:5000/api/v1.0/adapters'
 
         headers = {
@@ -357,9 +363,9 @@ class Remotes():
 
         update = False
         # cpi = self.cpi
-        config = self.config
+        # config = self.config
         local = self.local
-        log = config.log
+        # log = config.log
 
         _iface_dict = remote_data['interfaces']
         rem_ip_list = [_iface_dict[_iface].get('ip') for _iface in _iface_dict
@@ -391,9 +397,11 @@ class Remotes():
                             remote_data['adapters'] = _adapters
                             update = True
                 elif _adapters == 200:
-                    config.plog(f"Remote {remote_host} is reachable via {_ip},"
-                                " but has no adapters attached\nit's still available in remote shell menu",
-                                log=False)
+                    # config.plog(f"Remote {remote_host} is reachable via {_ip},"
+                    #             " but has no adapters attached\nit's still available in remote shell menu",
+                    #             log=False)
+                    log.show(f"Remote {remote_host} is reachable via {_ip},"
+                             " but has no adapters attached\nit's still available in remote shell menu")
 
                 # remote was reachable update last_ip, even if returned bad status_code still reachable
                 if not remote_data.get('last_ip', '') == _ip:
@@ -414,7 +422,8 @@ class Remotes():
                 remote_data['adapters'] = _adapters
                 _msg = f'{remote_host} Cached adapter data was in old format... Converted to new.\n' \
                        f'\t\t{remote_host} Should be upgraded to the current version of ConsolePi.'
-                config.plog(_msg, log=True, level='warning')
+                # config.plog(_msg, log=True, level='warning')
+                log.warning(_msg, show=True)
                 update = True
         else:
             reachable = True

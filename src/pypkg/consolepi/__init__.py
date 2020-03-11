@@ -17,6 +17,7 @@ from consolepi.utils import Utils  # NoQA
 
 # Global values overriden if variable (lowercase) by the same name exists in ConsolePi.conf
 # i.e. default_baud=115200 will override DEFAULT_BAUD below
+LOG_FILE = '/var/log/ConsolePi/consolepi.log'
 DEFAULT_BAUD = 9600
 DEFAULT_DBITS = 8
 DEFAULT_PARITY = 'n'
@@ -39,15 +40,11 @@ class ConsolePiLog:
 
     def __init__(self, log_file, debug=False):
         self.error_msgs = []
-        self.debug = debug
+        self.DEBUG = debug
         self.log_file = log_file
-        self.log = self.get_logger()
-        self.plog = self.log_print
-        # self.log.info = self.info
-        # self.log.warning = self.warning
-        # self.log.critical = self.critical
-        # self.log.fatal = self.fatal
-        # self.log.error = self.error
+        self._log = self.get_logger()
+        self.name = self._log.name
+        self.plog = self.log_print  # being deprecated in favor of show method
 
     def get_logger(self):
         '''Return custom log object.'''
@@ -66,50 +63,57 @@ class ConsolePiLog:
         _logged = []
         for i in msgs:
             if log and i not in _logged:
-                getattr(self.log, level)(i)
+                getattr(self._log, level)(i)
                 _logged.append(i)
             if '\n' in i:
                 _msgs += i.split('\n')
             elif i.startswith('[') and ']' in i:
-                _msgs.append(i.split('] ', 1)[1])
+                _msgs.append(i.split(']', 1)[1].strip())
             else:
                 _msgs.append(i.replace('\t', ''))
 
         msgs = []
-        [msgs.append(i) for i in _msgs if i and i not in msgs]
-        # else:
-        #     if log:
-        #         getattr(self.log, level)(msgs)
-        #     msgs = [msgs.replace('\t', '')]
+        [msgs.append(i) for i in _msgs
+            if i and i not in msgs and i not in self.error_msgs]
 
         if show:
             self.error_msgs += msgs
 
-    # def info(self, msgs, log=False, show=True, *args, **kwargs):
-    #     self.log.info(msg, *args, **kwargs)
+    def show(self, msgs, log=False, show=True, *args, **kwargs):
+        self.log_print(msgs, show=show, log=log, *args, **kwargs)
 
-    # def warning(self, msgs, log=False, show=True, *args, **kwargs):
-    #     self.log.warning(msg, *args, **kwargs)
+    def debug(self, msgs, log=True, show=False, *args, **kwargs):
+        self.log_print(msgs, log=log, show=show, level='debug', *args, **kwargs)
 
-    # def error(self, msgs, log=False, show=True, *args, **kwargs):
-    #     self.log.error(log, *args, **kwargs)
+    def info(self, msgs, log=True, show=False, *args, **kwargs):
+        self.log_print(msgs, log=log, show=show, *args, **kwargs)
 
-    # def exception(self, msgs, log=False, show=True, *args, **kwargs):
-    #     self.log.exception(log, *args, **kwargs)
+    def warning(self, msgs, log=True, show=False, *args, **kwargs):
+        self.log_print(msgs, log=log, show=show, level='warning', *args, **kwargs)
 
-    # def critical(self, msgs, log=False, show=True, *args, **kwargs):
-    #     self.log.critical(log, *args, **kwargs)
+    def error(self, msgs, log=True, show=False, *args, **kwargs):
+        self.log_print(msgs, log=log, show=show, level='error', *args, **kwargs)
 
-    # def fatal(self, msgs, log=False, show=True, *args, **kwargs):
-    #     self.log.fatal(log, *args, **kwargs)
+    def exception(self, msgs, log=True, show=False, *args, **kwargs):
+        self.log_print(msgs, log=log, show=show, level='exception', *args, **kwargs)
+
+    def critical(self, msgs, log=True, show=False, *args, **kwargs):
+        self.log_print(msgs, log=log, show=show, level='critical', *args, **kwargs)
+
+    def fatal(self, msgs, log=True, show=False, *args, **kwargs):
+        self.log_print(msgs, log=log, show=show, level='fatal', *args, **kwargs)
+
+    def setLevel(self, level):
+        getattr(self._log, 'setLevel')(level)
 
 
-class Config(ConsolePiLog):
+log = ConsolePiLog(LOG_FILE)
+
+
+class Config():
     '''Config object contains all statically defined variables and data from config files.'''
 
     def __init__(self):
-        # self.cpi = cpi
-        # self.utils = Utils()
         self.static = self.get_config_all('/etc/ConsolePi/.static.yaml', {})
         self.FALLBACK_USER = self.static.get('FALLBACK_USER', 'pi')
         self.REM_LAUNCH = self.static.get('REM_LAUNCH', '/etc/ConsolePi/src/remote_launcher.py')
@@ -120,11 +124,8 @@ class Config(ConsolePiLog):
         self.do_overrides()
         self.debug = self.cfg.get('debug', False)
         self.cloud_svc = self.cfg.get('cloud_svc', 'gdrive')
-        # self.log = self.get_logger()
-        super().__init__(self.static['LOG_FILE'], self.debug)
-        # cpilog = ConsolePiLog(self.static['LOG_FILE'], self.cfg.get('debug', False))
-        # self.log = cpilog.log
-        # self.plog = cpilog.plog
+        # super().__init__(self.static['LOG_FILE'], self.debug)
+        # self.log = ConsolePiLog(self.static['LOG_FILE'], self.debug)
         try:
             self.loc_user = os.getlogin()
         except Exception:
@@ -143,7 +144,6 @@ class Config(ConsolePiLog):
 
     def get_config_all(self, yaml_cfg=None, legacy_cfg=None):
         '''Parse bash style cfg vars from cfg file convert to class attributes.'''
-        # utils = self.utils
         # prefer yaml file for all config items if it exists
         do_legacy = True
         if yaml_cfg and utils.valid_file(yaml_cfg):
@@ -200,7 +200,7 @@ class Config(ConsolePiLog):
 
         if not outlet_data:
             if self.power:
-                self.plog('Power Function Disabled - Configuration Not Found')
+                log.show('Power Function Disabled - Configuration Not Found')
                 self.power = False
             self.outlet_types = []
             self.linked_exists = False
@@ -243,7 +243,7 @@ class Config(ConsolePiLog):
                 try:
                     return json.load(f)
                 except ValueError as e:
-                    self.plog(f'Unable to load configuration from {json_file}\n\t{e}', level='warning')
+                    log.warning(f'Unable to load configuration from {json_file}\n\t{e}', show=True)
 
     def get_yaml_file(self, yaml_file):
         '''Return dict from yaml file.'''
@@ -252,7 +252,7 @@ class Config(ConsolePiLog):
                 try:
                     return yaml.load(f, Loader=yaml.BaseLoader)
                 except ValueError as e:
-                    self.plog(f'Unable to load configuration from {yaml_file}\n\t{e}', level='warning')
+                    log.warning(f'Unable to load configuration from {yaml_file}\n\t{e}', show=True)
 
     def get_hosts(self):
         '''Parse user defined hosts.json for inclusion in menu
@@ -319,7 +319,7 @@ class Config(ConsolePiLog):
         ########################################################
         # utils = self.utils
         if not utils.valid_file(self.static.get('SER2NET_FILE')):
-            self.plog('No ser2net.conf file found unable to extract port definition', level='warning')
+            log.warning('No ser2net.conf file found unable to extract port definition', show=True)
             return {}
 
         ser2net_conf = {}
@@ -352,9 +352,9 @@ class Config(ConsolePiLog):
                     elif 'DATABITS' in option:
                         dbits = int(option.replace('DATABITS', ''))  # int 5 - 8
                         if dbits < 5 or dbits > 8:
-                            self.plog(
+                            log.warning(
                                 f'{tty_dev}: Invalid value for "data bits" found in ser2net.conf falling back to 8',
-                                level='warning')
+                                show=True)
                             dbits = 8
                     elif option in ['EVEN', 'ODD', 'NONE']:
                         parity = option[0].lower()  # converts to e o n used by picocom
@@ -369,8 +369,8 @@ class Config(ConsolePiLog):
 
                 # Use baud to determine if options were parsed correctly
                 if baud is None:
-                    self.plog(f'{tty_dev} found in ser2net but unable to parse baud falling back to {self.default_baud}',
-                              level='warning')
+                    log.warning(f'{tty_dev} found in ser2net but unable to parse baud falling back to {self.default_baud}',
+                                show=True)
                     baud = self.default_baud
 
                 # parse TRACEFILE defined in ser2net.conf

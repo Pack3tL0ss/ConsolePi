@@ -10,6 +10,7 @@ from halo import Halo
 
 # --// ConsolePi imports \\--
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
+from consolepi import log  # NoQA
 from consolepi.consolepi import ConsolePi  # NoQA
 from consolepi.udevrename import Rename  # NoQA
 from consolepi import utils  # NoQA
@@ -34,7 +35,7 @@ class ConsolePiMenu(Rename):
         }
         self.error_msgs = []
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
-        self.log = self.cpi.config.log
+        # self.log = self.cpi.config.log
         self.display_con_settings = False
         self.menu = self.cpi.menu
         self.menu.ignored_errors = [
@@ -43,12 +44,12 @@ class ConsolePiMenu(Rename):
         self.do_menu_load_warnings()
         super().__init__()
 
-    def print_menu(self, *args, **kwargs):
-        '''combine error_msgs and pass to menu formatter/print functions'''
+    # def print_menu(self, *args, **kwargs):
+    #     '''combine error_msgs and pass to menu formatter/print functions'''
 
-        kwargs['error_msgs'] = self.cpi.config.error_msgs + self.error_msgs
-        self.cpi.config.error_msgs = self.error_msgs = []
-        self.menu.print_mlines(*args, **kwargs)
+    #     kwargs['error_msgs'] = self.cpi.config.error_msgs + self.error_msgs
+    #     self.cpi.config.error_msgs = self.error_msgs = []
+    #     self.menu.print_mlines(*args, **kwargs)
 
     def print_attribute(self, ch, locs={}):
         '''Debugging Function allowing user to print class attributes / function returns.
@@ -128,8 +129,9 @@ class ConsolePiMenu(Rename):
 
         # -- // Not running as root \\ --
         if not self.cpi.config.root:
-            self.cpi.config.plog('Running without sudo privs ~ Results may vary!\n'
-                                 'Use consolepi-menu to launch menu', log=False)
+            # self.cpi.config.plog('Running without sudo privs ~ Results may vary!\n'
+            log.show('Running without sudo privs ~ Results may vary!\n'
+                     'Use consolepi-menu to launch menu')
 
         # # -- // Remotes with older API schema \\ --
         # for adapters in [self.cpi.remotes.data[r].get('adapters', {}) for r in self.cpi.remotes.data]:
@@ -140,7 +142,8 @@ class ConsolePiMenu(Rename):
 
         # -- // No Local Adapters Found \\ --
         if not self.cpi.local.adapters:
-            self.cpi.plog('No Local Adapters Detected')
+            # self.cpi.plog('No Local Adapters Detected')
+            log.show('No Local Adapters Detected')
 
     def picocom_help(self):
         print('##################### picocom Command Sequences ########################\n')
@@ -182,7 +185,8 @@ class ConsolePiMenu(Rename):
             outlets = self.cpiexec.outlet_update()
 
         if not outlets:
-            self.cpi.config.plog('No Linked Outlets are connected', log=False)
+            # self.cpi.config.plog('No Linked Outlets are connected', log=False)
+            log.show('No Linked Outlets are connected')
             return
 
         while choice not in ['x', 'b']:
@@ -235,7 +239,8 @@ class ConsolePiMenu(Rename):
                 else:
                     # pwr functions put any errors (aborts) in pwr.data[grp]['error']
                     if pwr.data['defined'][r].get('errors'):
-                        self.cpi.config.plog(f'{r} - {pwr.data["defined"][r]["errors"]}', log=False)
+                        # self.cpi.config.plog(f'{r} - {pwr.data["defined"][r]["errors"]}', log=False)
+                        log.show(f'{r} - {pwr.data["defined"][r]["errors"]}')
                         del pwr.data['defined'][r]['errors']
                     if isinstance(outlet.get('is_on'), bool):
                         _state = states[outlet['is_on']]
@@ -262,7 +267,8 @@ class ConsolePiMenu(Rename):
                         item += 1
                     else:   # refactored power.py pwr_get_outlets this should never hit
                         if outlet.get('is_on'):
-                            self.cpi.config.plog(f"DEV NOTE {r} outlet state is not bool: {outlet['error']}", log=False)
+                            # self.cpi.config.plog(f"DEV NOTE {r} outlet state is not bool: {outlet['error']}", log=False)
+                            log.show(f"DEV NOTE {r} outlet state is not bool: {outlet['error']}")
 
             if item > 2:
                 if False in state_list:
@@ -291,7 +297,7 @@ class ConsolePiMenu(Rename):
                 footer['opts'].insert(0, 'dli')
                 menu_actions['d'] = self.dli_menu
 
-            self.print_menu(body, header=header, subhead=subhead, footer=footer)
+            menu.print_menu(body, header=header, subhead=subhead, footer=footer)
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
             if choice not in ['b', 'r']:
@@ -348,10 +354,11 @@ class ConsolePiMenu(Rename):
 
             # -- // toggle debug \\ --
             if ch.lower == 'debug':
-                config.plog(f'debug toggled {self.states[config.debug]} --> {self.states[not config.debug]}',
-                            log=False)
+                # config.plog(f'debug toggled {self.states[config.debug]} --> {self.states[not config.debug]}',
+                log.show(f'debug toggled {self.states[config.debug]} --> {self.states[not config.debug]}')
                 self.cpi.config.debug = not self.cpi.config.debug
-                self.cpi.config.log.setLevel(not self.cpi.config.debug)
+                if self.cpi.config.debug:
+                    log.setLevel(10)  # logging.DEBUG = 10
                 ch = choice(clear=True)
 
             # -- // always accept 'exit' \\ --
@@ -394,7 +401,8 @@ class ConsolePiMenu(Rename):
                 self.cpiexec.wait_for_threads('init')
 
         if not pwr.dli_exists:
-            cpi.config.plog('All Defined dli Web Power Switches are unreachable', log=False)
+            # cpi.config.plog('All Defined dli Web Power Switches are unreachable', log=False)
+            log.show('All Defined dli Web Power Switches are unreachable')
             return
 
         dli_dict = pwr.data['dli_power']
@@ -498,12 +506,12 @@ class ConsolePiMenu(Rename):
                 footer['overrides'] = {'power': ['p', 'Power Control Menu (linked, GPIO, tasmota)']}
 
             # for dli menu remove any tasmota errors
-            for _error in cpi.error_msgs:
+            for _error in log.error_msgs:
                 if 'TASMOTA' in _error:
-                    cpi.error_msgs.remove(_error)
+                    log.error_msgs.remove(_error)
 
-            self.print_menu(outer_body, header=header, subhead=subhead, footer=footer, subs=slines,
-                            force_cols=True, by_tens=True)
+            self.menu.print_menu(outer_body, header=header, subhead=subhead, footer=footer, subs=slines,
+                                 force_cols=True, by_tens=True)
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
@@ -552,7 +560,7 @@ class ConsolePiMenu(Rename):
             footer = {'opts': 'back',
                       'before': ['a.  {{cyan}}*all*{{norm}} remotes listed above', '']}
             menu_actions['a'] = {'function': self.cpiexec.gen_copy_key, 'args': [all_list]}
-            self.print_menu(mlines, subs=subs, header=header, footer=footer, do_format=False)
+            self.menu.print_menu(mlines, subs=subs, header=header, footer=footer, do_format=False)
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
 
@@ -650,7 +658,7 @@ class ConsolePiMenu(Rename):
 
     def rename_menu(self, direct_launch=False):
         cpi = self.cpi
-        plog  = cpi.config.plog
+        # plog = cpi.config.plog
         local = cpi.local
         choice = ''
         menu_actions = {}
@@ -663,7 +671,8 @@ class ConsolePiMenu(Rename):
             mlines, menu_actions, item = self.gen_adapter_lines(loc, rename=True)
 
             if not mlines:
-                cpi.config.plog('No Local Adapters', log=False)
+                # cpi.config.plog('No Local Adapters', log=False)
+                log.show('No Local Adapters')
                 break
 
             slines.append('Select Adapter to Rename')   # list of strings index to index match with body list of lists
@@ -680,7 +689,7 @@ class ConsolePiMenu(Rename):
             footer['opts'].append('refresh')
             menu_actions['r'] = None
 
-            self.print_menu(mlines, header='Define/Rename Local Adapters', footer=footer, subs=slines, do_format=False)
+            self.menu.print_menu(mlines, header='Define/Rename Local Adapters', footer=footer, subs=slines, do_format=False)
             menu_actions['x'] = self.exit
 
             choice_c = self.wait_for_input(locs=locals())
@@ -691,16 +700,19 @@ class ConsolePiMenu(Rename):
             else:
                 if choice:
                     if choice != 'b' or direct_launch:
-                        plog('Invalid Selection \'{}\''.format(choice))
+                        # plog('Invalid Selection \'{}\''.format(choice))
+                        log.show('Invalid Selection \'{}\''.format(choice))
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:
             error = self.trigger_udev()
-            plog(error)
+            # plog(error)
+            log.show(error)
 
     # ------ // MAIN MENU \\ ------ #
     def main_menu(self):
         cpi = self.cpi
+        menu = cpi.menu
         config = cpi.config
         loc = cpi.local.adapters
         pwr = cpi.pwr
@@ -728,8 +740,9 @@ class ConsolePiMenu(Rename):
 
         # DIRECT LAUNCH TO POWER IF NO ADAPTERS (given there are outlets)
         if not loc and not rem and config.power:
-            config.plog('No Adapters Found, Outlets Defined... Launching to Power Menu\n'
-                        'use option "b" to access main menu options')
+            # config.plog('No Adapters Found, Outlets Defined... Launching to Power Menu\n'
+            log.show('No Adapters Found, Outlets Defined... Launching to Power Menu\n'
+                     'use option "b" to access main menu options')
             if pwr.dli_exists and not pwr.linked_exists:
                 cpi.cpiexec.menu_exec('d', menu_actions)
             else:
@@ -798,7 +811,7 @@ class ConsolePiMenu(Rename):
             menu_actions['rn'] = self.rename_menu
         foot_opts.append('refresh')
 
-        self.print_menu(outer_body, header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
+        menu.print_menu(outer_body, header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
                         footer={'opts': foot_opts}, subs=slines, do_format=False)
 
         choice_c = self.wait_for_input(locs=locals(), terminate=True)
@@ -847,7 +860,7 @@ class ConsolePiMenu(Rename):
                     outer_body.append(mlines)
 
             footer = {'opts': 'back'}
-            self.print_menu(outer_body, header='Remote Shell Menu',
+            self.menu.print_menu(outer_body, header='Remote Shell Menu',
                             subhead='Enter item # to connect to remote',
                             footer=footer, subs=subs)
 
@@ -858,7 +871,7 @@ class ConsolePiMenu(Rename):
 
     # -- // CONNECTION MENU \\ --
     def con_menu(self, rename=False, con_dict=None):
-        menu = self.menu
+        menu = self.cpi.menu
         menu_actions = {
             '1': self.baud_menu,
             '2': self.data_bits_menu,
@@ -902,7 +915,7 @@ class ConsolePiMenu(Rename):
     # -- // BAUD MENU \\ --
     def baud_menu(self):
         config = self.cpi.config
-        menu = self.menu
+        menu = self.cpi.menu
         menu_actions = od([
             ('1', 300),
             ('2', 1200),
@@ -955,7 +968,7 @@ class ConsolePiMenu(Rename):
 
     # -- // DATA BITS MENU \\ --
     def data_bits_menu(self):
-        menu = self.menu
+        menu = self.cpi.menu
         valid = False
         while not valid:
             menu.menu_formatting('header', text=' Enter Desired Data Bits ')
@@ -980,7 +993,7 @@ class ConsolePiMenu(Rename):
 
     # -- // PARITY MENU \\ --
     def parity_menu(self):
-        menu = self.menu
+        menu = self.cpi.menu
 
         def print_menu():
             menu.menu_formatting('header', text=' Select Desired Parity ')
@@ -1013,7 +1026,7 @@ class ConsolePiMenu(Rename):
 
     # -- // FLOW MENU \\ --
     def flow_menu(self):
-        menu = self.menu
+        menu = self.cpi.menu
 
         def print_menu():
             menu.menu_formatting('header', text=' Select Desired Flow Control ')
@@ -1073,19 +1086,19 @@ class ConsolePiMenu(Rename):
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1].lower() in ['rn', 'rename', 'addconsole']:
-            menu = ConsolePiMenu(bypass_remotes=True)
-            while menu.go:
-                menu.rename_menu(direct_launch=True)
+            cpi_menu = ConsolePiMenu(bypass_remotes=True)
+            while cpi_menu.go:
+                cpi_menu.rename_menu(direct_launch=True)
         else:
-            menu = ConsolePiMenu(bypass_remotes=True)
+            cpi_menu = ConsolePiMenu(bypass_remotes=True)
             var_in = sys.argv[1].replace('self', 'menu')
             if 'outlet' in var_in:
-                menu.cpi.wait_for_threads()
-            menu.print_attribute(var_in)
+                cpi_menu.cpiexec.wait_for_threads()
+            cpi_menu.print_attribute(var_in)
     else:
         # -- // LAUNCH MENU \\ --
-        menu = ConsolePiMenu()
-        while menu.go:
-            menu.main_menu()
+        cpi_menu = ConsolePiMenu()
+        while cpi_menu.go:
+            cpi_menu.main_menu()
         print('hit')  # DEBUG
-        menu.exit()
+        cpi_menu.exit()

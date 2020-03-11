@@ -5,7 +5,7 @@ import socket
 import netifaces as ni
 import os
 
-from consolepi import utils
+from consolepi import utils, log
 
 
 class Local():
@@ -153,16 +153,17 @@ class Local():
         return adapters
 
     def get_cpu_serial(self):
-        log = self.config.log
+        # log = self.config.log
         res = utils.do_shell_cmd("/bin/cat /proc/cpuinfo | grep Serial | awk '{print $3}'", return_stdout=True)
         if res[0] > 0:
-            self.config.log_and_show('Unable to get unique identifier for this pi (cpuserial)', log=log.warning)
+            # self.config.log_and_show('Unable to get unique identifier for this pi (cpuserial)', log=log.warning)
+            log.warning('Unable to get unique identifier for this pi (cpuserial)', show=True)
         else:
             return res[1]
 
     def get_if_info(self):
         '''Build and return dict with interface info.'''
-        log = self.config.log
+        # log = self.config.log
         if_list = [i for i in ni.interfaces() if i != 'lo' and 'docker' not in i]
         if_w_gw = ni.gateways()['default'].get(ni.AF_INET, {1: None})[1]
         if_data = {_if: {'ip': ni.ifaddresses(_if).get(ni.AF_INET, {0: {}})[0].get('addr'),

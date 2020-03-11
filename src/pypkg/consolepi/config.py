@@ -1,16 +1,10 @@
 #!/etc/ConsolePi/venv/bin/python3
-
-
-import json
-# import logging
 import os
 import yaml
+import json
 
-from consolepi.utils import Utils
-from consolepi import ConsolePiLog
-
-# Global values overriden if variable (lowercase) by the same name exists in ConsolePi.conf
-# i.e. default_baud=115200 will override DEFAULT_BAUD below
+from consolepi import utils, log
+LOG_FILE = '/var/log/ConsolePi/consolepi.log'
 DEFAULT_BAUD = 9600
 DEFAULT_DBITS = 8
 DEFAULT_PARITY = 'n'
@@ -21,22 +15,18 @@ class Config():
     '''Config object contains all statically defined variables and data from config files.'''
 
     def __init__(self):
-        # self.cpi = cpi
-        self.utils = Utils()
         self.static = self.get_config_all('/etc/ConsolePi/.static.yaml', {})
         self.FALLBACK_USER = self.static.get('FALLBACK_USER', 'pi')
         self.REM_LAUNCH = self.static.get('REM_LAUNCH', '/etc/ConsolePi/src/remote_launcher.py')
         self.cfg_yml = self.get_config_all(yaml_cfg=self.static.get('CONFIG_FILE_YAML'),
                                            legacy_cfg=self.static.get('CONFIG_FILE'))
         self.cfg = self.cfg_yml.get('CONFIG')
-        self.ovrd = self.cfg_yml.get('OVERRIDE')
+        self.ovrd = self.cfg_yml.get('OVERRIDES', {})
         self.do_overrides()
+        self.debug = self.cfg.get('debug', False)
         self.cloud_svc = self.cfg.get('cloud_svc', 'gdrive')
-        # self.log = self.get_logger()
-        cpilog = ConsolePiLog(self.static['LOG_FILE'], self.cfg.get('debug', False))
-        self.log = cpilog.log
-        self.plog = cpilog.plog
-
+        # super().__init__(self.static['LOG_FILE'], self.debug)
+        # self.log = ConsolePiLog(self.static['LOG_FILE'], self.debug)
         try:
             self.loc_user = os.getlogin()
         except Exception:
@@ -55,7 +45,6 @@ class Config():
 
     def get_config_all(self, yaml_cfg=None, legacy_cfg=None):
         '''Parse bash style cfg vars from cfg file convert to class attributes.'''
-        utils = self.utils
         # prefer yaml file for all config items if it exists
         do_legacy = True
         if yaml_cfg and utils.valid_file(yaml_cfg):
@@ -66,8 +55,8 @@ class Config():
                 for k in cfg:
                     if cfg[k] in ['true', 'false']:
                         cfg[k] = True if cfg[k] == 'true' else False
-                yml['CONFIG'] = cfg
-                yml['OVERRIDE'] = yml.get('OVERRIDE')
+                if 'CONSOLEPI_VER' not in yml:
+                    yml['CONFIG'] = cfg
         else:
             cfg = {}
             if utils.valid_file(legacy_cfg):
@@ -105,14 +94,14 @@ class Config():
                 failures: failure to connect to any outlets will result in an entry here
                     outlet_name: failure description
         '''
-        utils = self.utils
+        # utils = self.utils
         outlet_data = self.cfg_yml.get('POWER')
         if not outlet_data:  # fallback to legacy json config
             outlet_data = self.get_json_file(self.static.get('POWER_FILE'))
 
         if not outlet_data:
             if self.power:
-                self.cpi.error_msgs.append('Power Function Disabled - Configuration Not Found')
+                log.show('Power Function Disabled - Configuration Not Found')
                 self.power = False
             self.outlet_types = []
             self.linked_exists = False
@@ -155,7 +144,7 @@ class Config():
                 try:
                     return json.load(f)
                 except ValueError as e:
-                    self.plog(f'Unable to load configuration from {json_file}\n\t{e}', level='warning')
+                    log.warning(f'Unable to load configuration from {json_file}\n\t{e}', show=True)
 
     def get_yaml_file(self, yaml_file):
         '''Return dict from yaml file.'''
@@ -164,14 +153,14 @@ class Config():
                 try:
                     return yaml.load(f, Loader=yaml.BaseLoader)
                 except ValueError as e:
-                    self.plog(f'Unable to load configuration from {yaml_file}\n\t{e}', level='warning')
+                    log.warning(f'Unable to load configuration from {yaml_file}\n\t{e}', show=True)
 
     def get_hosts(self):
         '''Parse user defined hosts.json for inclusion in menu
 
         returns dict with formatted keys prepending /host/
         '''
-        utils = self.utils
+        # utils = self.utils
         hosts = self.cfg_yml.get('HOSTS')
         if not hosts:  # fallback to legacy json config
             hosts = self.get_json_file(self.static.get('REM_HOSTS_FILE'))
@@ -229,9 +218,9 @@ class Config():
         # ... 9600 NONE 1STOPBIT 8DATABITS XONXOFF LOCAL -RTSCTS
         # ... 9600 8DATABITS NONE 1STOPBIT banner
         ########################################################
-        utils = self.utils
+        # utils = self.utils
         if not utils.valid_file(self.static.get('SER2NET_FILE')):
-            self.plog('No ser2net.conf file found unable to extract port definition', level='warning')
+            log.warning('No ser2net.conf file found unable to extract port definition', show=True)
             return {}
 
         ser2net_conf = {}
@@ -264,9 +253,9 @@ class Config():
                     elif 'DATABITS' in option:
                         dbits = int(option.replace('DATABITS', ''))  # int 5 - 8
                         if dbits < 5 or dbits > 8:
-                            self.plog(
+                            log.warning(
                                 f'{tty_dev}: Invalid value for "data bits" found in ser2net.conf falling back to 8',
-                                level='warning')
+                                show=True)
                             dbits = 8
                     elif option in ['EVEN', 'ODD', 'NONE']:
                         parity = option[0].lower()  # converts to e o n used by picocom
@@ -281,8 +270,8 @@ class Config():
 
                 # Use baud to determine if options were parsed correctly
                 if baud is None:
-                    self.plog(f'{tty_dev} found in ser2net but unable to parse baud falling back to {self.default_baud}',
-                              level='warning')
+                    log.warning(f'{tty_dev} found in ser2net but unable to parse baud falling back to {self.default_baud}',
+                                show=True)
                     baud = self.default_baud
 
                 # parse TRACEFILE defined in ser2net.conf
@@ -313,12 +302,3 @@ class Config():
                     }
 
         return ser2net_conf
-
-
-if __name__ == '__main__':
-    config = Config()
-    print(json.dumps(config.ser2net_conf, indent=4, sort_keys=True))
-    # print(json.dumps(config.remotes, indent=4, sort_keys=True))
-    # print(json.dumps(config.outlets, indent=4, sort_keys=True))
-    # print(json.dumps(config.hosts, indent=4, sort_keys=True))
-    # print(json.dumps(config.cfg, indent=4, sort_keys=True))

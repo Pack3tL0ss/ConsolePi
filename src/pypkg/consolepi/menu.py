@@ -205,7 +205,7 @@ class Menu():
         sections = []
         _tot_width = []
         for _i in _iter_start_stop:
-            this_max_width = max(line_dict['body']['width'][_i[0]:_i[1]])
+            this_max_width = 0 if not line_dict['body']['width'][_i[0]:_i[1]] else max(line_dict['body']['width'][_i[0]:_i[1]])
             _tot_width.append(this_max_width)
             _column_list = []
             for _s in line_dict['body']['sections'][_i[0]:_i[1]]:

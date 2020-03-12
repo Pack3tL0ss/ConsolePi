@@ -173,7 +173,7 @@ class Remotes():
                 # burried import until I find out why this import takes so @#%$@#% long.  Not imported until 1st refresh is called
                 with Halo(text='Loading Google Drive Library', spinner='dots1'):
                     from consolepi.gdrive import GoogleDrive
-                self.cloud = GoogleDrive(config, hostname=local.hostname)
+                self.cloud = GoogleDrive(hostname=local.hostname)
                 log.info('[MENU REFRESH] Gdrive init')
 
             # Pass Local Data to update_sheet method get remotes found on sheet as return

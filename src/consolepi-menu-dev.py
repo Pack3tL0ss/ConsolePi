@@ -560,21 +560,13 @@ class ConsolePiMenu(Rename):
 
     def gen_adapter_lines(self, adapters, item=1, remote=False, rem_user=None, host=None, rename=False):
         cpi = self.cpi
-        # config = cpi.config
         if hasattr(cpi, 'remotes'):
             rem = cpi.remotes.data
         else:
             rem = {}
-        # utils = cpi.utils
         menu_actions = {}
         mlines = []
         flow_pretty = self.flow_pretty
-
-        # If remotes present adapter data in old format convert to new
-        # if isinstance(adapters, list):
-        #     adapters = {adapters[adapters.index(d)]['dev']: {'config': {k: adapters[adapters.index(d)][k]
-        #                 for k in adapters[adapters.index(d)]}} for d in adapters}
-        # TODO OK to remove after verification conversion done in get_remote
 
         # -- // Manually Defined Hosts \\ --
         if adapters.get('_hosts'):
@@ -598,6 +590,7 @@ class ConsolePiMenu(Rename):
 
             return mlines, menu_actions, item
 
+        # -- // Local Adapters \\ --
         for _dev in sorted(adapters.items(), key=lambda i: i[1]['config'].get('port', 0)):
             this_dev = adapters[_dev[0]].get('config', adapters[_dev[0]])
             if this_dev.get('port', 0) != 0:
@@ -612,13 +605,13 @@ class ConsolePiMenu(Rename):
             sbits = this_dev.get('sbits', 1)
             dev_pretty = _dev[0].replace('/dev/', '')
 
-            # Generate Menu Line
+            # Generate Adapter Menu Line
             menu_line = f'{dev_pretty} {def_indicator}[{baud} {dbits}{parity[0].upper()}{sbits}]'
             if flow != 'n' and flow in flow_pretty:
                 menu_line += f' {flow_pretty[flow]}'
             mlines.append(menu_line)
 
-            # -- // LOCAL ADAPTERS \\ --
+            # -- // Adapter menu_actions \\ --
             if not remote:
                 # Generate connect command used to connect to device
                 fallback_cmd = f'picocom {this_dev} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}'
@@ -705,7 +698,6 @@ class ConsolePiMenu(Rename):
     def main_menu(self):
         cpi = self.cpi
         menu = cpi.menu
-        # config = cpi.config
         loc = cpi.local.adapters
         pwr = cpi.pwr
         remotes = cpi.remotes
@@ -773,13 +765,6 @@ class ConsolePiMenu(Rename):
                 outer_body.append(mlines)
                 slines.append(g)
 
-        # -- // General Menu Command Options \\ --
-        # text = []
-        # TODO currently not functional used only for rename.  ser2net.conf sets con settings
-        # if self.display_con_settings:
-        #     text.append(f' c.  Change default Serial Settings **[{self.baud} {self.data_bits}{self.parity.upper()}1'
-        #                 f' flow={self.flow_pretty[self.flow]}]')
-        #     menu_actions['c'] = self.con_menu
         if loc or remotes.connected:
             foot_opts.append('picohelp')
 

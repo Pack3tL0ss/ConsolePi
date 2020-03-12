@@ -54,7 +54,7 @@ class ConsolePiMenu(Rename):
             Bool | None -- True if ch is an attribute No return otherwise
         '''
         _attrs = [a for a in self.cpi.__dir__() if not a.startswith('_')]
-        _attrs += ['cpi', 'this', 'self', 'menu', 'cloud']
+        _attrs += ['cpi', 'this', 'self', 'menu', 'cloud', 'config']
         if '.' in ch and len(ch) > 2 and ch.split('.')[0] in _attrs:
             cpi = self.cpi
             local = cpi.local  # NoQA
@@ -63,7 +63,6 @@ class ConsolePiMenu(Rename):
                 cloud = remotes.cloud  # NoQA
             pwr = cpi.pwr  # NoQA
             # config = cpi.config  # NoQA
-            config = globals()['config']  # NoQA
             # utils = cpi.utils  # NoQA
             menu = self.menu # NoQA
             _var = None

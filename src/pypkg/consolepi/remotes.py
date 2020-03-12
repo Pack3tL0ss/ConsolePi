@@ -45,10 +45,7 @@ class Remotes():
         self.data = self.get_remote(data=config.remote_update())  # re-get cloud.json to capture any updates via mdns
 
     def no_creds_error(self):
-        # config = self.config
         cloud_svc = config.cfg.get('cloud_svc', 'UNDEFINED!')
-        # config.plog(f'Required {cloud_svc} credentials files are missing refer to GitHub for details',
-                    # log=config.log.warning)
         log.warning(f'Required {cloud_svc} credentials files are missing refer to GitHub for details')
         log.warning(f'Disabling {cloud_svc} updates')
         log.show('Cloud Function Disabled by script - No Credentials Found')
@@ -57,8 +54,6 @@ class Remotes():
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
     def get_remote(self, data=None):
         spin = self.spin
-        # config = self.config
-        # log = config.log
 
         def verify_remote_thread(remotepi, data):
             '''sub to verify reacability and api data for remotes

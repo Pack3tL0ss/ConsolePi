@@ -360,9 +360,9 @@ class ConsolePiMenu(Rename):
             # -- // Menu Debugging Tool prints attributes/function returns \\ --
             elif '.' in ch.orig and self.print_attribute(ch.orig, locs):
                 ch = choice(clear=True)
-            else:
+            # else:
                 # return user input back to calling function
-                menu.menu_rows = 0  # TODO REMOVE AFTER SIMPLIFIED
+            menu.menu_rows = 0  # TODO REMOVE AFTER SIMPLIFIED
 
             return ch
 

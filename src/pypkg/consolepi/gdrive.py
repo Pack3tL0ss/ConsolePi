@@ -5,12 +5,15 @@ import json
 import socket
 import os.path
 import time
+import sys
 # -- google stuff --
 from googleapiclient import discovery
 import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from consolepi import Utils, log
+
+sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
+from consolepi import log, utils, config  # NoQA
 
 
 # -- GLOBALS --
@@ -20,11 +23,11 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapi
 
 class GoogleDrive:
 
-    def __init__(self, config, hostname=None):
+    def __init__(self, hostname=None):
         # self.cpi = cpi
         # self.log = config.log
         self.pull_only = config.ovrd.get('cloud_pull_only', False)
-        self.utils = Utils()
+        # self.utils = Utils()
         self.hostname = socket.gethostname() if hostname is None else hostname
         self.creds = None
         self.file_id = None
@@ -48,7 +51,7 @@ class GoogleDrive:
 
     # Authenticate find file_id and build services
     def auth(self):
-        if self.utils.is_reachable('www.googleapis.com', 443):
+        if utils.is_reachable('www.googleapis.com', 443):
             try:
                 if self.creds is None:
                     self.creds = self.get_credentials()
@@ -60,10 +63,10 @@ class GoogleDrive:
                         self.file_id = self.create_sheet()
                 return True
             except (ConnectionError, TimeoutError, OSError) as e:
-                self.log.error('Exception Occured Connecting to Gdrive {}'.format(e))
+                log.error('Exception Occured Connecting to Gdrive {}'.format(e))
                 return False
             else:
-                self.log.error('Google Drive is not reachable - Aborting')
+                log.error('Google Drive is not reachable - Aborting')
                 return False
 
     # Google sheets API credentials - used to update config on Google Drive
@@ -190,19 +193,22 @@ class GoogleDrive:
                         remote_consoles[row[0]] = json.loads(row[1])
                         remote_consoles[row[0]]['source'] = 'cloud'
                     x += 1
-                log.debug('[GDRIVE]: remote_ConsolePis Discovered from sheet: {0}, Count: {1}'.format(
-                    json.dumps(remote_consoles) if len(remote_consoles) > 0 else 'None', str(len(remote_consoles))))
+                log.debug(f'[GDRIVE]: {len(remote_consoles)} Remote ConsolePis Found on Gdrive: \n{json.dumps(remote_consoles)}')
             range_ = 'a' + str(cnt) + ':b' + str(cnt)
 
-            if found:
-                log.info('[GDRIVE]: Updating ' + str(k) + ' data found on row ' + str(cnt) + ' of Google Drive config')
-                request = service.spreadsheets().values().update(spreadsheetId=spreadsheet_id, range=range_,
-                                                                 valueInputOption=value_input_option, body=value_range_body)
+            # -- // Update gdrive with this ConsolePis data \\ --
+            if not config.ovrd.get('cloud_pull_only', False):
+                if found:
+                    log.info('[GDRIVE]: Updating ' + str(k) + ' data found on row ' + str(cnt) + ' of Google Drive config')
+                    request = service.spreadsheets().values().update(spreadsheetId=spreadsheet_id, range=range_,
+                                                                     valueInputOption=value_input_option, body=value_range_body)
+                else:
+                    log.info('[GDRIVE]: Adding ' + str(k) + ' to Google Drive Config')
+                    request = service.spreadsheets().values().append(spreadsheetId=spreadsheet_id, range=range_,
+                                                                     valueInputOption=value_input_option, body=value_range_body)
+                self.exec_request(request)
             else:
-                log.info('[GDRIVE]: Adding ' + str(k) + ' to Google Drive Config')
-                request = service.spreadsheets().values().append(spreadsheetId=spreadsheet_id, range=range_,
-                                                                 valueInputOption=value_input_option, body=value_range_body)
-            self.exec_request(request)
+                log.info('cloud_pull_only override enabled not updating cloud with data from this host')
             cnt += 1
         self.resize_cols()
         return remote_consoles
@@ -210,10 +216,8 @@ class GoogleDrive:
 
 if __name__ == '__main__':
     print('-- Syncing Data With Google Drive --')
-    from consolepi import Config
     from consolepi.local import Local
-    config = Config()
-    local = Local(config)
-    gdrive = GoogleDrive(config.log)
-    data = gdrive.update_files(config.local)
+    local = Local()
+    gdrive = GoogleDrive()
+    data = gdrive.update_files(local.data)
     print(json.dumps(data, indent=4, sort_keys=True) if 'Gdrive-Error' not in data else data)

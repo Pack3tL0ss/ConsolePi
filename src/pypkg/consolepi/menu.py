@@ -487,7 +487,7 @@ class Menu():
                 # log errors if non-match overrides/rjust options were sent
                 if no_match_overrides + no_match_rjust:
                     log.error(f'menu_formatting passed options ({",".join(no_match_overrides + no_match_rjust)})'
-                                     ' that lacked a match in footer_options = No impact to menu', log=True, level='error')
+                              ' that lacked a match in footer_options = No impact to menu', log=True, level='error')
 
             # --// ERRORs - append to footer \\-- #
             if len(self.error_msgs) > 0:

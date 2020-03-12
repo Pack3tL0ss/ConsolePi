@@ -272,7 +272,7 @@ class Outlets:
                         failures[k]['error'] = f'[PWR-DLI {k}] {_} missing from {failures[k]["address"]} ' \
                             'configuration - skipping'
                         log.error(f'[PWR-DLI {k}] {_} missing from {failures[k]["address"]} '
-                                    'configuration - skipping', show=True)
+                                  'configuration - skipping', show=True)
                         break
                 if not all_good:
                     continue

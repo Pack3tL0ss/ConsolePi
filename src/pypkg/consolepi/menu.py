@@ -6,7 +6,7 @@ from halo import Halo
 from collections import OrderedDict as od
 import os
 
-from consolepi import utils, log
+from consolepi import utils, log, config
 
 MIN_WIDTH = 55
 MAX_COLS = 5
@@ -14,8 +14,8 @@ MAX_COLS = 5
 
 class Menu():
 
-    def __init__(self, config):  # utils, debug=False, log=None, log_file=None):
-        self.config = config
+    def __init__(self):  # utils, debug=False, log=None, log_file=None):
+        # self.config = config
         # self.utils = menu.utils
         # self.log = menu.log
         self.go = True
@@ -198,7 +198,7 @@ class Menu():
                     _iter_start_stop.append([_begin, _end])
                     break
                 if _pass > len(_rows) + 20:  # should not hit this anymore
-                    self.config.plog(f'menu formatter exceeded {len(_rows) + 20} passses and gave up!!!', log=True)
+                    log.info(f'menu formatter exceeded {len(_rows) + 20} passses and gave up!!!', show=True)
                     break
                 _pass += 1
 
@@ -362,7 +362,7 @@ class Menu():
         # --// HEADER \\--
         if section == 'header':
             # ---- CLEAR SCREEN -----
-            if not self.config.debug:
+            if not config.debug:
                 os.system('clear')
             mlines.append('=' * width)
             line = self.format_line(text)
@@ -486,7 +486,7 @@ class Menu():
 
                 # log errors if non-match overrides/rjust options were sent
                 if no_match_overrides + no_match_rjust:
-                    self.config.plog(f'menu_formatting passed options ({",".join(no_match_overrides + no_match_rjust)})'
+                    log.error(f'menu_formatting passed options ({",".join(no_match_overrides + no_match_rjust)})'
                                      ' that lacked a match in footer_options = No impact to menu', log=True, level='error')
 
             # --// ERRORs - append to footer \\-- #

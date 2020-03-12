@@ -10,10 +10,10 @@ from halo import Halo
 
 # --// ConsolePi imports \\--
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import log  # NoQA
+# from consolepi import log  # NoQA
 from consolepi.consolepi import ConsolePi  # NoQA
 from consolepi.udevrename import Rename  # NoQA
-from consolepi import utils  # NoQA
+from consolepi import log, utils, config  # NoQA
 # from consolepi.gdrive import GoogleDrive # <-- hidden import burried in refresh method of consolepi.remotes.Remotes(...).refresh
 
 MIN_WIDTH = 55
@@ -25,15 +25,14 @@ class ConsolePiMenu(Rename):
     def __init__(self, bypass_remotes=False):
         self.cpi = ConsolePi(bypass_remotes=bypass_remotes)
         self.cpiexec = self.cpi.cpiexec
-        self.utils = utils
-        self.baud = self.cpi.config.default_baud
+        # self.utils = utils
+        self.baud = config.default_baud
         self.go = True
         self.spin = Halo(spinner='dots')
         self.states = {
             True: '{{green}}ON{{norm}}',
             False: '{{red}}OFF{{norm}}'
         }
-        self.error_msgs = []
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
         # self.log = self.cpi.config.log
         self.display_con_settings = False
@@ -43,13 +42,6 @@ class ConsolePiMenu(Rename):
         ]
         self.do_menu_load_warnings()
         super().__init__()
-
-    # def print_menu(self, *args, **kwargs):
-    #     '''combine error_msgs and pass to menu formatter/print functions'''
-
-    #     kwargs['error_msgs'] = self.cpi.config.error_msgs + self.error_msgs
-    #     self.cpi.config.error_msgs = self.error_msgs = []
-    #     self.menu.print_mlines(*args, **kwargs)
 
     def print_attribute(self, ch, locs={}):
         '''Debugging Function allowing user to print class attributes / function returns.
@@ -70,8 +62,8 @@ class ConsolePiMenu(Rename):
                 remotes = cpi.remotes
                 cloud = remotes.cloud  # NoQA
             pwr = cpi.pwr  # NoQA
-            config = cpi.config  # NoQA
-            utils = cpi.utils  # NoQA
+            # config = cpi.config  # NoQA
+            # utils = cpi.utils  # NoQA
             menu = self.menu # NoQA
             _var = None
             _class_str = '.'.join(ch.split('.')[0:-1])
@@ -88,10 +80,10 @@ class ConsolePiMenu(Rename):
                     if hasattr(self._class, _attr):  # NoQA
                         _var = f"self.var = {ch}"
                     else:
-                        cpi.error_msgs.append(f"DEBUG: '{_class_str}' object has no attribute '{_attr}'")
+                        log.show(f"DEBUG: '{_class_str}' object has no attribute '{_attr}'")
                         return True
                 except AttributeError as e:
-                    menu.error_msgs.append(f'DEBUG: Attribute error {e}')
+                    log.show(f'DEBUG: Attribute error {e}')
 
             if _var:
                 try:
@@ -121,14 +113,14 @@ class ConsolePiMenu(Rename):
                     if hasattr(self, 'var'):
                         print(self.var)
                         input('Press Enter to Continue... ')
-                    cpi.error_msgs.append(f'DEBUG: {e}')
+                    log.show(f'DEBUG: {e}')
                 return True
 
     def do_menu_load_warnings(self):
         '''Displays and logs warnings based on data collected/validated during menu load.'''
 
         # -- // Not running as root \\ --
-        if not self.cpi.config.root:
+        if not config.root:
             # self.cpi.config.plog('Running without sudo privs ~ Results may vary!\n'
             log.show('Running without sudo privs ~ Results may vary!\n'
                      'Use consolepi-menu to launch menu')
@@ -333,7 +325,7 @@ class ConsolePiMenu(Rename):
                    otherwise returns the input provided by the user (lower() by default).
         '''
         menu = self.menu
-        config = self.cpi.config
+        # config = self.cpi.config
 
         class choice():
             def __init__(self, clear=False):
@@ -356,8 +348,8 @@ class ConsolePiMenu(Rename):
             if ch.lower == 'debug':
                 # config.plog(f'debug toggled {self.states[config.debug]} --> {self.states[not config.debug]}',
                 log.show(f'debug toggled {self.states[config.debug]} --> {self.states[not config.debug]}')
-                self.cpi.config.debug = not self.cpi.config.debug
-                if self.cpi.config.debug:
+                config.debug = not config.debug
+                if config.debug:
                     log.setLevel(10)  # logging.DEBUG = 10
                 ch = choice(clear=True)
 
@@ -379,7 +371,7 @@ class ConsolePiMenu(Rename):
                 print('Exiting based on User Input')
                 self.exit()
             else:
-                menu.error_msgs.append('Operation Aborted')
+                log.show('Operation Aborted')
                 print('')  # prevents header and prompt on same line in debug
                 return choice(clear=True)
 
@@ -526,7 +518,7 @@ class ConsolePiMenu(Rename):
 
     def key_menu(self):
         cpi = self.cpi
-        config = cpi.config
+        # config = cpi.config
         rem = cpi.remotes.data
         choice = ''
         menu_actions = {
@@ -544,7 +536,7 @@ class ConsolePiMenu(Rename):
             subs = ['Send SSH Public Key to...']
             for host in sorted(rem):
                 if 'rem_ip' not in rem[host]:
-                    config.log.warning('[KEY_MENU] {} lacks rem_ip skipping'.format(host))
+                    log.warning('[KEY_MENU] {} lacks rem_ip skipping'.format(host))
                     continue
 
                 rem_ip = rem[host].get('rem_ip')
@@ -568,7 +560,7 @@ class ConsolePiMenu(Rename):
 
     def gen_adapter_lines(self, adapters, item=1, remote=False, rem_user=None, host=None, rename=False):
         cpi = self.cpi
-        config = cpi.config
+        # config = cpi.config
         if hasattr(cpi, 'remotes'):
             rem = cpi.remotes.data
         else:
@@ -713,7 +705,7 @@ class ConsolePiMenu(Rename):
     def main_menu(self):
         cpi = self.cpi
         menu = cpi.menu
-        config = cpi.config
+        # config = cpi.config
         loc = cpi.local.adapters
         pwr = cpi.pwr
         remotes = cpi.remotes
@@ -824,7 +816,7 @@ class ConsolePiMenu(Rename):
         choice = ''
         cpi = self.cpi
         local = cpi.local
-        config = cpi.config
+        # config = cpi.config
         rem = cpi.remotes.data
         menu_actions = {
             'rshell_menu': self.rshell_menu,
@@ -861,8 +853,8 @@ class ConsolePiMenu(Rename):
 
             footer = {'opts': 'back'}
             self.menu.print_menu(outer_body, header='Remote Shell Menu',
-                            subhead='Enter item # to connect to remote',
-                            footer=footer, subs=subs)
+                                 subhead='Enter item # to connect to remote',
+                                 footer=footer, subs=subs)
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
@@ -910,11 +902,11 @@ class ConsolePiMenu(Rename):
 
             except KeyError as e:
                 if ch:
-                    self.config.error_msgs.append('Invalid selection {}, please try again.'.format(e))
+                    log.show('Invalid selection {}, please try again.'.format(e))
 
     # -- // BAUD MENU \\ --
     def baud_menu(self):
-        config = self.cpi.config
+        # config = self.cpi.config
         menu = self.cpi.menu
         menu_actions = od([
             ('1', 300),
@@ -962,7 +954,7 @@ class ConsolePiMenu(Rename):
                     break
             except KeyError as e:
                 if ch:
-                    self.cpi.error_msgs.append('Invalid selection {} please try again.'.format(e))
+                    log.show('Invalid selection {} please try again.'.format(e))
 
         return self.baud
 
@@ -984,10 +976,10 @@ class ConsolePiMenu(Rename):
                     self.data_bits = choice
                     valid = True
                 else:
-                    self.cpi.error_msgs.append('Invalid selection {} please try again.'.format(choice))
+                    log.show('Invalid selection {} please try again.'.format(choice))
             except ValueError:
                 if choice:
-                    self.cpi.error_msgs.append('Invalid selection {} please try again.'.format(choice))
+                    log.show('Invalid selection {} please try again.'.format(choice))
 
         return self.data_bits
 
@@ -1021,7 +1013,7 @@ class ConsolePiMenu(Rename):
             else:
                 valid = False
                 if choice:
-                    self.cpi.error_msgs.append('Invalid selection {} please try again.'.format(choice))
+                    log.show('Invalid selection {} please try again.'.format(choice))
         return self.parity
 
     # -- // FLOW MENU \\ --
@@ -1056,10 +1048,10 @@ class ConsolePiMenu(Rename):
                     self.exit()
                 else:
                     if choice:
-                        self.cpi.error_msgs.append('Invalid selection {} please try again.'.format(choice))
+                        log.show('Invalid selection {} please try again.'.format(choice))
             except Exception as e:
                 if choice:
-                    self.cpi.error_msgs.append('Invalid selection {} please try again.'.format(e))
+                    log.show('Invalid selection {} please try again.'.format(e))
 
         return self.flow
 
@@ -1076,7 +1068,7 @@ class ConsolePiMenu(Rename):
             cmd = 'sudo udevadm control --reload && sudo udevadm trigger && '\
                   'sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
             with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
-                error = cpi.utils.do_shell_cmd(cmd, shell=True)
+                error = utils.do_shell_cmd(cmd, shell=True)
             if error:
                 print(error)
 

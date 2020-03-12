@@ -8,12 +8,12 @@ import subprocess
 import shlex
 from halo import Halo
 
-from consolepi import utils, log
+from consolepi import utils, log, config
 
 
 class ConsolePiExec():
     def __init__(self, config, pwr, local, menu):
-        self.config = config
+        # self.config = config
         # self.log = self.config.log
         self.pwr = pwr
         self.local = local
@@ -28,8 +28,8 @@ class ConsolePiExec():
             menu_dev:str, The tty dev user is connecting to
         '''
         pwr_key_pretty = pwr_key.replace('/dev/', '').replace('/host/', '')
-        if pwr_key in self.config.outlets['linked']:  # verify against config here as pwr may not be completely init
-            _msg = f"Ensuring {pwr_key_pretty} Linked Outlets ({' '.join(self.config.outlets['linked'][pwr_key])}) " \
+        if pwr_key in config.outlets['linked']:  # verify against config here as pwr may not be completely init
+            _msg = f"Ensuring {pwr_key_pretty} Linked Outlets ({' '.join(config.outlets['linked'][pwr_key])}) " \
                    "are Powered \033[1;32mON\033[0m"
             _dots = '-' * (len(_msg) + 4)
             _msg = f"\n{_dots}\n  {_msg}  \n{_dots}\n"  # TODO send to formatter in menu ... __init__
@@ -88,7 +88,7 @@ class ConsolePiExec():
                                                  'upd_linked': True}, name='auto_pwr_refresh_dli').start()
                                 self.autopwr_wait = True
                         else:
-                            self.config.log_and_show(f"{pwr_key} Error operating linked outlet @ {o}", log=log.warning)
+                            log.warning(f"{pwr_key} Error operating linked outlet @ {o}", show=True)
 
             # -- // GPIO & TASMOTA Auto Power On \\ --
             else:
@@ -125,7 +125,7 @@ class ConsolePiExec():
         if r.returncode == 0:
             try:
                 if 'sudo ' not in cmd:
-                    cmd = f'sudo -u {self.config.loc_user} bash -c "{p}{cmd}"'
+                    cmd = f'sudo -u {config.loc_user} bash -c "{p}{cmd}"'
                 elif 'sudo -u ' not in cmd:
                     cmd = cmd.replace('sudo ', '')
                 subprocess.run(cmd, shell=True)
@@ -169,7 +169,7 @@ class ConsolePiExec():
                 return True
 
     def launch_shell(self):
-        iam = self.config.loc_user
+        iam = config.loc_user
         os.system('sudo -u {0} echo PS1=\\"\\\033[1\;36mconsolepi-menu\\\033[0m:\\\w\\\$ \\" >/tmp/prompt && '  # NoQA
             'echo alias consolepi-menu=\\"exit\\" >>/tmp/prompt &&'
             'echo PATH=$PATH:/etc/ConsolePi/src/consolepi-commands >>/tmp/prompt && '
@@ -181,7 +181,7 @@ class ConsolePiExec():
         '''
         Called by consolepi-menu refresh
         '''
-        config = self.config
+        # config = self.config
         pwr = self.pwr
         # plog = config.plog
         if config.power:
@@ -248,7 +248,7 @@ class ConsolePiExec():
     # ------ // EXECUTE MENU SELECTIONS \\ ------ #
     def menu_exec(self, choice, menu_actions, calling_menu='main_menu'):
         pwr = self.pwr
-        config = self.config
+        # config = self.config
         # plog = config.plog
 
         if not config.debug and calling_menu not in ['dli_menu', 'power_menu']:

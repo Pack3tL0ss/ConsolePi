@@ -2,16 +2,16 @@
 
 import re
 from halo import Halo
-from consolepi import log
+from consolepi import log, config
 
 
 class Rename():
     def __init__(self):
         self.udev_pending = False
-        self.baud = self.cpi.config.default_baud
-        self.data_bits = self.cpi.config.default_dbits
-        self.parity = self.cpi.config.default_parity
-        self.flow = self.cpi.config.default_flow
+        self.baud = config.default_baud
+        self.data_bits = config.default_dbits
+        self.parity = config.default_parity
+        self.flow = config.default_flow
         self.parity_pretty = {'o': 'Odd', 'e': 'Even', 'n': 'No'}
         self.flow_pretty = {'x': 'Xon/Xoff', 'h': 'RTS/CTS', 'n': 'No'}
 
@@ -30,7 +30,7 @@ class Rename():
         '''
         from_name = from_name.replace('/dev/', '')
         local = self.cpi.local
-        config = self.cpi.config
+        # config = self.cpi.config
         utils = self.cpi.utils
         c = {
             'green': '\033[1;32m',  # Bold with normal ForeGround
@@ -255,7 +255,7 @@ class Rename():
             {str|None} -- Returns error text if an error occurs or None if no issues.
         '''
         cpi = self.cpi
-        config = cpi.config
+        # config = cpi.config
         utils = cpi.utils
         ser2net_parity = {
             'n': 'NONE',
@@ -334,7 +334,7 @@ class Rename():
             {str|None} -- Returns error string if an error occurs
         '''
         cpi = self.cpi
-        config = cpi.config
+        # config = cpi.config
         utils = cpi.utils
         found = ser_label_exists = get_next = update_file = False  # init
         goto = ''  # init

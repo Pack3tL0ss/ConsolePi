@@ -5,17 +5,17 @@ import socket
 import netifaces as ni
 import os
 
-from consolepi import utils, log
+from consolepi import utils, log, config
 
 
 class Local():
     ''' Class to collect and manage ConsolePis local attributes '''
 
-    def __init__(self, config):
+    def __init__(self):
         # self.cpi = cpi
         # self.config = self.cpi.config
-        self.config = config
-        self.default_baud = self.config.default_baud
+        # self.config = config
+        self.default_baud = config.default_baud
         self.udev_adapters = self.detect_adapters()
         self.adapters = self.build_adapter_dict()
         self.hostname = socket.gethostname()
@@ -23,12 +23,12 @@ class Local():
         self.interfaces = self.get_if_info()
         self.ip_list = self.get_ip_list()
         self.data = self.build_local_dict()
-        self.user = self.config.loc_user
+        self.user = config.loc_user
         self.loc_home = os.getenv('HOME')
 
     def build_local_dict(self, rem_ip=None, refresh=False):
         '''Display representation of all local data in combined dict.'''
-        config = self.config
+        # config = self.config
         if refresh:
             self.adapters = self.build_adapter_dict(refresh=True)
             self.interfaces = self.get_if_info()
@@ -135,7 +135,7 @@ class Local():
                 }
 
     def build_adapter_dict(self, refresh=False):
-        config = self.config
+        # config = self.config
         '''Create final adapter dict from udev ser2net and outlet dicts.'''
         if refresh or not hasattr(self, 'udev_adapters'):
             self.udev_adapters = self.detect_adapters()

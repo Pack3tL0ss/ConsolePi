@@ -8,7 +8,7 @@ from halo import Halo
 import time
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
-from consolepi import utils, log
+from consolepi import utils, log, config
 # from consolepi.exec import ConsolePiExec
 # from consolepi import utils
 # from consolepi.gdrive import GoogleDrive <-- burried import inside refresh method
@@ -17,13 +17,13 @@ from consolepi import utils, log
 class Remotes():
     '''Remotes Object Contains attributes for discovered remote ConsolePis'''
 
-    def __init__(self, config, local, cpiexec):
+    def __init__(self, local, cpiexec):
         self.cpiexec = cpiexec
         self.pop_list = []
         self.old_api_log_sent = False
         self.log_sym_warn = log_sym.WARNING.value
         self.log_sym_error = log_sym.ERROR.value
-        self.config = config
+        # self.config = config
         self.local = local
         self.connected = False
         self.cache_update_pending = False
@@ -45,7 +45,7 @@ class Remotes():
         self.data = self.get_remote(data=config.remote_update())  # re-get cloud.json to capture any updates via mdns
 
     def no_creds_error(self):
-        config = self.config
+        # config = self.config
         cloud_svc = config.cfg.get('cloud_svc', 'UNDEFINED!')
         # config.plog(f'Required {cloud_svc} credentials files are missing refer to GitHub for details',
                     # log=config.log.warning)
@@ -57,7 +57,7 @@ class Remotes():
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
     def get_remote(self, data=None):
         spin = self.spin
-        config = self.config
+        # config = self.config
         # log = config.log
 
         def verify_remote_thread(remotepi, data):
@@ -148,7 +148,7 @@ class Remotes():
     def refresh(self):
         remote_consoles = None
         cpiexec = self.cpiexec
-        config = self.config
+        # config = self.config
         # plog = config.plog
         local = self.local
         # log = config.log
@@ -234,7 +234,7 @@ class Remotes():
         dict: The resulting remote console dict representing the most recent data for each remote.
         '''
         # utils = self.utils
-        config = self.config
+        # config = self.config
         local_cloud_file = config.static.get('LOCAL_CLOUD_FILE') if local_cloud_file is None else local_cloud_file
 
         # log = config.log

@@ -9,6 +9,7 @@ from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 
 import sys
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
+from consolepi import config  # NoQA
 from consolepi.consolepi import ConsolePi  # NoQA
 
 try:
@@ -23,7 +24,7 @@ class MDNS_Browser:
 
     def __init__(self, log=None, show=False):
         self.cpi = ConsolePi()
-        self.debug = self.cpi.config.cfg.get('debug', False)
+        self.debug = config.cfg.get('debug', False)
         self.show = show
         self.log = log if log is not None else self.cpi.log
         self.stop = False

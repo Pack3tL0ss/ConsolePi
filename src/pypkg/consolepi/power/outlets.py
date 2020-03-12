@@ -13,7 +13,7 @@ except RuntimeError:
     is_rpi = False
 
 from halo import Halo
-from consolepi import log
+from consolepi import log, config
 from consolepi.power import DLI
 
 try:
@@ -30,9 +30,9 @@ CYCLE_TIME = 3
 
 class Outlets:
 
-    def __init__(self, config):
+    def __init__(self):
         # self.cpi = cpi
-        self.config = config
+        # self.config = config
         # self.log = config.log
         self.spin = Halo(spinner='dots')
         if is_rpi:
@@ -41,11 +41,11 @@ class Outlets:
         self._dli = {}
 
         # Some convenience Bools used by menu to determine what options to display
-        self.dli_exists = True if 'dli' in self.config.outlet_types else False
-        self.tasmota_exists = True if 'tasmota' in self.config.outlet_types else False
-        self.esphome_exists = True if 'esphome' in self.config.outlet_types else False  # TODO Future
-        self.gpio_exists = True if 'gpio' in self.config.outlet_types else False
-        self.linked_exists = True if self.config.linked_exists else False
+        self.dli_exists = True if 'dli' in config.outlet_types else False
+        self.tasmota_exists = True if 'tasmota' in config.outlet_types else False
+        self.esphome_exists = True if 'esphome' in config.outlet_types else False  # TODO Future
+        self.gpio_exists = True if 'gpio' in config.outlet_types else False
+        self.linked_exists = True if config.linked_exists else False
         if self.dli_exists or self.tasmota_exists or self.esphome_exists or self.gpio_exists:
             self.outlets_exists = True
         else:
@@ -224,7 +224,7 @@ class Outlets:
                 all ports for the dli.
             failures:dict: when refreshing outlets pass in previous failures so they can be re-tried
         '''
-        config = self.config
+        # config = self.config
         # re-attempt connection to failed power controllers on refresh
         failures = outlet_data.get('failures') if not failures else failures
         failures = self.data.get('failures') if not failures else failures
@@ -253,8 +253,8 @@ class Outlets:
                 if response not in [0, 1, True, False]:
                     failures[k] = outlet_data[k]
                     failures[k]['error'] = f'[PWR-TASMOTA {k}:{failures[k]["address"]}] Returned Error - Removed'
-                    config.plog(f'[PWR-TASMOTA {k}:{failures[k]["address"]}] Returned Error - Removed',
-                                log=True, level='warning')
+                    log.warning(f'[PWR-TASMOTA {k}:{failures[k]["address"]}] Returned Error - Removed',
+                                show=True)
             # -- // dli \\ --
             elif outlet['type'].lower() == 'dli':
                 if TIMING:
@@ -271,8 +271,8 @@ class Outlets:
                         failures[k] = outlet_data[k]
                         failures[k]['error'] = f'[PWR-DLI {k}] {_} missing from {failures[k]["address"]} ' \
                             'configuration - skipping'
-                        config.plog(f'[PWR-DLI {k}] {_} missing from {failures[k]["address"]} '
-                                    'configuration - skipping', log=True, level='error')
+                        log.error(f'[PWR-DLI {k}] {_} missing from {failures[k]["address"]} '
+                                    'configuration - skipping', show=True)
                         break
                 if not all_good:
                     continue
@@ -281,7 +281,7 @@ class Outlets:
                 if this_dli is None or this_dli.dli is None:
                     failures[k] = outlet_data[k]
                     failures[k]['error'] = '[PWR-DLI {}] {} Unreachable - Removed'.format(k, failures[k]['address'])
-                    config.plog(f"[PWR-DLI {k}] {failures[k]['address']} Unreachable - Removed", log=True, level='warning')
+                    log.warning(f"[PWR-DLI {k}] {failures[k]['address']} Unreachable - Removed", show=True)
                 else:
                     if TIMING:
                         xstart = time.time()
@@ -313,8 +313,8 @@ class Outlets:
                             if not dli_power[outlet['address']]:
                                 failures[k] = outlet_data[k]
                                 failures[k]['error'] = '[PWR-DLI {}] {} Unreachable - Removed'.format(k, failures[k]['address'])
-                                config.plog(f'[PWR-DLI {k}] {failures[k]["address"]} Unreachable - Removed',
-                                            log=True, level='warning')
+                                log.warning(f'[PWR-DLI {k}] {failures[k]["address"]} Unreachable - Removed',
+                                            show=True)
                                 continue
                         else:  # dli was just instantiated data is fresh no need to update
                             dli_power[outlet['address']] = this_dli.outlets

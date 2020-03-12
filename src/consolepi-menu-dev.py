@@ -63,6 +63,7 @@ class ConsolePiMenu(Rename):
                 cloud = remotes.cloud  # NoQA
             pwr = cpi.pwr  # NoQA
             # config = cpi.config  # NoQA
+            config = globals()['config']  # NoQA
             # utils = cpi.utils  # NoQA
             menu = self.menu # NoQA
             _var = None

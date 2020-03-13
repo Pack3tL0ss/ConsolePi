@@ -24,17 +24,12 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapi
 class GoogleDrive:
 
     def __init__(self, hostname=None):
-        # self.cpi = cpi
-        # self.log = config.log
-        self.pull_only = config.ovrd.get('cloud_pull_only', False)
-        # self.utils = Utils()
         self.hostname = socket.gethostname() if hostname is None else hostname
         self.creds = None
         self.file_id = None
         self.sheets_svc = None
 
     def exec_request(self, _request):
-        # log = self.log
         result = None
         attempt = 0
         while True:
@@ -71,7 +66,6 @@ class GoogleDrive:
 
     # Google sheets API credentials - used to update config on Google Drive
     def get_credentials(self):
-        # log = self.log
         log.debug('[GDRIVE]: -->get_credentials() {}'.format(log.name))
         """
         Get credentials for google drive / sheets
@@ -99,7 +93,6 @@ class GoogleDrive:
 
     # Google Drive Get File ID from File Name
     def get_file_id(self):
-        # pylint: disable=maybe-no-member
         """
         Gets file id for ConsolePi.csv file on Google Drive
         Params: credentials object
@@ -121,8 +114,6 @@ class GoogleDrive:
 
     # Create spreadsheet to store data if not found (get_file_id returns None)
     def create_sheet(self):
-        # pylint: disable=maybe-no-member
-        # log = self.log
         service = self.sheets_svc
         log.info('[GDRIVE]: ConsolePi.csv not found on Gdrive. Creating ConsolePi.csv')
         spreadsheet = {
@@ -130,8 +121,6 @@ class GoogleDrive:
                 'title': 'ConsolePi.csv'
             }
         }
-        # spreadsheet = service.spreadsheets().create(body=spreadsheet,
-        #                                             fields='spreadsheetId').execute()
         request = service.spreadsheets().create(body=spreadsheet,
                                                 fields='spreadsheetId')
         spreadsheet = self.exec_request(request)
@@ -139,8 +128,6 @@ class GoogleDrive:
 
     # Auto Resize gdrive columns to match content
     def resize_cols(self):
-        # pylint: disable=maybe-no-member
-        # log = self.log
         service = self.sheets_svc
         body = {"requests": [{"autoResizeDimensions": {"dimensions": {"sheetId": 0, "dimension": "COLUMNS",
                                                                       "startIndex": 0, "endIndex": 2}}}]}
@@ -151,10 +138,8 @@ class GoogleDrive:
         log.debug('[GDRIVE]: resize_cols response: {}'.format(response))
 
     def update_files(self, data):
-        # pylint: disable=maybe-no-member
         if 'udev' in data.get('adapters', {}):
             del data['adapters']['udev']
-        # log = self.log
         log.debug('[GDRIVE]: -->update_files - data passed to function\n{}'.format(json.dumps(data, indent=4, sort_keys=True)))
         if not self.auth():
             return 'Gdrive-Error: Unable to Connect to Gdrive refer to cloud log for details'
@@ -197,7 +182,7 @@ class GoogleDrive:
             range_ = 'a' + str(cnt) + ':b' + str(cnt)
 
             # -- // Update gdrive with this ConsolePis data \\ --
-            if not config.ovrd.get('cloud_pull_only', False):
+            if not config.cloud_pull_only:
                 if found:
                     log.info('[GDRIVE]: Updating ' + str(k) + ' data found on row ' + str(cnt) + ' of Google Drive config')
                     request = service.spreadsheets().values().update(spreadsheetId=spreadsheet_id, range=range_,

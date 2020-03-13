@@ -69,7 +69,7 @@ class Config():
                             value = value.split('#')[0].strip()
 
                             if value in ['true', 'false']:
-                                cfg[var] = bool(value)
+                                cfg[var] = bool(value.replace('false', ''))
                             else:
                                 cfg[var] = value
 

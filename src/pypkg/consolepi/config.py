@@ -126,7 +126,8 @@ class Config():
             if outlet_data[k]["type"].lower() not in types:
                 types.append(outlet_data[k]["type"].lower())
 
-            if outlet_data[k]['type'].upper() == 'GPIO' and outlet_data[k].get('address', 'error').isdigit():
+            if outlet_data[k]['type'].upper() == 'GPIO' and isinstance(outlet_data[k].get('address'), str) \
+                    and outlet_data[k]['address'].isdigit():
                 outlet_data[k]['address'] = int(outlet_data[k]['address'])
 
         self.outlet_types = types

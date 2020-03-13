@@ -10,9 +10,9 @@ done
 if [ ! -z $1 ] && [ $1 == 'log' ] ; then
   echo "---------------- // ERRORS from log file \\\\\ ---------------"
   if [[ -f /var/log/ConsolePi/consolepi.log ]] ; then
-    cat /var/log/ConsolePi/consolepi.log | grep -v INFO
+    cat /var/log/ConsolePi/consolepi.log | grep -v INFO | grep -v DEBUG
   else
-    cat /var/log/ConsolePi/cloud.log | grep -v INFO
+    cat /var/log/ConsolePi/cloud.log | grep -v INFO | grep -v DEBUG
   fi
 fi
 

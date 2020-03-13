@@ -5,12 +5,12 @@ import readline # NoQA - allows input to accept backspace
 import sys
 import re
 import threading
+import itertools
 from collections import OrderedDict as od
 from halo import Halo
 
 # --// ConsolePi imports \\--
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-# from consolepi import log  # NoQA
 from consolepi.consolepi import ConsolePi  # NoQA
 from consolepi.udevrename import Rename  # NoQA
 from consolepi import log, utils, config  # NoQA
@@ -34,7 +34,6 @@ class ConsolePiMenu(Rename):
             False: '{{red}}OFF{{norm}}'
         }
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
-        # self.log = self.cpi.config.log
         self.display_con_settings = False
         self.menu = self.cpi.menu
         self.menu.ignored_errors = [
@@ -117,24 +116,15 @@ class ConsolePiMenu(Rename):
                 return True
 
     def do_menu_load_warnings(self):
-        '''Displays and logs warnings based on data collected/validated during menu load.'''
+        '''Displays warnings based on data collected/validated during menu load.'''
 
         # -- // Not running as root \\ --
         if not config.root:
-            # self.cpi.config.plog('Running without sudo privs ~ Results may vary!\n'
             log.show('Running without sudo privs ~ Results may vary!\n'
                      'Use consolepi-menu to launch menu')
 
-        # # -- // Remotes with older API schema \\ --
-        # for adapters in [self.cpi.remotes.data[r].get('adapters', {}) for r in self.cpi.remotes.data]:
-        #     if isinstance(adapters, list):
-        #         _msg = 'You have remotes running older versions ~ older API schema.  You Should Upgrade those Remotes'
-        #         self.cpi.config.plog(_msg, level='warning')
-        #         break
-
         # -- // No Local Adapters Found \\ --
         if not self.cpi.local.adapters:
-            # self.cpi.plog('No Local Adapters Detected')
             log.show('No Local Adapters Detected')
 
     def picocom_help(self):
@@ -722,8 +712,8 @@ class ConsolePiMenu(Rename):
             if pwr.dli_exists:
                 menu_actions['d'] = self.dli_menu
 
-        # DIRECT LAUNCH TO POWER IF NO ADAPTERS (given there are outlets)
-        if not loc and not rem and config.power:
+        # Direct launch to power menu's if nothing to show in main and power enabled.
+        if not loc and not rem and (not config.hosts or not config.hosts.get('main')) and config.power:
             # config.plog('No Adapters Found, Outlets Defined... Launching to Power Menu\n'
             log.show('No Adapters Found, Outlets Defined... Launching to Power Menu\n'
                      'use option "b" to access main menu options')
@@ -742,16 +732,28 @@ class ConsolePiMenu(Rename):
             slines.append('[LOCAL] Directly Connected')   # Sub-heads: list of str idx to idx match with outer_body list of lists
 
         # Build menu items for each serial adapter found on remote ConsolePis
+        rem_mlines = []
+        rem_slines = []
+        rem_outer_body = []
         for host in sorted(rem):
             if rem[host].get('rem_ip') and len(rem[host]['adapters']) > 0:
                 remotes.connected = True
-                mlines, rem_menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item, remote=True,
-                                                                        rem_user=rem[host].get('rem_user'), host=host)
+                rem_mlines, rem_menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item, remote=True,
+                                                                            rem_user=rem[host].get('rem_user'), host=host)
                 if rem_menu_actions:
                     menu_actions = {**menu_actions, **rem_menu_actions}
 
-                outer_body.append(mlines)
-                slines.append('[Remote] {} @ {}'.format(host, rem[host]['rem_ip']))
+                rem_outer_body.append(rem_mlines)
+                rem_slines.append('[Remote] {} @ {}'.format(host, rem[host]['rem_ip']))
+
+        # -- // COMPACT MODE \\ --
+        if remotes.connected:
+            if config.compact_mode:
+                slines.append('[Remote] On Remote ConsolePis')
+                outer_body.append(list(itertools.chain.from_iterable(rem_outer_body)))
+            else:
+                slines += rem_slines
+                outer_body += rem_outer_body
 
         # Build menu items for each manually defined host with show_in_main = True
         # TODO add background reachability check

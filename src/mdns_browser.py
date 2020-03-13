@@ -127,7 +127,7 @@ class MDNS_Browser:
     def run(self):
         zeroconf = Zeroconf()
         if not self.startup_logged:
-            log.info(f"[MDNS DSCVRY] Discovering ConsolePis via mdns - Debug Logging: {self.debug}, lvl: {log.level}")
+            log.info(f"[MDNS DSCVRY] Discovering ConsolePis via mdns - Debug Enabled: {self.debug}")
             self.startup_logged = True
         browser = ServiceBrowser(zeroconf, "_consolepi._tcp.local.", handlers=[self.on_service_state_change])  # NoQA pylint: disable=unused-variable
         return zeroconf

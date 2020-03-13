@@ -25,7 +25,6 @@ class ConsolePiMenu(Rename):
     def __init__(self, bypass_remotes=False):
         self.cpi = ConsolePi(bypass_remotes=bypass_remotes)
         self.cpiexec = self.cpi.cpiexec
-        # self.utils = utils
         self.baud = config.default_baud
         self.go = True
         self.spin = Halo(spinner='dots')
@@ -53,7 +52,7 @@ class ConsolePiMenu(Rename):
             Bool | None -- True if ch is an attribute No return otherwise
         '''
         _attrs = [a for a in self.cpi.__dir__() if not a.startswith('_')]
-        _attrs += ['cpi', 'this', 'self', 'menu', 'cloud', 'config']
+        _attrs += ['cpi', 'this', 'self', 'menu', 'cloud', 'config', 'log']
         if '.' in ch and len(ch) > 2 and ch.split('.')[0] in _attrs:
             cpi = self.cpi
             local = cpi.local  # NoQA
@@ -61,8 +60,6 @@ class ConsolePiMenu(Rename):
                 remotes = cpi.remotes
                 cloud = remotes.cloud  # NoQA
             pwr = cpi.pwr  # NoQA
-            # config = cpi.config  # NoQA
-            # utils = cpi.utils  # NoQA
             menu = self.menu # NoQA
             _var = None
             _class_str = '.'.join(ch.split('.')[0:-1])
@@ -128,7 +125,7 @@ class ConsolePiMenu(Rename):
             log.show('No Local Adapters Detected')
 
     def picocom_help(self):
-        print('##################### picocom Command Sequences ########################\n')
+        print('----------------------- picocom Command Sequences -----------------------\n')
         print(' This program will launch serial session via picocom')
         print(' This is a list of the most common command sequences in picocom')
         print(' To use them press and hold ctrl then press and release each character\n')
@@ -142,7 +139,7 @@ class ConsolePiMenu(Rename):
         print('   ctrl+ a - y cycle through parity options')
         print('   ctrl+ a - v Show configured port options')
         print('   ctrl+ a - c toggle local echo')
-        print('\n########################################################################\n')
+        print('\n-------------------------------------------------------------------------\n')
         input('Press Enter to Continue... ')
 
     # -- // POWER MENU \\ --

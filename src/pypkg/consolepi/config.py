@@ -83,6 +83,8 @@ class Config():
         self.default_dbits = ovrd.get('default_dbits', DEFAULT_DBITS)
         self.default_parity = ovrd.get('default_parity', DEFAULT_PARITY)
         self.default_flow = ovrd.get('default_flow', DEFAULT_FLOW)
+        self.cloud_pull_only = True if ovrd.get('cloud_pull_only', '') == 'true' else False
+        self.compact_mode = True if ovrd.get('compact_mode', '') == 'true' else False
 
     def get_outlets_from_file(self):
         '''Get outlets defined in power.json
@@ -165,7 +167,7 @@ class Config():
         if not hosts:  # fallback to legacy json config
             hosts = self.get_json_file(self.static.get('REM_HOSTS_FILE'))
             if not hosts:
-                return None
+                return {}
 
         # generate remote command used in menu
         for h in hosts:

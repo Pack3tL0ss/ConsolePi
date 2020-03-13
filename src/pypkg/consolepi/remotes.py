@@ -9,9 +9,6 @@ import time
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
 from consolepi import utils, log, config
-# from consolepi.exec import ConsolePiExec
-# from consolepi import utils
-# from consolepi.gdrive import GoogleDrive <-- burried import inside refresh method
 
 
 class Remotes():
@@ -208,7 +205,6 @@ class Remotes():
             if self.do_cloud:
                 log.show(f'Not Updating from {cloud_svc} due to connection failure\n'
                          'Close and re-launch menu if network access has been restored')
-                # cpi.error_msgs.append('Close and re-launch menu if network access has been restored')
 
         # Update Remote data with data from local_cloud cache / cloud
         self.data = self.get_remote(data=remote_consoles)
@@ -262,6 +258,8 @@ class Remotes():
                         # -- END DEBUG --
 
                         # No Change Detected (data passed to function matches cache)
+                        if 'last_ip' in current_remotes[_]:
+                            del current_remotes[_]['last_ip']
                         if remote_consoles[_] == current_remotes[_]:
                             log.debug('[CACHE UPD] {} No Change in info detected'.format(_))
 
@@ -273,7 +271,7 @@ class Remotes():
                                     log.info('[CACHE UPD] {} Keeping existing data based on more current update time'.format(_))
                                 else:
                                     if current_remotes[_]['upd_time'] == remote_consoles[_]['upd_time']:
-                                        log.warning('[CACHE UPD] {} current cache update time and {} update time is equal'
+                                        log.warning('[CACHE UPD] {} current cache update time and {} update time are equal'
                                                     ' but contents of dict don\'t match'.format(_, remote_consoles[_]['source']))
                                     else:
                                         log.info('[CACHE UPD] {} Updating data from {} '

@@ -4,7 +4,7 @@
 #   Displays header and help text
 #   Updates path to include convenience commands directory
 
-tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
+tty_cols=$(stty -a 2>/dev/null| grep -o "columns [0-9]*" | awk '{print $2}')
 
 # Terminal coloring
 _norm='\e[0m'
@@ -20,7 +20,7 @@ _cyan='\e[96m' # technically light cyan
 # header reqs 144 cols to display properly
 header() {
     [ -z $1 ] && clear # pass anything as an argument to prevent screen clear
-    if [ $tty_cols -gt 144 ]; then
+    if [ ! -z $tty_cols ] && [ $tty_cols -gt 144 ]; then
         echo "                                                                                                                                                ";
         echo "                                                                                                                                                ";
         echo -e "${_cyan}        CCCCCCCCCCCCC                                                                     lllllll                   ${_lred}PPPPPPPPPPPPPPPPP     iiii  ";

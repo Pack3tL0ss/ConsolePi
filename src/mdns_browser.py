@@ -9,7 +9,7 @@ from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 
 import sys
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import config  # NoQA
+from consolepi import log, config  # NoQA
 from consolepi.consolepi import ConsolePi  # NoQA
 
 try:
@@ -26,7 +26,6 @@ class MDNS_Browser:
         self.cpi = ConsolePi()
         self.debug = config.cfg.get('debug', False)
         self.show = show
-        self.log = log if log is not None else self.cpi.log
         self.stop = False
         self.discovered = []    # for display when running interactively, resets @ every restart
         self.d_discovered = []  # used when running as daemon (doesn't reset)
@@ -38,7 +37,6 @@ class MDNS_Browser:
         cpi = self.cpi
         mdns_data = None
         update_cache = False
-        log = self.log
         if state_change is ServiceStateChange.Added:
             info = zeroconf.get_service_info(service_type, name)
             if info:
@@ -127,7 +125,6 @@ class MDNS_Browser:
                 log.warning(f'[MDNS DSCVRY] {info}: No info found')
 
     def run(self):
-        log = self.log
         zeroconf = Zeroconf()
         if not self.startup_logged:
             log.info(f"[MDNS DSCVRY] Discovering ConsolePis via mdns - Debug Logging: {self.debug}, lvl: {log.level}")

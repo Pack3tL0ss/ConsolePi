@@ -1,8 +1,8 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-import re
+# import re
 from halo import Halo
-from consolepi import log, config
+from consolepi import log, config, utils
 
 
 class Rename():
@@ -12,8 +12,11 @@ class Rename():
         self.data_bits = config.default_dbits
         self.parity = config.default_parity
         self.flow = config.default_flow
+        self.sbits = config.default_sbits
         self.parity_pretty = {'o': 'Odd', 'e': 'Even', 'n': 'No'}
         self.flow_pretty = {'x': 'Xon/Xoff', 'h': 'RTS/CTS', 'n': 'No'}
+        self.rules_file = config.static.get('RULES_FILE', '/etc/udev/rules.d/10-ConsolePi.rules')
+        self.ser2net_file = config.static.get('SER2NET_FILE', '/etc/ser2net.conf')
 
     # --- // START MONSTER RENAME FUNCTION \\ --- # TODO maybe break this up a bit
     def do_rename_adapter(self, from_name):
@@ -30,8 +33,6 @@ class Rename():
         '''
         from_name = from_name.replace('/dev/', '')
         local = self.cpi.local
-        # config = self.cpi.config
-        utils = self.cpi.utils
         c = {
             'green': '\033[1;32m',  # Bold with normal ForeGround
             'red': '\033[1;31m',
@@ -46,7 +47,11 @@ class Rename():
             while not to_name:
                 to_name = input(' [rename {}]: Provide desired name: '.format(c_from_name))
             to_name = to_name.replace('/dev/', '')  # strip /dev/ if they thought they needed to include it
-            to_name = to_name.replace(' ', '_')  # replace any spaces with _ as not allowed (udev rule symlink)
+            if ' ' in to_name or ':' in to_name or '(' in to_name or ')' in to_name:
+                print('\033[1;33m!!\033[0m Spaces, Colons and parentheses are not allowed by the associated config files.\n'
+                      '\033[1;33m!!\033[0m Swapping with valid characters\n')
+                to_name = to_name.replace(' ', '_').replace('(', '_').replace(')', '_')  # not allowed in udev
+                to_name = to_name.replace(':', '-')  # replace any colons with - as it's the field delim in ser2net
         except (KeyboardInterrupt, EOFError):
             return 'Rename Aborted based on User Input'
         c_to_name = '{}{}{}'.format(c['green'], to_name, c['norm'])
@@ -59,6 +64,7 @@ class Rename():
             baud = _dev['baud']
             dbits = _dev['dbits']
             flow = _dev['flow']
+            sbits = _dev['sbits']
             parity = _dev['parity']
             word = 'Use default' if 'ttyUSB' in from_name or 'ttyACM' in from_name else 'Keep existing'
 
@@ -66,12 +72,14 @@ class Rename():
             use_def = utils.user_input_bool(' {} connection values [{} {}{}1 Flow: {}]'.format(
                 word, baud, dbits, parity.upper(), self.flow_pretty[flow]))
             if not use_def:
-                self.con_menu(rename=True, con_dict={'baud': baud, 'data_bits': dbits, 'parity': parity, 'flow': flow})
+                self.con_menu(rename=True, con_dict={'baud': baud, 'data_bits': dbits, 'parity': parity,
+                                                     'flow': flow, 'sbits': sbits})
                 baud = self.baud
                 parity = self.parity
                 dbits = self.data_bits
                 parity = self.parity
                 flow = self.flow
+                sbits = self.sbits
             # if not use_def:
             #     con_settings = self.con_menu(rename=True)
             #     print(con_settings)
@@ -82,6 +90,7 @@ class Rename():
                 self.data_bits = self.con_dict['data_bits']
                 self.parity = self.con_dict['parity']
                 self.flow = self.con_dict['flow']
+                self.sbits = self.con_dict['sbits']
                 self.con_dict = None
 
             if 'ttyUSB' in from_name or 'ttyACM' in from_name:
@@ -113,7 +122,8 @@ class Rename():
                         error = None
                         while not error:
                             error = self.add_to_udev(udev_line, '# END BYSERIAL-DEVS')
-                            error = self.do_ser2net_line(to_name=to_name, baud=baud, dbits=dbits, parity=parity, flow=flow)
+                            error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
+                                                         parity=parity, flow=flow)
                             break
 
                     # -- // MULTI-PORT ADAPTERS WITH COMMON SERIAL (different ifnums) \\ --
@@ -130,7 +140,8 @@ class Rename():
                             udev_line = ('ENV{{ID_USB_INTERFACE_NUM}}=="{}", SYMLINK+="{}"'.format(
                                     id_ifnum, to_name))
                             error = self.add_to_udev(udev_line, '# END BYPORT-DEVS', label=id_serial)
-                            error = self.do_ser2net_line(to_name=to_name, baud=baud, dbits=dbits, parity=parity, flow=flow)
+                            error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
+                                                         parity=parity, flow=flow)
                             break
 
                 # -- // LAME ADAPTERS NO SERIAL NUM (map usb port) \\ --
@@ -165,7 +176,6 @@ class Rename():
                         if ch == 'b':
                             return
                         elif ch in valid_ch:
-                            # _path = valid_ch[ch]
                             valid = True
                         else:
                             print('invalid choice {} Try Again.'.format(ch))
@@ -174,7 +184,6 @@ class Rename():
                     if valid_ch[ch] == 'temp':
                         error = True
                         print('The Temporary rename feature is not yet implemented')
-                        pass  # by not setting an error the name will be updated below
                     elif valid_ch[ch] == 'by_path':
                         udev_line = (
                             'SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(
@@ -193,41 +202,40 @@ class Rename():
                     while udev_line:
                         error = self.add_to_udev(udev_line[0], '# END BYPATH-POINTERS')
                         error = self.add_to_udev(udev_line[1], '# END BYPATH-DEVS', label='{}_{}'.format(id_vendorid, id_prod))
-                        error = self.do_ser2net_line(to_name=to_name, baud=baud, dbits=dbits, parity=parity, flow=flow)
+                        error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
+                                                     parity=parity, flow=flow)
                         break
 
             # TODO simplify once ser2net existing verified
             else:   # renaming previously named port.
-                rules_file = config.static.get('RULES_FILE', '/etc/udev/rules.d/10-ConsolePi.rules')
-                ser2net_file = config.static.get('SER2NET_FILE', '/etc/ser2net.conf')
-                # cmd = 'sudo sed -i "s/{0}/{1}/g" {2} && grep -q "{1}" {2} && [ $(grep -c "{0}" {2}) -eq 0 ]'.format(  # NoQA
-                #     from_name,
-                #     to_name,
-                #     rules_file
-                #     )
                 cmd = 'sudo sed -i "s/{0}{3}/{1}{3}/g" {2} && grep -q "{1}{3}" {2} && [ $(grep -c "{0}{3}" {2}) -eq 0 ]'.format(
                     from_name,
                     to_name,
-                    rules_file,
+                    self.rules_file,
                     ''
                     )
                 error = utils.do_shell_cmd(cmd, shell=True)
                 if not error:
-                    error = self.do_ser2net_line(to_name=to_name, baud=baud, dbits=dbits, parity=parity, flow=flow,
-                                                 existing=True, match_txt='{}:'.format(from_name))
+                    error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
+                                                 parity=parity, flow=flow)
                 else:
-                    return [error.split('\n'), 'Failed to change {} --> {} in {}'.format(from_name, to_name, ser2net_file)]
+                    return [error.split('\n'), 'Failed to change {} --> {} in {}'.format(from_name, to_name, self.ser2net_file)]
 
             if not error:
                 # Update adapter variables with new_name
                 local.adapters[f'/dev/{to_name}'] = local.adapters[f'/dev/{from_name}']
+                local.adapters[f'/dev/{to_name}']['config']['port'] = config.ser2net_conf[f'/dev/{to_name}'].get('port', 0)
+                local.adapters[f'/dev/{to_name}']['config']['cmd'] = config.ser2net_conf[f'/dev/{to_name}'].get('cmd')
+                local.adapters[f'/dev/{to_name}']['config']['log'] = config.ser2net_conf[f'/dev/{to_name}'].get('log')
+                local.adapters[f'/dev/{to_name}']['config']['log_ptr'] = config.ser2net_conf[f'/dev/{to_name}'].get('log_ptr')
                 _config_dict = local.adapters[f'/dev/{to_name}']['config']
                 if not use_def:  # overwrite con settings if they were changed
                     updates = {
                         'baud': baud,
                         'dbits': dbits,
                         'flow': flow,
-                        'parity': parity
+                        'parity': parity,
+                        'sbits': sbits,
                         }
                     local.adapters[f'/dev/{to_name}']['config'] = {**_config_dict, **updates}
                 if from_name != to_name:  # facilitates changing con settings without actually renaming
@@ -236,27 +244,25 @@ class Rename():
 
         else:
             return 'Aborted based on user input'
-# --- // END MONSTER RENAME FUNCTION \\ ---
+    # --- // END MONSTER RENAME METHOD \\ ---
 
-    def do_ser2net_line(self, to_name=None, baud=None, dbits=None, parity=None,
-                        flow=None, existing=False, match_txt=None):
+    def do_ser2net_line(self, from_name=None, to_name=None, baud=None, dbits=None, parity=None,
+                        flow=None, sbits=None):
         '''Process Adapter Configuration Changes in ser2net.conf.
 
         Keyword Arguments:
+            from_name {str} -- The Adapters existing name/alias (default: {None})
             to_name {str} -- The Adapters new name/alias (default: {None})
             baud {int} -- Adapter baud (default: {self.baud})
             dbits {int} -- Adapter databits (default: {self.data_bits})
             parity {str} -- Adapter Parity (default: {self.parity})
             flow {str} -- Adapter flow (default: {self.flow})
-            existing {bool} -- False(default): Adapter currently has no symlink (root dev), True: Renaming existing symlink
-            match_txt {str} --  Used for existing adapters to find the line with the previous symlink entry (default: {None})
+            sbits {int} -- Adapter stop bits (default: {self.sbits})
 
         Returns:
             {str|None} -- Returns error text if an error occurs or None if no issues.
         '''
-        cpi = self.cpi
-        # config = cpi.config
-        utils = cpi.utils
+        # local = self.cpi.local
         ser2net_parity = {
             'n': 'NONE',
             'e': 'EVEN',
@@ -271,53 +277,51 @@ class Rename():
         dbits = self.data_bits if not dbits else dbits
         parity = self.parity if not parity else parity
         flow = self.flow if not flow else flow
-        parity = ser2net_parity[parity]
-        flow = ser2net_flow[flow]
-        # TODO Now have ser2net config stored in dict, use it vs. parsing file again
-        ser2net_file = config.static.get('SER2NET_FILE')
-        if utils.valid_file(ser2net_file):
-            if not existing:
-                ports = [re.findall(r'^(7[0-9]{3}):telnet', line) for line in open(ser2net_file)
-                         if line.startswith('7')]
-                if ports:
-                    next_port = int(max(ports)[0]) + 1
-                else:
-                    next_port = '7001'
+        sbits = self.sbits if not sbits else sbits
+        log_ptr = ''
+
+        match_txt = config.ser2net_conf.get(f'/dev/{from_name}', {}).get('line')
+        if match_txt:
+            next_port = next_port = match_txt.split(':')[0]  # Renaming existing
+            log_ptr = config.ser2net_conf[f'/dev/{from_name}'].get('log_ptr', '')
+        else:
+            if utils.valid_file(self.ser2net_file):
+                ports = [a['port'] for a in config.ser2net_conf.values() if 7000 < a.get('port', 0) <= 7999]
+                next_port = 7001 if not ports else int(max(ports)) + 1
             else:
-                ports = [line.split(':')[0] for line in open(ser2net_file)
-                         if line.startswith('7') and match_txt in line]
-                if len(ports) > 1:
-                    # cpi.error_msgs.append('multilple lines found in ser2net matching {}'.format(match_txt))
-                    log.show('multilple lines found in ser2net matching {}'.format(match_txt))
-                    # cpi.error_msgs.append('Update Failed, verify {}'.format(ser2net_file))
-                    log.show('Update Failed, verify {}'.format(ser2net_file))
-                    return
-                else:
-                    next_port = ports[0]  # it's the existing port in this case
+                next_port = 7001
+                error = utils.do_shell_cmd('sudo cp /etc/ConsolePi/src/ser2net.conf /etc/', handle_errors=False)
+                if error:
+                    log.error(f'Rename Menu Error while attempting to cp ser2net.conf from src {error}')
+                    return error  # error added to display in calling method
+
+        ser2net_line = ('{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} '
+                        '{sbits}STOPBIT {flow} banner {log_ptr}'.format(
+                            telnet_port=next_port,
+                            alias=to_name,
+                            baud=baud,
+                            dbits=dbits,
+                            sbits=sbits,
+                            parity=ser2net_parity[parity],
+                            flow=ser2net_flow[flow],
+                            log_ptr=log_ptr))
+
+        # -- // Append to ser2net.conf \\ --
+        if not match_txt:
+            error = utils.append_to_file(self.ser2net_file, ser2net_line)
+        # -- // Rename Existing Definition in ser2net.conf \\ --
+        # -- for devices with existing definitions match_txt is the existing line
         else:
-            res = utils.do_shell_cmd('sudo cp /etc/ConsolePi/src/ser2net.conf /etc/', handle_errors=False)
-            next_port = '7001'  # added here looks like flawed logic below
-            if res:
-                return res
-            else:  # TODO this logic looks flawed
-                next_port = '7001'
+            ser2net_line = ser2net_line.strip().replace('/', r'\/')
+            match_txt = match_txt.replace('/', r'\/')
+            cmd = "sudo sed -i 's/^{}$/{}/'  {}".format(
+                        match_txt, ser2net_line, self.ser2net_file)
+            error = utils.do_shell_cmd(cmd, shell=True)
 
-        ser2net_line = ('{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} 1STOPBIT {flow} banner'.format(
-                        telnet_port=next_port,
-                        alias=to_name,
-                        baud=baud,
-                        dbits=dbits,
-                        parity=parity,
-                        flow=flow))
-
-        if not existing:
-            utils.append_to_file(ser2net_file, ser2net_line)  # pylint: disable=maybe-no-member
+        if not error:
+            config.ser2net_conf = config.get_ser2net()
         else:
-            ser2net_line = ser2net_line.replace('/', r'\/')
-            cmd = "sudo sed -i 's/.*{}.*/{}/'  {}".format(
-                        match_txt, ser2net_line, ser2net_file)  # pylint: disable=maybe-no-member
-
-            return utils.do_shell_cmd(cmd, shell=True)
+            return error
 
     def add_to_udev(self, udev_line, section_marker, label=None):
         '''Add or edit udev rules file with new symlink after adapter rename.
@@ -333,9 +337,6 @@ class Rename():
         Returns:
             {str|None} -- Returns error string if an error occurs
         '''
-        cpi = self.cpi
-        # config = cpi.config
-        utils = cpi.utils
         found = ser_label_exists = get_next = update_file = False  # init
         goto = ''  # init
         rules_file = config.static.get('RULES_FILE')
@@ -364,7 +365,6 @@ class Rename():
             if update_file:
                 error = utils.do_shell_cmd(cmd)
                 if error:
-                    # cpi.error_msgs.append(error)
                     log.show(error)
 
             goto = goto.split('GOTO=')[1].replace('"', '').strip() if 'GOTO=' in goto else None
@@ -390,16 +390,24 @@ class Rename():
                 return error
         else:  # Not Using new 10-ConsolePi.rules template just append to file
             if section_marker == '# END BYSERIAL-DEVS':
-                utils.append_to_file(rules_file, udev_line)  # pylint: disable=maybe-no-member
+                return utils.append_to_file(rules_file, udev_line)
             else:  # if not by serial device the new template is required
                 return 'Unable to Add Line, please use the new 10.ConsolePi.rules found in src dir and\n' \
                     'add you\'re current rules to the BYSERIAL-DEVS section.'
 
     def trigger_udev(self):
+        '''reload/trigger udev (udevadm)
+
+        Returns:
+            No return unless there is an error.
+            Returns {str} if an error occurs.
+        '''
         cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '  # NoQA
-        with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
-            error = self.utils.do_shell_cmd(cmd, shell=True)
+        with Halo(text='Triggering reload of udev due to name change', spinner='dots1'):
+            error = utils.do_shell_cmd(cmd, shell=True)
         if not error:
             self.udev_pending = False
         else:
+            log.show('Failed to reload udev rules, you may need to rectify manually for adapter names to display correctly')
+            log.show(f'Check /var/log/syslog for errors, the rules file ({self.rules_file}) and reattempt {cmd} manually')
             return error

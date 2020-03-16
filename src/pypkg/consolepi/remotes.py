@@ -20,7 +20,6 @@ class Remotes():
         self.old_api_log_sent = False
         self.log_sym_warn = log_sym.WARNING.value
         self.log_sym_error = log_sym.ERROR.value
-        # self.config = config
         self.local = local
         self.connected = False
         self.cache_update_pending = False
@@ -36,7 +35,6 @@ class Remotes():
                 if not utils.valid_file(CLOUD_CREDS_FILE):
                     self.no_creds_error()
             else:
-                # config.plog(f'failed to connect to {config.cloud_svc} - operating in local only mode',
                 log.warning(f'failed to connect to {config.cloud_svc} - operating in local only mode', show=True)
                 self.local_only = True
         self.data = self.get_remote(data=config.remote_update())  # re-get cloud.json to capture any updates via mdns
@@ -53,7 +51,7 @@ class Remotes():
         spin = self.spin
 
         def verify_remote_thread(remotepi, data):
-            '''sub to verify reacability and api data for remotes
+            '''sub to verify reachability and api data for remotes
 
             params:
             remotepi: The hostname currently being processed
@@ -90,7 +88,6 @@ class Remotes():
 
         if socket.gethostname() in data:
             del data[socket.gethostname()]
-            # config.plog('Local cache included entry for self - do you have other ConsolePis using the same hostname?')
             log.show('Local cache included entry for self - do you have other ConsolePis using the same hostname?')
 
         # Verify Remote ConsolePi details and reachability
@@ -122,8 +119,6 @@ class Remotes():
                 for remotepi in self.pop_list:
                     if data[remotepi]['fail_cnt'] >= 3:  # NoQA remove from local cache after 3 failures (cloud or mdns will repopulate if discovered)
                         removed = data.pop(remotepi)
-                        # config.plog('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
-                        #     remotepi, removed['fail_cnt']), level='warning')
                         log.warning('[GET REM] {} has been removed from Local Cache after {} failed attempts'.format(
                             remotepi, removed['fail_cnt']), show=True)
                     else:
@@ -140,17 +135,12 @@ class Remotes():
     def refresh(self):
         remote_consoles = None
         cpiexec = self.cpiexec
-        # config = self.config
-        # plog = config.plog
         local = self.local
-        # log = config.log
         cloud_svc = config.cfg.get('cloud_svc', 'error')
 
         # TODO refactor wait_for_threads to have an all key or accept a list
         with Halo(text='Waiting For threads to complete', spinner='dots1'):
             if cpiexec.wait_for_threads() and cpiexec.wait_for_threads(name='_toggle_refresh'):
-                # config.plog('Timeout Waiting for init or toggle threads to complete try again later or'
-                #             ' investigate logs')
                 log.show('Timeout Waiting for init or toggle threads to complete try again later or'
                          ' investigate logs')
                 return
@@ -224,15 +214,11 @@ class Remotes():
         returns:
         dict: The resulting remote console dict representing the most recent data for each remote.
         '''
-        # utils = self.utils
-        # config = self.config
         local_cloud_file = config.static.get('LOCAL_CLOUD_FILE') if local_cloud_file is None else local_cloud_file
 
-        # log = config.log
         if len(remote_consoles) > 0:
-            # if os.path.isfile(local_cloud_file):
             if current_remotes is None:
-                current_remotes = self.data = config.remote_update()
+                current_remotes = self.data = config.remote_update()  # grabs the remote data from local cloud cache
 
         # update current_remotes dict with data passed to function
         if len(remote_consoles) > 0:
@@ -336,7 +322,6 @@ class Remotes():
                                                                                             ip, ret, response.text))
         return ret
 
-    # TODO change remote_data to cache_data it represents what is currently in cache
     def api_reachable(self, remote_host: str, remote_data: dict):
         '''Check Rechability & Fetch adapter data via API for remote ConsolePi
 
@@ -355,10 +340,7 @@ class Remotes():
                 self.reachable = reachable
 
         update = False
-        # cpi = self.cpi
-        # config = self.config
         local = self.local
-        # log = config.log
 
         _iface_dict = remote_data['interfaces']
         rem_ip_list = [_iface_dict[_iface].get('ip') for _iface in _iface_dict
@@ -390,9 +372,6 @@ class Remotes():
                             remote_data['adapters'] = _adapters
                             update = True
                 elif _adapters == 200:
-                    # config.plog(f"Remote {remote_host} is reachable via {_ip},"
-                    #             " but has no adapters attached\nit's still available in remote shell menu",
-                    #             log=False)
                     log.show(f"Remote {remote_host} is reachable via {_ip},"
                              " but has no adapters attached\nit's still available in remote shell menu")
 
@@ -415,7 +394,6 @@ class Remotes():
                 remote_data['adapters'] = _adapters
                 _msg = f'{remote_host} Cached adapter data was in old format... Converted to new.\n' \
                        f'\t\t{remote_host} Should be upgraded to the current version of ConsolePi.'
-                # config.plog(_msg, log=True, level='warning')
                 log.warning(_msg, show=True)
                 update = True
         else:

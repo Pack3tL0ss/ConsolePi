@@ -55,6 +55,7 @@ class ConsolePiMenu(Rename):
         _attrs += ['cpi', 'this', 'self', 'menu', 'cloud', 'config', 'log']
         if '.' in ch and len(ch) > 2 and ch.split('.')[0] in _attrs:
             cpi = self.cpi
+            cpiexec = cpi.cpiexec  # NoQA
             local = cpi.local  # NoQA
             if hasattr(cpi, 'remotes'):
                 remotes = cpi.remotes
@@ -72,7 +73,7 @@ class ConsolePiMenu(Rename):
                     _var += f"({ch.split('.')[-1].split('(')[1]}"
             else:
                 try:
-                    exec(f'self._class = {_class_str}')
+                    exec(f"self._class = {_class_str}")
                     if hasattr(self._class, _attr):  # NoQA
                         _var = f"self.var = {ch}"
                     else:
@@ -164,7 +165,6 @@ class ConsolePiMenu(Rename):
             outlets = self.cpiexec.outlet_update()
 
         if not outlets:
-            # self.cpi.config.plog('No Linked Outlets are connected', log=False)
             log.show('No Linked Outlets are connected')
             return
 
@@ -218,7 +218,6 @@ class ConsolePiMenu(Rename):
                 else:
                     # pwr functions put any errors (aborts) in pwr.data[grp]['error']
                     if pwr.data['defined'][r].get('errors'):
-                        # self.cpi.config.plog(f'{r} - {pwr.data["defined"][r]["errors"]}', log=False)
                         log.show(f'{r} - {pwr.data["defined"][r]["errors"]}')
                         del pwr.data['defined'][r]['errors']
                     if isinstance(outlet.get('is_on'), bool):
@@ -246,7 +245,6 @@ class ConsolePiMenu(Rename):
                         item += 1
                     else:   # refactored power.py pwr_get_outlets this should never hit
                         if outlet.get('is_on'):
-                            # self.cpi.config.plog(f"DEV NOTE {r} outlet state is not bool: {outlet['error']}", log=False)
                             log.show(f"DEV NOTE {r} outlet state is not bool: {outlet['error']}")
 
             if item > 2:
@@ -312,7 +310,6 @@ class ConsolePiMenu(Rename):
                    otherwise returns the input provided by the user (lower() by default).
         '''
         menu = self.menu
-        # config = self.cpi.config
 
         class choice():
             def __init__(self, clear=False):
@@ -333,7 +330,6 @@ class ConsolePiMenu(Rename):
 
             # -- // toggle debug \\ --
             if ch.lower == 'debug':
-                # config.plog(f'debug toggled {self.states[config.debug]} --> {self.states[not config.debug]}',
                 log.show(f'debug toggled {self.states[config.debug]} --> {self.states[not config.debug]}')
                 config.debug = not config.debug
                 if config.debug:
@@ -380,7 +376,6 @@ class ConsolePiMenu(Rename):
                 self.cpiexec.wait_for_threads('init')
 
         if not pwr.dli_exists:
-            # cpi.config.plog('All Defined dli Web Power Switches are unreachable', log=False)
             log.show('All Defined dli Web Power Switches are unreachable')
             return
 
@@ -579,18 +574,19 @@ class ConsolePiMenu(Rename):
 
         # -- // Local Adapters \\ --
         for _dev in sorted(adapters.items(), key=lambda i: i[1]['config'].get('port', 0)):
-            this_dev = adapters[_dev[0]].get('config', adapters[_dev[0]])
-            if this_dev.get('port', 0) != 0:
+            dev = _dev[0]
+            cfg_dict = adapters[dev].get('config', adapters[dev])
+            if cfg_dict.get('port', 0) != 0:
                 def_indicator = ''
             else:
                 def_indicator = '**'
                 self.display_con_settings = True
-            baud = this_dev.get('baud', self.baud)
-            dbits = this_dev.get('dbits', 8)
-            flow = this_dev.get('flow', 'n')
-            parity = this_dev.get('parity', 'n')
-            sbits = this_dev.get('sbits', 1)
-            dev_pretty = _dev[0].replace('/dev/', '')
+            baud = cfg_dict.get('baud', self.baud)
+            dbits = cfg_dict.get('dbits', 8)
+            flow = cfg_dict.get('flow', 'n')
+            parity = cfg_dict.get('parity', 'n')
+            sbits = cfg_dict.get('sbits', 1)
+            dev_pretty = dev.replace('/dev/', '')
 
             # Generate Adapter Menu Line
             menu_line = f'{dev_pretty} {def_indicator}[{baud} {dbits}{parity[0].upper()}{sbits}]'
@@ -598,56 +594,95 @@ class ConsolePiMenu(Rename):
                 menu_line += f' {flow_pretty[flow]}'
             mlines.append(menu_line)
 
+            # fallback_cmd should never be used as the cmd should always be in the dev dict
+            loc_cmd = f'picocom {dev} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}'
             # -- // Adapter menu_actions \\ --
             if not remote:
                 # Generate connect command used to connect to device
-                fallback_cmd = f'picocom {this_dev} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}'
-                _cmd = this_dev.get('cmd', fallback_cmd)
+                _cmd = cfg_dict.get('cmd', loc_cmd)
                 if not rename:
-                    menu_actions[str(item)] = {'cmd': _cmd, 'pwr_key': _dev[0],
-                                               'pre_msg': f"Connecting To {_dev[0].replace('/dev/', '')}..."}
+                    menu_actions[str(item)] = {'cmd': _cmd, 'pwr_key': dev,
+                                               'pre_msg': f"Connecting To {dev_pretty}..."}
                 else:
-                    rn_this = {_dev[0]: adapters[_dev[0]]}
-                    menu_actions[str(item)] = {'function': self.do_rename_adapter, 'args': [_dev[0]]}
+                    rn_this = {dev: adapters[dev]}
+                    menu_actions[str(item)] = {'function': self.do_rename_adapter, 'args': [adapters[dev]]}
                     menu_actions['s' + str(item)] = {'function': self.cpiexec.show_adapter_details, 'args': [rn_this]}
-                    menu_actions['c' + str(item)] = {'cmd': _cmd, 'pre_msg': f"Connecting To {_dev[0].replace('/dev/', '')}..."}
+                    menu_actions['c' + str(item)] = {'cmd': _cmd, 'pre_msg': f"Connecting To {dev_pretty}..."}
 
             # -- // REMOTE ADAPTERS \\ --
-            # TODO can just make the command once and prepend remote bit for remotes.
             else:
                 if not rem_user:  # the user advertised by the remote we ssh to the remote with this user
                     rem_user = config.FALLBACK_USER
 
                 # Generate connect command used to connect to remote device
-                fallback_cmd = f'sudo -u {config.loc_user} ssh -t {rem_user}@{rem[host].get("rem_ip")} \"{config.REM_LAUNCH}' \
-                               f' picocom {_dev[0]} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}\"'
-                _cmd = this_dev.get('cmd', fallback_cmd)
-                menu_actions[str(item)] = {'cmd': _cmd,
-                                           'pre_msg': f"Connecting To {_dev[0].replace('/dev/', '')} on {host}..."}
+                # TODO simplify once api updated to use new libraries
+                rem_pfx = f'sudo -u {config.loc_user} ssh -t {rem_user}@{rem[host].get("rem_ip")}'
+                fallback_cmd = f'{rem_pfx} \"{config.REM_LAUNCH} {loc_cmd}\"'
+                _cmd = cfg_dict.get('cmd', fallback_cmd)
+                if 'ssh -t' not in _cmd:
+                    _cmd = f'{rem_pfx} \"{config.REM_LAUNCH} {_cmd}\"'
+
+                connect = {'cmd': _cmd, 'pre_msg': f"Connecting To {dev_pretty} on {host}..."}
+                if not rename:
+                    menu_actions[str(item)] = connect
+                else:
+                    menu_actions['c' + str(item)] = connect
+                    menu_actions['c ' + str(item)] = connect
+
+                    _cmd = f'{rem_pfx} \"/\etc/\ConsolePi/\src/\consolepi-menu-dev.py rn {dev}\"'
+                    menu_actions[str(item)] = {'cmd': _cmd,
+                                               'pre_msg': f"Connecting To {host} to Rename {dev_pretty}...",
+                                               'post_action': 'update_remotes'}
+                    rn_this = {dev: adapters[dev]}
+                    if rn_this[dev].get('udev'):
+                        menu_actions['s' + str(item)] = {'function': self.cpiexec.show_adapter_details, 'args': [rn_this]}
+                        menu_actions['s ' + str(item)] = {'function': self.cpiexec.show_adapter_details, 'args': [rn_this]}
+                    else:
+                        _msg = 'Adapter Attributes not found in remote data, this feature is still in dev for remotes.'
+                        menu_actions['s' + str(item)] = {'function': log.show, 'args': [_msg]}
+                        menu_actions['s ' + str(item)] = {'function': log.show, 'args': [_msg]}
+
             item += 1
 
         return mlines, menu_actions, item
 
-    def rename_menu(self, direct_launch=False):
+    def rename_menu(self, direct_launch=False, from_name=None):
         cpi = self.cpi
-        # plog = cpi.config.plog
         local = cpi.local
+        remotes = cpi.remotes
         choice = ''
         menu_actions = {}
+        # -- rename invoked from another ConsolePi (remote rename) --
+        if direct_launch and from_name:
+            self.do_rename_adapter(from_name)
+            self.trigger_udev()
+            sys.exit()
         while choice not in ['b']:
             if choice == 'r':
                 local.adapters = local.build_adapter_dict(refresh=True)
+                remotes.data = self.get_remote(data=config.remote_update())
             loc = local.adapters
+            rem = remotes.data
 
             slines = []
+            outer_body = []
+            slines.append('Rename Local Adapters')   # list of strings index to index match with body list of lists
             mlines, menu_actions, item = self.gen_adapter_lines(loc, rename=True)
+            outer_body.append(mlines)
 
-            if not mlines:
-                # cpi.config.plog('No Local Adapters', log=False)
-                log.show('No Local Adapters')
-                break
+            for host in remotes.data:
+                if rem[host].get('adapters'):
+                    slines.append(f'Rename Adapters on {host}')
+                    mlines, rem_menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item,
+                                                                            remote=True, rem_user=rem[host].get('rem_user'),
+                                                                            host=host, rename=True)
+                    outer_body.append(mlines)
+                    menu_actions = {**menu_actions, **rem_menu_actions}
 
-            slines.append('Select Adapter to Rename')   # list of strings index to index match with body list of lists
+            # if not mlines:
+            #     log.show('No Local Adapters')
+            #     break
+
             footer = {'before': [
                 's#. Show details for the adapter i.e. \'s1\'',
                 'c#. Connect to the device i.e. \'c1\'',
@@ -660,9 +695,9 @@ class ConsolePiMenu(Rename):
 
             footer['opts'].append('refresh')
             menu_actions['r'] = None
-
-            self.menu.print_menu(mlines, header='Define/Rename Local Adapters', footer=footer, subs=slines, do_format=False)
             menu_actions['x'] = self.exit
+
+            self.menu.print_menu(outer_body, header='Define/Rename Adapters', footer=footer, subs=slines, do_format=False)
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
@@ -672,14 +707,13 @@ class ConsolePiMenu(Rename):
             else:
                 if choice:
                     if choice != 'b' or direct_launch:
-                        # plog('Invalid Selection \'{}\''.format(choice))
                         log.show('Invalid Selection \'{}\''.format(choice))
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:
             error = self.trigger_udev()
-            # plog(error)
-            log.show(error)
+            if error:
+                log.show(error)
 
     # ------ // MAIN MENU \\ ------ #
     def main_menu(self):
@@ -703,7 +737,7 @@ class ConsolePiMenu(Rename):
         if config.power and pwr.data:
             if pwr.linked_exists or pwr.gpio_exists or pwr.tasmota_exists:
                 menu_actions['p'] = self.power_menu
-            elif pwr.dli_exists:  # if no linked outlets but dlis defined p sends to dli_menu
+            elif pwr.dli_exists:  # if no linked outlets but dlis "p" also sends to dli_menu (valid but not displayed)
                 menu_actions['p'] = self.dli_menu
 
             if pwr.dli_exists:
@@ -711,7 +745,6 @@ class ConsolePiMenu(Rename):
 
         # Direct launch to power menu's if nothing to show in main and power enabled.
         if not loc and not rem and (not config.hosts or not config.hosts.get('main')) and config.power:
-            # config.plog('No Adapters Found, Outlets Defined... Launching to Power Menu\n'
             log.show('No Adapters Found, Outlets Defined... Launching to Power Menu\n'
                      'use option "b" to access main menu options')
             if pwr.dli_exists and not pwr.linked_exists:
@@ -1064,7 +1097,10 @@ if __name__ == '__main__':
         if sys.argv[1].lower() in ['rn', 'rename', 'addconsole']:
             cpi_menu = ConsolePiMenu(bypass_remotes=True)
             while cpi_menu.go:
-                cpi_menu.rename_menu(direct_launch=True)
+                if len(sys.argv) == 2:
+                    cpi_menu.rename_menu(direct_launch=True)
+                else:
+                    cpi_menu.do_rename_adapter(from_name=sys.argv[2])
         else:
             cpi_menu = ConsolePiMenu(bypass_remotes=True)
             var_in = sys.argv[1].replace('self', 'menu')

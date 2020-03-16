@@ -706,7 +706,8 @@ class ConsolePiMenu(Rename):
                 if not choice == 'b':
                     cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rename_menu')
                     if choice.isdigit() and int(choice) >= rem_item:
-                        remotes.data = remotes.get_remote(data=config.remote_update())
+                        print('Triggering Refresh due to Remote Name Change')
+                        remotes.refresh()
             else:
                 if choice:
                     if choice != 'b' or direct_launch:

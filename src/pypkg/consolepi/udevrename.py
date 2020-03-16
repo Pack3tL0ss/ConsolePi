@@ -283,7 +283,9 @@ class Rename():
         match_txt = config.ser2net_conf.get(f'/dev/{from_name}', {}).get('line')
         if match_txt:
             next_port = next_port = match_txt.split(':')[0]  # Renaming existing
-            log_ptr = config.ser2net_conf[f'/dev/{from_name}'].get('log_ptr', '')
+            log_ptr = config.ser2net_conf[f'/dev/{from_name}'].get('log_ptr')
+            if not log_ptr:
+                log_ptr = ''
         else:
             if utils.valid_file(self.ser2net_file):
                 ports = [a['port'] for a in config.ser2net_conf.values() if 7000 < a.get('port', 0) <= 7999]

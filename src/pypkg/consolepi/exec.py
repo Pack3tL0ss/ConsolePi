@@ -13,8 +13,6 @@ from consolepi import utils, log, config
 
 class ConsolePiExec():
     def __init__(self, config, pwr, local, menu):
-        # self.config = config
-        # self.log = self.config.log
         self.pwr = pwr
         self.local = local
         self.menu = menu
@@ -242,21 +240,22 @@ class ConsolePiExec():
             for k in sorted(adapters[a]['udev'].keys()):
                 print(f'{k}: {adapters[a]["udev"][k]}')
             print('')
+            this_ser2net = config.ser2net_conf.get(a, {})
+            ser2net_line = this_ser2net.get('line')
+            if this_ser2net:
+                print(f'ser2net config: {ser2net_line}')
 
         input('\nPress Any Key To Continue\n')
 
     # ------ // EXECUTE MENU SELECTIONS \\ ------ #
     def menu_exec(self, choice, menu_actions, calling_menu='main_menu'):
         pwr = self.pwr
-        # config = self.config
-        # plog = config.plog
 
         if not config.debug and calling_menu not in ['dli_menu', 'power_menu']:
             os.system('clear')
 
         if not choice.lower or choice.lower in menu_actions and menu_actions[choice.lower] is None:
             self.menu.rows, self.menu.cols = utils.get_tty_size()  # re-calc tty size in case they've adjusted the window
-            # self.cpi.local.adapters = self.cpi.local.build_adapter_dict(refresh=True)  # always refresh local adapters
             return
 
         else:
@@ -285,6 +284,7 @@ class ConsolePiExec():
                                     print('\nInitial Attempt Failed, but host is linked to an outlet that was')
                                     print('off. Host may still be booting\n')
                                     input('Press Enter when ready to retry connection.')
+                                    # TODO offer to loop socket port reachability
                                     _error = utils.do_shell_cmd(c, **menu_actions[ch]['exec_kwargs'])
                                     self.autopwr_wait = False
                             else:
@@ -295,7 +295,6 @@ class ConsolePiExec():
                                     _error = utils.error_handler(c, _stderr)
 
                             if _error:
-                                # plog(_error)
                                 log.show(_error)
 
                             # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
@@ -401,10 +400,7 @@ class ConsolePiExec():
                                             log.show('rename not yet implemented for {} outlets'.format(_type))
                             elif calling_menu in['key_menu', 'rename_menu']:
                                 if response:
-                                    response = [response] if isinstance(response, str) else response
-                                    for _ in response:
-                                        if _:  # strips empty lines
-                                            log.show(_)
+                                    log.show(response)
                         else:   # not confirmed
                             log.show('Operation Aborted by User')
                 elif menu_actions[ch].__name__ in ['power_menu', 'dli_menu']:

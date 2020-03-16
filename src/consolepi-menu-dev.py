@@ -1100,6 +1100,10 @@ if __name__ == '__main__':
                 cpi_menu.rename_menu(direct_launch=True)
             else:
                 cpi_menu.do_rename_adapter(from_name=sys.argv[2])
+                if cpi_menu.udev_pending:
+                    error = cpi_menu.trigger_udev()
+                    if error:
+                        print(error, file=sys.stderr)
         else:
             cpi_menu = ConsolePiMenu(bypass_remotes=True)
             var_in = sys.argv[1].replace('self', 'menu')

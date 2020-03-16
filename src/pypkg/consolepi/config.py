@@ -9,6 +9,7 @@ DEFAULT_BAUD = 9600
 DEFAULT_DBITS = 8
 DEFAULT_PARITY = 'n'
 DEFAULT_FLOW = 'n'
+DEFAULT_SBITS = 1
 
 
 class Config():
@@ -24,6 +25,7 @@ class Config():
         self.ovrd = self.cfg_yml.get('OVERRIDES', {})
         self.do_overrides()
         self.debug = self.cfg.get('debug', False)
+        self.cloud = self.cfg.get('cloud', False)
         self.cloud_svc = self.cfg.get('cloud_svc', 'gdrive')
         # super().__init__(self.static['LOG_FILE'], self.debug)
         # self.log = ConsolePiLog(self.static['LOG_FILE'], self.debug)
@@ -32,6 +34,7 @@ class Config():
         except Exception:
             self.loc_user = os.getenv('SUDO_USER', os.getenv('USER'))
 
+        self.picocom_ver = utils.get_picocom_ver()
         self.ser2net_conf = self.get_ser2net()
         self.hosts = self.get_hosts()
         self.power = self.cfg.get('power', False)
@@ -83,6 +86,7 @@ class Config():
         self.default_dbits = ovrd.get('default_dbits', DEFAULT_DBITS)
         self.default_parity = ovrd.get('default_parity', DEFAULT_PARITY)
         self.default_flow = ovrd.get('default_flow', DEFAULT_FLOW)
+        self.default_sbits = ovrd.get('default_flow', DEFAULT_SBITS)
         self.cloud_pull_only = True if ovrd.get('cloud_pull_only', '') == 'true' else False
         self.compact_mode = True if ovrd.get('compact_mode', '') == 'true' else False
 
@@ -213,6 +217,7 @@ class Config():
                     "port": <telnet port (ser2net),
                     "logfile": None or logfile if defined in ser2net.conf
                     "cmd": picocom command string used in menu
+                    "line": The line from ser2net.conf
                 }
             }
         '''
@@ -236,6 +241,7 @@ class Config():
                     continue
                 elif not line[0].isdigit():
                     continue
+                _line = line.strip('\n')
                 line = line.split(':')
                 tty_port = int(line[0])
                 tty_dev = line[3]
@@ -247,6 +253,7 @@ class Config():
                 flow = 'n'
                 sbits = 1
                 logfile = None
+                log_ptr = None
 
                 connect_params = line[4].replace(',', ' ').split()
                 for option in connect_params:
@@ -269,6 +276,7 @@ class Config():
                     elif 'STOPBIT' in option:   # Not used by picocom
                         sbits = int(option[0]) if option[0].isdigit else 1
                     elif 'tb=' in option or 'tr=' in option or 'tw=' in option:
+                        log_ptr = option
                         logfile = option.split('=')[1]
 
                 # Use baud to determine if options were parsed correctly
@@ -279,7 +287,7 @@ class Config():
 
                 # parse TRACEFILE defined in ser2net.conf
                 cmd_base = f'picocom {tty_dev} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}'
-                if utils.get_picocom_ver() > 1:  # picocom ver 1.x in Stretch doesn't support "--stopbits"
+                if self.picocom_ver > 1:  # picocom ver 1.x in Stretch doesn't support "--stopbits"
                     cmd_base = cmd_base + f' --stopbits {sbits}'
                 if logfile:
                     logfile = trace_files[logfile]
@@ -301,7 +309,9 @@ class Config():
                     'flow': flow,
                     'sbits': sbits,
                     'logfile': logfile,
-                    'cmd': cmd
+                    'log_ptr': log_ptr,
+                    'cmd': cmd,
+                    'line': _line
                     }
 
         return ser2net_conf

@@ -632,7 +632,7 @@ class ConsolePiMenu(Rename):
                     _cmd = f'{rem_pfx} \"/\etc/\ConsolePi/\src/\consolepi-menu-dev.py rn {dev}\"'
                     menu_actions[str(item)] = {'cmd': _cmd,
                                                'pre_msg': f"Connecting To {host} to Rename {dev_pretty}...",
-                                               'post_action': 'update_remotes'}
+                                               'host': host}
                     rn_this = {dev: adapters[dev]}
                     if rn_this[dev].get('udev'):
                         menu_actions['s' + str(item)] = {'function': self.cpiexec.show_adapter_details, 'args': [rn_this]}
@@ -660,7 +660,7 @@ class ConsolePiMenu(Rename):
         while choice not in ['b']:
             if choice == 'r':
                 local.adapters = local.build_adapter_dict(refresh=True)
-                remotes.data = self.get_remote(data=config.remote_update())
+                remotes.data = remotes.get_remote(data=config.remote_update())
             loc = local.adapters
             rem = remotes.data
 
@@ -669,6 +669,7 @@ class ConsolePiMenu(Rename):
             slines.append('Rename Local Adapters')   # list of strings index to index match with body list of lists
             mlines, menu_actions, item = self.gen_adapter_lines(loc, rename=True)
             outer_body.append(mlines)
+            rem_item = item
 
             for host in remotes.data:
                 if rem[host].get('adapters'):
@@ -704,6 +705,8 @@ class ConsolePiMenu(Rename):
             if choice in menu_actions:
                 if not choice == 'b':
                     cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rename_menu')
+                    if choice.isdigit() and int(choice) >= rem_item:
+                        remotes.data = remotes.get_remote(data=config.remote_update())
             else:
                 if choice:
                     if choice != 'b' or direct_launch:

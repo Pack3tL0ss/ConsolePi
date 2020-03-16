@@ -117,6 +117,8 @@ class MDNS_Browser:
                         log.debug('[MDNS DSCVRY] {} Final data set:\n{}'.format(hostname,
                                                                                 json.dumps(mdns_data, indent=4, sort_keys=True)))
                         if update_cache:
+                            if 'hostname' in mdns_data[hostname]:
+                                del mdns_data[hostname]['hostname']
                             cpi.remotes.data = cpi.remotes.update_local_cloud_file(remote_consoles=mdns_data)
                             log.info(f'[MDNS DSCVRY] {hostname} Local Cache Updated after mdns discovery')
                     else:

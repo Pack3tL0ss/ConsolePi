@@ -1096,11 +1096,10 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1].lower() in ['rn', 'rename', 'addconsole']:
             cpi_menu = ConsolePiMenu(bypass_remotes=True)
-            while cpi_menu.go:
-                if len(sys.argv) == 2:
-                    cpi_menu.rename_menu(direct_launch=True)
-                else:
-                    cpi_menu.do_rename_adapter(from_name=sys.argv[2])
+            if len(sys.argv) == 2:
+                cpi_menu.rename_menu(direct_launch=True)
+            else:
+                cpi_menu.do_rename_adapter(from_name=sys.argv[2])
         else:
             cpi_menu = ConsolePiMenu(bypass_remotes=True)
             var_in = sys.argv[1].replace('self', 'menu')

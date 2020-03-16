@@ -290,21 +290,28 @@ class Utils():
         params:
             file: file to write to
             line: line to write
+
+        Returns:
+            str if an error occurs otherwise Nothing
         '''
         # strip any blank lines from end of file and remove LF
         self.format_eof(file)
 
-        # determine if last line in file has LF
-        with open(file) as f:
-            _lines = f.readlines()
-            _last = _lines[-1]
+        try:
+            # determine if last line in file has LF
+            with open(file) as f:
+                _lines = f.readlines()
+                _last = _lines[-1]
 
-        # prepend newline if last line of file lacks it to prevent appending to that line
-        if '\n' not in _last:
-            line = '\n{}'.format(line)
+            # Make sure blank line will be placed at EOF and
+            # prepend newline if last line of file lacks it to prevent appending to that line
+            line = f'{line}\n' if not line.endswith('\n') else line
+            line = f'\n{line}' if not _last.endswith('\n') else line
 
-        with open(file, 'a+') as f:
-            f.write(line)
+            with open(file, 'a+') as f:
+                f.write(line)
+        except Exception as e:
+            return e
 
     def get_picocom_ver(self):
         '''return version of picocom'''

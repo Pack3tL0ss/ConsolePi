@@ -12,9 +12,6 @@ class Local():
     ''' Class to collect and manage ConsolePis local attributes '''
 
     def __init__(self):
-        # self.cpi = cpi
-        # self.config = self.cpi.config
-        # self.config = config
         self.default_baud = config.default_baud
         self.udev_adapters = self.detect_adapters()
         self.adapters = self.build_adapter_dict()
@@ -28,7 +25,6 @@ class Local():
 
     def build_local_dict(self, rem_ip=None, refresh=False):
         '''Display representation of all local data in combined dict.'''
-        # config = self.config
         if refresh:
             self.adapters = self.build_adapter_dict(refresh=True)
             self.interfaces = self.get_if_info()
@@ -135,7 +131,6 @@ class Local():
                 }
 
     def build_adapter_dict(self, refresh=False):
-        # config = self.config
         '''Create final adapter dict from udev ser2net and outlet dicts.'''
         if refresh or not hasattr(self, 'udev_adapters'):
             self.udev_adapters = self.detect_adapters()
@@ -150,20 +145,21 @@ class Local():
                            'config': self.default_ser_config(a) if a not in ser2net else ser2net[a]
                            }
 
+        if refresh:
+            self.adapters = adapters
+            self.data = self.build_local_dict()
+
         return adapters
 
     def get_cpu_serial(self):
-        # log = self.config.log
         res = utils.do_shell_cmd("/bin/cat /proc/cpuinfo | grep Serial | awk '{print $3}'", return_stdout=True)
         if res[0] > 0:
-            # self.config.log_and_show('Unable to get unique identifier for this pi (cpuserial)', log=log.warning)
             log.warning('Unable to get unique identifier for this pi (cpuserial)', show=True)
         else:
             return res[1]
 
     def get_if_info(self):
         '''Build and return dict with interface info.'''
-        # log = self.config.log
         if_list = [i for i in ni.interfaces() if i != 'lo' and 'docker' not in i]
         if_w_gw = ni.gateways()['default'].get(ni.AF_INET, {1: None})[1]
         if_data = {_if: {'ip': ni.ifaddresses(_if).get(ni.AF_INET, {0: {}})[0].get('addr'),
@@ -178,7 +174,7 @@ class Local():
 
     def get_ip_list(self):
         return [ni.ifaddresses(i).get(ni.AF_INET, {0: {}})[0].get('addr')
-                for i in ni.interfaces() if i != 'lo' and 'docker' not in i]
+                for i in ni.interfaces() if i != 'lo' and 'docker' not in i and 'ifb' not in i]
 
 
 if __name__ == '__main__':

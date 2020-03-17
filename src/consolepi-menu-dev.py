@@ -898,23 +898,25 @@ class ConsolePiMenu(Rename):
                 'baud': self.baud,
                 'data_bits': self.data_bits,
                 'parity': self.parity,
-                'flow': self.flow
+                'flow': self.flow,
+                'sbits': self.sbits
             }
             self.baud = con_dict['baud']
             self.data_bits = con_dict['data_bits']
             self.parity = con_dict['parity']
             self.flow = con_dict['flow']
-
+            self.sbits = con_dict['sbits']
         while True:
-            menu.menu_formatting('header', text=' Connection Settings Menu ')
-            print('')
-            print(' 1. Baud [{}]'.format(self.baud))
-            print(' 2. Data Bits [{}]'.format(self.data_bits))
-            print(' 3. Parity [{}]'.format(self.parity_pretty[self.parity]))
-            print(' 4. Flow [{}]'.format(self.flow_pretty[self.flow]))
-            text = ' b.  Back{}'.format(' (Apply Changes to Files)' if rename else '')
-            menu.menu_formatting('footer', text=text)
-
+            header = ' Connection Settings Menu '
+            mlines = []
+            mlines.append('Baud [{}]'.format(self.baud))
+            mlines.append('Data Bits [{}]'.format(self.data_bits))
+            mlines.append('Parity [{}]'.format(self.parity_pretty[self.parity]))
+            mlines.append('Flow [{}]'.format(self.flow_pretty[self.flow]))
+            footer = {'opts': ['back', 'x'],
+                      'overrides': {'back': ['b', 'Back {}'.format(' (Apply Changes to Files)' if rename else '')]}
+                      }
+            menu.print_menu(mlines, header=header, footer=footer)
             ch = self.wait_for_input(locs=locals()).lower
             try:
                 if ch == 'b':
@@ -1081,15 +1083,15 @@ class ConsolePiMenu(Rename):
         self.go = False
 
         cpi = self.cpi
+        if not cpi.pwr_init_complete:
+            utils.spinner('Exiting... Waiting for Outlet init threads to complete',
+                          self.cpiexec.wait_for_threads)
         if cpi.pwr._dli:
             threading.Thread(target=cpi.pwr.dli_close_all).start()
 
         # - if exit directly from rename menu after performing a rename trigger / reload udev
         if self.udev_pending:
-            cmd = 'sudo udevadm control --reload && sudo udevadm trigger && '\
-                  'sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '
-            with Halo(text='Triggering reload of udev do to name change', spinner='dots1'):
-                error = utils.do_shell_cmd(cmd, shell=True)
+            error = self.trigger_udev()
             if error:
                 print(error)
 

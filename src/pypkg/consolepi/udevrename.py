@@ -1,7 +1,5 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-# import re
-from halo import Halo
 from consolepi import log, config, utils
 
 
@@ -58,7 +56,7 @@ class Rename():
 
         if utils.user_input_bool(' Please Confirm Rename {} --> {}'.format(c_from_name, c_to_name)):
             for i in local.adapters:
-                if i == '/dev/{}'.format(from_name):
+                if i == f'/dev/{from_name}':
                     break
             _dev = local.adapters[i].get('config')  # dict
             baud = _dev['baud']
@@ -262,7 +260,6 @@ class Rename():
         Returns:
             {str|None} -- Returns error text if an error occurs or None if no issues.
         '''
-        # local = self.cpi.local
         ser2net_parity = {
             'n': 'NONE',
             'e': 'EVEN',
@@ -280,19 +277,21 @@ class Rename():
         sbits = self.sbits if not sbits else sbits
         log_ptr = ''
 
-        match_txt = config.ser2net_conf.get(f'/dev/{from_name}', {}).get('line')
-        if match_txt:
-            next_port = next_port = match_txt.split(':')[0]  # Renaming existing
+        cur_line = config.ser2net_conf.get(f'/dev/{from_name}', {}).get('line')
+        if cur_line and '/dev/ttyUSB' not in cur_line and '/dev/ttyACM' not in cur_line:
+            new_entry = False
+            next_port = next_port = cur_line.split(':')[0]  # Renaming existing
             log_ptr = config.ser2net_conf[f'/dev/{from_name}'].get('log_ptr')
             if not log_ptr:
                 log_ptr = ''
         else:
+            new_entry = True
             if utils.valid_file(self.ser2net_file):
                 ports = [a['port'] for a in config.ser2net_conf.values() if 7000 < a.get('port', 0) <= 7999]
                 next_port = 7001 if not ports else int(max(ports)) + 1
             else:
                 next_port = 7001
-                error = utils.do_shell_cmd('sudo cp /etc/ConsolePi/src/ser2net.conf /etc/', handle_errors=False)
+                error = utils.do_shell_cmd(f'sudo cp {self.ser2net_file} /etc/', handle_errors=False)
                 if error:
                     log.error(f'Rename Menu Error while attempting to cp ser2net.conf from src {error}')
                     return error  # error added to display in calling method
@@ -309,15 +308,15 @@ class Rename():
                             log_ptr=log_ptr))
 
         # -- // Append to ser2net.conf \\ --
-        if not match_txt:
+        if new_entry:
             error = utils.append_to_file(self.ser2net_file, ser2net_line)
         # -- // Rename Existing Definition in ser2net.conf \\ --
-        # -- for devices with existing definitions match_txt is the existing line
+        # -- for devices with existing definitions cur_line is the existing line
         else:
             ser2net_line = ser2net_line.strip().replace('/', r'\/')
-            match_txt = match_txt.replace('/', r'\/')
+            cur_line = cur_line.replace('/', r'\/')
             cmd = "sudo sed -i 's/^{}$/{}/'  {}".format(
-                        match_txt, ser2net_line, self.ser2net_file)
+                        cur_line, ser2net_line, self.ser2net_file)
             error = utils.do_shell_cmd(cmd, shell=True)
 
         if not error:
@@ -349,7 +348,7 @@ class Rename():
                     if 'ID_SERIAL' in line and 'IMPORT' not in line:
                         _old = 'ENV{ID_SERIAL}=="", GOTO="BYPATH-POINTERS"'
                         _new = 'ENV{ID_SERIAL_SHORT}=="", IMPORT{builtin}="path_id", GOTO="BYPATH-POINTERS"'
-                        cmd = "sed -i 's/{}/{}/' {}".format(_old, _new, rules_file)  # pylint: disable=maybe-no-member
+                        cmd = "sudo sed -i 's/{}/{}/' {}".format(_old, _new, rules_file)  # pylint: disable=maybe-no-member
                         update_file = True
                     if line.strip() == udev_line.strip():
                         return  # Line is already in file Nothing to do.
@@ -386,7 +385,7 @@ class Rename():
         # -- // UPDATE RULES FILE WITH FORMATTED LINE \\ --
         if found:
             udev_line = '{}\\n{}'.format(udev_line, section_marker)
-            cmd = "sed -i 's/{}/{}/' {}".format(section_marker, udev_line, rules_file)
+            cmd = "sudo sed -i 's/{}/{}/' {}".format(section_marker, udev_line, rules_file)
             error = utils.do_shell_cmd(cmd, handle_errors=False)
             if error:
                 return error
@@ -404,9 +403,10 @@ class Rename():
             No return unless there is an error.
             Returns {str} if an error occurs.
         '''
-        cmd = 'sudo udevadm control --reload && sudo udevadm trigger && sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net '  # NoQA
-        with Halo(text='Triggering reload of udev due to name change', spinner='dots1'):
-            error = utils.do_shell_cmd(cmd, shell=True)
+        cmd = 'sudo udevadm control --reload && sudo udevadm trigger && systemctl is-active ser2net >/dev/null 2>&1'\
+              '&& sudo systemctl stop ser2net && sleep 1 && sudo systemctl start ser2net'
+        error = utils.spinner('Triggering reload of udev & ser2net due to name change',
+                              utils.do_shell_cmd, cmd, shell=True)
         if not error:
             self.udev_pending = False
         else:

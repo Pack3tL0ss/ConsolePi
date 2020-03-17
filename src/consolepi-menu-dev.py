@@ -605,7 +605,7 @@ class ConsolePiMenu(Rename):
                                                'pre_msg': f"Connecting To {dev_pretty}..."}
                 else:
                     rn_this = {dev: adapters[dev]}
-                    menu_actions[str(item)] = {'function': self.do_rename_adapter, 'args': [adapters[dev]]}
+                    menu_actions[str(item)] = {'function': self.do_rename_adapter, 'args': [dev]}
                     menu_actions['s' + str(item)] = {'function': self.cpiexec.show_adapter_details, 'args': [rn_this]}
                     menu_actions['c' + str(item)] = {'cmd': _cmd, 'pre_msg': f"Connecting To {dev_pretty}..."}
 

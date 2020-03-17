@@ -188,7 +188,8 @@ process_args() {
             shift
             ;;
         -stash)
-            stash_local=true
+            # stash_local=true
+            echo "stash function not yet implemented"
             shift
             ;;
         -debug)

@@ -26,7 +26,7 @@ class Menu():
             True: '{{green}}ON{{norm}}',
             False: '{{red}}OFF{{norm}}'
         }
-        self.error_msgs = []
+        # self.error_msgs = []
         self.ignored_errors = []
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
         if sys.stdin.isatty():
@@ -101,8 +101,8 @@ class Menu():
 
         # if error_msgs:
         #     self.error_msgs += error_msgs
-        self.error_msgs += log.error_msgs
-        log.error_msgs = []
+        # self.error_msgs += log.error_msgs
+        # log.error_msgs = []
         '''
         Determine header and footer length used to determine if we can print with
         a single column
@@ -287,9 +287,6 @@ class Menu():
     def menu_formatting(self, section, sub=None, text=None, footer={}, width=MIN_WIDTH,
                         l_offset=1, index=1, do_print=True, do_format=True):
 
-        # utils = self.utils
-        # log = self.config.log
-        # plog = self.config.plog
         mlines = []
         max_len = None
         # footer options also supports an optional formatting dict
@@ -323,7 +320,7 @@ class Menu():
         # Think I process errors here and maybe in print_mlines as well
         # addl processing in FOOTER
 
-        if self.error_msgs:
+        if log.error_msgs:
             # _temp_error_msgs = self.error_msgs
             # for _error in _temp_error_msgs:
             #     if isinstance(_error, str) and '\n' in _error:
@@ -332,7 +329,7 @@ class Menu():
             #         self.error_msgs += _e
 
             _error_lens = []
-            for _error in self.error_msgs:
+            for _error in log.error_msgs:
                 # if isinstance(_error, list):
                 #     log.error('{} is a list expected string'.format(_error))
                 #     _error = ' '.join(_error)
@@ -347,10 +344,10 @@ class Menu():
                 for e in self.ignored_errors:
                     _e = _error.strip('\r\n')
                     if hasattr(e, 'match') and e.match(_e):
-                        self.error_msgs.remove(_error)
+                        log.error_msgs.remove(_error)
                         break
                     elif isinstance(e, str) and (e == _error or e in _error):
-                        self.error_msgs.remove(_error)
+                        log.error_msgs.remove(_error)
                         break
                     else:
                         _error_lens.append(self.format_line(_error).len)
@@ -490,9 +487,9 @@ class Menu():
                               ' that lacked a match in footer_options = No impact to menu', log=True, level='error')
 
             # --// ERRORs - append to footer \\-- #
-            if len(self.error_msgs) > 0:
+            if len(log.error_msgs) > 0:
                 # errors = self.error_msgs = utils.unique(self.error_msgs) # no longer needed
-                errors = self.error_msgs
+                errors = log.error_msgs
                 for _error in errors:
                     # if isinstance(_error, list):
                     #     log.error('{} is a list expected string'.format(_error))
@@ -508,10 +505,10 @@ class Menu():
                 if errors:  # TODO None Type added to list after rename  why
                     mlines.append('=' * width)
                 if do_print:
-                    self.error_msgs = []  # clear error messages after print
+                    log.error_msgs = []  # clear error messages after print
 
         else:
-            self.error_msgs.append('formatting function passed an invalid section')
+            log.error_msgs.append('formatting function passed an invalid section')
 
         # --// DISPLAY THE MENU \\--
         if do_print:

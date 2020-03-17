@@ -12,6 +12,7 @@ import json
 import threading
 import socket
 from io import StringIO
+from halo import Halo
 
 try:
     loc_user = os.getlogin()
@@ -428,3 +429,9 @@ class Utils():
             str -- host_short (lab1.example.com becomes lab1)
         '''
         return host.split('.')[0] if '.' in host and not host.split('.')[0].isdigit() else host
+
+    def spinner(self, spin_txt, function, *args, **kwargs):
+        spinner = kwargs.get('spinner', 'dots')
+        if sys.stdin.isatty():
+            with Halo(text=spin_txt, spinner=spinner):
+                return function(*args, **kwargs)

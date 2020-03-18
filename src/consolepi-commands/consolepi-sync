@@ -110,7 +110,7 @@ do_loc_pull() {
 
 do_stash_local() {
   if [[ -f $log_file ]] ; then
-    echo -e "\n -- Stashing files in conflict due to local pull (to $home_dir/.local_pull_stash)"
+    echo -e "\n -- Stashing files in conflict due to local pull to $home_dir/.local_pull_stash"
     loc_changes=$(grep 'overwritten by merge' -A 1 /tmp/consolepi-sync.log | grep -v 'overwritten by merge')
     loc_changes=$(sed -n '/error:.*local changes.*$/,/Please commit.*stash/p' $log_file | tail -n +2 | head -n -1)
     loc_changes=($loc_changes)

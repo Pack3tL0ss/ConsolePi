@@ -125,12 +125,6 @@ do_stash_local() {
       git_output=$(git checkout "$f" >/dev/null 2>>$log_file) ; do_error $?
       popd >/dev/null
     done
-    # user_input_bool "Stash Complete, Proceed with remaining Sync Operations" local response
-    # if [[ $rc -eq 0 ]] ; then
-    #     echo OK ; [[ ! -z "$git_output" ]] && echo -e "\n${git_output}\n"
-    # else
-    #     do_error "$rc"
-    # fi
   else
     echo '!! No log File Found... No git pull errors to process !!'
   fi
@@ -162,6 +156,7 @@ show_help() {
   echo 
   [[ ! "$1" =~ ^(help|-help|--help)$ ]] && echo "Invalid Input $1"
   echo -e "valid command line options:"
+  line_dots "-perms" "Verify/Set proper permissions to update without sudo (skipped by default)"
   line_dots "-pip" "Update pip and dependencies (skipped by default)"
   line_dots "-nocp" "Don't Copy consolpi-library to venv after git pull (Default is to cp updated Library)."
   echo -e "\nThe Following Options are generally only useful for the developer"
@@ -241,9 +236,8 @@ dev_host_check() {
 main() {
   dev_host_check
   process_args "${@}"
-  # $stash_local && do_stash_local
   $perms && do_perms
-  ! $loc_pull && do_git_pull
+  ! $loc_pull && do_git_pull  # stash_local will be called from here if option set
   $loc_pull && do_loc_pull
   $cp_lib && do_cp_lib
   $upgrade_pip && do_pip_upgrade

@@ -28,6 +28,7 @@ do_error() {
         echo 'Failed!!' ; echo -e "\n"
         [[ $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
         [[ -f $log_file ]] && cat $log_file && ! $DEBUG && rm $log_file
+        popd > /dev/null
         exit 1
     fi
     echo "OK"
@@ -114,20 +115,22 @@ do_stash_local() {
     loc_changes=$(sed -n '/error:.*local changes.*$/,/Please commit.*stash/p' $log_file | tail -n +2 | head -n -1)
     loc_changes=($loc_changes)
     mkdir -p $home_dir/.local_pull_stash
+    dots_done=false
     for f in ${loc_changes[@]} ; do
       dots "Stashing $f"
       mv ${consolepi_dir}/${f} $home_dir/.local_pull_stash ; do_error $?
       pushd /etc/ConsolePi >/dev/null
       branch=$(git rev-parse --abbrev-ref HEAD)
-      git_output=$(git checkout "$f" >/dev/null 2>>$log_file) ; local rc=$?
+      dots "git checkout $f"
+      git_output=$(git checkout "$f" >/dev/null 2>>$log_file) ; do_error $?
       popd >/dev/null
     done
     # user_input_bool "Stash Complete, Proceed with remaining Sync Operations" local response
-    if [[ $rc -eq 0 ]] ; then
-        echo OK ; [[ ! -z "$git_output" ]] && echo -e "\n${git_output}\n"
-    else
-        do_error "$rc"
-    fi
+    # if [[ $rc -eq 0 ]] ; then
+    #     echo OK ; [[ ! -z "$git_output" ]] && echo -e "\n${git_output}\n"
+    # else
+    #     do_error "$rc"
+    # fi
   else
     echo '!! No log File Found... No git pull errors to process !!'
   fi

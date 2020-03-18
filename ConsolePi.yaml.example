@@ -1,0 +1,105 @@
+%YAML 1.2
+# -- // Configuration File For ConsolePi \\ --
+# Create a Copy of this file with the name ConsolePi.yaml (remove ".example" extension).
+# This is the new format going forward, it replaces ConsolePi.conf, power.json, and hosts.json.
+---
+CONFIG:
+  cfg_file_ver: 7 # ---- Do Not Delete or modify this line ---- #
+  push: true # PushBullet Notifications: true - enable, false - disable
+  push_all: true # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden
+  push_api_key: "Put Your PushBullet API Here" # PushBullet API key
+  push_iden: "PB iden" # iden of device to send PushBullet notification to if not push_all
+  ovpn_enable: false # if enabled will establish VPN connection
+  vpn_check_ip: 10.0.150.1 # used to check VPN (internal) connectivity should be ip only reachable via VPN
+  net_check_ip: 8.8.4.4 # used to check Internet connectivity
+  local_domain: example.com # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn
+  wlan_ip: 10.112.0.1 # IP of ConsolePi when in hotspot mode
+  wlan_ssid: ConsolePi # SSID used in hotspot mode
+  wlan_psk: ConsolePiR0cks!! # psk used for hotspot SSID
+  wlan_country: US # regulatory domain for hotspot SSID
+  cloud: false # enable ConsolePi cloud sync for Clustering (mdns enabled either way)
+  cloud_svc: gdrive # must be gdrive (all that is supported now)
+  rem_user: pi # The user account remotes should use to access this ConsolePi
+  power: false # Enable Power Outlet Control
+  debug: false # Turns on additional debugging
+
+# --- The Remaining Sections Are not Required ---
+# The HOST section below should be editted to fit your needs or removed, otherwise they
+# will show in the menu
+
+
+# OVERRIDES optional items allowing you to override configured defaults
+OVERRIDES:
+  skip_utils: false # if true the installer script will skip the launch of the consolepi-extras menu
+  default_baud: 9600 # also default_dbits, default_parity, default_sbits.
+  cloud_pull_only: false # Retrieve data from cloud, but don't update cloud with your data
+  compact_mode: false # All Remotes collapsed into a single section in menu
+
+# The POWER section allows you to configure controlled power outlets, which can optionally be linked
+# to serial adapters or hosts.  When linked, ConsolePi will ensure the outlet is powered ON when you
+# initiate a connection to the device.  See GitHub for more details.
+POWER:
+  gpio_test:
+    address: 4
+    linked_devs: ofc-2930F-sw
+    type: GPIO
+  labpower1:
+    type: dli
+    address: labpower1.example.com
+    username: admin
+    password: dlipassword
+    linked_devs: 
+      5900T(ssh): 6
+      5900T(Console): [1, 6]
+      5900B(Console): [1, 6]      
+      8320T(Console): [1, 2]
+      8320B(Console): [1, 2]
+      6300M(oobm): 8
+      6300T: 8
+      6300B: 8
+  labpower2:
+    type: dli
+    address: 10.0.30.72
+    username: admin
+    password: FakeP@ssword
+    linked_devs: 
+      FTNew01: [4, 5]
+      5900T(Console): 6
+  stagepower:
+    type: dli
+    address: stagepower.example.com
+    username: admin
+    password: ConsolePiisBitch1n
+
+# The HOSTS Section allows you to configure Manually defined hosts, which will show up in the menu
+# as available connection options.  This is for ssh or TELNET hosts.  This is handy for adding connection
+# options to devices that may be connected to an existing Terminal Server, or for virtual appliances with
+# serial consoles configured in the Hypervisor.  -OR- any other ssh/TELNET device you need.  Power Linkages
+# work with hosts the same way they do with adapters, just reference the Host i.e. "5900T(ssh)" in the
+# "linked_devs" key in the power section above.
+# TIP: configuring the ssh public key (of the user you launch the menu with), will allow you to login without
+#      the need to enter a password.  By default this would be /home/pi/.ssh/id_rsa.pub (add as authorized key
+#      on the remote host (only applies to ssh hosts))
+HOSTS:
+  5900T(ssh):
+    address: 172.30.0.7:22
+    method: ssh
+    username: wade
+    show_in_main: true # means the host will show up in the main menu otherwise it shows up in the remote shell menu
+    group: ComWare # Device will show up in group with the group name as the subhead, if not provided it's put in "user-defined"
+  5900T(Console):
+    address: labdigi.example.com:7007
+    method: telnet
+    show_in_main: true
+    group: ComWare
+  8320T(oobm):
+    address: 10.0.30.41
+    method: ssh
+    username: wade
+    show_in_main: true
+    group: ArubaOS-CX
+  8320T(Console):
+    address: labdigi.kabrew.com:7011
+    method: telnet
+    group: ArubaOS-CX
+    show_in_main: true

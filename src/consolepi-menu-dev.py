@@ -229,7 +229,8 @@ class ConsolePiMenu(Rename):
                         _state = states[outlet['is_on']]
                         state_list.append(outlet['is_on'])
                         _state = menu.format_line(_state).text
-                        body.append(f"[{_state}] {' ' + r if 'ON' in _state else r} ({outlet['type']}:{outlet['address']}) {_linked}")
+                        body.append(f"[{_state}] {' ' + r if 'ON' in _state else r} ({outlet['type']}:{outlet['address']}) "
+                                    f"{_linked}")
                         menu_actions[str(item)] = {
                             'function': pwr.pwr_toggle,
                             'args': [outlet['type'], outlet['address']],
@@ -713,16 +714,16 @@ class ConsolePiMenu(Rename):
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
-            if choice in menu_actions:
-                if not choice == 'b':
-                    cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rename_menu')
-                    if choice.isdigit() and int(choice) >= rem_item:
-                        print('Triggering Refresh due to Remote Name Change')
-                        remotes.refresh()
-            else:
-                if choice:
-                    if choice != 'b' or direct_launch:
-                        log.show('Invalid Selection \'{}\''.format(choice))
+            # if choice in menu_actions:
+            if not choice == 'b':
+                cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rename_menu')
+                if choice.isdigit() and int(choice) >= rem_item:
+                    print('Triggering Refresh due to Remote Name Change')
+                    remotes.refresh()
+            # else:
+            #     if choice:
+            #         if choice != 'b' or direct_launch:
+            #             log.show('Invalid Selection \'{}\''.format(choice))
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:

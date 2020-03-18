@@ -174,7 +174,8 @@ class Local():
 
     def get_ip_list(self):
         return [ni.ifaddresses(i).get(ni.AF_INET, {0: {}})[0].get('addr')
-                for i in ni.interfaces() if i != 'lo' and 'docker' not in i and 'ifb' not in i]
+                for i in ni.interfaces() if i != 'lo' and 'docker' not in i and 'ifb' not in i
+                and ni.ifaddresses(i).get(ni.AF_INET, {0: {}})[0].get('addr')]
 
 
 if __name__ == '__main__':

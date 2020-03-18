@@ -154,6 +154,7 @@ class ConsolePiMenu(Rename):
             'x': self.exit,
             'power_menu': self.power_menu,
         }
+        show_linked = False
         choice = ''
 
         # Ensure Power Threads are complete
@@ -180,9 +181,13 @@ class ConsolePiMenu(Rename):
             # Build menu items for each linked outlet
             state_list = []
             body = []
+            _linked = ''
             footer = {'opts': [], 'before': []}
+            _menu_devs = {**cpi.local.adapters, **config.hosts}
             for r in sorted(outlets):
                 outlet = outlets[r]
+                if show_linked:
+                    _linked = ', '.join([x for x in outlet.get('linked_devs', []) if x in _menu_devs])
 
                 # -- // Linked DLI OUTLET MENU LINE(s) \\ --
                 if outlet['type'].lower() == 'dli':
@@ -193,7 +198,7 @@ class ConsolePiMenu(Rename):
                             state_list.append(_outlet['state'])
                             _state = menu.format_line(_state).text
                             _name = ' ' + _outlet['name'] if 'ON' in _state else _outlet['name']
-                            body.append(f"[{_state}] {_name} ({r} Port:{dli_port})")
+                            body.append(f"[{_state}] {_name} ({r} Port:{dli_port}) {_linked}")
                             menu_actions[str(item)] = {
                                 'function': pwr.pwr_toggle,
                                 'args': [outlet['type'], outlet['address']],
@@ -224,7 +229,7 @@ class ConsolePiMenu(Rename):
                         _state = states[outlet['is_on']]
                         state_list.append(outlet['is_on'])
                         _state = menu.format_line(_state).text
-                        body.append(f"[{_state}] {' ' + r if 'ON' in _state else r} ({outlet['type']}:{outlet['address']})")
+                        body.append(f"[{_state}] {' ' + r if 'ON' in _state else r} ({outlet['type']}:{outlet['address']}) {_linked}")
                         menu_actions[str(item)] = {
                             'function': pwr.pwr_toggle,
                             'args': [outlet['type'], outlet['address']],
@@ -268,6 +273,10 @@ class ConsolePiMenu(Rename):
                         'kwargs': {'outlets': outlets, 'action': 'cycle'}
                         }
                 footer['before'].append('')
+                if not show_linked:
+                    footer['before'].append('L.  Show Connected Linked Devices')
+                else:
+                    footer['before'].append('L.  Hide Connected Linked Devices')
 
             footer['opts'] = ['back', 'refresh']
             if pwr.dli_exists and not calling_menu == 'dli_menu':
@@ -277,8 +286,10 @@ class ConsolePiMenu(Rename):
             menu.print_menu(body, header=header, subhead=subhead, footer=footer)
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
-            if choice not in ['b', 'r']:
+            if choice not in ['b', 'r', 'l']:
                 cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='power_menu')
+            elif choice == 'l':
+                show_linked = not show_linked
             elif choice == 'b':
                 return
             elif choice == 'r':

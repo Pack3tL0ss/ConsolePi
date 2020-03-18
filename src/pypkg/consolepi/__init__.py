@@ -48,11 +48,11 @@ class ConsolePiLog:
                 getattr(self._log, level)(i)
                 _logged.append(i)
             if '\n' in i:
-                _msgs += i.replace('\t', '').split('\n')
+                _msgs += i.replace('\t', '').replace('\r', '').split('\n')
             elif i.startswith('[') and ']' in i:
-                _msgs.append(i.split(']', 1)[1].replace('\t', ''))
+                _msgs.append(i.split(']', 1)[1].replace('\t', '').replace('\r', ''))
             else:
-                _msgs.append(i.replace('\t', '').strip())
+                _msgs.append(i.replace('\t', '').replace('\r', '').strip())
 
         msgs = []
         [msgs.append(i) for i in _msgs

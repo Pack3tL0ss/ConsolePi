@@ -31,13 +31,14 @@ class MDNS_Register:
 
     def build_info(self, squash=None, local_adapters=None):
         local = self.cpi.local
-        loc = local.build_local_dict(refresh=True).get(local.hostname, {})
+        local.data = local.build_local_dict(refresh=True)
+        loc = local.data[local.hostname]
         loc['hostname'] = local.hostname
         for a in loc['adapters']:
             if 'udev' in loc['adapters'][a]:
                 del loc['adapters'][a]['udev']
 
-        ip_w_gw = loc['interfaces'].get('_ip_w_gw', '127.0.0.1')
+        # ip_w_gw = loc['interfaces'].get('_ip_w_gw', '127.0.0.1')
 
         # if data set is too large for mdns browser on other side will retrieve via API
         if squash is not None:
@@ -60,7 +61,7 @@ class MDNS_Register:
         info = ServiceInfo(
             "_consolepi._tcp.local.",
             local.hostname + "._consolepi._tcp.local.",
-            addresses=[socket.inet_aton(ip_w_gw)],
+            addresses=[socket.inet_aton(ip) for ip in local.ip_list],
             port=5000,
             properties=loc,
             server=f'{local.hostname}.local.'
@@ -107,7 +108,6 @@ class MDNS_Register:
                     log.debug('[MDNS REG] Cloud Update Thread Started.  Current Threads:\n    {}'.format(threading.enumerate()))
 
     def try_build_info(self):
-        # TODO Figure out how to calculate the struct size
         # Try sending with all data
         local = self.cpi.local
         try:
@@ -131,10 +131,9 @@ class MDNS_Register:
         remotes = self.cpi.remotes
         log.info('[MDNS REG] Cloud Update triggered delaying {} seconds'.format(UPDATE_DELAY))
         time.sleep(UPDATE_DELAY)  # Wait 30 seconds and then update, to accomodate multiple add removes
-        # TODO change advertised user when option added to config to specify
         data = local.build_local_dict(refresh=True)
-        if 'udev' in local[local.hostname]['adapters']:
-            del local[local.hostname]['adapters']['udev']
+        if 'udev' in local.data[local.hostname]['adapters']:
+            del local.data[local.hostname]['adapters']['udev']
 
         log.debug(f'[MDNS REG] Final Data set collected for {local.hostname}: \n{json.dumps(data)}')
 

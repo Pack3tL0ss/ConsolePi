@@ -132,7 +132,7 @@ class Remotes():
         return data
 
     # Update with Data from ConsolePi.csv on Gdrive and local cache populated by mdns.  Update Gdrive with our data
-    def refresh(self):
+    def refresh(self, bypass_cloud=False):
         remote_consoles = None
         cpiexec = self.cpiexec
         local = self.local
@@ -150,7 +150,7 @@ class Remotes():
         log.debug(f'Final Data set collected for {local.hostname}: {local.data}')
 
         # -- // Get details from Google Drive - once populated will skip \\ --
-        if self.do_cloud and not self.local_only:
+        if not bypass_cloud and self.do_cloud and not self.local_only:
             if cloud_svc == 'gdrive' and self.cloud is None:
                 # burried import until I find out why this import takes so @#%$@#% long.  Not imported until 1st refresh is called
                 with Halo(text='Loading Google Drive Library', spinner='dots1'):

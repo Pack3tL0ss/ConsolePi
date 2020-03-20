@@ -166,7 +166,7 @@ BuildMsg() {
     logMsg="$logMsg | GW: $xgw"
     
     if $wired_dhcp ; then 
-        do_wired_dhcp_active && dhcp_msg='Running' || dhcp_msg='NOT RUNNING!'
+        do_wired_dhcp_active && dhcp_msg='Active' || dhcp_msg='Not Active'
         pushMsg="$pushMsg %0A wired-dhcp: $dhcp_msg"
     fi
 }   
@@ -196,7 +196,7 @@ update_cloud() {
 }
 
 do_wired_dhcp_active(){
-    systemctl is-active consolepi-wired-dhcp.service >/dev/null 2>&1 && return 0 || return 1
+    /bin/systemctl is-active consolepi-wired-dhcp.service >/dev/null 2>&1 && return 0 || return 1
 }
 
 # start dhcp eth0 specific instance, if tftp is installed start it if it failed to start prior
@@ -261,7 +261,7 @@ run() {
         $push && logger -t puship $interface IP is same as prior \($new_ip_address\) No Need for Push Notification.
         $cloud && logger -t puship-cloud $interface IP is same as prior \($new_ip_address\) No Need to update cloud.
     fi
-    $wired_dhcp && start_wired_dhcp
+    [[ $reason == 'STATIC' ]] && $wired_dhcp && start_wired_dhcp
 }
 
 # __main__

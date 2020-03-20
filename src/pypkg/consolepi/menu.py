@@ -1,8 +1,6 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import sys
-# import logging
-from halo import Halo
 from collections import OrderedDict as od
 import os
 
@@ -15,18 +13,11 @@ MAX_COLS = 5
 class Menu():
 
     def __init__(self):  # utils, debug=False, log=None, log_file=None):
-        # self.config = config
-        # self.utils = menu.utils
-        # self.log = menu.log
         self.go = True
-        # self.debug = menu.debug
-        # self.debug = config.debug
-        self.spin = Halo(spinner='dots')
         self.states = {
             True: '{{green}}ON{{norm}}',
             False: '{{red}}OFF{{norm}}'
         }
-        # self.error_msgs = []
         self.ignored_errors = []
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
         if sys.stdin.isatty():
@@ -34,33 +25,6 @@ class Menu():
         self.menu_rows = 0  # Updated in menu_formatting
         self.menu_cols = 0
 
-    # def get_logger(self, log_file):
-    #     '''Return custom log object.'''
-    #     fmtStr = "%(asctime)s [%(module)s:%(funcName)s:%(lineno)d:%(process)d][%(levelname)s]: %(message)s"
-    #     dateStr = "%m/%d/%Y %I:%M:%S %p"
-    #     logging.basicConfig(filename=log_file,
-    #                         # level=logging.DEBUG if self.debug else logging.INFO,
-    #                         level=logging.DEBUG if self.cfg['debug'] else logging.INFO,
-    #                         format=fmtStr,
-    #                         datefmt=dateStr)
-    #     return logging.getLogger('ConsolePi')
-
-    # def log_and_show(self, msg, logit=True, showit=True, log=None):
-    #     if logit:
-    #         log = self.log.info if log is None else log
-    #         log(msg)
-
-    #     if showit:
-    #         msg = msg.replace('\t', '').split('\n')
-
-    #         [self.error_msgs.append(f'{m.split("]")[1].strip() if "]" in m else m}')
-    #             for m in msg
-    #             if (']' in m and m.split(']')[1].strip() not in self.error_msgs)
-    #             or ']' not in m and m not in self.error_msgs]
-
-    # =======================
-    #     MENUS FUNCTIONS
-    # =======================
     def print_menu(self, body, subs=None, header=None, subhead=None, footer=None, foot_fmt=None, col_pad=4,
                    force_cols=False, do_cols=True, do_format=True, by_tens=False):
         '''
@@ -95,18 +59,11 @@ class Menu():
                     menu_action statements should match accordingly
 
         '''
-        # utils = self.utils
         line_dict = od({'header': {'lines': header}, 'body': {'sections': [], 'rows': [],
                         'width': []}, 'footer': {'lines': footer}})
 
-        # if error_msgs:
-        #     self.error_msgs += error_msgs
-        # self.error_msgs += log.error_msgs
-        # log.error_msgs = []
-        '''
-        Determine header and footer length used to determine if we can print with
-        a single column
-        '''
+        # Determine header and footer length used to determine if we can print with
+        # a single column
         subs = utils.listify(subs)
         subhead = utils.listify(subhead)
         if subhead:
@@ -216,9 +173,8 @@ class Menu():
             sections.append(_column_list)
 
         line_dict['body']['sections'] = sections
-        '''
-        set the initial # of columns
-        '''
+
+        # -- set the initial # of columns
         body = line_dict['body']
         cols = len(body['sections']) if len(body['sections']) <= MAX_COLS else MAX_COLS
         if not force_cols:  # TODO OK to remove and refactor tot_1_col_len is _tot_body_rows calculated above
@@ -321,26 +277,9 @@ class Menu():
         # addl processing in FOOTER
 
         if log.error_msgs:
-            # _temp_error_msgs = self.error_msgs
-            # for _error in _temp_error_msgs:
-            #     if isinstance(_error, str) and '\n' in _error:
-            #         _e = _error.split('\n')
-            #         self.error_msgs.remove(_error)
-            #         self.error_msgs += _e
-
+            # TODO maybe move to log class
             _error_lens = []
             for _error in log.error_msgs:
-                # if isinstance(_error, list):
-                #     log.error('{} is a list expected string'.format(_error))
-                #     _error = ' '.join(_error)
-                # if not isinstance(_error, str):
-                #     msg = 'Error presented to formatter with unexpected type {}'.format(type(_error))
-                #     log.error(msg)
-                #     _error = msg
-                # if _error == '':  # Remove empty errors
-                #     self.error_msgs.remove(_error)
-
-                # TODO maybe move to log class
                 for e in self.ignored_errors:
                     _e = _error.strip('\r\n')
                     if hasattr(e, 'match') and e.match(_e):
@@ -365,7 +304,6 @@ class Menu():
             line = self.format_line(text)
             _len = line.len
             fmtd_header = line.text
-            # _len, fmtd_header = self.format_line(text)
             a = width - _len
             b = (a/2) - 2
             if text:
@@ -389,9 +327,7 @@ class Menu():
                 _i = str(index) + '. ' if not pad or index > 9 else str(index) + '.  '
                 # -- generate line and calculate line length --
                 _line = ' ' * l_offset + _i + _line
-                # _line_len, _line = self.format_line(_line)
                 line = self.format_line(_line)
-                # width_list.append(_line_len)
                 width_list.append(line.len)
                 mlines.append(line.text)
                 index += 1
@@ -488,13 +424,8 @@ class Menu():
 
             # --// ERRORs - append to footer \\-- #
             if len(log.error_msgs) > 0:
-                # errors = self.error_msgs = utils.unique(self.error_msgs) # no longer needed
                 errors = log.error_msgs
                 for _error in errors:
-                    # if isinstance(_error, list):
-                    #     log.error('{} is a list expected string'.format(_error))
-                    #     _error = ' '.join(_error)
-                    # error = self.format_line(_error.strip())
                     error = self.format_line(_error)
                     x = ((width - (error.len + 4)) / 2)
                     mlines.append('{0}{1}{2}{3}{0}'.format(
@@ -502,6 +433,7 @@ class Menu():
                         ' ' * int(x),
                         error.text,
                         ' ' * int(x) if x == int(x) else ' ' * (int(x) + 1)))
+
                 if errors:  # TODO None Type added to list after rename  why
                     mlines.append('=' * width)
                 if do_print:
@@ -558,5 +490,5 @@ class Menu():
             for c in colors:
                 _l = _l.replace('{{' + c + '}}', '')  # color format var removed so we can get the tot_cols used by line
                 line = line.replace('{{' + c + '}}', colors[c])  # line formatted with coloring
-        # return len(_l), line
+
         return Line(len(_l), line)

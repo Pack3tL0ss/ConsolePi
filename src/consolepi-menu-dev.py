@@ -124,6 +124,9 @@ class ConsolePiMenu(Rename):
         # -- // No Local Adapters Found \\ --
         if not self.cpi.local.adapters:
             log.show('No Local Adapters Detected')
+            if log.error_msgs:
+                # -- remove no ser2net.conf found msg if no local adapters
+                log.error_msgs = [m for m in log.error_msgs if 'ser2net' not in m]
 
     def picocom_help(self):
         print('----------------------- picocom Command Sequences -----------------------\n')
@@ -355,8 +358,7 @@ class ConsolePiMenu(Rename):
             # -- // Menu Debugging Tool prints attributes/function returns \\ --
             elif '.' in ch.orig and self.print_attribute(ch.orig, locs):
                 ch = choice(clear=True)
-            # else:
-                # return user input back to calling function
+
             menu.menu_rows = 0  # TODO REMOVE AFTER SIMPLIFIED
 
             return ch
@@ -512,7 +514,6 @@ class ConsolePiMenu(Rename):
 
     def key_menu(self):
         cpi = self.cpi
-        # config = cpi.config
         rem = cpi.remotes.data
         choice = ''
         menu_actions = {
@@ -678,9 +679,12 @@ class ConsolePiMenu(Rename):
 
             slines = []
             outer_body = []
-            slines.append('Rename Local Adapters')   # list of strings index to index match with body list of lists
-            mlines, menu_actions, item = self.gen_adapter_lines(loc, rename=True)
-            outer_body.append(mlines)
+            item = 1
+
+            if loc:
+                slines.append('Rename Local Adapters')   # list of strings index to index match with body list of lists
+                mlines, menu_actions, item = self.gen_adapter_lines(loc, rename=True)
+                outer_body.append(mlines)
             rem_item = item
 
             for host in remotes.data:
@@ -691,10 +695,6 @@ class ConsolePiMenu(Rename):
                                                                             host=host, rename=True)
                     outer_body.append(mlines)
                     menu_actions = {**menu_actions, **rem_menu_actions}
-
-            # if not mlines:
-            #     log.show('No Local Adapters')
-            #     break
 
             footer = {'before': [
                 's#. Show details for the adapter i.e. \'s1\'',
@@ -714,16 +714,12 @@ class ConsolePiMenu(Rename):
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
-            # if choice in menu_actions:
             if not choice == 'b':
                 cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rename_menu')
+                # -- if rename was performed on a remote update remotes to pull the new name
                 if choice.isdigit() and int(choice) >= rem_item:
                     print('Triggering Refresh due to Remote Name Change')
-                    remotes.refresh()
-            # else:
-            #     if choice:
-            #         if choice != 'b' or direct_launch:
-            #             log.show('Invalid Selection \'{}\''.format(choice))
+                    remotes.refresh(bypass_cloud=True)  # NoQA TODO would be more ideal just to query the remote involved in the rename and update the dict
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:
@@ -831,7 +827,7 @@ class ConsolePiMenu(Rename):
             menu_actions['rs'] = self.rshell_menu
 
         # foot_opts.append('shell') # Not really needed can just do bash -l from menu
-        if loc:  # and config.root:
+        if loc or remotes.connected:  # and config.root:
             foot_opts.append('rn')
             menu_actions['rn'] = self.rename_menu
         foot_opts.append('refresh')
@@ -849,7 +845,6 @@ class ConsolePiMenu(Rename):
         choice = ''
         cpi = self.cpi
         local = cpi.local
-        # config = cpi.config
         rem = cpi.remotes.data
         menu_actions = {
             'rshell_menu': self.rshell_menu,
@@ -1112,16 +1107,19 @@ class ConsolePiMenu(Rename):
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
+        # -- // Direct Launch to Rename Menu \\ --
         if sys.argv[1].lower() in ['rn', 'rename', 'addconsole']:
             cpi_menu = ConsolePiMenu(bypass_remotes=True)
             if len(sys.argv) == 2:
                 cpi_menu.rename_menu(direct_launch=True)
+            # -- // Direct Launch to Rename Task (Remote Rename) \\
             else:
                 cpi_menu.do_rename_adapter(from_name=sys.argv[2])
                 if cpi_menu.udev_pending:
                     error = cpi_menu.trigger_udev()
                     if error:
                         print(error, file=sys.stderr)
+        # -- // Attribute Printer (used for debug and to see data structures) \\ --
         else:
             cpi_menu = ConsolePiMenu(bypass_remotes=True)
             var_in = sys.argv[1].replace('self', 'menu')
@@ -1131,7 +1129,7 @@ if __name__ == '__main__':
     else:
         # -- // LAUNCH MENU \\ --
         cpi_menu = ConsolePiMenu()
-        while cpi_menu.go:
+        while cpi_menu.go:  # TODO Don't think this is used anymore - should be able to remove
             cpi_menu.main_menu()
         print('hit')  # DEBUG
         cpi_menu.exit()

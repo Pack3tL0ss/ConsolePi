@@ -74,7 +74,7 @@ class Config():
                             if value in ['true', 'false']:
                                 cfg[var] = bool(value.replace('false', ''))
                             else:
-                                cfg[var] = value
+                                cfg[var] = value.replace('"', '')
 
         return yml if not do_legacy else {'CONFIG': cfg}
 

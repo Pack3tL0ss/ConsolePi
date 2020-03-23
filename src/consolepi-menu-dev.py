@@ -1094,7 +1094,7 @@ class ConsolePiMenu(Rename):
         if not cpi.pwr_init_complete:
             utils.spinner('Exiting... Waiting for Outlet init threads to complete',
                           self.cpiexec.wait_for_threads)
-        if cpi.pwr._dli:
+        if cpi.pwr and cpi.pwr._dli:
             threading.Thread(target=cpi.pwr.dli_close_all).start()
 
         # - if exit directly from rename menu after performing a rename trigger / reload udev

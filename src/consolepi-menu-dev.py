@@ -719,7 +719,8 @@ class ConsolePiMenu(Rename):
                 # -- if rename was performed on a remote update remotes to pull the new name
                 if choice.isdigit() and int(choice) >= rem_item:
                     print('Triggering Refresh due to Remote Name Change')
-                    remotes.refresh(bypass_cloud=True)  # NoQA TODO would be more ideal just to query the remote involved in the rename and update the dict
+                    # remotes.refresh(bypass_cloud=True)  # NoQA TODO would be more ideal just to query the remote involved in the rename and update the dict
+                    remotes.data = remotes.get_remote(data=config.remote_update())
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:

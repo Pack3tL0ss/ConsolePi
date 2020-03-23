@@ -34,7 +34,7 @@ class ConsolePiLog:
         dateStr = "%m/%d/%Y %I:%M:%S %p"
         logging.basicConfig(filename=self.log_file,
                             # level=logging.DEBUG if self.debug else logging.INFO,
-                            level=logging.DEBUG if self.debug else logging.INFO,
+                            level=logging.DEBUG if self.DEBUG else logging.INFO,
                             format=fmtStr,
                             datefmt=dateStr)
         return logging.getLogger('ConsolePi')

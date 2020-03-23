@@ -8,24 +8,30 @@ this allows any of them to display options for all discovered
 ConsolePis in consolepi-menu (you can connect to serail devices
 attached to the remotes).
 
-mdns and gdrive provide discovery/sync mechanisms, when the payload
-is to large for mdns the API is leveraged to gather the missing details.
+mdns and gdrive provide discovery/sync mechanisms, the API is used
+to ensure the remote is reachable and that the data is current.
 '''
-from fastapi import FastAPI
-from time import time
-from consolepi.common import ConsolePi_data
-from starlette.requests import Request
-import uvicorn
+import sys
+sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
+from consolepi import config, log  # NoQA
+from consolepi.consolepi import ConsolePi  # NoQA
+from fastapi import FastAPI  # NoQA
+from time import time  # NoQA
+from starlette.requests import Request  # NoQA
+import uvicorn  # NoQA
 
-config = ConsolePi_data(do_print=False)
+
+cpi = ConsolePi()
+cpiexec = cpi.cpiexec
+local = cpi.local
 if config.power:
-    if not config.wait_for_threads():
-        outlets = config.pwr.outlet_data if config.pwr.outlet_data else None
+    if not cpiexec.wait_for_threads():
+        outlets = cpi.pwr.data if cpi.pwr.data else None
 else:
     outlets = None
-log = config.log
-user = config.USER  # pylint: disable=maybe-no-member
+user = local.user  # pylint: disable=maybe-no-member
 last_update = int(time())
+udev_last_update = int(time())
 
 app = FastAPI(title='ConsolePi.API',
               docs_url='/api/docs',
@@ -39,32 +45,32 @@ def log_request(request: Request, route: str):
 
 
 @app.get('/api/v1.0/adapters')
-def adapters(request: Request):
-    log_request(request, 'adapters')
+async def adapters(request: Request, refresh: bool = False):
+    global last_update
+    time_upd = True if int(time()) - last_update > 20 else False
+    log_request(request, f'adapters Update based on Time {time_upd}, Update based on query param {refresh}')
     # if data has been refreshed in the last 20 seconds trust it is valid
     # prevents multiple simul calls to get_adapters after mdns_refresh and
     # subsequent API calls from all other ConsolePi on the network
-    global last_update
-    if int(time()) - last_update > 20:
-        adapters = config.get_adapters(do_print=False)
+    if refresh or int(time()) - last_update > 20:
+        config.ser2net_conf = config.get_ser2net() if refresh else config.ser2net_conf
+        local.adapters = local.build_adapter_dict(refresh=True)
         last_update = int(time())
-        return {'adapters': adapters}
-    else:
-        return {'adapters': config.adapters}
+    return {'adapters': local.adapters}
 
 
 @app.get('/api/v1.0/remotes')
 def remotes(request: Request):
     log_request(request, 'remotes')
-    remotes = config.get_local_cloud_file()
-    return {'remotes': remotes}
+    return {'remotes': config.get_remotes_from_file()}
 
 
 @app.get('/api/v1.0/interfaces')
 def get_ifaces(request: Request):
     log_request(request, 'ifaces')
-    ifaces = config.get_if_ips()
-    return {'interfaces': ifaces}
+    local.interfaces = local.get_if_info()
+    # ifaces = {k: v for k, v in local.interfaces.items() if not k.startswith('_')}
+    return {'interfaces': local.interfaces}
 
 
 @app.get('/api/v1.0/outlets')
@@ -72,23 +78,24 @@ def get_outlets(request: Request, outlets=outlets):
     log_request(request, 'outlets')
     # -- Collect Outlet Details remove sensitive data --
     if outlets:
-        outlets = config.pwr.pwr_get_outlets()
-        if outlets and 'linked' in outlets:
-            for grp in outlets['linked']:
+        outlets = cpi.pwr.pwr_get_outlets()
+        cpiexec.wait_for_threads()
+        if outlets and 'defined' in outlets:
+            for grp in outlets['defined']:
                 for x in ['username', 'password']:
-                    if x in outlets['linked'][grp]:
-                        del outlets['linked'][grp][x]
+                    if x in outlets['defined'][grp]:
+                        del outlets['defined'][grp][x]
     return outlets
 
 
 @app.get('/api/v1.0/details')
 def get_details(request: Request):
     log_request(request, 'details')
-    return {config.hostname: {'adapters': config.get_adapters(), 'interfaces': config.get_if_ips(), 'user': user}}
-
-# @app.get("/api/v1.0/{item_id}")
-# def read_item(self, item_id: int, q: str = None):
-#     return {"item_id": item_id, "q": q}
+    global last_update
+    if int(time()) - last_update > 20:
+        local.data = local.build_local_dict(refresh=True)
+        last_update = int(time())
+    return local.data
 
 
 if __name__ == "__main__":

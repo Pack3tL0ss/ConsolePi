@@ -138,7 +138,7 @@ class MDNS_Register:
         log.debug(f'[MDNS REG] Final Data set collected for {local.hostname}: \n{json.dumps(data)}')
 
         if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member
-            cloud = GoogleDrive(log)
+            cloud = GoogleDrive(local.hostname)
 
         remote_consoles = cloud.update_files(data)
 

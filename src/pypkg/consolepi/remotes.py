@@ -47,10 +47,10 @@ class Remotes():
         self.do_cloud = config.cfg['do_cloud'] = False
 
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
-    def get_remote(self, data=None):
+    def get_remote(self, data=None, rename=False):
         spin = self.spin
 
-        def verify_remote_thread(remotepi, data):
+        def verify_remote_thread(remotepi, data, rename):
             '''sub to verify reachability and api data for remotes
 
             params:
@@ -58,7 +58,7 @@ class Remotes():
             data: dict remote ConsolePi dict with hostname as key
             '''
             this = data[remotepi]
-            res = self.api_reachable(remotepi, this)
+            res = self.api_reachable(remotepi, this, rename=rename)
             this = res.data
             if res.update:
                 self.cache_update_pending = True
@@ -95,7 +95,7 @@ class Remotes():
             spin.start('Querying Remotes via API to verify reachability and adapter data')
         for remotepi in data:
             # -- // Launch Threads to verify all remotes in parallel \\ --
-            threading.Thread(target=verify_remote_thread, args=(remotepi, data), name=f'vrfy_{remotepi}').start()
+            threading.Thread(target=verify_remote_thread, args=(remotepi, data, rename), name=f'vrfy_{remotepi}').start()
             # verify_remote_thread(remotepi, data)  # Non-Threading DEBUG
 
         # -- wait for threads to complete --
@@ -192,7 +192,7 @@ class Remotes():
             else:
                 log.warning(f'[MENU REFRESH] No Remote ConsolePis found on {cloud_svc}', show=True)
         else:
-            if self.do_cloud:
+            if self.do_cloud and not bypass_cloud:
                 log.show(f'Not Updating from {cloud_svc} due to connection failure\n'
                          'Close and re-launch menu if network access has been restored')
 
@@ -282,7 +282,7 @@ class Remotes():
 
         return remote_consoles
 
-    def get_adapters_via_api(self, ip: str):
+    def get_adapters_via_api(self, ip: str, rename: bool = False):
         '''Send RestFul GET request to Remote ConsolePi to collect adapter info
 
         params:
@@ -293,7 +293,11 @@ class Remotes():
         Falsey or response status_code if an error occured.
         '''
         # log = self.config.log
-        url = f'http://{ip}:5000/api/v1.0/adapters'
+        if rename:
+            url = f'http://{ip}:5000/api/v1.0/adapters?refresh=true'
+        else:
+            url = f'http://{ip}:5000/api/v1.0/adapters'
+        log.info(url)  # DEBUG
 
         headers = {
             'Accept': "*/*",
@@ -322,12 +326,15 @@ class Remotes():
                                                                                             ip, ret, response.text))
         return ret
 
-    def api_reachable(self, remote_host: str, remote_data: dict):
+    def api_reachable(self, remote_host: str, remote_data: dict, rename: bool = False):
         '''Check Rechability & Fetch adapter data via API for remote ConsolePi
 
         params:
             remote_host:str, The hostname of the Remote ConsolePi
             remote_data:dict, The ConsolePi dictionary for the remote (from cache file)
+            rename:bool, rename = True will do api call with refresh=True Query parameter
+                which tells the api to first update connection data from ser2net as it likely
+                changed as a result of remote rename operation.
 
         returns:
             tuple [0]: Bool, indicating if data is different than cache
@@ -357,7 +364,7 @@ class Remotes():
         rem_ip = None
         for _ip in rem_ip_list:
             log.debug(f'[API_REACHABLE] verifying {remote_host}')
-            _adapters = self.get_adapters_via_api(_ip)
+            _adapters = self.get_adapters_via_api(_ip, rename=rename)
             if _adapters:
                 rem_ip = _ip  # Remote is reachable
                 if not isinstance(_adapters, int):   # indicates an html error code was returned

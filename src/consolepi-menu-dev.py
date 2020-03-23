@@ -642,7 +642,7 @@ class ConsolePiMenu(Rename):
                     menu_actions['c' + str(item)] = connect
                     menu_actions['c ' + str(item)] = connect
 
-                    _cmd = f'{rem_pfx} \"/\etc/\ConsolePi/\src/\consolepi-menu-dev.py rn {dev}\"'  # NoQA
+                    _cmd = f'{rem_pfx} \"sudo /\etc/\ConsolePi/\src/\consolepi-menu-dev.py rn {dev}\"'  # NoQA
                     menu_actions[str(item)] = {'cmd': _cmd,
                                                'pre_msg': f"Connecting To {host} to Rename {dev_pretty}...",
                                                'host': host}
@@ -720,7 +720,7 @@ class ConsolePiMenu(Rename):
                 if choice.isdigit() and int(choice) >= rem_item:
                     print('Triggering Refresh due to Remote Name Change')
                     # remotes.refresh(bypass_cloud=True)  # NoQA TODO would be more ideal just to query the remote involved in the rename and update the dict
-                    remotes.data = remotes.get_remote(data=config.remote_update())
+                    remotes.data = remotes.get_remote(data=config.remote_update(), rename=True)
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:

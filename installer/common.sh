@@ -4,8 +4,8 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-INSTALLER_VER=43
-CFG_FILE_VER=7
+INSTALLER_VER=44
+CFG_FILE_VER=8
 cur_dir=$(pwd)
 iam=$(who -m |  awk '{print $1}')
 [ -z $iam ] && iam=$SUDO_USER # cockpit shell
@@ -26,6 +26,8 @@ final_log="/var/log/ConsolePi/install.log"
 cloud_cache="/etc/ConsolePi/cloud.json"
 override_dir="/etc/ConsolePi/src/override" # TODO NO TRAILING / make others that way
 py3ver=$(python3 -V | cut -d. -f2)
+yml_script="/etc/ConsolePi/src/yaml2bash.py"
+tmp_src="/tmp/consolepi-temp"
 warn_cnt=0
 
 # Terminal coloring
@@ -141,10 +143,10 @@ user_input() {
     esac
 
     # Format full prompt
-    if [ ! -z $default ]; then
+    if [ ! -z "$default" ]; then
         if $bool; then
             prompt+="? (Y/N)"
-            $default && prompt+=" [Y]: " || prompt+=" [N]: "
+            "$default" && prompt+=" [Y]: " || prompt+=" [N]: "
         else
             prompt+=" [${default}]: "
         fi
@@ -415,6 +417,19 @@ do_systemd_enable_load_start() {
     else
         logit "Skipping enable and start $1 - override found"
     fi
+}
+
+# -- Find path for any files pre-staged in user home or ConsolePi_stage subdir --
+get_staged_file_path() {
+    [[ -z $1 ]] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
+    if [[ -f "${home_dir}${1}" ]]; then
+        found_path="${home_dir}${1}"
+    elif [[ -f ${stage_dir}$1 ]]; then
+        found_path="${home_dir}ConsolePi_stage/${1}"
+    else
+        found_path=
+    fi
+    echo $found_path
 }
 
 process_cmds() {

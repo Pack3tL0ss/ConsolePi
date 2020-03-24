@@ -35,7 +35,7 @@ do_error() {
 }
 
 user_input_bool() {
-  local prompt = $1
+  local prompt=$1
   echo
   while [[ -z $response ]] || [[ ! "$response" =~ ^(yes|y|no|n)$ ]]; do
     read -ep "${prompt}? (y/N): " local response

@@ -93,3 +93,5 @@ utils = Utils()
 log = ConsolePiLog(LOG_FILE)
 from consolepi.config import Config  # NoQA
 config = Config()  # NoQA
+if config.debug:
+    log.setLevel(logging.DEBUG)

@@ -27,7 +27,7 @@ get_common() {
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
     # overwrite the default source directory to local repo when running local tests
-    $local_dev && consolepi_source='pi@kabrewpi:/etc/ConsolePi'
+    $local_dev && consolepi_source='pi@consolepi-dev:/etc/ConsolePi'
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
     header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
 }
@@ -226,12 +226,18 @@ do_pyvenv() {
         logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
 
     # -- temporary until I have consolepi module on pypi --
-    logit "moving consolepi python module into venv site-packages"
     python_ver=$(ls -l /etc/ConsolePi/venv/lib | grep python3 |  awk '{print $9}')
-    sudo cp -R ${src_dir}PyConsolePi/. ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
-    # sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
-        logit "Success - moving consolepi python module into venv site-packages" ||
-        logit "Error - moving consolepi python module into venv site-packages" "ERROR"
+    pkg_dir=${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi
+    if [[ ! -L $pkg_dir ]] ; then
+        logit "link consolepi python module in venv site-packages"
+        # sudo cp -R ${src_dir}PyConsolePi/. ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
+        [[ -d $pkg_dir ]] && rm -r $pkg_dir >/dev/null 2>> $log_file
+        ln -s ${src_dir}PyConsolePi/ ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
+        # sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
+            logit "Success - moving consolepi python module into venv site-packages" ||
+            logit "Error - moving consolepi python module into venv site-packages" "ERROR"
+    fi
+    
 
     unset process
 }
@@ -320,12 +326,19 @@ update_banner() {
     unset process
 }
 
-get_install2() {
-    if [ -f "${consolepi_dir}installer/install2.sh" ]; then
-        . "${consolepi_dir}installer/install2.sh"
-    else
-        echo "FATAL ERROR install2.sh not found exiting"
-        exit 1
+get_config() {
+    local process="import config.sh"
+    if [[ -f /etc/ConsolePi/installer/config.sh ]]; then
+        . /etc/ConsolePi/installer/config.sh ||
+            logit "Error Occured importing config.sh" "Error"
+    fi
+}
+
+get_update() {
+    local process="import update.sh"
+    if [ -f "${consolepi_dir}installer/update.sh" ]; then
+        . "${consolepi_dir}installer/update.sh" ||
+            logit "Error Occured importing update.sh" "Error"
     fi
 }
 
@@ -342,8 +355,10 @@ main() {
         do_logging                          # Configure logging and rotation
         do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
         update_banner                       # ConsolePi login banner update
-        get_install2                        # get and import install2 functions
-        install2_main                       # Kick off install2 functions
+        get_config                          # import config.sh functions
+        config_main                         # Kick off config.sh functions (Collect Config details from user)
+        get_update                          # import update.sh functions
+        update_main                         # Kick off update.sh functions
     else
       echo 'Script should be ran as root. exiting.'
     fi

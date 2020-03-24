@@ -36,7 +36,8 @@ class ConsolePiMenu(Rename):
         self.display_con_settings = False
         self.menu = self.cpi.menu
         self.menu.ignored_errors = [
-            re.compile('Connection to .* closed')
+            re.compile('Connection to .* closed'),
+            re.compile('Warning: Permanently added .* to the list of known hosts')
         ]
         self.do_menu_load_warnings()
         super().__init__()

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------- #
-# --                                                 ConsolePi Installation Script Stage 2                                                       -- #
+# --                                                 ConsolePi Installation Script Stage 3                                                       -- #
 # --  Wade Wells - Pack3tL0ss                                                                                                                    -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
@@ -9,319 +9,6 @@
 # --  For more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                                              -- #
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
-
-# -- Find path for any files pre-staged in user home or ConsolePi_stage subdir --
-get_staged_file_path() {
-    [[ -z $1 ]] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
-    if [[ -f "${home_dir}${1}" ]]; then
-        found_path="${home_dir}${1}"
-    elif [[ -f ${stage_dir}$1 ]]; then
-        found_path="${home_dir}ConsolePi_stage/${1}"
-    else
-        found_path=
-    fi
-    echo $found_path
-}
-
-# -- Build Config File and Directory Structure - Read defaults from config
-get_config() {
-    process="get config"
-    bypass_verify=false
-    selected_prompts=false
-    logit "Starting get/build Configuration"
-    if [[ ! -f $default_config ]] && [[ ! -f "/home/${iam}/ConsolePi.conf" ]] && [[ ! -f ${stage_dir}ConsolePi.conf ]]; then
-        logit "No Existing Config found - building default"
-        # This indicates it's the first time the script has ran
-        echo "cfg_file_ver=${CFG_FILE_VER}                               # Do Not Delete or modify this line"  > "${default_config}"
-        echo "push=true                                    # PushBullet Notifications: true - enable, false - disable" >> "${default_config}"
-        echo "push_all=true                                # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
-        echo "push_api_key=\"PutYourPBAPIKeyHereChangeMe:\"  # PushBullet API key" >> "${default_config}"
-        echo "push_iden=\"putyourPBidenHere\"                # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
-        echo "ovpn_enable=true                             # if enabled will establish VPN connection" >> "${default_config}"
-        echo "vpn_check_ip=\"10.0.150.1\"                    # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
-        echo "net_check_ip=\"8.8.8.8\"                       # used to check internet connectivity" >> "${default_config}"
-        echo "local_domain=\"arubalab.net\"                  # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
-        echo "wlan_ip=\"10.3.0.1\"                           # IP of ConsolePi when in hotspot mode" >> "${default_config}"
-        echo "wlan_ssid=\"ConsolePi\"                        # SSID used in hotspot mode" >> "${default_config}"
-        echo "wlan_psk=\"ChangeMe!!\"                        # psk used for hotspot SSID" >> "${default_config}"
-        echo "wlan_country=\"US\"                            # regulatory domain for hotspot SSID" >> "${default_config}"
-        echo "cloud=false                                  # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
-        echo 'cloud_svc="gdrive"                           # Future - only Google Drive / Google Sheets supported currently - must be "gdrive"' >> "${default_config}"
-        echo 'power=false                                  # Adds support for Power Outlet control' >> "${default_config}"
-        echo "debug=false                                  # turns on additional debugging" >> "${default_config}"
-        header
-        echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
-        echo "which will prompt you for each value. Enter n to exit the script so you can modify the"
-        echo "defaults directly then re-run the script."
-        echo
-        prompt="Continue in Interactive mode"
-        user_input true "${prompt}"
-        continue=$result
-        if $continue ; then
-            bypass_verify=true         # bypass verify function
-            input=false                # so collect function will run (while loop in main)
-            . "$default_config" || 
-                logit "Error Loading Configuration defaults" "WARNING"
-        else
-            header
-            echo "Please edit config in ${default_config} using editor (i.e. nano) and re-run install script"
-            echo "i.e. \"sudo nano ${default_config}\""
-            echo
-            # move_log
-            exit 0
-        fi
-    # If Config exists in /etc/ConsolePi/ConsolePi.conf it takes precedence
-    elif [[ -f "${default_config}" ]]; then
-        logit "Using existing Config found in ${consolepi_dir}"
-        . "$default_config" || 
-            logit "Error Loading Configuration defaults" "WARNING"
-        if [ -z $cfg_file_ver ] || [ $cfg_file_ver -lt $CFG_FILE_VER ]; then
-            bypass_verify=true         # bypass verify function
-            input=false                # so collect function will run (while loop in main)
-            selected_prompts=true
-            echo "-- NEW OPTIONS HAVE BEEN ADDED DATA COLLECTION PROMPTS WILL DISPLAY --"
-        fi
-    # For first run if no config exists in default location look in user home_dir and stage_dir for pre-config file
-    elif [[ -f "/home/${iam}/ConsolePi.conf" ]] || [[ -f ${stage_dir}ConsolePi.conf ]]; then
-        found_path=$(get_staged_file_path "ConsolePi.conf")
-        if [[ $found_path ]]; then
-            logit "using provided config: ${found_path}"
-            sudo mv $found_path $default_config && ok_import=true || ok_import=false
-            ! $ok_import && logit "Error Moving provided config: ${found_path}" "WARNING"
-            $ok_import && . "$default_config" || 
-                logit "Error Loading Configuration defaults" "WARNING"
-        else
-            logit "NUL Return from found_path: ${found_path}" "ERROR"
-        fi
-    fi
-    hotspot_dhcp_range
-    unset process
-}
-
-# Update Config file with Collected values
-update_config() {
-    echo "cfg_file_ver=${CFG_FILE_VER}   # ---- Do Not Delete or modify this line ---- #"  > "${default_config}"
-    echo "push=${push}                                                       # PushBullet Notifications: true - enable, false - disable" >> "${default_config}"
-    echo "push_all=${push_all}                                                   # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "${default_config}"
-    echo "push_api_key=\"${push_api_key}\"   # PushBullet API key" >> "${default_config}"
-    echo "push_iden=\"${push_iden}\"                              # iden of device to send PushBullet notification to if not push_all" >> "${default_config}"
-    echo "ovpn_enable=${ovpn_enable}                                                # if enabled will establish VPN connection" >> "${default_config}"
-    echo "vpn_check_ip=\"${vpn_check_ip}\"                                       # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "${default_config}"
-    echo "net_check_ip=\"${net_check_ip}\"                                          # used to check Internet connectivity" >> "${default_config}"
-    echo "local_domain=\"${local_domain}\"                                       # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "${default_config}"
-    echo "wlan_ip=\"${wlan_ip}\"                                              # IP of ConsolePi when in hotspot mode" >> "${default_config}"
-    echo "wlan_ssid=\"${wlan_ssid}\"                                           # SSID used in hotspot mode" >> "${default_config}"
-    echo "wlan_psk=\"${wlan_psk}\"                                             # psk used for hotspot SSID" >> "${default_config}"
-    echo "wlan_country=\"${wlan_country}\"                                               # regulatory domain for hotspot SSID" >> "${default_config}"
-    echo "cloud=${cloud}                                                      # enable ConsolePi clustering / cloud config sync" >> "${default_config}"
-    echo "cloud_svc=\"${cloud_svc}\"                                              # Future - only Google Drive / Google Sheets supported currently - must be \"gdrive\"" >> "${default_config}"
-    echo "power=${power}                                                     # Adds support for Power Outlet Control" >> "${default_config}"
-    # echo "tftpd=${tftpd}                                                     # Enables tftpd-hpa with create rights and root folder /srv/tftp" >> "${default_config}"
-}
-
-# Update Config overrides: write any supported custom override variables back to file
-update_config_overrides() {
-    [ ! -z $wlan_wait_time ] && echo "wlan_wait_time=${wlan_wait_time}                                         # hotspot wait for ssid connect b4 reverting back to hotspot" >> "${default_config}"
-    [ ! -z $skip_utils ]     && echo "skip_utils=${skip_utils}                                                 # when set to true will bypass the utility installer menu during upgrade" >> "${default_config}"
-    [ ! -z $default_baud ]   && echo "default_baud=${default_baud}                                             # will override the default baud when no matching device in ser2net.conf" >> "${default_config}"
-    # always add debug back to EoF
-    echo "debug=${debug}                                                           # turns on additional debugging" >> "${default_config}"
-}
-
-# Automatically set the DHCP range based on the hotspot IP provided
-hotspot_dhcp_range() {
-    baseip=`echo $wlan_ip | cut -d. -f1-3`   # get first 3 octets of wlan_ip
-    wlan_dhcp_start=$baseip".101"
-    wlan_dhcp_end=$baseip".150"
-}
-    
-collect() {
-    # -- PushBullet  --
-    if ! $selected_prompts || [ -z $push ]; then
-        header
-        prompt="Configure ConsolePi to send notifications via PushBullet"
-        user_input $push "${prompt}"
-        push=$result
-        if $push; then
-
-            # -- PushBullet API Key --
-            header
-            prompt="PushBullet API key"
-            user_input $push_api_key "${prompt}"
-            push_api_key=$result
-            
-            # -- Push to All Devices --
-            header
-            echo "Do you want to send PushBullet Messages to all PushBullet devices?"
-            echo "Answer 'N'(no) to send to just 1 device "
-            echo
-            prompt="Send PushBullet Messages to all devices"
-            user_input $push_all "${prompt}"
-            push_all=$result
-
-            # -- PushBullet device iden --
-            if ! $push_all; then
-                [ ${#push_iden} -gt 0 ] && default="[${push_iden}]"
-                header
-                prompt="Provide the iden of the device you would like PushBullet Messages sent to"
-                user_input $push_iden "${prompt}"
-                push_iden=$result
-            else
-                push_iden="NotUsedSendToAll"
-            fi
-        fi
-    fi
-
-    
-    # -- OpenVPN --
-    if ! $selected_prompts || [ -z $ovpn_enable ]; then
-        header
-        prompt="Enable Auto-Connect OpenVPN"
-        user_input $ovpn_enable "${prompt}"
-        ovpn_enable=$result
-        
-        # -- VPN Check IP --
-        if $ovpn_enable; then
-            header
-            echo "Provide an IP address used to check vpn connectivity (an IP only reachable once VPN is established)"
-            echo "Typically you would use the OpenVPN servers inside interface IP."
-            echo
-            prompt="IP Used to verify reachability inside OpenVPN tunnel"
-            user_input $vpn_check_ip "${prompt}"
-            vpn_check_ip=$result
-            
-            # -- Net Check IP --
-            header
-            prompt="Provide an IP address used to verify Internet connectivity"
-            user_input $net_check_ip "${prompt}"
-            net_check_ip=$result
-            
-            # -- Local Lab Domain --
-            header
-            echo "ConsolePi uses the domain provided by DHCP to determine if it's on your local network"
-            echo "If you are connected locally (No VPN will be established)"
-            echo
-            prompt="Local Lab Domain"
-            user_input $local_domain "${prompt}"
-            local_domain=$result
-        fi
-    fi
-        
-    # -- HotSpot  --
-    if ! $selected_prompts || [ -z $wlan_ip ]; then
-        header
-        prompt="What IP do you want to assign to ConsolePi when acting as HotSpot"
-        user_input $wlan_ip "${prompt}"
-        wlan_ip=$result
-        hotspot_dhcp_range
-        
-        # -- HotSpot SSID --
-        header
-        prompt="What SSID do you want the HotSpot to Broadcast when in HotSpot mode"
-        user_input $wlan_ssid "${prompt}"
-        wlan_ssid=$result
-        
-        # -- HotSpot psk --
-        header
-        prompt="Enter the psk used for the HotSpot SSID"
-        user_input $wlan_psk "${prompt}"
-        wlan_psk=$result
-        
-        # -- HotSpot country --
-        header
-        prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
-        user_input "US" "${prompt}"
-        wlan_country=$result
-    fi
-
-    # -- cloud --
-    if ! $selected_prompts || [ -z $cloud ]; then
-        header
-        [ -z $cloud ] && cloud=false
-        user_input $cloud "Do you want to enable ConsolePi Cloud Sync with Gdrive"
-        cloud=$result
-        cloud_svc="gdrive" # only supporting gdrive for cloud sync
-    fi
-   
-    # -- power Control --
-    if ! $selected_prompts || [ -z $power ]; then
-        header
-        prompt="Do you want to enable ConsolePi Power Outlet Control"
-        [ -z $power ] && power=false
-        user_input $power "${prompt}"
-        power=$result
-        if $power; then
-            echo -e "\nTo Complete Power Control Setup you need to populate /etc/ConsolePi/power.json" 
-            echo -e "You can copy and edit power.json.example.  Ensure you follow proper json format"
-            echo -e "\nI Suggest you verify your JSON using an online validator such as https://codebeautify.org/jsonvalidator"
-            echo -e "\nConsolePi currently supports Control of GPIO controlled Power Outlets (relays), IP connected"
-            echo -e "outlets running tasmota firmware, and digital-loggers web/ethernet Power Switches."
-            echo -e "See GitHub for more details.\n"
-            read -n 1 -p "Press any key to continue"
-        fi
-    fi
-}
-
-verify() {
-    header
-    echo "-------------------------------------------->>PLEASE VERIFY VALUES<<--------------------------------------------"
-    echo                                                                  
-    echo     " Send Notifications via PushBullet?:                      $push"
-    if $push; then
-        echo " PushBullet API Key:                                      ${push_api_key}"
-        echo " Send Push Notification to all devices?:                  $push_all"
-        ! $push_all && \
-        echo " iden of device to receive PushBullet Notifications:      ${push_iden}"
-    fi
-
-    echo " Enable Automatic VPN?:                                   $ovpn_enable"
-    if $ovpn_enable; then
-        echo " IP used to verify VPN is connected:                      $vpn_check_ip"
-        echo " IP used to verify Internet connectivity:                 $net_check_ip"
-        echo " Local Lab Domain:                                        $local_domain"
-    fi
-
-    echo " ConsolePi Hot Spot IP:                                   $wlan_ip"
-    echo "  *hotspot DHCP Range:                                    ${wlan_dhcp_start} to ${wlan_dhcp_end}"
-    echo " ConsolePi HotSpot SSID:                                  $wlan_ssid"
-    echo " ConsolePi HotSpot psk:                                   $wlan_psk"
-    echo " ConsolePi HotSpot regulatory domain:                     $wlan_country"
-    echo " ConsolePi Cloud Support:                                 $cloud"
-    $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
-    echo " ConsolePi Power Control Support:                         $power"
-    # echo " tftp server:                                             $tftpd"
-    echo
-    echo "----------------------------------------------------------------------------------------------------------------"
-    echo
-    echo "Enter Y to Continue N to make changes"
-    echo
-    prompt="Are Values Correct"
-    input=$(user_input_bool)
-    # ! $input && selected_prompts=false
-}
-
-chg_password() {
-    if [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then 
-        header
-        echo "You are logged in as pi, and the default password has not been changed"
-        prompt="Do You want to change the password for user pi"
-        response=$(user_input_bool)
-        if $response; then
-            match=false
-            while ! $match; do
-                read -sep "Enter new password for user pi: " pass && echo
-                read -sep "Re-Enter new password for user pi: " pass2 && echo
-                [[ "${pass}" == "${pass2}" ]] && match=true || match=false
-                ! $match && echo -e "ERROR: Passwords Do Not Match\n"
-            done
-            process="pi user password change"
-            echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" || 
-            ( logit "Failed to Change Password for pi user" "WARNING" &&
-            echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
-            unset pass && unset pass2 && unset process
-        fi
-    fi
-}
 
 set_hostname() {
     process="Change Hostname"
@@ -460,76 +147,6 @@ install_ser2net () {
         apt-get -y install ser2net 1>/dev/null 2>> $log_file &&
             logit "ser2net install Success" ||
             logit "ser2net install Failed." "WARNING"
-    #################################################################################
-    # Changed to install from apt now that apt isn't so far behind
-    # scripting below remaining for future option to install from src ser2net 4.x
-    #################################################################################
-    #     logit "Installing ser2net from source"
-    #     cd /usr/local/bin
-
-    #     logit "Retrieve and extract package"
-    #     wget -q "${ser2net_source}" -O ./ser2net.tar.gz 1>/dev/null 2>> $log_file && 
-    #         logit "Successfully pulled ser2net from source" || logit "Failed to pull ser2net from source" "ERROR"
-
-    #     tar -zxvf ser2net.tar.gz 1>/dev/null 2>> $log_file &&
-    #         logit "ser2net extracted" ||
-    #         logit "Failed to extract ser2net from source" "ERROR"
-
-    #     rm -f /usr/local/bin/ser2net.tar.gz || logit "Failed to remove tar.gz" "WARNING"
-    #     cd ser2net-${ser2net_source_version}/
-
-    #     logit "./configure ser2net"
-    #     ./configure 1>/dev/null 2>> $log_file &&
-    #         logit "./configure ser2net Success" ||
-    #         logit "ser2net ./configure Failed" "ERROR"
-
-    #     logit "ser2net make - be patient, this takes a few."
-    #     make 1>/dev/null 2>> $log_file &&
-    #         logit "ser2net make Success" ||
-    #         logit "ser2net make Failed" "ERROR"
-            
-    #     logit "ser2net make install, make clean"
-    #     make install 1>/dev/null 2>> $log_file &&
-    #         logit "ser2net make install Success" ||
-    #         logit "ser2net make install Failed" "ERROR"
-
-    #     make clean 1>/dev/null 2>> $log_file &&
-    #         logit "ser2net make clean Success" ||
-    #         logit "ser2net make clean Failed" "WARNING"
-    #     cd $cur_dir
-        
-    #     do_ser2net=true
-    #     if ! $upgrade; then
-    #         found_path=$(get_staged_file_path "ser2net.conf")
-    #         if [[ $found_path ]]; then 
-    #         cp $found_path "/etc" &&
-    #             logit "Found ser2net.conf in ${found_path}.  Copying to /etc" ||
-    #             logit "Error Copying your pre-staged ${found_path} file" "WARNING"
-    #             do_ser2net=false
-    #         fi
-    #     fi
-
-    #     if $do_ser2net; then
-    #         logit "Building ConsolePi Config for ser2net"
-    #         cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $log_file || 
-    #             logit "ser2net Failed to copy config file from ConsolePi src" "ERROR"
-    #     fi
-
-        
-    #     logit "Building init for ser2net"
-    #     cp /etc/ConsolePi/src/systemd/ser2net.init /etc/init.d/ser2net 2>> $log_file || 
-    #         logit "ser2net Failed to copy init file from ConsolePi src" "ERROR"
-            
-    #     chmod +x /etc/init.d/ser2net 2>> $log_file || 
-    #         logit "ser2net Failed to make init executable" "WARNING"
-        
-    #     logit "ser2net Enable init"
-    #     /lib/systemd/systemd-sysv-install enable ser2net 1>/dev/null 2>> $log_file && 
-    #         logit "ser2net init file enabled" ||
-    #         logit "ser2net failed to enable init file (start on boot)" "WARNING"
-            
-    #     systemctl daemon-reload || 
-    #         logit "systemctl failed to reload daemons" "WARNING"
     else
         logit "Ser2Net ${ser2net_ver} already installed. No Action Taken re ser2net"
     fi
@@ -1136,20 +753,21 @@ post_install_msg() {
     fi
 }
 
-install2_main() {
-    #-- install.sh does --
+update_main() {
+    # -- install.sh does --
     # remove_first_boot
     # updatepi
     # pre_git_prep
     # gitConsolePi
-    get_config
-    ! $bypass_verify && verify
-    while ! $input; do
-        collect
-        verify
-    done
-    update_config
-    update_config_overrides
+    # -- config.sh does --
+    # get_config
+    # ! $bypass_verify && verify
+    # while ! $input; do
+    #     collect
+    #     verify
+    # done
+    # update_config
+    # update_config_overrides
     if ! $upgrade; then
         chg_password
         set_hostname

@@ -93,8 +93,8 @@ update_config() {
     echo "  cfg_file_ver: ${CFG_FILE_VER} # ---- Do Not Delete or modify this line ---- #" >> $yml_temp
     echo "  push: ${push} # PushBullet Notifications: true - enable, false - disable" >> $yml_temp
     echo "  push_all: ${push_all} # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> $yml_temp
-    echo "  push_api_key: ${push_api_key} # PushBullet API key" >> $yml_temp
-    echo "  push_iden: ${push_iden} # iden of device to send PushBullet notification to if not push_all" >> $yml_temp
+    echo "  push_api_key: /"${push_api_key}/" # PushBullet API key" >> $yml_temp
+    echo "  push_iden: /"${push_iden}/" # iden of device to send PushBullet notification to if not push_all" >> $yml_temp
     echo "  ovpn_enable: ${ovpn_enable} # if enabled will establish VPN connection" >> $yml_temp
     echo "  vpn_check_ip: ${vpn_check_ip} # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> $yml_temp
     echo "  net_check_ip: ${net_check_ip} # used to check Internet connectivity" >> $yml_temp
@@ -134,6 +134,7 @@ update_config() {
     fi
     if [[ -f $POWER_FILE ]] ; then
         logit "Legacy power config file power.json found.  You should move Power Settings to the new ConsolePi.yaml"
+        echo -e "\n-- FOUND LEGACY OUTLET CONFIGURATION power.json --"
         echo -e "\nConsolePi now supports a sinlge all in one configuration file ConsolePi.yaml"
         echo -e "Power outlet and manual host definitions can now be defined in ConsolePi.yaml"
         echo -e "refer to the example file and the ReadMe for formatting."
@@ -146,6 +147,7 @@ update_config() {
     if [[ -f $REM_HOST_FILE ]] ; then
         logit "Legacy host file hosts.json found.  You should move these Settings to the new ConsolePi.yaml"
         echo -e "\nConsolePi now supports a sinlge all in one configuration file ConsolePi.yaml"
+        echo -e "\n-- FOUND LEGACY HOST CONFIGURATION hosts.json --"
         echo -e "Power outlet and manual host definitions can now be defined in ConsolePi.yaml"
         echo -e "refer to the example file and the ReadMe for formatting."
         echo -e "\nAn existing host.json was found, which *should* continue to work but it is reccomended"

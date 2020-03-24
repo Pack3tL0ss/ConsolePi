@@ -7,8 +7,8 @@ CONFIG:
   cfg_file_ver: 7 # ---- Do Not Delete or modify this line ---- #
   push: true # PushBullet Notifications: true - enable, false - disable
   push_all: true # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden
-  push_api_key: "Put Your PushBullet API Here" # PushBullet API key
-  push_iden: "PB iden" # iden of device to send PushBullet notification to if not push_all
+  push_api_key: "PutYourPushBulletAPIKeyHere" # PushBullet API key
+  push_iden: "PBiden" # iden of device to send PushBullet notification to if not push_all
   ovpn_enable: false # if enabled will establish VPN connection
   vpn_check_ip: 10.0.150.1 # used to check VPN (internal) connectivity should be ip only reachable via VPN
   net_check_ip: 8.8.4.4 # used to check Internet connectivity

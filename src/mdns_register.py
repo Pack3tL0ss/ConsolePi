@@ -43,20 +43,15 @@ class MDNS_Register:
         # if data set is too large for mdns browser on other side will retrieve via API
         if squash is not None:
             if squash == 'interfaces':
-                loc['interfaces'] = {_if: loc['interfaces'][_if]
-                                     for _if in loc['interfaces'] if '.' not in _if}
-                loc['interfaces'] = json.dumps(loc['interfaces'])
-                loc['adapters'] = json.dumps(loc['adapters'])
+                del loc['adapters']
+                x = loc['interfaces']
+                loc['interfaces'] = {k: {i: v[i] for i in v if i not in ['mac', 'isgw']}
+                                     for k, v in x.items() if '.' not in k and not k.startswith('_')}
             else:
                 del loc['adapters']
-                loc['interfaces'] = json.dumps(loc['interfaces'])
-        else:
-            loc['interfaces'] = json.dumps(loc['interfaces'])
-            loc['adapters'] = json.dumps(loc['adapters'])
-        # local_json = json.dumps(loc)
 
         log.debug('[MDNS REG] Current content of local_data \n{}'.format(json.dumps(loc, indent=4, sort_keys=True)))
-        # print(struct.calcsize(json.dumps(local_data).encode('utf-8')))
+        loc = {k: '{}'.format(loc[k] if isinstance(loc[k], str) else json.dumps(loc[k])) for k in loc.keys()}
 
         info = ServiceInfo(
             "_consolepi._tcp.local.",
@@ -123,6 +118,12 @@ class MDNS_Register:
                             '    {} {}'.format(e.__class__.__name__, e))
                 log.debug('[MDNS REG] offending interface data \n    {}'.format(
                           json.dumps(local.interfaces, indent=4, sort_keys=True)))
+                try:
+                    info = self.build_info(squash='interfaces')
+                except struct.error:
+                    log.critical('[MDNS REG] data is still too big for mdns')
+                    log.debug('[MDNS REG] offending interface data \n    {}'.format(
+                            json.dumps(local.interfaces, indent=4, sort_keys=True)))
 
         return info
 

@@ -38,7 +38,8 @@ class Config():
         self.ser2net_conf = self.get_ser2net()
         self.hosts = self.get_hosts()
         self.power = self.cfg.get('power', False)
-        self.outlets = self.get_outlets_from_file()
+        if self.power:
+            self.outlets = self.get_outlets_from_file()
         self.remotes = self.get_remotes_from_file()
         self.remote_update = self.get_remotes_from_file
         self.root = True if os.geteuid() == 0 else False
@@ -82,6 +83,10 @@ class Config():
         # Process Globals that can be overriden by values in ConsolePi.yaml
         # if self.ovrd:
         ovrd = self.ovrd if self.ovrd else {}
+        for k in ovrd:
+            if ovrd[k] in ['true', 'false']:
+                ovrd[k] = True if ovrd[k] == 'true' else False
+        self.ovrd = ovrd
         self.default_baud = ovrd.get('default_baud', DEFAULT_BAUD)
         self.default_dbits = ovrd.get('default_dbits', DEFAULT_DBITS)
         self.default_parity = ovrd.get('default_parity', DEFAULT_PARITY)

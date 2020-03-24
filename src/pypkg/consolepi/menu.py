@@ -18,7 +18,7 @@ class Menu():
             True: '{{green}}ON{{norm}}',
             False: '{{red}}OFF{{norm}}'
         }
-        self.ignored_errors = []
+        self.ignored_errors = []  # Populated by menu script consolepi-menu.py
         self.log_sym_2bang = '\033[1;33m!!\033[0m'
         if sys.stdin.isatty():
             self.rows, self.cols = utils.get_tty_size()

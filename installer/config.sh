@@ -282,10 +282,13 @@ collect() {
         echo "and if enabled can sync via Google Drive."
         echo
         echo "The Remote User is typically pi but can be any user given they are members of"
-        echo "the dialout and consolepi groups"
+        echo "the dialout and consolepi groups.  Remotes connect via ssh"
         echo
         user_input $rem_user "What user should remote ConsolePis use to connect to this ConsolePi"
         rem_user=$result
+        if ! groups $rem_user 2>>$log_file | grep dialout| grep -q consolepi ; then
+            logit "$rem_user is lacking membership to consolepi and/or dialout groups, please verify after install"
+        fi     
     fi
 
     # -- power Control --

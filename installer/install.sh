@@ -59,7 +59,7 @@ do_apt_update() {
     logit "Tidying up (autoremove)"
     apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
 
-    logit "Installing git via apt"
+    logit "Install/update git (apt)"
     apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
     logit "Process Complete"
     unset process
@@ -155,12 +155,6 @@ git_ConsolePi() {
     if [ ! -d $consolepi_dir ]; then
         logit "Clean Install git clone ConsolePi"
         git clone "${consolepi_source}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
-        # if [ ! -z $branch ] && [ $branch != 'master' ] ; then
-        #     pushd ${consolepi_dir} >/dev/null
-        #     git checkout $branch && logit "Success checkout $branch branch" || 
-        #         ( popd >/dev/null && logit "Failed to checkout $branch branch" "ERROR" )
-        #     popd >/dev/null
-        # fi
     else
         cd $consolepi_dir
         logit "Directory exists Updating ConsolePi via git"
@@ -168,7 +162,7 @@ git_ConsolePi() {
             logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "ERROR"
     fi
     [[ ! -d $bak_dir ]] && sudo mkdir $bak_dir
-    # change group ownership to consolepi
+    # -- change group ownership to consolepi --
     sudo chgrp -R consolepi /etc/ConsolePi || logit "Failed to chgrp for ConsolePi dir to consolepi group" "WARNING"
     unset process
 }

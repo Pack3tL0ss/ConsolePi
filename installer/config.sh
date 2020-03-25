@@ -3,10 +3,6 @@
 # ConsolePi ~ Get Configuration details from user (stage 2 of install)
 # Author: Wade Wells
 
-process_yaml() {
-    $yml_script "${@}" > $tmp_src 2>>$log_file && . $tmp_src && rm $tmp_src
-}
-
 get_static() {
     process="get static vars"
     process_yaml static
@@ -43,24 +39,6 @@ get_config() {
 do_default_config() {
     echo -e "%YAML 1.2\n---\nCONFIG:" > "$CONFIG_FILE_YAML"
     echo "  cfg_file_ver: ${CFG_FILE_VER} # ---- Do Not Delete or modify this line ---- #" >> "$CONFIG_FILE_YAML"
-    # -- Put this in thinking, self, what if the user mv / renames the example file 
-    # -- but then I was like, self, that's dumb, the git-pull will grab it again.
-    # echo "  push: true # PushBullet Notifications: true - enable, false - disable" >> "$CONFIG_FILE_YAML"
-    # echo "  push_all: true # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> "$CONFIG_FILE_YAML"
-    # echo "  push_api_key: __PutYourPBAPIKeyHereChangeMe__ # PushBullet API key" >> "$CONFIG_FILE_YAML"
-    # echo "  push_iden: __putyourPBidenHere__ # iden of device to send PushBullet notification to if not push_all" >> "$CONFIG_FILE_YAML"
-    # echo "  ovpn_enable: false # if enabled will establish VPN connection" >> "$CONFIG_FILE_YAML"
-    # echo "  vpn_check_ip: 10.0.150.1 # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> "$CONFIG_FILE_YAML"
-    # echo "  net_check_ip: 8.8.8.8 # used to check internet connectivity" >> "$CONFIG_FILE_YAML"
-    # echo "  local_domain: example.com # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> "$CONFIG_FILE_YAML"
-    # echo "  wlan_ip: 10.3.0.1 # IP of ConsolePi when in hotspot mode" >> "$CONFIG_FILE_YAML"
-    # echo "  wlan_ssid: ConsolePi # SSID used in hotspot mode" >> "$CONFIG_FILE_YAML"
-    # echo "  wlan_psk: ChangeMe!! # psk used for hotspot SSID" >> "$CONFIG_FILE_YAML"
-    # echo "  wlan_country: US # regulatory domain for hotspot SSID" >> "$CONFIG_FILE_YAML"
-    # echo "  cloud: false # enable ConsolePi clustering / cloud config sync" >> "$CONFIG_FILE_YAML"
-    # echo '  cloud_svc: gdrive # Currently only option is "gdrive"' >> "$CONFIG_FILE_YAML"
-    # echo '  power: false # Adds support for Power Outlet control' >> "$CONFIG_FILE_YAML"
-    # echo -e "  debug: false # turns on additional debugging\n" >> "$CONFIG_FILE_YAML"
     [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/cfg_file_ver/,/# --- The Remaining/p' $CONFIG_FILE_YAML.example | tail -n +2 | head -n -1 >> $CONFIG_FILE_YAML
     [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/OVERRIDES:/,/^#.*$/p' $CONFIG_FILE_YAML.example | head -n -1 >> $CONFIG_FILE_YAML
     # -- // Prompt for interactive Mode \\ --
@@ -90,24 +68,43 @@ update_config() {
     echo "%YAML 1.2" > $yml_temp
     echo "---" >> $yml_temp
     echo "CONFIG:" >> $yml_temp
-    echo "  cfg_file_ver: ${CFG_FILE_VER} # ---- Do Not Delete or modify this line ---- #" >> $yml_temp
-    echo "  push: ${push} # PushBullet Notifications: true - enable, false - disable" >> $yml_temp
-    echo "  push_all: ${push_all} # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> $yml_temp
-    echo "  push_api_key: /"${push_api_key}/" # PushBullet API key" >> $yml_temp
-    echo "  push_iden: /"${push_iden}/" # iden of device to send PushBullet notification to if not push_all" >> $yml_temp
-    echo "  ovpn_enable: ${ovpn_enable} # if enabled will establish VPN connection" >> $yml_temp
-    echo "  vpn_check_ip: ${vpn_check_ip} # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> $yml_temp
-    echo "  net_check_ip: ${net_check_ip} # used to check Internet connectivity" >> $yml_temp
-    echo "  local_domain: ${local_domain} # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> $yml_temp
-    echo "  wlan_ip: ${wlan_ip} # IP of ConsolePi when in hotspot mode" >> $yml_temp
-    echo "  wlan_ssid: ${wlan_ssid} # SSID used in hotspot mode" >> $yml_temp
-    echo "  wlan_psk: ${wlan_psk} # psk used for hotspot SSID" >> $yml_temp
-    echo "  wlan_country: ${wlan_country} # regulatory domain for hotspot SSID" >> $yml_temp
-    echo "  cloud: ${cloud} # enable ConsolePi cloud sync for Clustering (mdns enabled either way)" >> $yml_temp
-    echo "  cloud_svc: ${cloud_svc} # must be gdrive (all that is supported now)" >> $yml_temp
-    echo "  rem_user: ${rem_user} # The user account remotes should use to access this ConsolePi" >> $yml_temp
-    echo "  power: ${power} # Enable Power Outlet Control" >> $yml_temp
-    echo "  debug: ${debug} # Turns on additional debugging" >> $yml_temp
+    echo "cfg_file_ver: ${CFG_FILE_VER} # ---- Do Not Delete or modify this line ----" "#" >> $yml_temp
+    spaces "push: ${push}" "# PushBullet Notifications: true - enable, false - disable" >> $yml_temp
+    spaces "push_all: ${push_all}" "# PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> $yml_temp
+    spaces "push_api_key: /"${push_api_key}/"" "# PushBullet API key" >> $yml_temp
+    spaces "push_iden: /"${push_iden}/"" "# iden of device to send PushBullet notification to if not push_all" >> $yml_temp
+    spaces "ovpn_enable: ${ovpn_enable}" "# if enabled will establish VPN connection" >> $yml_temp
+    spaces "vpn_check_ip: ${vpn_check_ip}" "# used to check VPN (internal) connectivity should be ip only reachable via VPN" >> $yml_temp
+    spaces "net_check_ip: ${net_check_ip}" "# used to check Internet connectivity" >> $yml_temp
+    spaces "local_domain: ${local_domain}" "# used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> $yml_temp
+    spaces "HotSpot: ${hotspot}" "# wheather to enable AutoHotSpot Feature" >> $yml_temp
+    spaces "wlan_ip: ${wlan_ip}" "# IP of ConsolePi when in hotspot mode" >> $yml_temp
+    spaces "wlan_ssid: ${wlan_ssid}" "# SSID used in hotspot mode" >> $yml_temp
+    spaces "wlan_psk: ${wlan_psk}" "# psk used for hotspot SSID" >> $yml_temp
+    spaces "wlan_country: ${wlan_country}" "# regulatory domain for hotspot SSID" >> $yml_temp
+    spaces "cloud: ${cloud}" "# enable ConsolePi cloud sync for Clustering (mdns enabled either way)" >> $yml_temp
+    spaces "cloud_svc: ${cloud_svc}" "# must be gdrive (all that is supported now)" >> $yml_temp
+    spaces "rem_user: ${rem_user}" "# The user account remotes should use to access this ConsolePi" >> $yml_temp
+    spaces "power: ${power}" "# Enable Power Outlet Control" >> $yml_temp
+    spaces "debug: ${debug}" "# Turns on additional debugging" >> $yml_temp
+    # echo "  push: ${push} # PushBullet Notifications: true - enable, false - disable" >> $yml_temp
+    # echo "  push_all: ${push_all} # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> $yml_temp
+    # echo "  push_api_key: /"${push_api_key}/" # PushBullet API key" >> $yml_temp
+    # echo "  push_iden: /"${push_iden}/" # iden of device to send PushBullet notification to if not push_all" >> $yml_temp
+    # echo "  ovpn_enable: ${ovpn_enable} # if enabled will establish VPN connection" >> $yml_temp
+    # echo "  vpn_check_ip: ${vpn_check_ip} # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> $yml_temp
+    # echo "  net_check_ip: ${net_check_ip} # used to check Internet connectivity" >> $yml_temp
+    # echo "  local_domain: ${local_domain} # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> $yml_temp
+    # echo "  HotSpot: ${hotspot} # wheather to enable AutoHotSpot Feature" >> $yml_temp
+    # echo "  wlan_ip: ${wlan_ip} # IP of ConsolePi when in hotspot mode" >> $yml_temp
+    # echo "  wlan_ssid: ${wlan_ssid} # SSID used in hotspot mode" >> $yml_temp
+    # echo "  wlan_psk: ${wlan_psk} # psk used for hotspot SSID" >> $yml_temp
+    # echo "  wlan_country: ${wlan_country} # regulatory domain for hotspot SSID" >> $yml_temp
+    # echo "  cloud: ${cloud} # enable ConsolePi cloud sync for Clustering (mdns enabled either way)" >> $yml_temp
+    # echo "  cloud_svc: ${cloud_svc} # must be gdrive (all that is supported now)" >> $yml_temp
+    # echo "  rem_user: ${rem_user} # The user account remotes should use to access this ConsolePi" >> $yml_temp
+    # echo "  power: ${power} # Enable Power Outlet Control" >> $yml_temp
+    # echo "  debug: ${debug} # Turns on additional debugging" >> $yml_temp
     echo "" >> $yml_temp
     if [[ -f $CONFIG_FILE_YAML ]] ; then
         sed -n '/debug:/,//p' $CONFIG_FILE_YAML | tail -n +2 >> $yml_temp
@@ -118,7 +115,7 @@ update_config() {
         
     fi
     # -- // Move updated yaml to Config.yaml \\ --
-    if cat $yml_temp >> $CONFIG_FILE_YAML ; then
+    if cat $yml_temp > $CONFIG_FILE_YAML ; then
         chgrp consolepi $CONFIG_FILE_YAML 2>>$log_file || logit "Failed to chg group for ConsolePi.yaml to consolepi group" "WARNING"
         chmod g+w $CONFIG_FILE_YAML 2>>$log_file || logit "Failed to make ConsolePi.yaml group writable" "WARNING"
         rm $yml_temp
@@ -158,7 +155,7 @@ update_config() {
     fi
 }
 
-# Automatically set the DHCP range based on the hotspot IP provided
+# -- Automatically set the DHCP range based on the hotspot IP provided --
 hotspot_dhcp_range() {
     baseip=`echo $wlan_ip | cut -d. -f1-3`   # get first 3 octets of wlan_ip
     wlan_dhcp_start=$baseip".101"
@@ -238,30 +235,42 @@ collect() {
     fi
         
     # -- HotSpot  --
-    if ! $selected_prompts || [ -z $wlan_ip ]; then
+    if ! $selected_prompts || [ -z $hotspot ]; then
         header
-        prompt="What IP do you want to assign to ConsolePi when acting as HotSpot"
-        user_input $wlan_ip "${prompt}"
-        wlan_ip=$result
-        hotspot_dhcp_range
-        
-        # -- HotSpot SSID --
-        header
-        prompt="What SSID do you want the HotSpot to Broadcast when in HotSpot mode"
-        user_input $wlan_ssid "${prompt}"
-        wlan_ssid=$result
-        
-        # -- HotSpot psk --
-        header
-        prompt="Enter the psk used for the HotSpot SSID"
-        user_input $wlan_psk "${prompt}"
-        wlan_psk=$result
-        
-        # -- HotSpot country --
-        header
-        prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
-        user_input "US" "${prompt}"
-        wlan_country=$result
+        echo -e "\nWith the Auto HotSpot Feature Enabled ConsolePi will do the following on boot:"
+        echo "  - Scan for configured SSIDs and attempt to connect as a client."
+        echo -e "  - If no configured SSIDs are found, it will Fallback to HotSpot Mode and act as an AP.\n"
+        prompt="Enable Automatic Fallback to HotSpot on wlan0"
+        [[ -z $hotspot ]] && hotspot=true
+        user_input $hotspot "${prompt}"
+        hotspot=$result
+
+        # -- HotSpot IP --
+        if $hotspot ; then
+            header
+            prompt="What IP do you want to assign to ConsolePi when acting as HotSpot"
+            user_input $wlan_ip "${prompt}"
+            wlan_ip=$result
+            hotspot_dhcp_range
+            
+            # -- HotSpot SSID --
+            header
+            prompt="What SSID do you want the HotSpot to Broadcast when in HotSpot mode"
+            user_input $wlan_ssid "${prompt}"
+            wlan_ssid=$result
+            
+            # -- HotSpot psk --
+            header
+            prompt="Enter the psk used for the HotSpot SSID"
+            user_input $wlan_psk "${prompt}"
+            wlan_psk=$result
+            
+            # -- HotSpot country --
+            header
+            prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
+            user_input "US" "${prompt}"
+            wlan_country=$result
+        fi
     fi
 
     # -- cloud --
@@ -313,30 +322,60 @@ verify() {
     header
     echo "-------------------------------------------->>PLEASE VERIFY VALUES<<--------------------------------------------"
     echo                                                                  
-    echo     " Send Notifications via PushBullet?:                      $push"
+    dots "Send Notifications via PushBullet?" "$push"
     if $push; then
-        echo " PushBullet API Key:                                      ${push_api_key}"
-        echo " Send Push Notification to all devices?:                  $push_all"
-        ! $push_all && \
-        echo " iden of device to receive PushBullet Notifications:      ${push_iden}"
+        dots "PushBullet API Key" "${push_api_key}"
+        dots "Send Push Notification to all devices?" "$push_all"
+        ! $push_all &&
+        dots "iden of device to receive PushBullet Notifications" "${push_iden}"
     fi
 
-    echo " Enable Automatic VPN?:                                   $ovpn_enable"
+    dots "Enable Automatic VPN?" "$ovpn_enable"
     if $ovpn_enable; then
-        echo " IP used to verify VPN is connected:                      $vpn_check_ip"
-        echo " IP used to verify Internet connectivity:                 $net_check_ip"
-        echo " Local Lab Domain:                                        $local_domain"
+        dots "IP used to verify VPN is connected" "$vpn_check_ip"
+        dots "IP used to verify Internet connectivity" "$net_check_ip"
+        dots "Local Lab Domain" "$local_domain"
     fi
 
-    echo " ConsolePi Hot Spot IP:                                   $wlan_ip"
-    echo "  *hotspot DHCP Range:                                    ${wlan_dhcp_start} to ${wlan_dhcp_end}"
-    echo " ConsolePi HotSpot SSID:                                  $wlan_ssid"
-    echo " ConsolePi HotSpot psk:                                   $wlan_psk"
-    echo " ConsolePi HotSpot regulatory domain:                     $wlan_country"
-    echo " ConsolePi Cloud Support:                                 $cloud"
-    $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
-    echo " User used by Remotes to connect to this ConsolePi:       $rem_user"
-    echo " ConsolePi Power Control Support:                         $power"
+    dots "Enable Automatic HotSpot (wlan0)" "$hotspot"
+    if $hotspot ; then
+        dots "ConsolePi Hot Spot IP" "$wlan_ip"
+        dots " *hotspot DHCP Range" "${wlan_dhcp_start} to ${wlan_dhcp_end}"
+        dots "ConsolePi HotSpot SSID" "$wlan_ssid"
+        dots "ConsolePi HotSpot psk" "$wlan_psk"
+        dots "ConsolePi HotSpot regulatory domain" "$wlan_country"
+    fi
+    dots "ConsolePi Cloud Support" "$cloud"
+    $cloud && dots "ConsolePi Cloud Service" "$cloud_svc"
+    dots "User used by Remotes to connect to this ConsolePi" "$rem_user"
+    dots "ConsolePi Power Control Support" "$power"
+    # echo     " Send Notifications via PushBullet?:                      $push"
+    # if $push; then
+    #     echo " PushBullet API Key:                                      ${push_api_key}"
+    #     echo " Send Push Notification to all devices?:                  $push_all"
+    #     ! $push_all && \
+    #     echo " iden of device to receive PushBullet Notifications:      ${push_iden}"
+    # fi
+
+    # echo " Enable Automatic VPN?:                                   $ovpn_enable"
+    # if $ovpn_enable; then
+    #     echo " IP used to verify VPN is connected:                      $vpn_check_ip"
+    #     echo " IP used to verify Internet connectivity:                 $net_check_ip"
+    #     echo " Local Lab Domain:                                        $local_domain"
+    # fi
+
+    # echo " Enable Automatic HotSpot (wlan0):                        $hotspot"
+    # if $hotspot ; then
+    #     echo " ConsolePi Hot Spot IP:                                   $wlan_ip"
+    #     echo "  *hotspot DHCP Range:                                    ${wlan_dhcp_start} to ${wlan_dhcp_end}"
+    #     echo " ConsolePi HotSpot SSID:                                  $wlan_ssid"
+    #     echo " ConsolePi HotSpot psk:                                   $wlan_psk"
+    #     echo " ConsolePi HotSpot regulatory domain:                     $wlan_country"
+    # fi
+    # echo " ConsolePi Cloud Support:                                 $cloud"
+    # $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
+    # echo " User used by Remotes to connect to this ConsolePi:       $rem_user"
+    # echo " ConsolePi Power Control Support:                         $power"
     echo
     echo "----------------------------------------------------------------------------------------------------------------"
     echo

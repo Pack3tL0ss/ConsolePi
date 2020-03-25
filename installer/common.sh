@@ -438,8 +438,8 @@ get_staged_file_path() {
 }
 
 dots() { 
-    local pad=$(printf "%0.1s" "."{1..70})
-    printf " %s%*.*s" "$1" 0 $((70-${#1})) "$pad" "$2"; echo
+    local pad=$(printf "%0.1s" "."{1..51})
+    printf " %s%*.*s" "$1" 0 $((51-${#1})) "$pad" "$2"; echo
     return 0; 
 }
 

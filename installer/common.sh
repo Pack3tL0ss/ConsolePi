@@ -399,6 +399,11 @@ convert_template() {
     rm /tmp/${1} >/dev/null 2>>$log_file
 }
 
+process_yaml() {
+    $yml_script "${@}" > $tmp_src 2>>$log_file && . $tmp_src && rm $tmp_src ||
+        logit "Error returned from yaml config import ($yml_script ${@}), check $log_file" "ERROR"
+}
+
 do_systemd_enable_load_start() {
     if [[ ! -f "${override_dir}/${1}.service" ]] ; then
         status=$(systemctl is-enabled $1 2>&1)
@@ -430,6 +435,18 @@ get_staged_file_path() {
         found_path=
     fi
     echo $found_path
+}
+
+dots() { 
+    local pad=$(printf "%0.1s" "."{1..70})
+    printf " %s%*.*s" "$1" 0 $((70-${#1})) "$pad" "$2"; echo
+    return 0; 
+}
+
+spaces() { 
+    local pad=$(printf "%0.1s" " "{1..70})
+    printf "  %s%*.*s" "$1" 0 $((70-${#1})) "$pad" "$2"; echo
+    return 0; 
 }
 
 process_cmds() {

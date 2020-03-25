@@ -27,8 +27,6 @@ class Config():
         self.debug = self.cfg.get('debug', False)
         self.cloud = self.cfg.get('cloud', False)
         self.cloud_svc = self.cfg.get('cloud_svc', 'gdrive')
-        # super().__init__(self.static['LOG_FILE'], self.debug)
-        # self.log = ConsolePiLog(self.static['LOG_FILE'], self.debug)
         try:
             self.loc_user = os.getlogin()
         except Exception:
@@ -38,8 +36,7 @@ class Config():
         self.ser2net_conf = self.get_ser2net()
         self.hosts = self.get_hosts()
         self.power = self.cfg.get('power', False)
-        if self.power:
-            self.outlets = self.get_outlets_from_file()
+        self.outlets = {} if not self.power else self.get_outlets_from_file()
         self.remotes = self.get_remotes_from_file()
         self.remote_update = self.get_remotes_from_file
         self.root = True if os.geteuid() == 0 else False

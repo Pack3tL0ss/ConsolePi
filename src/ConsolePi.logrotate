@@ -2,6 +2,7 @@
 /var/log/ConsolePi/push_response.log
 /var/log/ConsolePi/install.log
 /var/log/ConsolePi/cloud.log
+/var/log/ConsolePi/consolepi.log
 {
         rotate 4
         weekly

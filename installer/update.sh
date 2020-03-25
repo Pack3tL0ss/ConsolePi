@@ -350,6 +350,13 @@ install_autohotspotn () {
     unset process
 }
 
+disable_autohotspot() {
+    local process="Verify Auto HotSpot is disabled"
+    systemctl is-active autohotspot >/dev/null 2>&1 && systemctl stop autohotspot >/dev/null 2>>$log_file ; rc=$?
+    systemctl is-enabled autohotspot >/dev/null 2>&1 && systemctl disable autohotspot >/dev/null 2>>$log_file ; rc=$?
+    [[ $rc -eq 0 ]] && logit "Success Auto HotSpot Service is Disabled" || logit "Error Disabling Auto HotSpot Service"
+}
+
 gen_dnsmasq_conf () {
     process="Configure dnsmasq"
     logit "Generating Files for dnsmasq."
@@ -780,8 +787,12 @@ update_main() {
     ConsolePi_cleanup
     install_ovpn
     ovpn_graceful_shutdown
-    install_autohotspotn
-    gen_dnsmasq_conf
+    if $hotspot ; then
+        install_autohotspotn
+        gen_dnsmasq_conf
+    else
+        disable_autohotspot
+    fi
     dhcpcd_conf
     do_blue_config
     do_consolepi_api

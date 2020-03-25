@@ -362,9 +362,9 @@ get_pi_info_pretty() {
 # Gather Some info about the Pi useful in triage of issues
 get_pi_info() {
     process="Collect Pi Info"
-    [ ! -z $branch ] && [ $branch != "master" ] && logit "Running alternate branch: $branch"
+    [ ! -z $branch ] && [ $branch != "master" ] && logit "Running alternate branch: ${_green}$branch${_norm}"
     git_rem=$(pushd /etc/ConsolePi >/dev/null && git remote -v | head -1 | cut -d '(' -f-1 ; popd >/dev/null)
-    [[ $(echo $git_rem | awk '{print $2}') != $consolepi_source ]] && logit "Using alternative repo: $git_rem"
+    [[ $(echo $git_rem | awk '{print $2}') != $consolepi_source ]] && logit "Using alternative repo: ${_green}$git_rem${_norm}"
     # cat /etc/os-release
     ver_full=$(head -1 /etc/debian_version)
     ver=$(echo $ver_full | cut -d. -f1)

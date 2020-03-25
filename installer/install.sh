@@ -234,8 +234,8 @@ do_pyvenv() {
         [[ -d $pkg_dir ]] && rm -r $pkg_dir >/dev/null 2>> $log_file
         ln -s ${src_dir}PyConsolePi/ ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
         # sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
-            logit "Success - moving consolepi python module into venv site-packages" ||
-            logit "Error - moving consolepi python module into venv site-packages" "ERROR"
+            logit "Success - link consolepi python module into venv site-packages" ||
+            logit "Error - link consolepi python module into venv site-packages" "ERROR"
     fi
     
 

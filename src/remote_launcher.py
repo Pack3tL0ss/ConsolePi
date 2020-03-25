@@ -9,10 +9,14 @@ import psutil
 import sys
 import subprocess
 from time import sleep
-from consolepi.common import user_input_bool
-from consolepi.common import ConsolePi_data
+sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
+from consolepi import config, utils  # NoQA
+from consolepi.consolepi import ConsolePi  # NoQA
+cpi = ConsolePi(bypass_remotes=True)
+# from consolepi.common import user_input_bool
+# from consolepi.common import ConsolePi_data
 
-config = ConsolePi_data(do_print=False)
+# config = ConsolePi_data(do_print=False)
 
 
 def find_procs_by_name(name, dev):
@@ -43,7 +47,7 @@ if __name__ == '__main__':
         retry = 0
         msg = f"\n{sys.argv[2].replace('/dev/', '')} appears to be in use (may be a previous hung session)."
         msg += '\nDo you want to Terminate the existing session'
-        if ppid is not None and user_input_bool(msg):
+        if ppid is not None and utils.user_input_bool(msg):
             while ppid is not None and retry < 3:
                 print('Terminating Existing Session...')
                 try:
@@ -63,5 +67,5 @@ if __name__ == '__main__':
         if ppid is None:
             # if power feature enabled and adapter linked - ensure outlet is on
             if config.power:  # pylint: disable=maybe-no-member
-                config.exec_auto_pwron(sys.argv[2])
+                cpi.cpiexec.exec_auto_pwron(sys.argv[2])
             subprocess.run(_cmd)

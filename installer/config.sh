@@ -68,11 +68,11 @@ update_config() {
     echo "%YAML 1.2" > $yml_temp
     echo "---" >> $yml_temp
     echo "CONFIG:" >> $yml_temp
-    echo "cfg_file_ver: ${CFG_FILE_VER} # ---- Do Not Delete or modify this line ----" "#" >> $yml_temp
+    echo "  cfg_file_ver: ${CFG_FILE_VER} # ---- Do Not Delete or modify this line ----" "#" >> $yml_temp
     spaces "push: ${push}" "# PushBullet Notifications: true - enable, false - disable" >> $yml_temp
     spaces "push_all: ${push_all}" "# PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> $yml_temp
-    spaces "push_api_key: /"${push_api_key}/"" "# PushBullet API key" >> $yml_temp
-    spaces "push_iden: /"${push_iden}/"" "# iden of device to send PushBullet notification to if not push_all" >> $yml_temp
+    spaces "push_api_key: \"${push_api_key}\"" "# PushBullet API key" >> $yml_temp
+    spaces "push_iden: \"${push_iden}\"" "# iden of device to send PushBullet notification to if not push_all" >> $yml_temp
     spaces "ovpn_enable: ${ovpn_enable}" "# if enabled will establish VPN connection" >> $yml_temp
     spaces "vpn_check_ip: ${vpn_check_ip}" "# used to check VPN (internal) connectivity should be ip only reachable via VPN" >> $yml_temp
     spaces "net_check_ip: ${net_check_ip}" "# used to check Internet connectivity" >> $yml_temp

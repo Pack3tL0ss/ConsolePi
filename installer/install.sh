@@ -249,12 +249,14 @@ do_logging() {
     # Create Log Files
     touch /var/log/ConsolePi/ovpn.log || logit "Failed to create OpenVPN log file" "WARNING"
     touch /var/log/ConsolePi/push_response.log || logit "Failed to create PushBullet log file" "WARNING"
-    touch /var/log/ConsolePi/cloud.log || logit "Failed to create cloud log file" "WARNING"
+    # touch /var/log/ConsolePi/cloud.log || logit "Failed to create cloud log file" "WARNING"
+    touch /var/log/ConsolePi/cloud.log || logit "Failed to create consolepi log file" "WARNING"
     touch /var/log/ConsolePi/install.log || logit "Failed to create install log file" "WARNING"
 
     # Update permissions
     sudo chgrp -R consolepi /var/log/ConsolePi || logit "Failed to update group for log file" "WARNING"
-    if [ ! $(stat -c "%a" /var/log/ConsolePi/cloud.log) == 664 ]; then
+    # if [ ! $(stat -c "%a" /var/log/ConsolePi/cloud.log) == 664 ]; then
+    if [ ! $(stat -c "%a" /var/log/ConsolePi/consolepi.log) == 664 ]; then
         sudo chmod g+w /var/log/ConsolePi/* &&
             logit "Logging Permissions Updated (group writable)" ||
             logit "Failed to make log files group writable" "WARNING"

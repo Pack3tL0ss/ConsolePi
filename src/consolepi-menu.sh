@@ -12,7 +12,7 @@ dbits=8
 cloud_file="/etc/ConsolePi/cloud.json"
 resize_bin="/etc/ConsolePi/src/consolepi-commands/resize"
 WORD="default"
-. /etc/ConsolePi/ConsolePi.conf
+# . /etc/ConsolePi/ConsolePi.conf
 # This menu is now only used for bluetooth connections and limited only to local connections
 # it can also be launched as an alternative to the normal menu with `consolepi-menu sh` (just pass the parameter 'sh' to the consolepi-menu command)
 
@@ -283,7 +283,7 @@ get_rem_vars() {
 
 # -- picocom help --
 picocom_help() {
-    echo '############################  Picocom Help  ############################'
+    echo '----------------------------  Picocom Help  ----------------------------'
     echo ''
     echo ' This program will launch serial session via picocom'
     echo ' Be Aware of The following command sequences:'
@@ -298,7 +298,7 @@ picocom_help() {
     echo '   ctrl+a followed by ctrl+v Show configured port options'
     echo '   ctrl+a followed by ctrl+c toggle local echo'
     echo ''
-    echo '########################################################################'
+    echo '------------------------------------------------------------------------'
     echo ''
     read -p "Press enter to Continue "
     clear

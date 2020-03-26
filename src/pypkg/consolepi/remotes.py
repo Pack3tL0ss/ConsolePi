@@ -168,6 +168,7 @@ class Remotes():
                 if stdin.isatty():
                     self.spin.succeed(_msg + '\n\tFound {} Remotes via Gdrive Sync'.format(len(remote_consoles)))
                     for r in remote_consoles:
+                        # -- Convert Any Remotes with old API schema to new API schema --
                         if isinstance(remote_consoles[r].get('adapters', {}), list):
                             remote_consoles[r]['adapters'] = self.convert_adapters(remote_consoles[r]['adapters'])
                             log.warning(f'Adapter data for {r} retrieved from cloud in old API format... Converted')
@@ -257,6 +258,8 @@ class Remotes():
                                     if current_remotes[_]['upd_time'] == remote_consoles[_]['upd_time']:
                                         log.warning('[CACHE UPD] {} current cache update time and {} update time are equal'
                                                     ' but contents of dict don\'t match'.format(_, remote_consoles[_]['source']))
+                                        log.debug(f'{_} new data:\n{remote_consoles[_]} {_}\n'
+                                                  f'current cache:\n{current_remotes[_]}')
                                     else:
                                         log.info('[CACHE UPD] {} Updating data from {} '
                                                  'based on more current update time'.format(_, remote_consoles[_]['source']))

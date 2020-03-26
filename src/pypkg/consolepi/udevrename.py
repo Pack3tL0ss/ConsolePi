@@ -412,4 +412,4 @@ class Rename():
         else:
             log.show('Failed to reload udev rules, you may need to rectify manually for adapter names to display correctly')
             log.show(f'Check /var/log/syslog for errors, the rules file ({self.rules_file}) and reattempt {cmd} manually')
-            return error
+            log.show(error)

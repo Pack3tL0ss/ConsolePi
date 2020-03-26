@@ -663,7 +663,8 @@ class ConsolePiMenu(Rename):
     def rename_menu(self, direct_launch=False, from_name=None):
         cpi = self.cpi
         local = cpi.local
-        remotes = cpi.remotes
+        if not direct_launch:
+            remotes = cpi.remotes
         choice = ''
         menu_actions = {}
         # -- rename invoked from another ConsolePi (remote rename) --
@@ -674,9 +675,11 @@ class ConsolePiMenu(Rename):
         while choice not in ['b']:
             if choice == 'r':
                 local.adapters = local.build_adapter_dict(refresh=True)
-                remotes.data = remotes.get_remote(data=config.remote_update())
+                if not direct_launch:
+                    remotes.data = remotes.get_remote(data=config.remote_update())
             loc = local.adapters
-            rem = remotes.data
+            if not direct_launch:
+                rem = remotes.data
 
             slines = []
             outer_body = []
@@ -688,14 +691,15 @@ class ConsolePiMenu(Rename):
                 outer_body.append(mlines)
             rem_item = item
 
-            for host in remotes.data:
-                if rem[host].get('adapters'):
-                    slines.append(f'Rename Adapters on {host}')
-                    mlines, rem_menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item,
-                                                                            remote=True, rem_user=rem[host].get('rem_user'),
-                                                                            host=host, rename=True)
-                    outer_body.append(mlines)
-                    menu_actions = {**menu_actions, **rem_menu_actions}
+            if not direct_launch:
+                for host in remotes.data:
+                    if rem[host].get('adapters'):
+                        slines.append(f'Rename Adapters on {host}')
+                        mlines, rem_menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item,
+                                                                                remote=True, rem_user=rem[host].get('rem_user'),
+                                                                                host=host, rename=True)
+                        outer_body.append(mlines)
+                        menu_actions = {**menu_actions, **rem_menu_actions}
 
             footer = {'before': [
                 's#. Show details for the adapter i.e. \'s1\'',
@@ -716,6 +720,10 @@ class ConsolePiMenu(Rename):
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
             if not choice == 'b':
+                if 'c' in choice and self.udev_pending:     # if trying to connect to local adapter after rename refresh udev
+                    n = int(choice.replace('c', '').strip())
+                    if n < rem_item:
+                        self.trigger_udev()
                 cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rename_menu')
                 # -- if rename was performed on a remote update remotes to pull the new name
                 if choice.isdigit() and int(choice) >= rem_item:
@@ -725,9 +733,7 @@ class ConsolePiMenu(Rename):
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:
-            error = self.trigger_udev()
-            if error:
-                log.show(error)
+            self.trigger_udev()
 
     # ------ // MAIN MENU \\ ------ #
     def main_menu(self):

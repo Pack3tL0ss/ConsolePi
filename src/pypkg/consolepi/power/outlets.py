@@ -4,8 +4,6 @@ import json
 import threading
 import time
 
-import requests
-
 try:
     import RPi.GPIO as GPIO
     is_rpi = True
@@ -13,7 +11,7 @@ except RuntimeError:
     is_rpi = False
 
 from halo import Halo
-from consolepi import log, config
+from consolepi import log, config, requests
 from consolepi.power import DLI
 
 try:
@@ -29,11 +27,7 @@ CYCLE_TIME = 3
 
 
 class Outlets:
-
     def __init__(self):
-        # self.cpi = cpi
-        # self.config = config
-        # self.log = config.log
         self.spin = Halo(spinner='dots')
         if is_rpi:
             GPIO.setmode(GPIO.BCM)
@@ -54,7 +48,7 @@ class Outlets:
         self.data = config.outlets
         # self.pwr_init_complete = False
         if config.power:
-            self.pwr_start_update_threads()
+            self.pwr_start_update_threads()       
 
     def linked(self):
         pass

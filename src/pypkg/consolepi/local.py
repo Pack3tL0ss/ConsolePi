@@ -4,6 +4,7 @@ import pyudev
 import socket
 import netifaces as ni
 import os
+import time
 from consolepi import utils, log, config
 
 
@@ -89,7 +90,8 @@ class Local():
             fallback_ser = this_dev.properties.get('ID_SERIAL_SHORT')
             devs[dev_name]['id_model_id'] = this_dev.properties['ID_MODEL_ID']
             devs[dev_name]['id_vendor_id'] = this_dev.properties['ID_VENDOR_ID']
-            devs[dev_name]['time_since_init'] = _dev.properties.device.time_since_initialized
+            devs[dev_name]['time_since_init'] = f'{_dev.properties.device.time_since_initialized} ' \
+                                                f"as of {time.strftime('%x %I:%M:%S %p %Z', time.localtime(time.time()))}"
 
             # -- Deprecating as this method was slow as piss (is piss slow?) On original rpi model B
             # usb_dev = {k.lower(): d[k] for d in context.list_devices(DRIVER='usb', ID_BUS='usb')

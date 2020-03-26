@@ -138,7 +138,8 @@ class Remotes():
 
         # TODO refactor wait_for_threads to have an all key or accept a list
         with Halo(text='Waiting For threads to complete', spinner='dots1'):
-            if cpiexec.wait_for_threads() and cpiexec.wait_for_threads(name='_toggle_refresh'):
+            if cpiexec.wait_for_threads(thread_type='remotes') and \
+                                        (config.power and cpiexec.wait_for_threads(name='_toggle_refresh')):
                 log.show('Timeout Waiting for init or toggle threads to complete try again later or'
                          ' investigate logs')
                 return

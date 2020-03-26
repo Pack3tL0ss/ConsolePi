@@ -2,7 +2,7 @@
 
 import json
 import logging
-
+import requests  # NoQA
 from consolepi.utils import Utils  # NoQA
 
 LOG_FILE = '/var/log/ConsolePi/consolepi.log'
@@ -90,8 +90,11 @@ class ConsolePiLog:
 
 
 utils = Utils()
+
 log = ConsolePiLog(LOG_FILE)
+
 from consolepi.config import Config  # NoQA
+
 config = Config()  # NoQA
 if config.debug:
     log.setLevel(logging.DEBUG)

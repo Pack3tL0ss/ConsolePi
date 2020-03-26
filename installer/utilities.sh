@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 # Source Common Functions
-[ -z ${debug+x} ] && . /etc/ConsolePi/ConsolePi.conf
 if [ -f "/etc/ConsolePi/installer/common.sh" ]; then
     if ! type -t logit >/dev/null; then
         . /etc/ConsolePi/installer/common.sh || (echo "ERROR utilities.sh not and unable to source common.sh" && exit 1)

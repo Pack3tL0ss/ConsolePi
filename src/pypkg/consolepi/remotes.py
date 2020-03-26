@@ -1,14 +1,13 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-import json
+import time
 import requests
 import threading
 import socket
 from halo import Halo
-import time
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
-from consolepi import utils, log, config
+from consolepi import utils, log, config, json
 
 
 class Remotes():
@@ -309,7 +308,7 @@ class Remotes():
             }
 
         try:
-            response = requests.request("GET", url, headers=headers, timeout=2)
+            response = requests.request("GET", url, headers=headers, timeout=3)
         except (OSError, TimeoutError):
             log.warning('[API RQST OUT] Remote ConsolePi {} TimeOut when querying via API - Unreachable.'.format(ip))
             return False

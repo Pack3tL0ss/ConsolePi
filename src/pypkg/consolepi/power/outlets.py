@@ -48,7 +48,7 @@ class Outlets:
         self.data = config.outlets
         # self.pwr_init_complete = False
         if config.power:
-            self.pwr_start_update_threads()       
+            self.pwr_start_update_threads()
 
     def linked(self):
         pass

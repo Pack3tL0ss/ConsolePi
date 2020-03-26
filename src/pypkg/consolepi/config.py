@@ -32,6 +32,7 @@ class Config():
         except Exception:
             self.loc_user = os.getenv('SUDO_USER', os.getenv('USER'))
 
+        self.linked_exists = False  # updated in get_outlets_from_file()
         self.picocom_ver = utils.get_picocom_ver()
         self.ser2net_conf = self.get_ser2net()
         self.hosts = self.get_hosts()
@@ -102,7 +103,6 @@ class Config():
                 failures: failure to connect to any outlets will result in an entry here
                     outlet_name: failure description
         '''
-        # utils = self.utils
         outlet_data = self.cfg_yml.get('POWER')
         if not outlet_data:  # fallback to legacy json config
             outlet_data = self.get_json_file(self.static.get('POWER_FILE'))
@@ -112,7 +112,6 @@ class Config():
                 log.show('Power Function Disabled - Configuration Not Found')
                 self.power = False
             self.outlet_types = []
-            self.linked_exists = False
             return outlet_data
 
         types = []

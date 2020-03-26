@@ -133,8 +133,9 @@ class MDNS_Register:
         log.info('[MDNS REG] Cloud Update triggered delaying {} seconds'.format(UPDATE_DELAY))
         time.sleep(UPDATE_DELAY)  # Wait 30 seconds and then update, to accomodate multiple add removes
         data = local.build_local_dict(refresh=True)
-        if 'udev' in local.data[local.hostname]['adapters']:
-            del local.data[local.hostname]['adapters']['udev']
+        for a in local.data[local.hostname].get('adapters', {}):
+            if 'udev' in local.data[local.hostname]['adapters'][a]:
+                del local.data[local.hostname]['adapters'][a]['udev']
 
         log.debug(f'[MDNS REG] Final Data set collected for {local.hostname}: \n{json.dumps(data)}')
 

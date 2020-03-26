@@ -1,19 +1,20 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-import os
 import json
-import socket
+import os
 import os.path
-import time
-import sys
-# -- google stuff --
-from googleapiclient import discovery
 import pickle
-from google_auth_oauthlib.flow import InstalledAppFlow
+import socket
+import sys
+import time
+
+# -- google stuff --
 from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient import discovery
 
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import log, utils, config  # NoQA
+from consolepi import config, log, utils  # NoQA
 
 
 # -- GLOBALS --
@@ -138,8 +139,10 @@ class GoogleDrive:
         log.debug('[GDRIVE]: resize_cols response: {}'.format(response))
 
     def update_files(self, data):
-        if 'udev' in data.get('adapters', {}):
-            del data['adapters']['udev']
+        for x in data[self.hostname]['adapters']:
+            if 'udev' in data[self.hostname]['adapters'][x]:
+                del data[self.hostname]['adapters'][x]['udev']
+
         log.debug('[GDRIVE]: -->update_files - data passed to function\n{}'.format(json.dumps(data, indent=4, sort_keys=True)))
         if not self.auth():
             return 'Gdrive-Error: Unable to Connect to Gdrive refer to cloud log for details'
@@ -163,6 +166,7 @@ class GoogleDrive:
             }
 
             # find out if this ConsolePi already has a row use that row in range
+            # log.setLevel(40)  # 40 = Error
             request = service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id, range='A:B')
             result = self.exec_request(request)
@@ -196,6 +200,8 @@ class GoogleDrive:
                 log.info('cloud_pull_only override enabled not updating cloud with data from this host')
             cnt += 1
         self.resize_cols()
+        # lvl = 20 if not config.debug else 10  # 10 = DEBUG, 20 = INFO
+        # log.setLevel(lvl)
         return remote_consoles
 
 

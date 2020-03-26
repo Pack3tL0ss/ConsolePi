@@ -1,13 +1,12 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import time
-import requests
 import threading
 import socket
 from halo import Halo
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
-from consolepi import utils, log, config, json
+from consolepi import utils, log, config, json, requests
 
 
 class Remotes():

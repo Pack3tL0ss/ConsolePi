@@ -1,7 +1,8 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-from consolepi import Response
-from consolepi import utils, config
+# from consolepi import Response
+from consolepi import utils
+from consolepi import config
 from consolepi.remotes import Remotes
 from consolepi.local import Local
 from consolepi.power import Outlets
@@ -11,7 +12,7 @@ from consolepi.menu import Menu  # NoQA
 
 class ConsolePi():
     def __init__(self, bypass_remotes=False):
-        self.response = Response
+        # self.response = Response
         self.menu = Menu()
         self.local = Local()
         if config.cfg.get('power'):

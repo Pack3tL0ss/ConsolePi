@@ -78,8 +78,8 @@ class Config():
         return yml if not do_legacy else {'CONFIG': cfg}
 
     def do_overrides(self):
-        # Process Globals that can be overriden by values in ConsolePi.yaml
-        # if self.ovrd:
+        '''Process Globals that can be overriden by values in ConsolePi.yaml
+        '''
         ovrd = self.ovrd if self.ovrd else {}
         for k in ovrd:
             if ovrd[k] in ['true', 'false']:
@@ -90,8 +90,8 @@ class Config():
         self.default_parity = ovrd.get('default_parity', DEFAULT_PARITY)
         self.default_flow = ovrd.get('default_flow', DEFAULT_FLOW)
         self.default_sbits = ovrd.get('default_flow', DEFAULT_SBITS)
-        self.cloud_pull_only = True if ovrd.get('cloud_pull_only', '') == 'true' else False
-        self.compact_mode = True if ovrd.get('compact_mode', '') == 'true' else False
+        self.cloud_pull_only = ovrd.get('cloud_pull_only', False)
+        self.compact_mode = ovrd.get('compact_mode', False)
 
     def get_outlets_from_file(self):
         '''Get outlets defined in power.json

@@ -311,7 +311,7 @@ class Remotes():
             }
 
         try:
-            response = requests.request("GET", url, headers=headers, timeout=3)
+            response = requests.request("GET", url, headers=headers, timeout=config.remote_timeout)
         except (OSError, TimeoutError):
             log.warning('[API RQST OUT] Remote ConsolePi {} TimeOut when querying via API - Unreachable.'.format(ip))
             return False

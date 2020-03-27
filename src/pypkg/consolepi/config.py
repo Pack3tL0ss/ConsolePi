@@ -92,6 +92,7 @@ class Config():
         self.default_sbits = ovrd.get('default_flow', DEFAULT_SBITS)
         self.cloud_pull_only = ovrd.get('cloud_pull_only', False)
         self.compact_mode = ovrd.get('compact_mode', False)
+        self.remote_timeout = int(ovrd.get('remote_timeout', 3))
 
     def get_outlets_from_file(self):
         '''Get outlets defined in power.json

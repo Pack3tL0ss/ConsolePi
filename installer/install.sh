@@ -93,7 +93,7 @@ pre_git_prep() {
     else
         # 02-05-2020 raspbian buster could not pip install requirements -sido would error with no libffi
         process="ConsolePi-Upgrade-Prep (install libffi-dev)"
-        if ! dpkg -l libffi-dev >/dev/null 1>&2 ; then
+        if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
             apt install -y libffi-dev >/dev/null 2>>${log_file} &&
                 logit "Success Installing development files for libffi" ||
                     logit "ERROR apt install libffi-dev retrurned an error" "WARNING"
@@ -249,9 +249,9 @@ do_logging() {
     # Create Log Files
     touch /var/log/ConsolePi/ovpn.log || logit "Failed to create OpenVPN log file" "WARNING"
     touch /var/log/ConsolePi/push_response.log || logit "Failed to create PushBullet log file" "WARNING"
-    # touch /var/log/ConsolePi/cloud.log || logit "Failed to create cloud log file" "WARNING"
     touch /var/log/ConsolePi/cloud.log || logit "Failed to create consolepi log file" "WARNING"
     touch /var/log/ConsolePi/install.log || logit "Failed to create install log file" "WARNING"
+    touch /var/log/ConsolePi/consolepi.log || logit "Failed to create install log file" "WARNING"
 
     # Update permissions
     sudo chgrp -R consolepi /var/log/ConsolePi || logit "Failed to update group for log file" "WARNING"

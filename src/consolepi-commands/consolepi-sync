@@ -10,7 +10,7 @@ loc_pull_file=$home_dir/local_pull
 rem_user='pi'
 loc_pull_host='ConsolePi-dev'
 upgrade_pip=false
-cp_lib=true
+cp_lib=false
 loc_pull=false
 stash_local=false
 perms=false
@@ -181,8 +181,8 @@ process_args() {
             upgrade_pip=true
             shift
             ;;
-        -nocp)
-            cp_lib=false
+        -cp)
+            cp_lib=true
             shift
             ;;
         -local)

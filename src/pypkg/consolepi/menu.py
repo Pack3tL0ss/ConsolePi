@@ -492,3 +492,12 @@ class Menu():
                 line = line.replace('{{' + c + '}}', colors[c])  # line formatted with coloring
 
         return Line(len(_l), line)
+
+
+# This object is currently not used, but will be to simplify the logic in cpi_exec
+class MenuExecute():
+    def __init__(self, function, args, kwargs, calling_menu=None):
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.calling_menu = calling_menu

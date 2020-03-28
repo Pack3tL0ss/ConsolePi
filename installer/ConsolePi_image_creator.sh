@@ -300,9 +300,9 @@ main() {
         # echo 'branch=$(cd /etc/ConsolePi && sudo git status | head -1 | awk '{print $3}')' >> /mnt/usb2/usr/local/bin/consolepi-install
         # echo '[ ! "$branch" == "master" ] && echo -e "Script updating ${branch} branch.\n  You are on a development branch."' >> /mnt/usb2/usr/local/bin/consolepi-install
         if [ ! -z "$1" ] && [[ "$1" == "dev" ]] ; then
-            echo 'sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/dev/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi local-dev && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
+            echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/dev/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi local-dev && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
         else
-            echo 'sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
+            echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
         fi
 
         sudo echo "consolepi-install" >> /mnt/usb2/home/pi/.bashrc

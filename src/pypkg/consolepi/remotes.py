@@ -259,8 +259,8 @@ class Remotes():
                                     log.info('[CACHE UPD] {} Updating data from {} '
                                              'based on more current update time'.format(_, remote_consoles[_]['source']))
                                 else:  # -- Update Times are equal --
-                                    if remote_consoles[_].get('adapters', {}).keys() != \
-                                       current_remotes[_].get('adapters', {}).keys() or \
+                                    if remote_consoles[_].get('adapters', {})['adapters'].keys() != \
+                                       current_remotes[_].get('adapters', {})['adapters'].keys() or \
                                        remote_consoles[_].get('interfaces', {}) != \
                                        current_remotes[_].get('interfaces', {}):
                                         log.warning('[CACHE UPD] {} current cache update time and {} update time are equal'

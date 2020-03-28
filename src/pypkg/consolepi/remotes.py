@@ -255,16 +255,17 @@ class Remotes():
                                 if current_remotes[_]['upd_time'] > remote_consoles[_]['upd_time']:
                                     remote_consoles[_] = current_remotes[_]
                                     log.info('[CACHE UPD] {} Keeping existing data based on more current update time'.format(_))
-                                else:
-                                    if current_remotes[_]['upd_time'] == remote_consoles[_]['upd_time']:
+                                elif remote_consoles[_]['upd_time'] > current_remotes[_]['upd_time']:
+                                    log.info('[CACHE UPD] {} Updating data from {} '
+                                             'based on more current update time'.format(_, remote_consoles[_]['source']))
+                                else:  # -- Update Times are equal --
+                                    if remote_consoles[_].get('adapters', {}).keys() != \
+                                       current_remotes[_].get('adapters', {}).keys() or \
+                                       remote_consoles[_].get('interfaces', {}) != \
+                                       current_remotes[_].get('interfaces', {}):
                                         log.warning('[CACHE UPD] {} current cache update time and {} update time are equal'
-                                                    ' but contents of dict don\'t match'.format(_, remote_consoles[_]['source']))
-                                        log.debug(f'{_} new data:\n{remote_consoles[_]} {_}\n'
-                                                  f'current cache:\n{current_remotes[_]}')
-                                    else:
-                                        log.info('[CACHE UPD] {} Updating data from {} '
-                                                 'based on more current update time'.format(_, remote_consoles[_]['source']))
-
+                                                    ' but data appears to have changed. Updating'.format(
+                                                        _, remote_consoles[_]['source']))
                             elif 'upd_time' in current_remotes[_]:
                                 remote_consoles[_] = current_remotes[_]
                                 log.info('[CACHE UPD] {} Keeping existing data based *existence* of update time '
@@ -372,14 +373,14 @@ class Remotes():
                 if not isinstance(_adapters, int):   # indicates an html error code was returned
                     if isinstance(_adapters, list):  # indicates need for conversion from old api format
                         _adapters = self.convert_adapters(_adapters)
-                        if self.old_api_log_sent:
+                        if not self.old_api_log_sent:
                             log.warning(f'{remote_host} provided old api schema.  Recommend Upgrading to current.')
                             self.old_api_log_sent = True
-                    if remote_data['adapters'] != _adapters:
-                        # always update on __init__ (won't have data attribute)
-                        if not hasattr(self, 'data') or self.data.get(remote_host, {'adapters': {}})['adapters'] != _adapters:
-                            remote_data['adapters'] = _adapters
-                            update = True
+                    # Only compare config dict for each adapter as udev dict will generally be different due to time_since_init
+                    if {a: {'config': _adapters[a].get('config', {})} for a in _adapters} != \
+                       {a: {'config': remote_data['adapters'][a].get('config', {})} for a in remote_data['adapters']}:
+                        remote_data['adapters'] = _adapters
+                        update = True  # --> Update if adapter dict is different
                 elif _adapters == 200:
                     log.show(f"Remote {remote_host} is reachable via {_ip},"
                              " but has no adapters attached\nit's still available in remote shell menu")
@@ -387,12 +388,12 @@ class Remotes():
                 # remote was reachable update last_ip, even if returned bad status_code still reachable
                 if not remote_data.get('last_ip', '') == _ip:
                     remote_data['last_ip'] = _ip
-                    update = True
+                    update = True  # --> Update if last_ip is different than currently reachable IP
                 break
 
         if remote_data.get('rem_ip') != rem_ip:
             remote_data['rem_ip'] = rem_ip
-            update = True  # update if rem_ip didn't match
+            update = True  # --> Update if rem_ip didn't match (was previously unreachable)
 
         if not _adapters:
             reachable = False
@@ -404,7 +405,7 @@ class Remotes():
                 _msg = f'{remote_host} Cached adapter data was in old format... Converted to new.\n' \
                        f'\t\t{remote_host} Should be upgraded to the current version of ConsolePi.'
                 log.warning(_msg, show=True)
-                update = True
+                update = True  # --> Convert to new and Update if cache data was in old format
         else:
             reachable = True
 

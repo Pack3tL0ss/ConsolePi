@@ -149,7 +149,7 @@ class MDNS_Register:
             remotes.update_local_cloud_file(remote_consoles)
             log.info('[MDNS REG] Cloud Update Completed, Found {} Remote ConsolePis'.format(len(remote_consoles)))
         else:
-            log.warn('[MDNS REG] Cloud Update Completed, No remotes found, or Error Occured')
+            log.warning('[MDNS REG] Cloud Update Completed, No remotes found, or Error Occured')
 
     def run(self):
         zeroconf = self.zeroconf

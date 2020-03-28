@@ -10,6 +10,29 @@
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
+chg_password() {
+    if [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then 
+        header
+        echo "You are logged in as pi, and the default password has not been changed"
+        prompt="Do You want to change the password for user pi"
+        response=$(user_input_bool)
+        if $response; then
+            match=false
+            while ! $match; do
+                read -sep "Enter new password for user pi: " pass && echo
+                read -sep "Re-Enter new password for user pi: " pass2 && echo
+                [[ "${pass}" == "${pass2}" ]] && match=true || match=false
+                ! $match && echo -e "ERROR: Passwords Do Not Match\n"
+            done
+            process="pi user password change"
+            echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" || 
+            ( logit "Failed to Change Password for pi user" "WARNING" &&
+            echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
+            unset pass && unset pass2 && unset process
+        fi
+    fi
+}
+
 set_hostname() {
     process="Change Hostname"
     hostn=$(cat /etc/hostname)
@@ -31,7 +54,7 @@ set_hostname() {
                 read -ep "Enter new hostname: " newhost
                 valid_response=false
                 while ! $valid_response; do
-                    read -ep "New hostname: $newhost Is this correect (y/n)?: " response
+                    read -ep "New hostname: ${_green}$newhost${_norm} Is this correect (y/n)?: " response
                     response=${response,,}    # tolower
                     ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
                 done
@@ -785,8 +808,10 @@ update_main() {
     install_ser2net
     dhcp_run_hook
     ConsolePi_cleanup
-    install_ovpn
-    ovpn_graceful_shutdown
+    if $ovpn_enable; then
+        install_ovpn
+        ovpn_graceful_shutdown
+    fi
     if $hotspot ; then
         install_autohotspotn
         gen_dnsmasq_conf

@@ -320,9 +320,10 @@ class Utils():
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         x = x.stdout.decode('UTF-8').strip()
         if not x:
-            print("\nConsolePi Menu Requires picocom which doesn't appear to be installed")
-            print("Install with 'sudo apt install picocom'")
-            sys.exit(1)
+            # print("\nConsolePi Menu Requires picocom which doesn't appear to be installed")
+            # print("Install with 'sudo apt install picocom'")
+            # sys.exit(1)
+            return 0
         else:
             return float(x)
 

@@ -12,14 +12,14 @@ def get_config(cfg=cfg):
     '''get ConsolePi configuration from ConsolePi
 
     ConsolePi config.py will use ConsolePi.yaml if exists, ConsolePi.json if it doesn't
-    
+
     Keyword Arguments:
         cfg {str} -- "static" or "bash" static gets static system vars from .static.yaml
                      "bash" or the default will get user config from ConsolePi.yaml or
                      ConsolePi.json (default: {cfg})
 
     Output is bash formatted var=value file for use as a source in bash scripts
-    '''    
+    '''
     for k, v in cfg.items():
         if isinstance(v, str):
             if v.isdigit() and '.' not in v:

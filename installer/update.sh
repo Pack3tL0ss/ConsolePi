@@ -54,7 +54,7 @@ set_hostname() {
                 read -ep "Enter new hostname: " newhost
                 valid_response=false
                 while ! $valid_response; do
-                    read -ep "New hostname: ${_green}$newhost${_norm} Is this correect (y/n)?: " response
+                    printf "New hostname: ${_green}$newhost${_norm} Is this correect (y/n)?: " ; read -e response
                     response=${response,,}    # tolower
                     ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
                 done

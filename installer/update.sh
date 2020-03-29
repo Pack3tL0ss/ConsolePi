@@ -121,6 +121,7 @@ misc_imports(){
         if [[ $found_path ]]; then 
             file_diff_update $found_path /root/.ssh/authorized_keys
             file_diff_update $found_path ${home_dir}.ssh/authorized_keys
+                chown $iam:$iam ${home_dir}.ssh/authorized_keys
         fi
 
         # -- pre staged cloud creds --

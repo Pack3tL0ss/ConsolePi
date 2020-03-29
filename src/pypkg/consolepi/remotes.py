@@ -314,18 +314,18 @@ class Remotes():
         try:
             response = requests.request("GET", url, headers=headers, timeout=config.remote_timeout)
         except (OSError, TimeoutError):
-            log.warning('[API RQST OUT] Remote ConsolePi {} TimeOut when querying via API - Unreachable.'.format(ip))
+            log.warning('[API RQST OUT] Remote ConsolePi @ {} TimeOut when querying via API - Unreachable.'.format(ip))
             return False
 
         if response.ok:
             ret = response.json()
             ret = ret['adapters'] if ret['adapters'] else response.status_code
-            _msg = 'Adapters Successfully retrieved via API for Remote ConsolePi {}'.format(ip)
+            _msg = 'Adapters Successfully retrieved via API for Remote ConsolePi @ {}'.format(ip)
             log.info('[API RQST OUT] {}'.format(_msg))
             log.debug('[API RQST OUT] Response: \n{}'.format(json.dumps(ret, indent=4, sort_keys=True)))
         else:
             ret = response.status_code
-            log.error('[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi {}\n{}:{}'.format(
+            log.error('[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi @ {}\n{}:{}'.format(
                                                                                             ip, ret, response.text))
         return ret
 

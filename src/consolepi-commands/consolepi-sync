@@ -63,7 +63,7 @@ do_perms() {
     done
 }
 
-do_git_pull() { 
+do_git_pull() {
   go=true
   echo -e "\n -- Performing git pull"
   while $go ; do
@@ -153,13 +153,13 @@ line_dots() {
 }
 
 show_help() {
-  echo 
+  echo
   [[ ! "$1" =~ ^(help|-help|--help)$ ]] && echo "Invalid Input $1"
   echo -e "valid command line options:"
   line_dots "-perms" "Verify/Set proper permissions to update without sudo (skipped by default)"
   line_dots "-pip" "Update pip and dependencies (skipped by default)"
-  line_dots "-nocp" "Don't Copy consolpi-library to venv after git pull (Default is to cp updated Library)."
   echo -e "\nThe Following Options are generally only useful for the developer"
+  line_dots "-cp" "Copy consolpi-library to venv after git pull (Should never have to do this - new library)."
   line_dots "-local" "Syncs files via SFTP from the dev ConsolePi."
   line_dots "-stash" "Stashes files previoulsy synced via SFTP to clean local working dir for git pull"
   line_dots "--local-host <ip or host>" "Override the default local dev ConsolePi ($loc_pull_host)"
@@ -202,7 +202,7 @@ process_args() {
             shift
             ;;
         --local-host) # override default local_pull_host (consolepi-dev)
-            [[ ! -z "$2" ]] && loc_pull_host=$2 || ( 
+            [[ ! -z "$2" ]] && loc_pull_host=$2 || (
                 echo "Missing 1 required parameter with $1 option"
                 exit 1
               )

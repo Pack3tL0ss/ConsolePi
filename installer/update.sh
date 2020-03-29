@@ -319,7 +319,7 @@ install_autohotspotn () {
     if ! $hostapd_override ; then 
         logit "disabling hostapd (handled by AutoHotSpotN)."
         sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file &&
-            logit "ensured hostapd.service is unmasked" || 
+            logit "Verified hostapd.service is unmasked" || 
                 logit "failed to unmask hostapd.service" "WARNING"
         sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file && 
             logit "hostapd autostart disabled Successfully" ||
@@ -454,8 +454,8 @@ do_blue_config() {
     # TODO change this to use .bash_login or .bash_profile bashrc works lacking those files, more appropriate to use .profile over .bashrc anyway
     if [[ ! $(sudo grep "alias consolepi-menu" /home/blue/.bashrc) ]]; then
         sudo echo alias consolepi-menu=\"/etc/ConsolePi/src/consolepi-menu.sh\" | sudo tee -a /home/blue/.bashrc > /dev/null && 
-            logit "BlueTooth User Configured to launch menu on Login" || 
-            logit "FAILED to enable menu on login for BlueTooth User" "WARNING"
+            logit "BlueTooth User consolepi-menu alias Updated to use \"lite\" menu" || 
+            logit "FAILED to update BlueTooth User consolepi-menu alias" "WARNING"
     else
         logit "blue user consolepi-menu alias already configured"
     fi
@@ -744,7 +744,7 @@ post_install_msg() {
     echo "*   NOTE: The Console Menu is available from any shell session (bluetooth or SSH) via the consolepi-menu command        *"
     echo "*                                                                                                                       *"
     echo -e "* \033[1;32mLogging:\033[m                                                                                                              *"
-    echo "*   The bulk of logging for remote discovery, adapter detection cloud updates... end up in /var/log/ConsolePi/cloud.log *"
+    echo "*   The bulk of logging for ConsolePi ends up in /var/log/ConsolePi/consolepi.log                                       *"
     echo "*   The tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest in syslog                         *"
     echo "*   - openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn   *"
     echo "*   - pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log                *"

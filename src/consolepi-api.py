@@ -16,6 +16,7 @@ sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
 from consolepi import config, log  # NoQA
 from consolepi.consolepi import ConsolePi  # NoQA
 from fastapi import FastAPI  # NoQA
+from pydantic import BaseModel  # NoQA
 from time import time  # NoQA
 from starlette.requests import Request  # NoQA
 import uvicorn  # NoQA
@@ -26,12 +27,65 @@ cpiexec = cpi.cpiexec
 local = cpi.local
 if config.power:
     if not cpiexec.wait_for_threads():
-        outlets = cpi.pwr.data if cpi.pwr.data else None
+        OUTLETS = cpi.pwr.data if cpi.pwr.data else None
 else:
-    outlets = None
+    OUTLETS = None
 user = local.user  # pylint: disable=maybe-no-member
 last_update = int(time())
 udev_last_update = int(time())
+
+
+# class Adapters(BaseModel):
+#     adapters: dict
+
+#     class Config:
+#         schema_extra = {
+#             'example': [{
+#                 "adapters": {
+#                     "/dev/FT232R-dev": {
+#                         "udev": {
+#                             "by_path": "/dev/serial/by-path/platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.3.1.3:1.0-port0",
+#                             "by_id": "/dev/serial/by-id/pci-FTDI_FT232R_USB_UART_AC012WBO-if00-port0",
+#                             "root_dev": "false",
+#                             "devname": "/dev/ttyUSB5",
+#                             "devpath": "/devices/platform/scb/fd500000.pcie/pci0000:00/.../ttyUSB5/tty/ttyUSB5",
+#                             "id_bus": "pci",
+#                             "id_model": "FT232R_USB_UART",
+#                             "id_model_from_database": "FT232 Serial (UART) IC",
+#                             "id_model_id": "6001",
+#                             "id_path": "platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.3.1.3:1.0",
+#                             "id_pci_class_from_database": "Serial bus controller",
+#                             "id_pci_subclass_from_database": "USB controller",
+#                             "id_serial": "FTDI_FT232R_USB_UART_AB123456",
+#                             "id_serial_short": "AB123456",
+#                             "id_type": "generic",
+#                             "id_usb_driver": "ftdi_sio",
+#                             "id_usb_interfaces": ":ffffff:",
+#                             "id_ifnum": "00",
+#                             "id_vendor": "FTDI",
+#                             "id_vendor_from_database": "Future Technology Devices International, Ltd",
+#                             "id_vendor_id": "0403",
+#                             "subsystem": "tty",
+#                             "time_since_init": "2:09:35.455413 as of 03/29/20 01:03:48 AM CDT"
+#                         },
+#                         "outlets": [],
+#                         "config": {
+#                             "port": 7013,
+#                             "baud": 9600,
+#                             "dbits": 8,
+#                             "parity": "n",
+#                             "flow": "n",
+#                             "sbits": 1,
+#                             "logfile": "null",
+#                             "log_ptr": 'null',
+#                             "cmd": "picocom /dev/FT232R-dev --baud 9600 --flow n --databits 8 --parity n --stopbits 1",
+#                             "line": "7013:telnet:0:/dev/FT232R-dev:9600 8DATABITS NONE 1STOPBIT  banner "
+#                         }
+#                     }
+#                 }
+#             }]
+#         }
+
 
 app = FastAPI(title='ConsolePi.API',
               docs_url='/api/docs',
@@ -43,7 +97,8 @@ app = FastAPI(title='ConsolePi.API',
 def log_request(request: Request, route: str):
     log.info('[NEW API RQST IN] {} Requesting -- {} -- Data via API'.format(request.client.host, route))
 
-
+#  -- Haven't yet cracked the code on properly updating swagger-ui with examples and schema --
+# @app.get('/api/v1.0/adapters', responses={200: {'model': Adapters}})
 @app.get('/api/v1.0/adapters')
 async def adapters(request: Request, refresh: bool = False):
     global last_update
@@ -53,7 +108,7 @@ async def adapters(request: Request, refresh: bool = False):
     # prevents multiple simul calls to get_adapters after mdns_refresh and
     # subsequent API calls from all other ConsolePi on the network
     if refresh or int(time()) - last_update > 20:
-        config.ser2net_conf = config.get_ser2net() if refresh else config.ser2net_conf
+        config.ser2net_conf = config.get_ser2net()
         local.adapters = local.build_adapter_dict(refresh=True)
         last_update = int(time())
     return {'adapters': local.adapters}
@@ -72,20 +127,19 @@ def get_ifaces(request: Request):
     # ifaces = {k: v for k, v in local.interfaces.items() if not k.startswith('_')}
     return {'interfaces': local.interfaces}
 
+# removing due to fastapi issue #894, outlets method was not being used for anything currently so disabling for now
+# @app.get('/api/v1.0/outlets')
+# def get_outlets(request: Request, outlets=OUTLETS):
+#     log_request(request, 'outlets')
+#     # -- Collect Outlet Details remove sensitive data --
+#     if outlets:
+#         outlets = cpi.pwr.pwr_get_outlets()
+#         cpiexec.wait_for_threads()
+#         if outlets and 'defined' in outlets:
+#             outlets['defined'] = {p: {k: v for k, v in outlets['defined'][p].items()
+#                                   if k not in ['username', 'password']} for p in outlets['defined']}
 
-@app.get('/api/v1.0/outlets')
-def get_outlets(request: Request, outlets=outlets):
-    log_request(request, 'outlets')
-    # -- Collect Outlet Details remove sensitive data --
-    if outlets:
-        outlets = cpi.pwr.pwr_get_outlets()
-        cpiexec.wait_for_threads()
-        if outlets and 'defined' in outlets:
-            for grp in outlets['defined']:
-                for x in ['username', 'password']:
-                    if x in outlets['defined'][grp]:
-                        del outlets['defined'][grp][x]
-    return outlets
+#     return outlets
 
 
 @app.get('/api/v1.0/details')

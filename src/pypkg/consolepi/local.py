@@ -142,7 +142,7 @@ class Local():
                 'cmd': f'picocom {tty_dev} --baud {self.default_baud}'
                 }
 
-    def build_adapter_dict(self, refresh=False):
+    def build_adapter_dict(self, refresh=False, config_only=False):
         '''Create final adapter dict from udev ser2net and outlet dicts.'''
         if refresh or not hasattr(self, 'udev_adapters'):
             self.udev_adapters = self.detect_adapters()
@@ -150,18 +150,19 @@ class Local():
         linked = [] if not config.outlets else config.outlets['linked']
         ser2net = {} if not config.ser2net_conf else config.ser2net_conf
 
-        adapters = {}
+        adapters = a_cfg = {}
         for a in udev:
             adapters[a] = {'udev': udev[a],
                            'outlets': [] if a not in linked else linked[a],
                            'config': self.default_ser_config(a) if a not in ser2net else ser2net[a]
                            }
+            a_cfg[a] = {'config': self.default_ser_config(a) if a not in ser2net else ser2net[a]}
 
         if refresh:
             self.adapters = adapters
             self.data = self.build_local_dict()
 
-        return adapters
+        return adapters if not config_only else a_cfg
 
     def get_cpu_serial(self):
         res = utils.do_shell_cmd("/bin/cat /proc/cpuinfo | grep Serial | awk '{print $3}'", return_stdout=True)

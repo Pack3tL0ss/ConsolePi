@@ -7,6 +7,7 @@ from halo import Halo
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
 from consolepi import utils, log, config, json, requests
+# from consolepi.gdrive import GoogleDrive  !!--> Import burried in refresh method to speed menu load times on older platforms
 
 
 class Remotes:
@@ -206,9 +207,7 @@ class Remotes:
             )  # local data refreshed above
             if remote_consoles and "Gdrive-Error:" not in remote_consoles:
                 if stdin.isatty():
-                    self.spin.succeed(
-                        _msg
-                        + "\n\tFound {} Remotes via Gdrive Sync".format(
+                    self.spin.succeed(_msg + "\n\tFound {} Remotes via Gdrive Sync".format(
                             len(remote_consoles)
                         )
                     )

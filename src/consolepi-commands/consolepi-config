@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+if [[ ! -f "/etc/ConsolePi/ConsolePi.yaml" ]] && [[ -f "/etc/ConsolePi/ConsolePi.conf" ]] ; then
+    echo "You are using the legacy configuation File, See GitHub/ReadMe or use consolepi-upgrade to convert to ConsolePi.yaml"
+    sleep 5
+    nano -ET2 "/etc/ConsolePi/ConsolePi.conf"
+else
+    nano -ET2 "/etc/ConsolePi/ConsolePi.yaml"
+fi

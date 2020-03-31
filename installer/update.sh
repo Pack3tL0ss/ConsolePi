@@ -754,7 +754,7 @@ post_install_msg() {
     echo -e "* \033[1;32mser2net Usage:\033[m                                                                                                        *"
     echo "*   Serial Ports are available starting with telnet port 8001 (ttyUSB#) or 9001 (ttyACM#) incrementing with each        *"
     echo "*   adapter plugged in.  if you configured predictable ports for specific serial adapters those start with 7001.        *"
-    echo "*   **OR** just launch the consolepi-menu for a menu w/ detected adapters                                               *"
+    echo "*   **OR** just launch the consolepi-menu for a menu w/ detected adapters (there is a rename option in the menu).       *"
     echo "*                                                                                                                       *"
     echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
     echo "*                                                                                                                       *"

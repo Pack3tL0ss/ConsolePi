@@ -95,7 +95,7 @@ logit() {
 if [[ -f $cfg_file_yaml ]] ; then
     wlan_ip=$(grep wlan_ip: $cfg_file_yaml | cut -d : -f 2 | cut -d' ' -f 2)
     wlan_ip="${wlan_ip//\"/}"
-    hotspot=$(grep HotSpot: $cfg_file_yaml | cut -d : -f 2 | cut -d' ' -f 2)
+    hotspot=$(grep "hotspot:" $cfg_file_yaml | cut -d : -f 2 | cut -d' ' -f 2)
     hotspot="${hotspot//\"/}"
 elif [[ -f $cfg_file_conf ]] ; then
     . $cfg_file_conf

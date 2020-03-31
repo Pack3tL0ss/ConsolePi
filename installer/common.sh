@@ -450,7 +450,7 @@ spaces() {
 }
 
 process_cmds() {
-    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg')
+    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
     ret=0
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
@@ -494,6 +494,7 @@ process_cmds() {
                 shift
                 ;;
             -apt-install) # install pkg via apt
+                local do_apt_install=true
                 shift
                 go=true; while (( "$#" )) && $go ; do
                     # echo -e "DEBUG apt-install ~ Currently evaluating: '$1'" # -- DEBUG LINE --
@@ -578,11 +579,13 @@ process_cmds() {
             [[ ! -z $cmd_pfx ]] && cmd="$cmd_pfx $cmd"
             [[ -z $out ]] && out='/dev/null'
             [[ -z $showstart ]] && showstart=true
+            [[ -z $do_apt_install ]] && do_apt_install=false
             # echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
             # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
             # -- // PROCESS THE CMD \\ --
             ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
             if eval "$cmd" >>"$out" 2>>"$err"; then
+                cmd_failed=false
                 ! $silent && logit "$pmsg"
                 # if cmd was an apt-get purge - automatically issue autoremove to clean unnecessary deps
                 # TODO re-factor to only do purge at the end of all other proccesses
@@ -593,6 +596,20 @@ process_cmds() {
                         logit "Error - apt autoremove returned error-code" "WARNING"
                 fi
             else
+                cmd_failed=true
+                if $do_apt_install ; then
+                    x=1
+                    while [[ $(tail -6 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
+                        logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
+                        sleep 5
+                        if eval "$cmd" >>"$out" 2>>"$err"; then
+                            cmd_failed=false
+                            ! $silent && logit "$pmsg"
+                        fi
+                        ((x+=1))
+            fi
+
+            if $cmd_failed ; then
                 logit "$fmsg" "$fail_lvl" && ((ret+=1))
                 $stop && logit "aborting remaining tasks due to previous failure" && cd $cur_dir && break
             fi

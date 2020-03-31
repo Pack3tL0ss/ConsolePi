@@ -25,8 +25,20 @@ def main():
             log.error('IP Change Cloud Update Trigger: TimeOut Waiting for Threads to Complete')
 
         remote_consoles = remotes.cloud.update_files(local.data)
-        if "Gdrive-Error:" in remote_consoles:
+        if remote_consoles and "Gdrive-Error:" in remote_consoles:
             log.error(remote_consoles)
+        else:
+            for r in remote_consoles:
+                # -- Convert Any Remotes with old API schema to new API schema --
+                if isinstance(remote_consoles[r].get("adapters", {}), list):
+                    remote_consoles[r]["adapters"] = remotes.convert_adapters(
+                        remote_consoles[r]["adapters"]
+                    )
+                    log.warning(
+                        f"Adapter data for {r} retrieved from cloud in old API format... Converted"
+                    )
+            if len(remote_consoles) > 0:
+                remotes.update_local_cloud_file(remote_consoles)
     else:
         log.error(f"Not Updating {cloud_svc} due to connection failure")
 

@@ -21,7 +21,7 @@ fi
 stage_dir="${home_dir}ConsolePi_stage/"
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
-tmp_log="/tmp/consolepi_install.log" 
+tmp_log="/tmp/consolepi_install.log"
 final_log="/var/log/ConsolePi/install.log"
 cloud_cache="/etc/ConsolePi/cloud.json"
 override_dir="/etc/ConsolePi/src/override" # TODO NO TRAILING / make others that way
@@ -112,7 +112,7 @@ logit() {
         status="${_yellow}${status}${_norm}"
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
     fi
-    
+
     # Log to stdout and log-file
     echo -e "$(date +"%b %d %T") [${status}][${process}] ${message}" | tee -a $log_file
     # if status was ERROR which means FATAL then log and exit script
@@ -131,7 +131,7 @@ user_input() {
     pass=0
     [ ! -z "$1" ] && [[ ! "$1" == "NUL" ]] && default="$1"
     [ ! -z "$2" ] && prompt="$2" || prompt="ERROR: No Prompt was set"
-    
+
     # Determine if bool (default value true|false)
     case $1 in
         true|false)
@@ -153,7 +153,7 @@ user_input() {
     else
         prompt+=": "
     fi
-    
+
     # Prompt until a valid entry is collected
     valid_result=false
     while ! $valid_result; do
@@ -215,7 +215,7 @@ systemd_diff_update() {
         override=false
         src_file="${src_dir}systemd/${1}.service"
         if [[ -f "$src_file" ]] && [[ -f "$dst_file" ]]; then
-            file_diff=$(diff -s ${src_file} ${dst_file}) 
+            file_diff=$(diff -s ${src_file} ${dst_file})
         else
             file_diff="doit"
         fi
@@ -227,15 +227,15 @@ systemd_diff_update() {
             if [[ -f "/etc/ConsolePi/src/systemd/${1}.service" ]]; then
                 if [ -f /etc/systemd/system/${1}.service ]; then
                     sudo cp /etc/systemd/system/${1}.service "$bak_dir${1}.service.$(date +%F_%H%M)" 1>/dev/null 2>> $log_file &&
-                        logit "existing $1 unit file backed up to bak dir" || 
+                        logit "existing $1 unit file backed up to bak dir" ||
                         logit "FAILED to backup existing $1 unit file" "WARNING"
                 fi
                 sudo cp /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system 1>/dev/null 2>> $log_file &&
-                    logit "${1} systemd unit file created/updated" || 
+                    logit "${1} systemd unit file created/updated" ||
                     logit "FAILED to create/update ${1} systemd service" "WARNING"
                 sudo systemctl daemon-reload 1>/dev/null 2>> $log_file || logit "Failed to reload Daemons: ${1}" "WARNING"
                 # TODO consider logic change. to only enable on upgrade if we find it in enabled state
-                #  This logic would appear to always enable the service in some cases we don't want that 
+                #  This logic would appear to always enable the service in some cases we don't want that
                 #  installer will disable / enable after if necessary, but this would retain user customizations
                 if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
                     if [[ -f /etc/systemd/system/${1}.service ]]; then
@@ -247,7 +247,7 @@ systemd_diff_update() {
                     fi
                 fi
                 [[ $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]] &&
-                    sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file || 
+                    sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file ||
                     logit "FAILED to restart ${1} systemd service" "WARNING"
             else
                 logit "${1} file not found in src directory.  git pull failed?" "WARNING"
@@ -267,7 +267,7 @@ file_diff_update() {
     else
         override=false
         if [[ -f ${1} ]] && [[ -f ${2} ]]; then
-            this_diff=$(diff -s ${1} ${2}) 
+            this_diff=$(diff -s ${1} ${2})
         else
             this_diff="doit"
         fi
@@ -276,10 +276,10 @@ file_diff_update() {
     # -- if file on system doesn't exist or doesn't match src copy and enable from the source directory
     if ! $override; then
         if [[ ! "$this_diff" = *"identical"* ]]; then
-            if [[ -f ${1} ]]; then 
+            if [[ -f ${1} ]]; then
                 if [ -f ${2} ]; then        # if dest file exists but doesn't match stash in bak dir
                     sudo cp $2 "$bak_dir${2##*/}.$(date +%F_%H%M)" 1>/dev/null 2>> $log_file &&
-                        logit "${2} backed up to bak dir" || 
+                        logit "${2} backed up to bak dir" ||
                         logit "FAILED to backup existing ${2}" "WARNING"
                 fi
 
@@ -289,7 +289,7 @@ file_diff_update() {
                 fi
 
                 sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
-                    logit "${2} Updated" || 
+                    logit "${2} Updated" ||
                     logit "FAILED to create/update ${2}" "WARNING"
             else
                 logit "${1} file not found in src directory.  git pull failed?" "WARNING"
@@ -355,7 +355,7 @@ get_pi_info_pretty() {
         hw_array["a03111"]="Raspberry Pi 4 Model B  hw rev 1.1  1 GB  (Mfg by Sony)"
         hw_array["b03111"]="Raspberry Pi 4 Model B  hw rev 1.1  2 GB  (Mfg by Sony)"
         hw_array["c03111"]="Raspberry Pi 4 Model B  hw rev 1.1  4 GB  (Mfg by Sony)"
-    fi            
+    fi
     $compat_bash && echo ${hw_array["$1"]} || echo $1
 }
 
@@ -372,10 +372,10 @@ get_pi_info() {
     if [ $ver -eq 10 ]; then
         version="Raspbian $ver_full (Buster)"
     elif [ $ver -eq 9 ]; then
-        version="Raspbian $ver_full (Stretch)" 
-    elif [ $ver -eq 8 ]; then 
-        version="Raspbian $ver_full (Jessie)" 
-    else 
+        version="Raspbian $ver_full (Stretch)"
+    elif [ $ver -eq 8 ]; then
+        version="Raspbian $ver_full (Jessie)"
+    else
         version="Raspbian $ver_full (Wheezy)"
     fi
 
@@ -408,12 +408,12 @@ do_systemd_enable_load_start() {
     if [[ ! -f "${override_dir}/${1}.service" ]] ; then
         status=$(systemctl is-enabled $1 2>&1)
         if [ "$status" == "disabled" ]; then
-            sudo systemctl enable $1 1>/dev/null 2>> $log_file  && logit "${1} systemd unit file enabled" || 
+            sudo systemctl enable $1 1>/dev/null 2>> $log_file  && logit "${1} systemd unit file enabled" ||
                         logit "FAILED to enable ${1} systemd unit file" "WARNING"
         elif [ "$status" == "enabled" ]; then
             logit "$1 unit file already enabled"
         elif [[ "$status" =~ "No such file or directory" ]]; then
-            logit "$1 unit file not found" "ERROR" 
+            logit "$1 unit file not found" "ERROR"
         fi
         # Will only exectue if systemd script enabled
         sudo systemctl daemon-reload 2>> $log_file || logit "daemon-reload failed, check logs" "WARNING"
@@ -437,16 +437,16 @@ get_staged_file_path() {
     echo $found_path
 }
 
-dots() { 
+dots() {
     local pad=$(printf "%0.1s" "."{1..51})
     printf " %s%*.*s" "$1" 0 $((51-${#1})) "$pad" "$2"; echo
-    return 0; 
+    return 0;
 }
 
-spaces() { 
+spaces() {
     local pad=$(printf "%0.1s" " "{1..70})
     printf "  %s%*.*s" "$1" 0 $((70-${#1})) "$pad" "$2"; echo
-    return 0; 
+    return 0;
 }
 
 process_cmds() {
@@ -520,7 +520,7 @@ process_cmds() {
                 pmsg="Success - Install $pname (apt)"
                 fmsg="Error - Install $pname (apt)"
                 stop=true
-                [[ ! -z $pexclude ]] && cmd="sudo apt-get -y install $pkg ${pexclude}-" || 
+                [[ ! -z $pexclude ]] && cmd="sudo apt-get -y install $pkg ${pexclude}-" ||
                     cmd="sudo apt-get -y install $pkg"
                 # shift $_shift
                 ;;
@@ -550,11 +550,11 @@ process_cmds() {
                 shift 2
                 ;;
             -p) # msg displayed if command successful
-                pmsg="Success - $2"
+                local pmsg="Success - $2"
                 shift 2
                 ;;
             -f) # msg displayed if command fails
-                fmsg="Error - $2"
+                local fmsg="Error - $2"
                 shift 2
                 ;;
             -*|--*=) # unsupported flags
@@ -589,7 +589,7 @@ process_cmds() {
                 if [[ "$cmd" =~ "purge" ]]; then
                     logit "Tidying Up packages that are no longer in use (apt autoremove)"
                     sudo apt-get -y autoremove >/dev/null 2>>$log_file &&
-                        logit "Success - All Tidy Now" || 
+                        logit "Success - All Tidy Now" ||
                         logit "Error - apt autoremove returned error-code" "WARNING"
                 fi
             else
@@ -599,7 +599,7 @@ process_cmds() {
             # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
             # -- // unset all flags \\ --
             for c in "${reset_vars[@]}"; do
-                unset ${c} 
+                unset ${c}
             done
         fi
 

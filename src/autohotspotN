@@ -73,7 +73,7 @@ logit() {
     fi
 
     # -- Log to log-file --
-    echo -e "$(date +"%b %d %T") [${status}][${process}] ${message}" >> $log_file
+    echo -e "$(date +"%b %d %T") [${c_status}][${process}] ${message}" >> $log_file
 
     # -- Any warning/errors log to syslog/stdout as well --
     if [[ ! "${status}" == "INFO" ]] && [[ ! "${status}" == "DEBUG" ]]; then

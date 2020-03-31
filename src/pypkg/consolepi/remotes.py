@@ -359,9 +359,8 @@ class Remotes:
                                 ):
                                     remote_consoles[_] = current_remotes[_]
                                     log.info(
-                                        "[CACHE UPD] {} Keeping existing data based on more current update time".format(
-                                            _
-                                        )
+                                        f"[CACHE UPD] {_} Keeping existing data from {current_remotes[_].get('source', '')} "
+                                        "based on more current update time"
                                     )
                                 elif (
                                     remote_consoles[_]["upd_time"]
@@ -525,12 +524,8 @@ class Remotes:
             _adapters = self.get_adapters_via_api(_ip, rename=rename)
             if _adapters:
                 rem_ip = _ip  # Remote is reachable
-                if not isinstance(
-                    _adapters, int
-                ):  # indicates an html error code was returned
-                    if isinstance(
-                        _adapters, list
-                    ):  # indicates need for conversion from old api format
+                if not isinstance(_adapters, int):  # indicates an html error code was returned
+                    if isinstance(_adapters, list):  # indicates need for conversion from old api format
                         _adapters = self.convert_adapters(_adapters)
                         if not self.old_api_log_sent:
                             log.warning(

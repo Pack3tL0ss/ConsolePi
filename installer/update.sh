@@ -11,7 +11,7 @@
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 chg_password() {
-    if [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then 
+    if [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
         header
         echo "You are logged in as pi, and the default password has not been changed"
         prompt="Do You want to change the password for user pi"
@@ -25,7 +25,7 @@ chg_password() {
                 ! $match && echo -e "ERROR: Passwords Do Not Match\n"
             done
             process="pi user password change"
-            echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" || 
+            echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
             ( logit "Failed to Change Password for pi user" "WARNING" &&
             echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
             unset pass && unset pass2 && unset process
@@ -71,7 +71,7 @@ set_hostname() {
             wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)
             [ $wlan_hostname_exists == 0 ] && echo "$wlan_ip       $newhost" >> /etc/hosts
             sed -i "s/$hostn/$newhost/g" /etc/hostname
-            
+
             logit "New hostname set $newhost"
         fi
     else
@@ -118,19 +118,19 @@ misc_imports(){
         # -- ssh authorized keys --
         found_path=$(get_staged_file_path "authorized_keys")
         [[ $found_path ]] && logit "pre-staged ssh authorized keys found - importing"
-        if [[ $found_path ]]; then 
+        if [[ $found_path ]]; then
             file_diff_update $found_path /root/.ssh/authorized_keys
             file_diff_update $found_path ${home_dir}.ssh/authorized_keys
                 chown $iam:$iam ${home_dir}.ssh/authorized_keys
         fi
 
         # -- pre staged cloud creds --
-        if $cloud && [[ -d ${stage_dir}.credentials ]]; then 
+        if $cloud && [[ -d ${stage_dir}.credentials ]]; then
             found_path=${stage_dir}.credentials
             mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
             logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
             logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
-        elif $cloud ; then 
+        elif $cloud ; then
             logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
             logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
         fi
@@ -138,7 +138,7 @@ misc_imports(){
         # -- custom overlay file for PoE hat (fan control) --
         found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
         [[ $found_path ]] && logit "overlay file found creating dtbo"
-        if [[ $found_path ]]; then 
+        if [[ $found_path ]]; then
             sudo dtc -@ -I dts -O dtb -o /tmp/rpi-poe.dtbo $found_path >> $log_file 2>&1 &&
                 overlay_success=true || overlay_success=false
                 if $overlay_success; then
@@ -151,7 +151,7 @@ misc_imports(){
         fi
 
         # -- power.json --
-        if $power && [[ -d ${stage_dir}power.json ]]; then 
+        if $power && [[ -d ${stage_dir}power.json ]]; then
             found_path=${stage_dir}power.json
             mv $found_path $consolepi_dir 2>> $log_file &&
             logit "Found power control definitions @ ${found_path} Moving into $consolepi_dir"  ||
@@ -174,7 +174,7 @@ install_ser2net () {
     else
         logit "Ser2Net ${ser2net_ver} already installed. No Action Taken re ser2net"
     fi
-        
+
     logit "${process} - Complete"
     unset process
 }
@@ -248,13 +248,13 @@ install_ovpn() {
     else
         logit "OpenVPN ${ovpn_ver} Already Installed/Current"
     fi
-    
+
     if [ -f /etc/openvpn/client/ConsolePi.ovpn ]; then
         logit "Retaining existing ConsolePi.ovpn"
         $push && sub_check_vpn_config
     else
         found_path=$(get_staged_file_path "ConsolePi.ovpn")
-        if [[ $found_path ]]; then 
+        if [[ $found_path ]]; then
             cp $found_path "/etc/openvpn/client" &&
                 logit "Found ${found_path}.  Copying to /etc/openvpn/client" ||
                 logit "Error occurred Copying your ovpn config" "WARNING"
@@ -264,12 +264,12 @@ install_ovpn() {
                 logit "Retaining existing ConsolePi.ovpn.example file. See src dir for original example file."
         fi
     fi
-    
+
     if [ -f /etc/openvpn/client/ovpn_credentials ]; then
         logit "Retaining existing openvpn credentials"
     else
         found_path=$(get_staged_file_path "ovpn_credentials")
-        if [[ $found_path ]]; then 
+        if [[ $found_path ]]; then
             mv $found_path "/etc/openvpn/client" &&
             logit "Found ovpn_credentials ${found_path}. Moving to /etc/openvpn/client"  ||
             logit "Error occurred moving your ovpn_credentials file" "WARNING"
@@ -294,7 +294,7 @@ install_autohotspotn () {
     logit "Install/Update AutoHotSpotN"
 
     systemd_diff_update autohotspot
-  
+
     logit "Installing hostapd via apt."
     if ! $(which hostapd >/dev/null); then
         apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
@@ -304,7 +304,7 @@ install_autohotspotn () {
         hostapd_ver=$(hostapd -v 2>&1| head -1| awk '{print $2}')
         logit "hostapd ${hostapd_ver} already installed"
     fi
-    
+
     logit "Installing dnsmasq via apt."
     dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
     if [[ -z $dnsmasq_ver ]]; then
@@ -317,20 +317,20 @@ install_autohotspotn () {
 
     [[ -f ${override_dir}/hostapd.service ]] && hostapd_override=true || hostapd_override=false
     [[ -f ${override_dir}/dnsmasq.service ]] && dnsmasq_override=true || dnsmasq_override=false
-    if ! $hostapd_override ; then 
+    if ! $hostapd_override ; then
         logit "disabling hostapd (handled by AutoHotSpotN)."
         sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file &&
-            logit "Verified hostapd.service is unmasked" || 
+            logit "Verified hostapd.service is unmasked" ||
                 logit "failed to unmask hostapd.service" "WARNING"
-        sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file && 
+        sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file &&
             logit "hostapd autostart disabled Successfully" ||
                 logit "An error occurred disabling hostapd autostart - verify after install" "WARNING"
     else
         logit "skipped hostapd disable - hostapd.service is overriden"
     fi
-    
+
     if ! $dnsmasq_override ; then
-        sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file && 
+        sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file &&
             logit "dnsmasq on wlan interface autostart disabled Successfully" ||
                 logit "An error occurred disabling dnsmasq (for wlan0) autostart - verify after install" "WARNING"
     else
@@ -340,7 +340,7 @@ install_autohotspotn () {
     logit "Create/Configure hostapd.conf"
     convert_template hostapd.conf /etc/hostapd/hostapd.conf wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_country=${wlan_country}
     sudo chmod +r /etc/hostapd/hostapd.conf 2>> $log_file || logit "Failed to make hostapd.conf readable - verify after install" "WARNING"
-    
+
     file_diff_update ${src_dir}hostapd /etc/default/hostapd
     file_diff_update ${src_dir}interfaces /etc/network/interfaces
 
@@ -355,12 +355,12 @@ install_autohotspotn () {
     which iw >/dev/null 2>&1 && iw_ver=$(iw --version 2>/dev/null | awk '{print $3}') || iw_ver=0
     if [ $iw_ver == 0 ]; then
         logit "iw not found, Installing iw via apt."
-        ( sudo apt-get -y install iw 1>/dev/null 2>> $log_file && logit "iw installed Successfully" ) || 
+        ( sudo apt-get -y install iw 1>/dev/null 2>> $log_file && logit "iw installed Successfully" ) ||
             logit "FAILED to install iw" "WARNING"
     else
         logit "iw $iw_ver already installed/current."
     fi
-        
+
     # TODO place update in sysctl.d same as disbale ipv6
     logit "Enable IP-forwarding (/etc/sysctl.conf)"
     if $(! grep -q net.ipv4.ip_forward=1 /etc/sysctl.conf); then
@@ -369,7 +369,7 @@ install_autohotspotn () {
     else
         logit "ip forwarding already enabled"
     fi
-    
+
     logit "${process} Complete"
     unset process
 }
@@ -401,37 +401,37 @@ do_blue_config() {
     ## Some Sections of the bluetooth configuration from https://hacks.mozilla.org/2017/02/headless-raspberry-pi-configuration-over-bluetooth/
     file_diff_update ${src_dir}systemd/bluetooth.service /lib/systemd/system/bluetooth.service
 
-    # create /etc/systemd/system/rfcomm.service to enable 
+    # create /etc/systemd/system/rfcomm.service to enable
     # the Bluetooth serial port from systemctl
     systemd_diff_update rfcomm
 
     # enable the new rfcomm service
     do_systemd_enable_load_start rfcomm
-       
+
     # add blue user and set to launch menu on login
     if $(! grep -q ^blue:.* /etc/passwd); then
-        echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue 1>/dev/null 2>> $log_file && 
-        logit "BlueTooth User created" || 
+        echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue 1>/dev/null 2>> $log_file &&
+        logit "BlueTooth User created" ||
         logit "FAILED to create Bluetooth user" "WARNING"
     else
         logit "BlueTooth User already exists"
     fi
-    
-    # add blue user to dialout group so they can access /dev/ttyUSB_ devices 
+
+    # add blue user to dialout group so they can access /dev/ttyUSB_ devices
     #   and to consolepi group so they can access logs and data files for ConsolePi
     for group in dialout consolepi; do
         if [[ ! $(groups blue | grep -o $group) ]]; then
-        sudo usermod -a -G $group blue 2>> $log_file && logit "BlueTooth User added to ${group} group" || 
+        sudo usermod -a -G $group blue 2>> $log_file && logit "BlueTooth User added to ${group} group" ||
             logit "FAILED to add Bluetooth user to ${group} group" "WARNING"
         else
-            logit "BlueTooth User already in ${group} group" 
+            logit "BlueTooth User already in ${group} group"
         fi
     done
 
     # Give Blue user limited sudo rights to consolepi-commands
     if [ ! -f /etc/sudoers.d/010_blue-consolepi ]; then
-        echo 'blue ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*' > /etc/sudoers.d/010_blue-consolepi && 
-        logit "BlueTooth User given sudo rights for consolepi-commands" || 
+        echo 'blue ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*' > /etc/sudoers.d/010_blue-consolepi &&
+        logit "BlueTooth User given sudo rights for consolepi-commands" ||
         logit "FAILED to give Bluetooth user limited sudo rights" "WARNING"
     fi
 
@@ -442,34 +442,34 @@ do_blue_config() {
 
     # Configure blue user to auto-launch consolepi-menu on login (blue user is automatically logged in when connection via bluetooth is established)
     if [[ ! $(sudo grep consolepi-menu /home/blue/.bashrc) ]]; then
-        sudo echo /etc/ConsolePi/src/consolepi-menu.sh | sudo tee -a /home/blue/.bashrc > /dev/null && 
-            logit "BlueTooth User Configured to launch menu on Login" || 
+        sudo echo /etc/ConsolePi/src/consolepi-menu.sh | sudo tee -a /home/blue/.bashrc > /dev/null &&
+            logit "BlueTooth User Configured to launch menu on Login" ||
             logit "FAILED to enable menu on login for BlueTooth User" "WARNING"
     else
         sudo sed -i 's/^consolepi-menu/\/etc\/ConsolePi\/src\/consolepi-menu.sh/' /home/blue/.bashrc &&
-            logit "blue user configured to launch menu on Login" || 
+            logit "blue user configured to launch menu on Login" ||
             logit "blue user autolaunch bashrc error" "WARNING"
     fi
-    
+
     # Configure blue user alias for consolepi-menu command (overriding the symlink to the full menu with cloud support)
     # TODO change this to use .bash_login or .bash_profile bashrc works lacking those files, more appropriate to use .profile over .bashrc anyway
     if [[ ! $(sudo grep "alias consolepi-menu" /home/blue/.bashrc) ]]; then
-        sudo echo alias consolepi-menu=\"/etc/ConsolePi/src/consolepi-menu.sh\" | sudo tee -a /home/blue/.bashrc > /dev/null && 
-            logit "BlueTooth User consolepi-menu alias Updated to use \"lite\" menu" || 
+        sudo echo alias consolepi-menu=\"/etc/ConsolePi/src/consolepi-menu.sh\" | sudo tee -a /home/blue/.bashrc > /dev/null &&
+            logit "BlueTooth User consolepi-menu alias Updated to use \"lite\" menu" ||
             logit "FAILED to update BlueTooth User consolepi-menu alias" "WARNING"
     else
         logit "blue user consolepi-menu alias already configured"
     fi
-    
+
     # Install picocom
-    if [[ $(picocom --help 2>/dev/null | head -1) ]]; then 
+    if [[ $(picocom --help 2>/dev/null | head -1) ]]; then
         logit "$(picocom --help 2>/dev/null | head -1) is already installed"
     else
         logit "Installing picocom"
-        sudo apt-get -y install picocom 1>/dev/null 2>> $log_file && logit "Install picocom Success" || 
+        sudo apt-get -y install picocom 1>/dev/null 2>> $log_file && logit "Install picocom Success" ||
                 logit "FAILED to Install picocom" "WARNING"
     fi
-       
+
     logit "${process} Complete"
     unset process
 }
@@ -564,14 +564,14 @@ get_known_ssids() {
                 elif [[ -d ${stage_dir}cert ]]; then
                     cd ${stage_dir}cert
                 fi
-                    
+
                 [[ ! -d $cert_path ]] && sudo mkdir -p "${cert_path}"
                 [[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
                 [[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
                 [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
                 cd "${cur_dir}"
             fi
-    
+
             if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
                 echo
                 echo "----------------------------------------------------------------------------------------------"
@@ -635,7 +635,7 @@ get_serial_udev() {
     process="Predictable Console Ports"
     logit "${process} Starting"
     header
-    
+
     # -- if pre-stage file provided during install enable it --
     if ! $upgrade; then
         found_path=$(get_staged_file_path "10-ConsolePi.rules")
@@ -649,7 +649,7 @@ get_serial_udev() {
             fi
         fi
     fi
-    
+
     echo
     echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
     echo "-                                                                                                                   -"
@@ -689,7 +689,7 @@ get_serial_udev() {
     $upgrade && user_input false "${prompt}" || user_input true "${prompt}"
     if $result ; then
         if [ -f ${consolepi_dir}src/consolepi-commands/consolepi-menu ]; then
-            sudo ${consolepi_dir}src/consolepi-commands/consolepi-menu rn
+            sudo ${consolepi_dir}src/consolepi-commands/consolepi-menu dev rn  # TODO CHANGE BEFORE MERGE WITH MASTER
         else
             logit "ERROR consolepi-menu not found" "WARNING"
         fi
@@ -705,7 +705,7 @@ custom_post_install_script() {
         if [[ $found_path ]]; then
             process="Run Custom Post-install script"
             logit "Post Install Script ${found_path} Found. Executing"
-            sudo $found_path && logit "Post Install Script Complete No Errors" || 
+            sudo $found_path && logit "Post Install Script Complete No Errors" ||
                 logit "Error Code returned by Post Install Script" "WARNING"
             unset process
         fi
@@ -771,7 +771,7 @@ post_install_msg() {
     echo "*        valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail       *"
     echo "*                                                                                                                       *"
     echo "**ConsolePi Installation Script v${INSTALLER_VER}**************************************************************************************"
-    # Display any warnings 
+    # Display any warnings
     [ $warn_cnt -gt 0 ] && echo -e "\n${_red}---- warnings exist ----${_norm}" && grep warning $log_file && echo ''
     # Script Complete Prompt for reboot if first install
     if $upgrade; then
@@ -823,7 +823,7 @@ update_main() {
     do_blue_config
     do_consolepi_api
     do_consolepi_mdns
-    ! $upgrade && misc_stuff 
+    ! $upgrade && misc_stuff
     do_resize
     if [ ! -z $skip_utils ] && $skip_utils ; then
         process="optional utilities installer"

@@ -745,14 +745,14 @@ do_wifi_country() {
 
     if ! wpa_cli -i "$IFACE" status > /dev/null 2>&1; then
         logit "Could not communicate with wpa_supplicant ~ normal if there is no wlan interface" "WARNING"
-        return 1
+        # return 1
     fi
 
-    wpa_cli -i "$IFACE" set country "$wlan_country" 2>$log_file
-    wpa_cli -i "$IFACE" save_config > /dev/null 2>$log_file
+    wpa_cli -i "$IFACE" set country "$wlan_country" 2>&1
+    wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
     ! iw reg set "$wlan_country" &&
         logit "Wi-fi country set to $wlan_country" ||
-        logit "Error Code returned when setting WLAN country" "Warning"
+        logit "Error Code returned when setting WLAN country" "WARNING"
     if hash rfkill 2> /dev/null; then
         rfkill unblock wifi
     fi

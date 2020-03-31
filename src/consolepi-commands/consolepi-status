@@ -16,8 +16,8 @@ if [ ! -z $1 ] && [ $1 == 'log' ] ; then
   fi
 fi
 
-echo -e "\n---------------- // Summary \\\\\ ---------------"
-echo "......UNIT........             ENABLED   ACTIVE     STATUS"
+echo -e "\n\n---------------------- // Summary \\\\\ ----------------------"
+echo ".......UNIT.......             ENABLED   ACTIVE     STATUS"
 echo "------------------             -------   ------     -------"
 for svc in "${SVCS[@]}" ; do
   if systemctl is-enabled $svc >/dev/null 2>&1 ; then

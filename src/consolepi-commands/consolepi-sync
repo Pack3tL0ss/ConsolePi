@@ -14,6 +14,8 @@ cp_lib=false
 loc_pull=false
 stash_local=false
 perms=false
+reload_svcs=false
+SVCS=("consolepi-mdnsbrowse" "consolepi-mdnsreg" "consolepi-api")
 DEBUG=false
 
 dots() {
@@ -162,8 +164,34 @@ show_help() {
   line_dots "-cp" "Copy consolpi-library to venv after git pull (Should never have to do this - new library)."
   line_dots "-local" "Syncs files via SFTP from the dev ConsolePi."
   line_dots "-stash" "Stashes files previoulsy synced via SFTP to clean local working dir for git pull"
+  line_dots "-reload" "reload/restart consolepi systemd Services (api, mdnsbrowse, mdnsreg)"
   line_dots "--local-host <ip or host>" "Override the default local dev ConsolePi ($loc_pull_host)"
   line_dots "--rem_user <username>" "Override the default user ($rem_user) used during local_pull (sftp to $loc_pull_host)"
+  echo
+}
+
+do_reload_svcs() {
+  echo -e "\n -- Restarting Any ConsolePi Services that are currently Active"
+
+  for svc in "${SVCS[@]}" ; do
+    if systemctl is-active $svc ; then
+      dots "restart $svc"
+      systemctl restart $svc ; do_error $?
+    else
+      dots "$svc is not active"; echo "SKIP"
+    fi
+  done
+
+  echo -e "\n\n---------------------- // Summary \\\\\ ----------------------"
+  echo ".......UNIT.......             ENABLED   ACTIVE     STATUS"
+  echo "------------------             -------   ------     -------"
+  for svc in "${SVCS[@]}" ; do
+    if systemctl is-enabled $svc >/dev/null 2>&1 ; then
+      ena=$(systemctl is-enabled $svc 2>/dev/null)
+      printf "%-30s %-10s" $svc $ena
+      systemctl -a | grep ${svc} |sed s/'● '//g | awk '{printf "%-10s %-10s \n", $3,$4}'
+    fi
+  done
   echo
 }
 
@@ -173,6 +201,7 @@ process_args() {
       if $DEBUG; then
         echo -e "DEBUG: ------------ initial variable values ------------"
         echo -e "upgrade_pip=${upgrade_pip}\ncp_lib=$cp_lib\nloc_pull=${loc_pull}\nloc_pull_host=${loc_pull_host}\nstash_local=${stash_local}\nrem_user=$rem_user\n"
+        echo -e "reload_svcs=${reload_svcs}\n"
         echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
       fi
 
@@ -199,6 +228,10 @@ process_args() {
             ;;
         -perms)
             perms=true
+            shift
+            ;;
+        -reload)
+            reload_svcs=true
             shift
             ;;
         --local-host) # override default local_pull_host (consolepi-dev)
@@ -241,6 +274,7 @@ main() {
   $loc_pull && do_loc_pull
   $cp_lib && do_cp_lib
   $upgrade_pip && do_pip_upgrade
+  $reload_svcs && do_reload_svcs
   ! $DEBUG && [[ -f $log_file ]] && rm $log_file
   echo
 }

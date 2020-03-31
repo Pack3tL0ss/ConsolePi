@@ -55,8 +55,11 @@ do_default_config() {
         input=false                # so collect function will run (while loop in main)
     else
         header
-        echo "Please edit config in ${CONFIG_FILE_YAML} using editor (i.e. nano) and re-run install script"
+        echo "Please edit config in ${CONFIG_FILE_YAML} using editor (i.e. nano) and re-run install script 'consolepi-install'"
         echo "i.e. sudo nano ${CONFIG_FILE_YAML}"
+        cat /etc/ConsolePi/src/consolepi-commands/consolepi-upgrade > /usr/local/bin/consolepi-install
+        chmod +x /usr/local/bin/consolepi-install
+        [ -f $final_log ] && mv $final_log $final_log.1  # This will cause script to run as an install vs. upgrade when re-ran
         echo
         exit 0
     fi

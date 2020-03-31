@@ -164,7 +164,7 @@ misc_imports(){
 
 install_ser2net () {
     # To Do add check to see if already installed / update
-    process="Install ser2net via apt"
+    local process="Install ser2net via apt"
     logit "${process} - Starting"
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
     if [[ -z $ser2net_ver ]]; then
@@ -175,8 +175,29 @@ install_ser2net () {
         logit "Ser2Net ${ser2net_ver} already installed. No Action Taken re ser2net"
     fi
 
+    do_ser2net=true
+    if ! $upgrade; then
+        found_path=$(get_staged_file_path "ser2net.conf")
+        if [[ $found_path ]]; then
+        cp $found_path "/etc" &&
+            logit "Found ser2net.conf in ${found_path}.  Copying to /etc" ||
+            logit "Error Copying your pre-staged ${found_path} file" "WARNING"
+            do_ser2net=false
+        fi
+    fi
+
+    if $do_ser2net && [[ ! $(head -1 /etc/ser2net.conf 2>>$log_File) =~ "ConsolePi" ]] ; then
+        logit "Building ConsolePi Config for ser2net"
+        [[ -f "/etc/ser2net.conf" ]]  && cp /etc/ser2net.conf $bak_dir  ||
+            logit "Failed to Back up default ser2net to back dir" "WARNING"
+        cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $log_file ||
+            logit "ser2net Failed to copy config file from ConsolePi src" "ERROR"
+    fi
+
+    systemctl daemon-reload ||
+        logit "systemctl failed to reload daemons" "WARNING"
+
     logit "${process} - Complete"
-    unset process
 }
 
 dhcp_run_hook() {

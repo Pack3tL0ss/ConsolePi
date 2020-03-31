@@ -14,6 +14,7 @@
 # -- Modified for ConsolePi --
 # -- variablelize hotspot IP referenced in createAdHocNetwork
 # -- import ConsolePi configuration (ConsolePi.yaml)
+# -- INFO/DEBUG Logging sent to consolepi.log
 # -- Add chkWiredState function
 #      chkWiredState modifies the dnsmasq DHCP server configuration
 #      So the hotspot will provide an IP with no default gateway

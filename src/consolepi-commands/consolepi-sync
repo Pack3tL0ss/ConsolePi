@@ -176,7 +176,7 @@ do_reload_svcs() {
   for svc in "${SVCS[@]}" ; do
     if systemctl is-active $svc ; then
       dots "restart $svc"
-      systemctl restart $svc ; do_error $?
+      sudo systemctl restart $svc ; do_error $?
     else
       dots "$svc is not active"; echo "SKIP"
     fi

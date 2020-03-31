@@ -77,7 +77,7 @@ update_config() {
     spaces "vpn_check_ip: ${vpn_check_ip}" "# used to check VPN (internal) connectivity should be ip only reachable via VPN" >> $yml_temp
     spaces "net_check_ip: ${net_check_ip}" "# used to check Internet connectivity" >> $yml_temp
     spaces "local_domain: ${local_domain}" "# used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> $yml_temp
-    spaces "HotSpot: ${hotspot}" "# wheather to enable AutoHotSpot Feature" >> $yml_temp
+    spaces "hotspot: ${hotspot}" "# wheather to enable AutoHotSpot Feature" >> $yml_temp
     spaces "wlan_ip: ${wlan_ip}" "# IP of ConsolePi when in hotspot mode" >> $yml_temp
     spaces "wlan_ssid: ${wlan_ssid}" "# SSID used in hotspot mode" >> $yml_temp
     spaces "wlan_psk: ${wlan_psk}" "# psk used for hotspot SSID" >> $yml_temp
@@ -112,7 +112,7 @@ update_config() {
     if [[ -f $CONFIG_FILE_YAML ]] ; then
         cp $CONFIG_FILE_YAML $bak_dir && logit "Backed up existing ConsolePi.yaml to bak dir" ||
             logit "Failed to Back up existing ConsolePi.yaml to bak dir"
-        
+
     fi
     # -- // Move updated yaml to Config.yaml \\ --
     if cat $yml_temp > $CONFIG_FILE_YAML ; then
@@ -176,7 +176,7 @@ collect() {
             prompt="PushBullet API key"
             user_input "$push_api_key" "${prompt}"
             push_api_key=$result
-            
+
             # -- Push to All Devices --
             header
             echo "Do you want to send PushBullet Messages to all PushBullet devices?"
@@ -199,14 +199,14 @@ collect() {
         fi
     fi
 
-    
+
     # -- OpenVPN --
     if ! $selected_prompts || [ -z $ovpn_enable ]; then
         header
         prompt="Enable Auto-Connect OpenVPN"
         user_input $ovpn_enable "${prompt}"
         ovpn_enable=$result
-        
+
         # -- VPN Check IP --
         if $ovpn_enable; then
             header
@@ -216,13 +216,13 @@ collect() {
             prompt="IP Used to verify reachability inside OpenVPN tunnel"
             user_input $vpn_check_ip "${prompt}"
             vpn_check_ip=$result
-            
+
             # -- Net Check IP --
             header
             prompt="Provide an IP address used to verify Internet connectivity"
             user_input $net_check_ip "${prompt}"
             net_check_ip=$result
-            
+
             # -- Local Lab Domain --
             header
             echo "ConsolePi uses the domain provided by DHCP to determine if it's on your local network"
@@ -233,7 +233,7 @@ collect() {
             local_domain=$result
         fi
     fi
-        
+
     # -- HotSpot  --
     if ! $selected_prompts || [ -z $hotspot ]; then
         header
@@ -252,19 +252,19 @@ collect() {
             user_input $wlan_ip "${prompt}"
             wlan_ip=$result
             hotspot_dhcp_range
-            
+
             # -- HotSpot SSID --
             header
             prompt="What SSID do you want the HotSpot to Broadcast when in HotSpot mode"
             user_input $wlan_ssid "${prompt}"
             wlan_ssid=$result
-            
+
             # -- HotSpot psk --
             header
             prompt="Enter the psk used for the HotSpot SSID"
             user_input $wlan_psk "${prompt}"
             wlan_psk=$result
-            
+
             # -- HotSpot country --
             header
             prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
@@ -297,7 +297,7 @@ collect() {
         rem_user=$result
         if ! groups $rem_user 2>>$log_file | grep dialout| grep -q consolepi ; then
             logit "$rem_user is lacking membership to consolepi and/or dialout groups, please verify after install"
-        fi     
+        fi
     fi
 
     # -- power Control --
@@ -308,7 +308,7 @@ collect() {
         user_input $power "${prompt}"
         power=$result
         if $power; then
-            echo -e "\nTo Complete Power Control Setup you need to populate the power section of /etc/ConsolePi/ConsolePi.yaml" 
+            echo -e "\nTo Complete Power Control Setup you need to populate the power section of /etc/ConsolePi/ConsolePi.yaml"
             echo -e "You can copy and edit ConsolePi.yaml.example.  Ensure you follow proper yaml format"
             echo -e "\nConsolePi currently supports Control of GPIO controlled Power Outlets (relays), IP connected"
             echo -e "outlets running tasmota firmware, and digital-loggers web/ethernet Power Switches."
@@ -321,7 +321,7 @@ collect() {
 verify() {
     header
     echo "-------------------------------------------->>PLEASE VERIFY VALUES<<--------------------------------------------"
-    echo                                                                  
+    echo
     dots "Send Notifications via PushBullet?" "$push"
     if $push; then
         dots "PushBullet API Key" "${push_api_key}"

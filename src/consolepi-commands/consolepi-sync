@@ -174,7 +174,7 @@ do_reload_svcs() {
   echo -e "\n -- Restarting Any ConsolePi Services that are currently Active"
 
   for svc in "${SVCS[@]}" ; do
-    if systemctl is-active $svc ; then
+    if systemctl is-active $svc >/dev/null 2>&1 ; then
       dots "restart $svc"
       sudo systemctl restart $svc ; do_error $?
     else

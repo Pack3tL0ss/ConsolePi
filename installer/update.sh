@@ -164,7 +164,7 @@ misc_imports(){
 
 install_ser2net () {
     # To Do add check to see if already installed / update
-    local process="Install ser2net via apt"
+    process="Install ser2net via apt"
     logit "${process} - Starting"
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
     if [[ -z $ser2net_ver ]]; then
@@ -198,6 +198,7 @@ install_ser2net () {
         logit "systemctl failed to reload daemons" "WARNING"
 
     logit "${process} - Complete"
+    unset process
 }
 
 dhcp_run_hook() {
@@ -396,10 +397,11 @@ install_autohotspotn () {
 }
 
 disable_autohotspot() {
-    local process="Verify Auto HotSpot is disabled"
+    process="Verify Auto HotSpot is disabled"
     systemctl is-active autohotspot >/dev/null 2>&1 && systemctl stop autohotspot >/dev/null 2>>$log_file ; rc=$?
     systemctl is-enabled autohotspot >/dev/null 2>&1 && systemctl disable autohotspot >/dev/null 2>>$log_file ; rc=$?
     [[ $rc -eq 0 ]] && logit "Success Auto HotSpot Service is Disabled" || logit "Error Disabling Auto HotSpot Service"
+    unset process
 }
 
 gen_dnsmasq_conf () {
@@ -719,6 +721,35 @@ get_serial_udev() {
     unset process
 }
 
+list_wlan_interfaces() {
+    for dir in /sys/class/net/*/wireless; do
+        if [ -d "$dir" ]; then
+            basename "$(dirname "$dir")"
+        fi
+    done
+}
+
+do_wifi_country() {
+    process="Set WiFi Country"
+    IFACE="$(list_wlan_interfaces | head -n 1)"
+    [ -z "$IFACE" ] && $IFACE=wlan0
+
+    if ! wpa_cli -i "$IFACE" status > /dev/null 2>&1; then
+        logit "Could not communicate with wpa_supplicant ~ normal if there is no wlan interface" "WARNING"
+        return 1
+    fi
+
+    wpa_cli -i "$IFACE" set country "$wlan_country" 2>$log_file
+    wpa_cli -i "$IFACE" save_config > /dev/null 2>$log_file
+    ! iw reg set "$wlan_country" &&
+        logit "Wi-fi country set to $wlan_country" ||
+        logit "Error Code returned when setting WLAN country" "Warning"
+    if hash rfkill 2> /dev/null; then
+        rfkill unblock wifi
+    fi
+    unset process
+}
+
 # -- run custom post install script --
 custom_post_install_script() {
     if ! $upgrade; then
@@ -825,6 +856,7 @@ update_main() {
         set_hostname
         set_timezone
         disable_ipv6
+        do_wifi_country
     fi
     misc_imports
     install_ser2net

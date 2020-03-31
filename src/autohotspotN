@@ -51,6 +51,7 @@ _blue='\e[34m'
 _lred='\e[91m'
 _yellow='\e[33;1m'
 _green='\e[32m'
+
 logit() {
     # Logging Function: logit <message|string> [<status|string>]
     # usage:
@@ -73,13 +74,16 @@ logit() {
     # -- Log to log-file --
     echo -e "$(date +"%b %d %T") [${status}][${process}] ${message}" >> $log_file
 
-    # -- Any warning/errors log to syslog as well --
+    # -- Any warning/errors log to syslog/stdout as well --
     if [[ ! "${status}" == "INFO" ]] && [[ ! "${status}" == "DEBUG" ]]; then
         echo -e "[${status}] ${message}"  # log any errors to syslog as well
         if $fatal ; then
             # if status was ERROR which means FATAL then log and exit script
             echo -e "[${status}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
         fi
+    else
+        # -- Always Log to stdout if this is a tty --
+        [ -t 1 ] && echo -e "[${status}][${process}] ${message}"
     fi
 }
 
@@ -243,7 +247,7 @@ ChkWiredState() {
 FindSSID() {
     #Check to see what SSID's and MAC addresses are in range
     ssidChk=('NoSSid')
-    i=0; j=0
+    i=0; j=1
     until [ $i -eq 1 ] ; do # wait for wifi if busy, usb wifi is slower.
         ssidreply=$((iw dev "$wifidev" scan ap-force | egrep "^BSS|SSID:") 2>&1) >/dev/null 2>&1
 
@@ -255,7 +259,7 @@ FindSSID() {
             logit "SSid's in range: $ssidreply" "DEBUG"
         fi
 
-        logit "Device Available Check try $j"
+        (($j > 1)) && logit "Device Available Check try $j"
         if (($j >= 10)); then #if busy 10 times goto hotspot
             logit "Device busy or unavailable 10 times, going to Hotspot"
             ssidreply=""

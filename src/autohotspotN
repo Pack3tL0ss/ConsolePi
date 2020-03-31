@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #version 0.95-4-N/HS-I ConsolePi Rev 1.5
 
-#You may share this script on the condition a reference to RaspberryConnect.com 
-#must be included in copies or derivatives of this script. 
+#You may share this script on the condition a reference to RaspberryConnect.com
+#must be included in copies or derivatives of this script.
 
 #Network Wifi & Hotspot with Internet
 #A script to switch between a wifi network and an Internet routed Hotspot
@@ -35,6 +35,10 @@
 # -- None @ this time
 
 # -- // extract wlan_ip and hotspot variables from config \\ --
+
+# -- update path so script fan find executables when ran as cron job --
+[[ ! "$PATH" =~ 'sbin' ]]  && PATH="$PATH:/sbin:/usr/sbin"
+
 cfg_file_yaml="/etc/ConsolePi/ConsolePi.yaml"
 cfg_file_conf="/etc/ConsolePi/ConsolePi.conf"
 if [[ -f $cfg_file_yaml ]] ; then
@@ -55,12 +59,13 @@ if [[ -z $wlan_ip ]] ; then
 fi
 
 [[ -z $hotspot ]] && hotspot=true && echo "HotSpot variable not found in ConsolePi Configuration falling back to true (Enabled)"
-! $hotspot && echo "ConsolePi Auto HotSpot is disabled in the config but this script was triggered, Disable the systemd file" && 
+! $hotspot && echo "ConsolePi Auto HotSpot is disabled in the config but this script was triggered, Disable the systemd file" &&
     echo "Auto HotSpot script will now exit" && exit 0
 
+ifaces=$(ip -br link show | grep -v lo | awk '{printf $1 " "}')
 wifidev="wlan0" #device name to use. Default is wlan0.
 ethdev="eth0" #Ethernet port to use with IP tables
-#use the command: iw dev ,to see wifi interface name 
+#use the command: iw dev ,to see wifi interface name
 
 IFSdef=$IFS
 cnt=0
@@ -87,8 +92,8 @@ IFS=$IFSdef #reset back to defaults
 # separated by a space, eg ('mySSID1' 'mySSID2')
 #ssids=('mySSID1' 'mySSID2' 'mySSID3')
 
-#Enter the Routers Mac Addresses for hidden SSIDs, seperated by spaces ie 
-#( '11:22:33:44:55:66' 'aa:bb:cc:dd:ee:ff' ) 
+#Enter the Routers Mac Addresses for hidden SSIDs, seperated by spaces ie
+#( '11:22:33:44:55:66' 'aa:bb:cc:dd:ee:ff' )
 mac=()
 
 ssidsmac=("${ssids[@]}" "${mac[@]}") #combines ssid and MAC for checking
@@ -149,50 +154,54 @@ ChkWifiUp()
 
 ChkWiredState()
 {
-       eth0_ip=`ip addr show dev eth0 | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
-       eth0_state=`ip addr show dev eth0 | head -1 | sed -n -e 's/^.*state //p' | cut -d ' ' -f1 |awk '{ print $1 }'`
-       if [ ${eth0_state} == "UP" ] && [ ${#eth0_ip} -gt 6 ]; then    
-              eth0_up=true
-       else
-              eth0_up=false     
-       fi
+    if [[ "$ifaces" =~ "$ethdev" ]]; then
+        eth0_ip=`ip addr show dev $ethdev | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
+        eth0_state=`ip addr show dev $ethdev | head -1 | sed -n -e 's/^.*state //p' | cut -d ' ' -f1 |awk '{ print $1 }'`
+        if [ ${eth0_state} == "UP" ] && [ ${#eth0_ip} -gt 6 ]; then
+                eth0_up=true
+        else
+                eth0_up=false
+        fi
+    else
+        eth0_up=false
+    fi
 
-       # Find out if lease file exists for wired interface
-       [ -f /var/lib/dhcpcd*/*${ethdev}*.lease ] && wired_lease=true || wired_lease=false   
-       # If ethdev is up and has a lease, pass the same domain to WLAN clients on the hotspot
-       if $eth0_up && $wired_lease; then 
-            [ -f /tmp/$ethdev ] && eth0_dom=$(grep 'domain=' /tmp/$ethdev) || echo [ConsolePi-AutoHotSpot] $ethdev tmp file not found
-            [ ${#eth0_dom} -gt 9 ] && valid_dom=true || valid_dom=false
-            if $valid_dom; then
-                if ! $(grep -q 'domain=' /etc/dnsmasq.conf); then
-                    sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' /etc/dnsmasq.conf # make sure EoF has \n 
-                        echo "${eth0_dom}" >> /etc/dnsmasq.conf &&
-                        use_eth_dom=true || use_eth_dom=false
-                else
-                     sed -i "/domain=/s/.*/${eth0_dom}/" /etc/dnsmasq.conf && 
-                     use_eth_dom=true || use_eth_dom=false
-                fi
-                $use_eth_dom && echo Active Lease Found on $ethdev with $eth0_dom using same for HotSpot clients ||
-                echo [ERROR AutoHotSpotN:ChkWiredState] Failed to Configure Domain $eth0_dom for HostSpot clients
+    # Find out if lease file exists for wired interface
+    [ -f /var/lib/dhcpcd*/*${ethdev}*.lease ] && wired_lease=true || wired_lease=false
+    # If ethdev is up and has a lease, pass the same domain to WLAN clients on the hotspot
+    if $eth0_up && $wired_lease; then
+        [ -f /tmp/$ethdev ] && eth0_dom=$(grep 'domain=' /tmp/$ethdev) || echo [ConsolePi-AutoHotSpot] $ethdev tmp file not found
+        [ ${#eth0_dom} -gt 9 ] && valid_dom=true || valid_dom=false
+        if $valid_dom; then
+            if ! $(grep -q 'domain=' /etc/dnsmasq.conf); then
+                sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' /etc/dnsmasq.conf # make sure EoF has \n
+                    echo "${eth0_dom}" >> /etc/dnsmasq.conf &&
+                    use_eth_dom=true || use_eth_dom=false
             else
-                echo A lease was found for $ethdev but no Domain was provided Removing Domain for HotSpot clients
-                sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf
+                sed -i "/domain=/s/.*/${eth0_dom}/" /etc/dnsmasq.conf &&
+                use_eth_dom=true || use_eth_dom=false
             fi
-       fi
+            $use_eth_dom && echo Active Lease Found on $ethdev with $eth0_dom using same for HotSpot clients ||
+            echo [ERROR AutoHotSpotN:ChkWiredState] Failed to Configure Domain $eth0_dom for HostSpot clients
+        else
+            echo A lease was found for $ethdev but no Domain was provided Removing Domain for HotSpot clients
+            sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf
+        fi
+    fi
 
-       if ! $eth0_up || ! $wired_lease; then
-              sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf &&
-              echo Removing Domain for HotSpot clients as there is no lease on $ethdev or $ethdev is down ||
-              echo [ERROR AutoHotSpotN:ChkWiredState] Failed to Remove Domain for HotSpot clients
-       fi
+    if ! $eth0_up || ! $wired_lease; then
+        sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf &&
+        echo Removing Domain for HotSpot clients as there is no lease on $ethdev or $ethdev is down ||
+        echo [ERROR AutoHotSpotN:ChkWiredState] Failed to Remove Domain for HotSpot clients
+    fi
 
-       if $eth0_up; then
-              sed -i '/^dhcp-option=wlan0,3/s/^/#/g' /etc/dnsmasq.conf #comment out option 3 - default behavior assigns i/f address as def-gw
-              echo Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
-       else
-              sed -i '/^#dhcp-option=wlan0,3/s/^#//g' /etc/dnsmasq.conf	#uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
-              echo Bringing up hotspot with no gateway due to no eth0 connection
-       fi
+    if $eth0_up; then
+        sed -i '/^dhcp-option=wlan0,3/s/^/#/g' /etc/dnsmasq.conf  # comment out option 3 - default behavior assigns i/f address as def-gw
+        echo Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
+    else
+        sed -i '/^#dhcp-option=wlan0,3/s/^#//g' /etc/dnsmasq.conf  # uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
+        echo Bringing up hotspot with no gateway due to no eth0 connection
+    fi
 }
 
 FindSSID()
@@ -202,7 +211,7 @@ ssidChk=('NoSSid')
 i=0; j=0
 until [ $i -eq 1 ] #wait for wifi if busy, usb wifi is slower.
 do
-        ssidreply=$((iw dev "$wifidev" scan ap-force | egrep "^BSS|SSID:") 2>&1) >/dev/null 2>&1 
+        ssidreply=$((iw dev "$wifidev" scan ap-force | egrep "^BSS|SSID:") 2>&1) >/dev/null 2>&1
         echo "SSid's in range: " $ssidreply
         echo "Device Available Check try " $j
         if (($j >= 10)); then #if busy 10 times goto hotspot
@@ -262,7 +271,7 @@ NoDevice()
 FindSSID
 
 #Create Hotspot or connect to valid wifi networks
-if [ "$ssidChk" != "NoSSid" ] 
+if [ "$ssidChk" != "NoSSid" ]
 then
        echo 0 > /proc/sys/net/ipv4/ip_forward #deactivate ip forwarding
        if systemctl status hostapd | grep "(running)" >/dev/null 2>&1

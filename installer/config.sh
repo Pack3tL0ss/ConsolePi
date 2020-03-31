@@ -55,8 +55,8 @@ do_default_config() {
         input=false                # so collect function will run (while loop in main)
     else
         header
-        echo "Please edit config in ${$CONFIG_FILE_YAML} using editor (i.e. nano) and re-run install script"
-        echo "i.e. sudo nano ${$CONFIG_FILE_YAML}"
+        echo "Please edit config in ${CONFIG_FILE_YAML} using editor (i.e. nano) and re-run install script"
+        echo "i.e. sudo nano ${CONFIG_FILE_YAML}"
         echo
         exit 0
     fi

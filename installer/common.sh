@@ -607,6 +607,7 @@ process_cmds() {
                             ! $silent && logit "$pmsg"
                         fi
                         ((x+=1))
+                fi
             fi
 
             if $cmd_failed ; then

@@ -124,6 +124,15 @@ misc_imports(){
                 chown $iam:$iam ${home_dir}.ssh/authorized_keys
         fi
 
+        # -- ssh known hosts --
+        found_path=$(get_staged_file_path "known_hosts")
+        [[ $found_path ]] && logit "pre-staged ssh known_hosts file found - importing"
+        if [[ $found_path ]]; then
+            file_diff_update $found_path /root/.ssh/known_hosts
+            file_diff_update $found_path ${home_dir}.ssh/knwon_hosts
+                chown $iam:$iam ${home_dir}.ssh/known_hosts
+        fi
+
         # -- pre staged cloud creds --
         if $cloud && [[ -d ${stage_dir}.credentials ]]; then
             found_path=${stage_dir}.credentials

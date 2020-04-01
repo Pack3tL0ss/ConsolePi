@@ -353,7 +353,7 @@ install_autohotspotn () {
         sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file &&
             logit "Verified hostapd.service is unmasked" ||
                 logit "failed to unmask hostapd.service" "WARNING"
-        sudo /lib/systemd/systemd-sysv-install disable hostapd 1>/dev/null 2>> $log_file &&
+        sudo systemctl disable hostapd 1>/dev/null 2>> $log_file &&
             logit "hostapd autostart disabled Successfully" ||
                 logit "An error occurred disabling hostapd autostart - verify after install" "WARNING"
     else
@@ -361,7 +361,7 @@ install_autohotspotn () {
     fi
 
     if ! $dnsmasq_override ; then
-        sudo /lib/systemd/systemd-sysv-install disable dnsmasq 1>/dev/null 2>> $log_file &&
+        sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
             logit "dnsmasq on wlan interface autostart disabled Successfully" ||
                 logit "An error occurred disabling dnsmasq (for wlan0) autostart - verify after install" "WARNING"
     else

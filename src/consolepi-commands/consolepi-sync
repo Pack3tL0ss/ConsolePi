@@ -31,7 +31,7 @@ do_error() {
         echo 'Failed!!' ; echo -e "\n"
         [[ $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
         [[ -f $log_file ]] && cat $log_file && ! $DEBUG && rm $log_file
-        popd > /dev/null
+        popd > /dev/null 2>&1
         exit 1
     fi
     echo "OK"

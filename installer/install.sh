@@ -231,7 +231,7 @@ do_pyvenv() {
             logit "Success - link consolepi python module into venv site-packages" ||
             logit "Error - link consolepi python module into venv site-packages" "ERROR"
     fi
-    
+
 
     unset process
 }
@@ -336,6 +336,11 @@ get_update() {
         . "${consolepi_dir}installer/update.sh" ||
             logit "Error Occured importing update.sh" "Error"
     fi
+}
+
+get_command_log() {
+    echo "------------------- Command Log --------------------------------"
+    cat /var/log/auth.log | grep -o COMMAND=.* | cut -d= -f 2 >> $log_file
 }
 
 main() {

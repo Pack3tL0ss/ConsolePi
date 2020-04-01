@@ -63,6 +63,8 @@ priority=0
 #     'full': Image with desktop and recommended software
 img_type='lite'
 
+local_dev=false
+
 # if img_only=true only burn the image and enable SSH (I run headless), no other pre-staging is done. This is for testing more commom install scenario
 img_only=false
 
@@ -294,14 +296,20 @@ main() {
 
     # Configure pi user to auto-launch ConsolePi installer on first-login
     if $auto_install; then
+        if [ -z "$1" ] && [[ "$HOSTNAME" == "ConsolePi-dev" ]] ; then
+            prompt="dev ConsolePi detected run in local dev mode" && get_input
+            $input && local_dev=true
+        fi
+
         echo -e "\nauto-install enabled, configuring pi user to auto-launch ConsolePi installer on first-login\n"
         echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install
 
         # echo 'branch=$(cd /etc/ConsolePi && sudo git status | head -1 | awk '{print $3}')' >> /mnt/usb2/usr/local/bin/consolepi-install
         # echo '[ ! "$branch" == "master" ] && echo -e "Script updating ${branch} branch.\n  You are on a development branch."' >> /mnt/usb2/usr/local/bin/consolepi-install
-        if [ ! -z "$1" ] && [[ "$1" == "dev" ]] ; then
-            echo '[ ! -f /home/pi/.ssh/id_rsa.pub ] && ssh-keygen && ssh-copy-id pi@consolepi-dev'
-            echo 'sudo ls /root/.ssh | grep -q id_rsa.pub || ( ssh-keygen && ssh-copy-id pi@consolepi-dev )'
+
+        if $local_dev || ( [ ! -z "$1" ] && [[ "$1" == "dev" ]] ) ; then
+            echo '[ ! -f /home/pi/.ssh/id_rsa.pub ] && ssh-keygen && ssh-copy-id pi@consolepi-dev' >> /mnt/usb2/usr/local/bin/consolepi-install
+            echo 'sudo ls /root/.ssh | grep -q id_rsa.pub || ( ssh-keygen && ssh-copy-id pi@consolepi-dev )' >> /mnt/usb2/usr/local/bin/consolepi-install
             echo 'sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi local-dev && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
         else
             echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install

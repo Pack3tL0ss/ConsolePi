@@ -599,7 +599,7 @@ process_cmds() {
                 cmd_failed=true
                 if $do_apt_install ; then
                     x=1
-                    while [[ $(tail -6 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
+                    while [[ $(tail -2 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
                         logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
                         sleep 5
                         if eval "$cmd" >>"$out" 2>>"$err"; then

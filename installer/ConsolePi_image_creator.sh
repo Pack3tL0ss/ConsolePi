@@ -296,16 +296,15 @@ main() {
 
     # Configure pi user to auto-launch ConsolePi installer on first-login
     if $auto_install; then
-        if [ -z "$1" ] && [[ "$HOSTNAME" == "ConsolePi-dev" ]] ; then
-            prompt="dev ConsolePi detected run in local dev mode" && get_input
-            $input && local_dev=true
-        fi
-
         echo -e "\nauto-install enabled, configuring pi user to auto-launch ConsolePi installer on first-login\n"
         echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install
 
         # echo 'branch=$(cd /etc/ConsolePi && sudo git status | head -1 | awk '{print $3}')' >> /mnt/usb2/usr/local/bin/consolepi-install
         # echo '[ ! "$branch" == "master" ] && echo -e "Script updating ${branch} branch.\n  You are on a development branch."' >> /mnt/usb2/usr/local/bin/consolepi-install
+        if [[ "$1" != "dev" ]] && [[ "$HOSTNAME" == "ConsolePi-dev" ]] ; then
+            prompt="dev ConsolePi detected run in local dev mode" && get_input
+            $input && local_dev=true
+        fi
 
         if $local_dev || ( [ ! -z "$1" ] && [[ "$1" == "dev" ]] ) ; then
             echo '[ ! -f /home/pi/.ssh/id_rsa.pub ] && ssh-keygen && ssh-copy-id pi@consolepi-dev' >> /mnt/usb2/usr/local/bin/consolepi-install

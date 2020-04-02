@@ -336,6 +336,7 @@ main() {
         sudo cp ${cur_dir}/ConsolePi_stage/authorized_keys /mnt/usb2/root/.ssh/
     [[ -f $pi_home/ConsolePi_stage/known_hosts ]] && echo ".ssh known_hosts found pre-staging" &&
         sudo -u $iam cp ${cur_dir}/ConsolePi_stage/known_hosts $pi_home/.ssh/
+        chown -R pi:pi $pi_home/.ssh/
         sudo cp ${cur_dir}/ConsolePi_stage/known_hosts /mnt/usb2/root/.ssh/
 
     # if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.

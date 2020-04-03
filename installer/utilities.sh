@@ -108,7 +108,7 @@ do_ask() {
                 process="aruba-ansible-modules"
                 utils+=('ansible')
                 logit "adding ansible to install list - reqd for aruba-ansible-modules"
-                unset process 
+                unset process
         fi
         for u in ${!UTIL_VER[@]}; do
             [[ " ${utils[@]} " =~ " ${u} " ]] && printf -v "$u" true || printf -v "$u" false
@@ -125,7 +125,7 @@ util_exec() {
     apt_pkg_name=$(get_apt_pkg_name $util)
     case "$1" in
         tftpd)
-        
+
             if [[ $2 == "install" ]]; then
 
                 sudo netstat -lnpu | grep -q ":69\s.*" && in_use=true || in_use=false
@@ -216,7 +216,7 @@ util_exec() {
                     "-stop" "-u" "-s" "-f" "failed to created directory .git_repos" "mkdir -p ${home_dir}.git_repos"
                 )
 
-                if [ ! -d ${home_dir}.git_repos/speedtest/.git ] ; then 
+                if [ ! -d ${home_dir}.git_repos/speedtest/.git ] ; then
                     cmd_list+=(
                         "-stop" "-pf" "Clone speedtest from GitHub" "-u"
                             "git clone https://github.com/librespeed/speedtest.git ${home_dir}.git_repos/speedtest"
@@ -244,7 +244,7 @@ util_exec() {
                     "-apt-install" "php"
                     "-apt-install" "libapache2-mod-php"
                     "-stop" "-s" "a2dissite 000-default"
-                    "-pf" "Move apache2 SpeedTest conf file into sites-available" 
+                    "-pf" "Move apache2 SpeedTest conf file into sites-available"
                         "file_diff_update ${src_dir}010-speedtest.conf /etc/apache2/sites-available/010-speedtest.conf"
                     "-pf" "Enable apache2 SpeetTest conf" "a2ensite 010-speedtest"
                     "systemctl restart apache2"
@@ -262,7 +262,7 @@ util_exec() {
         cockpit)
             if [[ $2 == "install" ]]; then
                 cmd_list=(
-                    "-s" "-pf" "Update /etc/bash/bashrc for cockpit ~ ConsolePi" 
+                    "-s" "-pf" "Update /etc/bash/bashrc for cockpit ~ ConsolePi"
                     "echo -e \"# read consolepi profile script for cockpit tty\\nif [ ! -z \\\$COCKPIT_REMOTE_PEER ] && [[ ! \\\"\\\$PATH\\\" =~ \\\"consolepi-commands\\\" ]] ; then\\n\\t[ -f \\\"/etc/ConsolePi/src/consolepi.sh\\\" ] && . /etc/ConsolePi/src/consolepi.sh\\nfi\" >>/etc/bash.bashrc"
                     "-logit" 'Installing cockpit this will take a few...'
                     "-apt-install" "$apt_pkg_name" "--pretty=CockPit" "--exclude=cockpit-networkmanager"

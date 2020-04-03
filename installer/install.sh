@@ -177,6 +177,12 @@ git_ConsolePi() {
 do_pyvenv() {
     process="Prepare/Check Python venv"
     logit "$process - Starting"
+    # -- exit if python3 ver < 3.6
+    [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && (
+        echo "ConsolePi Requires Python3 ver >= 3.6, aborting install."
+        echo "Reccomend using ConsolePi_image_creator to creator to create a fresh image on a new sd-card" &&
+        exit 1
+    )
 
     # -- Check that git pull didn't bork venv ~ I don't think I handled the removal of venv from git properly seems to break things if it was already installed --
     if [ -d ${consolepi_dir}venv ] && [ ! -x ${consolepi_dir}venv/bin/python3 ]; then

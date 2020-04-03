@@ -750,7 +750,7 @@ do_wifi_country() {
 
     wpa_cli -i "$IFACE" set country "$wlan_country" 2>&1
     wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
-    iw reg set "$wlan_country" &&
+    iw reg set "$wlan_country" > /dev/null 2>>$log_file &&
         logit "Wi-fi country set to $wlan_country" ||
         logit "Error Code returned when setting WLAN country" "WARNING"
     if hash rfkill 2> /dev/null; then

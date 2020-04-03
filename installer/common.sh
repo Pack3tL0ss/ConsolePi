@@ -602,6 +602,7 @@ process_cmds() {
                     while [[ $(tail -2 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
                         logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
                         sleep 5
+                        logit "Starting ${pmsg/Success - /} ~ retry $x"
                         if eval "$cmd" >>"$out" 2>>"$err"; then
                             cmd_failed=false
                             ! $silent && logit "$pmsg"

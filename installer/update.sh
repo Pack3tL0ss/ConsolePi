@@ -721,7 +721,7 @@ get_serial_udev() {
     $upgrade && user_input false "${prompt}" || user_input true "${prompt}"
     if $result ; then
         if [ -f ${consolepi_dir}src/consolepi-commands/consolepi-menu ]; then
-            sudo ${consolepi_dir}src/consolepi-commands/consolepi-menu dev rn  # TODO CHANGE BEFORE MERGE WITH MASTER
+            sudo ${consolepi_dir}src/consolepi-commands/consolepi-menu rn
         else
             logit "ERROR consolepi-menu not found" "WARNING"
         fi

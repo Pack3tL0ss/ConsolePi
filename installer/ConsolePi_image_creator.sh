@@ -330,12 +330,12 @@ main() {
     [[ -d ConsolePi_stage ]] && sudo mkdir $pi_home/ConsolePi_stage &&
         sudo cp -r ${cur_dir}/ConsolePi_stage/* $pi_home/ConsolePi_stage/ && echo "ConsolePi_stage dir found Pre-Staging all files"
     [[ -f $pi_home/ConsolePi_stage/authorized_keys ]] && echo ".ssh authorized keys found pre-staging" &&
-        sudo -u $iam mkdir -p $pi_home/.ssh
+        sudo -u pi mkdir -p $pi_home/.ssh
         sudo mkdir -p /mnt/usb2/root/.ssh
-        sudo -u $iam cp ${cur_dir}/ConsolePi_stage/authorized_keys $pi_home/.ssh/
+        sudo -u pi cp ${cur_dir}/ConsolePi_stage/authorized_keys $pi_home/.ssh/
         sudo cp ${cur_dir}/ConsolePi_stage/authorized_keys /mnt/usb2/root/.ssh/
     [[ -f $pi_home/ConsolePi_stage/known_hosts ]] && echo ".ssh known_hosts found pre-staging" &&
-        sudo -u $iam cp ${cur_dir}/ConsolePi_stage/known_hosts $pi_home/.ssh/
+        sudo -u pi cp ${cur_dir}/ConsolePi_stage/known_hosts $pi_home/.ssh/
         chown -R pi:pi $pi_home/.ssh/
         sudo cp ${cur_dir}/ConsolePi_stage/known_hosts /mnt/usb2/root/.ssh/
 

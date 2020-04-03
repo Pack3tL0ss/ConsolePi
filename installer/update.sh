@@ -195,7 +195,7 @@ install_ser2net () {
         fi
     fi
 
-    if $do_ser2net && [[ ! $(head -1 /etc/ser2net.conf 2>>$log_File) =~ "ConsolePi" ]] ; then
+    if $do_ser2net && [[ ! $(head -1 /etc/ser2net.conf 2>>$log_file) =~ "ConsolePi" ]] ; then
         logit "Building ConsolePi Config for ser2net"
         [[ -f "/etc/ser2net.conf" ]]  && cp /etc/ser2net.conf $bak_dir  ||
             logit "Failed to Back up default ser2net to back dir" "WARNING"

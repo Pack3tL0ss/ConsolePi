@@ -91,12 +91,19 @@ pre_git_prep() {
                     logit "ERROR Unable to remove old consolepi-menu quick-launch file" "WARNING"
         fi
     else
-        # 02-05-2020 raspbian buster could not pip install requirements -sido would error with no libffi
+        # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
         process="ConsolePi-Upgrade-Prep (install libffi-dev)"
         if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
             apt install -y libffi-dev >/dev/null 2>>${log_file} &&
                 logit "Success Installing development files for libffi" ||
                     logit "ERROR apt install libffi-dev retrurned an error" "WARNING"
+        fi
+        # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
+        process="ConsolePi-Upgrade-Prep (install libssl-dev)"
+        if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
+            apt install -y libssl-dev >/dev/null 2>>${log_file} &&
+                logit "Success Installing development files for libssl" ||
+                    logit "ERROR apt install libssl-dev retrurned an error" "WARNING"
         fi
     fi
 

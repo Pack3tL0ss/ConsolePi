@@ -748,7 +748,7 @@ do_wifi_country() {
         # return 1
     fi
 
-    wpa_cli -i "$IFACE" set country "$wlan_country" 2>&1
+    wpa_cli -i "$IFACE" set country "$wlan_country" > /dev/null 2>&1
     wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
     iw reg set "$wlan_country" > /dev/null 2>>$log_file &&
         logit "Wi-fi country set to $wlan_country" ||

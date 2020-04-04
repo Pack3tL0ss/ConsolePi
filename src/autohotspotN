@@ -328,6 +328,7 @@ if [ "$ssidChk" != "NoSSid" ] ; then
     elif { wpa_cli -i "$wifidev" status | grep 'ip_address'; } >/dev/null 2>&1 ; then #Already connected
         # echo "Wifi already connected to a network"
         get_ssid_details Already
+        exit 0
     else #ssid exists and no hotspot running connect to wifi network
         logit "Connecting to the WiFi Network"
         wpa_supplicant -B -i "$wifidev" -c /etc/wpa_supplicant/wpa_supplicant.conf >/dev/null 2>&1

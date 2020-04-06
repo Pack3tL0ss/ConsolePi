@@ -345,7 +345,9 @@ else #ssid or MAC address not in range
         ip link set dev "$wifidev" down
         rm -r /var/run/wpa_supplicant >/dev/null 2>&1
         createAdHocNetwork
+        exit 0
     else #"No SSID, activating Hotspot"
         createAdHocNetwork
+        exit 0
     fi
 fi

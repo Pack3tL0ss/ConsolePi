@@ -41,6 +41,7 @@ common_funcs="/etc/ConsolePi/installer/common.sh"
 cfg_file_yaml="/etc/ConsolePi/ConsolePi.yaml"
 cfg_file_conf="/etc/ConsolePi/ConsolePi.conf"  # legacy config support should not be used
 DEBUG=false
+dhcp_config="/etc/dnsmasq.d/wlan-autohotspot"
 log_file="/var/log/ConsolePi/consolepi.log"
 process="AutoHotSpot"
 # -- Terminal coloring --
@@ -102,10 +103,10 @@ elif [[ -f $cfg_file_conf ]] ; then
 fi
 if [[ -z $wlan_ip ]] ; then
     logit "Unable to collect HotSpot IP from ConsolePi.yaml" "WARNING"
-    if [[ -f "/etc/dnsmasq.conf" ]] ; then
-        wlan_pfx=$(grep -q wlan0 /etc/dnsmasq.conf && grep dhcp-range= /etc/dnsmasq.conf | cut -d = -f 2 | cut -d . -f 1-3)
-        [[ ! -z $wlan_pfx ]] && wlan_ip="${wlan_pfx}.1" && logit "Guessed HotSpot IP based on dnsmasq.conf ($wlan_ip)" ||
-            ( logit "Unable to Guess HotSpot IP based on dnsmasq.conf Giving Up" "ERROR" && exit 1 )
+    if [[ -f "$dhcp_config" ]] ; then
+        wlan_pfx=$(grep -q wlan0 $dhcp_config && grep dhcp-range= $dhcp_config | cut -d = -f 2 | cut -d . -f 1-3)
+        [[ ! -z $wlan_pfx ]] && wlan_ip="${wlan_pfx}.1" && logit "Guessed HotSpot IP based on $dhcp_config ($wlan_ip)" ||
+            ( logit "Unable to Guess HotSpot IP based on $dhcp_config Giving Up" "ERROR" && exit 1 )
     fi
 fi
 
@@ -216,33 +217,33 @@ ChkWiredState() {
         [ -f /tmp/$ethdev ] && eth0_dom=$(grep 'domain=' /tmp/$ethdev) || logit "[ConsolePi-AutoHotSpot] $ethdev tmp file not found" "WARNING"
         [ ${#eth0_dom} -gt 9 ] && valid_dom=true || valid_dom=false
         if $valid_dom; then
-            if ! $(grep -q 'domain=' /etc/dnsmasq.conf); then
-                sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' /etc/dnsmasq.conf # make sure EoF has \n
-                    echo "${eth0_dom}" >> /etc/dnsmasq.conf &&
+            if ! $(grep -q 'domain=' $dhcp_config); then
+                sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' $dhcp_config # make sure EoF has \n
+                    echo "${eth0_dom}" >> $dhcp_config &&
                     use_eth_dom=true || use_eth_dom=false
             else
-                sed -i "/domain=/s/.*/${eth0_dom}/" /etc/dnsmasq.conf &&
+                sed -i "/domain=/s/.*/${eth0_dom}/" $dhcp_config &&
                 use_eth_dom=true || use_eth_dom=false
             fi
             $use_eth_dom && logit "Active Lease Found on $ethdev with $eth0_dom using same for HotSpot clients" ||
                 logit "[ChkWiredState] Failed to Configure Domain $eth0_dom for HostSpot clients" "WARNING"
         else
             logit "A lease was found for $ethdev but no Domain was provided Removing Domain for HotSpot clients"
-            sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf
+            sed -i '/^domain=.*/s/^/#/g' $dhcp_config
         fi
     fi
 
     if ! $eth0_up || ! $wired_lease; then
-        sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf &&
+        sed -i '/^domain=.*/s/^/#/g' $dhcp_config &&
         logit "Removing Domain for HotSpot clients as there is no lease on $ethdev or $ethdev is down" ||
         logit "[ChkWiredState] Failed to Remove Domain for HotSpot clients" "WARNING"
     fi
 
     if $eth0_up; then
-        sed -i '/^dhcp-option=wlan0,3/s/^/#/g' /etc/dnsmasq.conf  # comment out option 3 - default behavior assigns i/f address as def-gw
+        sed -i '/^dhcp-option=wlan0,3/s/^/#/g' $dhcp_config  # comment out option 3 - default behavior assigns i/f address as def-gw
         logit "Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip"
     else
-        sed -i '/^#dhcp-option=wlan0,3/s/^#//g' /etc/dnsmasq.conf  # uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
+        sed -i '/^#dhcp-option=wlan0,3/s/^#//g' $dhcp_config  # uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
         logit "Bringing up hotspot with no gateway due to no eth0 connection"
     fi
 }

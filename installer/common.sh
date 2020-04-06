@@ -246,9 +246,15 @@ systemd_diff_update() {
                         logit "Failed ${1}.service file not found in systemd after move"
                     fi
                 fi
-                [[ $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]] &&
-                    sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file ||
-                    logit "FAILED to restart ${1} systemd service" "WARNING"
+                # -- if the service is enabled and active currently restart the service --
+                if systemctl is-enabled ${1}.service >/dev/null ; then
+                    if systemctl is-active ${1}.service >/dev/null ; then
+                        sudo systemctl daemon-reload 2>>$log_file
+                        sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file &&
+                        ( [[ ! "${1}" =~ "autohotspot" ]] &&
+                            logit "FAILED to restart ${1} systemd service" "WARNING" )
+                    fi
+                fi
             else
                 logit "${1} file not found in src directory.  git pull failed?" "WARNING"
             fi

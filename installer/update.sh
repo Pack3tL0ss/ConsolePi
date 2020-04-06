@@ -416,7 +416,11 @@ disable_autohotspot() {
 gen_dnsmasq_conf () {
     process="Configure dnsmasq"
     logit "Generating Files for dnsmasq."
-    convert_template dnsmasq.conf /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+    if $upgrade ; then
+        convert_template dnsmasq.conf /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+    else
+        convert_template dnsmasq.conf /etc/dnsmasq.d/wlan-autohotspot wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+    fi
     unset process
 }
 

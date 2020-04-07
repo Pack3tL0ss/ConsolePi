@@ -144,7 +144,7 @@ pre_git_prep() {
     fi
 
     if [ -d $consolepi_dir ]; then
-        process="ConsolePi-Upgrade-Prep (check group perms on ConsolePi dir)"
+        process="ConsolePi-Upgrade-Prep (verify permissions)"
 
         check_list=("$consolepi_dir" "${consolepi_dir}.git")
         [[ -f ${consolepi_dir}.static.yaml ]] && check_list+=("${consolepi_dir}.static.yaml")
@@ -156,22 +156,11 @@ pre_git_prep() {
                 sudo chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?
                 sudo chmod g+w -R ${d} 2>> $log_file ; ((rc+=$?))
                 [[ $rc > 0 ]] && logit "Error Returned while setting perms for $d" "WARNING" ||
-                    logit "Success ~ Verify Permissions for $d"
+                    logit "Success ~ Update Permissions for $d"
             else
                 logit "Permissions for $d already OK"
             fi
         done
-
-        # if [ ! $group == "consolepi" ]; then
-        #     sudo chgrp -R consolepi $consolepi_dir 2>> $log_file &&
-        #         logit "Successfully Changed ConsolePi dir group" ||
-        #         logit "Failed to Change ConsolePi dir group" "WARNING"
-        #     sudo chmod g+w -R $consolepi_dir 2>> $log_file &&
-        #         logit "Successfully Changed ConsolePi dir group permissions" ||
-        #         logit "Failed to Change ConsolePi dir group Permissions" "WARNING"
-        # else
-        #     logit "ConsolePi dir group already OK"
-        # fi
         unset process
     fi
 }

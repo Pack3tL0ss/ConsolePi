@@ -146,15 +146,15 @@ pre_git_prep() {
     if [ -d $consolepi_dir ]; then
         process="ConsolePi-Upgrade-Prep (check group perms on ConsolePi dir)"
 
-        check_list=("$consolepi_dir" "$consolepi_dir/.git")
-        [[ -f $consolepi_dir/.static.yaml ]] && check_list+=("$consolepi_dir/.static.yaml")
+        check_list=("$consolepi_dir" "${consolepi_dir}.git")
+        [[ -f ${consolepi_dir}.static.yaml ]] && check_list+=("${consolepi_dir}.static.yaml")
 
         for d in "${check_list[@]}"; do
             [ $(stat -c '%G' $d) == "consolepi" ] && grpok=true || grpok=false
             stat -c %A $d |grep -q "^....rw....$" && modok=true || modok=false
             if ! $grpok || ! $modok; then
                 sudo chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?
-                sudo chmod g+w -R ${d} 2>> $log_file ; local ((rc+=$?))
+                sudo chmod g+w -R ${d} 2>> $log_file ; ((rc+=$?))
                 [[ $rc > 0 ]] && logit "Error Returned while setting perms for $d" "WARNING" ||
                     logit "Success ~ Verify Permissions for $d"
             else

@@ -239,7 +239,7 @@ ChkWiredState() {
         [ ${#eth0_dom} -gt 9 ] && valid_dom=true || valid_dom=false
         if $valid_dom; then
             if ! $(grep -q 'domain=' $dhcp_config); then
-                sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' $dhcp_config # make sure EoF has \n
+                sed -i -e :a -e  '/^\\n*$/{$d;N;};/\\n$/ba' $dhcp_config # make sure EoF has \n
                     echo "${eth0_dom}" >> $dhcp_config &&
                     use_eth_dom=true || use_eth_dom=false
             else

@@ -92,7 +92,7 @@ update_config() {
     spaces "rem_user: ${rem_user}" "# The user account remotes should use to access this ConsolePi" >> $yml_temp
     spaces "power: ${power}" "# Enable Power Outlet Control" >> $yml_temp
     spaces "debug: ${debug}" "# Turns on additional debugging" >> $yml_temp
-    echo "" >> $yml_temp
+    # echo "" >> $yml_temp
     if [[ -f $CONFIG_FILE_YAML ]] ; then
         sed -n '/debug:/,//p' $CONFIG_FILE_YAML | tail -n +2 >> $yml_temp
     fi

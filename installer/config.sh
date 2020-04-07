@@ -3,6 +3,8 @@
 # ConsolePi ~ Get Configuration details from user (stage 2 of install)
 # Author: Wade Wells
 
+wired_dhcp=false  # Temp until this is added as config option
+
 get_static() {
     process="get static vars"
     process_yaml static

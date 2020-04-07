@@ -159,13 +159,30 @@ misc_imports(){
                 fi
         fi
 
-        # -- power.json --
-        if $power && [[ -d ${stage_dir}power.json ]]; then
-            found_path=${stage_dir}power.json
-            mv $found_path $consolepi_dir 2>> $log_file &&
-            logit "Found power control definitions @ ${found_path} Moving into $consolepi_dir"  ||
-            logit "Error occurred moving your ${found_path} into $consolepi_dir " "WARNING"
+        # TODO may need to adjust once fully automated
+        # -- wired-dhcp configurations --
+        if [[ -d ${stage_dir}wired-dhcp ]]; then
+            logit "Staged wired-dhcp directory found copying contents to ConsolePi wired-dchp dir"
+            cp ${stage_dir}wired-dhcp/* /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
+            logit "Success - copying staged wired-dchp configs" ||
+                logit "Failure - copying staged wired-dchp configs" "WARNING"
         fi
+
+        # -- autohotspot dhcp configurations --
+        if [[ -d ${stage_dir}autohotspot-dhcp ]]; then
+            logit "Staged autohotspot-dhcp directory found copying contents to ConsolePi autohotspot dchp dir"
+            cp ${stage_dir}autohotspot-dhcp/* /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
+            logit "Success - copying staged autohotspot-dchp configs" ||
+                logit "Failure - copying staged autohotspot-dchp configs" "WARNING"
+        fi
+        # -- power.json --
+        # TODO REMOVE this config is now part of ConsolePi.yaml
+        # if $power && [[ -d ${stage_dir}power.json ]]; then
+        #     found_path=${stage_dir}power.json
+        #     mv $found_path $consolepi_dir 2>> $log_file &&
+        #     logit "Found power control definitions @ ${found_path} Moving into $consolepi_dir"  ||
+        #     logit "Error occurred moving your ${found_path} into $consolepi_dir " "WARNING"
+        # fi
 
     fi
     unset process
@@ -325,6 +342,9 @@ install_autohotspotn () {
     logit "Install/Update AutoHotSpotN"
 
     systemd_diff_update autohotspot
+    if ! head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
+        systemd_diff_update consolepi-autohotspot-dhcp
+    fi
 
     logit "Installing hostapd via apt."
     if ! $(which hostapd >/dev/null); then
@@ -360,12 +380,11 @@ install_autohotspotn () {
         logit "skipped hostapd disable - hostapd.service is overriden"
     fi
 
-    if ! $dnsmasq_override ; then
+    # disable dnsmasq if we just installed it, if it was already installed leave it alone.
+    if [[ -z $dnsmasq_ver ]]; then
         sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
-            logit "dnsmasq on wlan interface autostart disabled Successfully" ||
-                logit "An error occurred disabling dnsmasq (for wlan0) autostart - verify after install" "WARNING"
-    else
-        logit "skipped dnsmasq on wlan interface disable - dnsmasq.service is overriden"
+            logit "dnsmasq autostart disabled Successfully" ||
+                logit "An error occurred disabling dnsmasq autostart - verify after install" "WARNING"
     fi
 
     logit "Create/Configure hostapd.conf"
@@ -420,11 +439,11 @@ gen_dnsmasq_conf () {
     logit "Generating Files for dnsmasq."
     # check if they are using old method where dnsmasq.conf was used to control dhcp on wlan0
     if head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
-        convert_template dnsmasq.conf /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        convert_template dnsmasq.wlan0 /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
         ahs_unique_dnsmasq=false
     else
         # ahs_dhcp_config defined in common.sh - new method uses consolepi-autohotspot-dhcp systemd file
-        convert_template dnsmasq.conf $ahs_dhcp_config wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        convert_template dnsmasq.wlan0 $ahs_dhcp_config wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
         ahs_unique_dnsmasq=true
     fi
 

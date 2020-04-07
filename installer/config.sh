@@ -92,24 +92,6 @@ update_config() {
     spaces "rem_user: ${rem_user}" "# The user account remotes should use to access this ConsolePi" >> $yml_temp
     spaces "power: ${power}" "# Enable Power Outlet Control" >> $yml_temp
     spaces "debug: ${debug}" "# Turns on additional debugging" >> $yml_temp
-    # echo "  push: ${push} # PushBullet Notifications: true - enable, false - disable" >> $yml_temp
-    # echo "  push_all: ${push_all} # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden" >> $yml_temp
-    # echo "  push_api_key: /"${push_api_key}/" # PushBullet API key" >> $yml_temp
-    # echo "  push_iden: /"${push_iden}/" # iden of device to send PushBullet notification to if not push_all" >> $yml_temp
-    # echo "  ovpn_enable: ${ovpn_enable} # if enabled will establish VPN connection" >> $yml_temp
-    # echo "  vpn_check_ip: ${vpn_check_ip} # used to check VPN (internal) connectivity should be ip only reachable via VPN" >> $yml_temp
-    # echo "  net_check_ip: ${net_check_ip} # used to check Internet connectivity" >> $yml_temp
-    # echo "  local_domain: ${local_domain} # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn" >> $yml_temp
-    # echo "  HotSpot: ${hotspot} # wheather to enable AutoHotSpot Feature" >> $yml_temp
-    # echo "  wlan_ip: ${wlan_ip} # IP of ConsolePi when in hotspot mode" >> $yml_temp
-    # echo "  wlan_ssid: ${wlan_ssid} # SSID used in hotspot mode" >> $yml_temp
-    # echo "  wlan_psk: ${wlan_psk} # psk used for hotspot SSID" >> $yml_temp
-    # echo "  wlan_country: ${wlan_country} # regulatory domain for hotspot SSID" >> $yml_temp
-    # echo "  cloud: ${cloud} # enable ConsolePi cloud sync for Clustering (mdns enabled either way)" >> $yml_temp
-    # echo "  cloud_svc: ${cloud_svc} # must be gdrive (all that is supported now)" >> $yml_temp
-    # echo "  rem_user: ${rem_user} # The user account remotes should use to access this ConsolePi" >> $yml_temp
-    # echo "  power: ${power} # Enable Power Outlet Control" >> $yml_temp
-    # echo "  debug: ${debug} # Turns on additional debugging" >> $yml_temp
     echo "" >> $yml_temp
     if [[ -f $CONFIG_FILE_YAML ]] ; then
         sed -n '/debug:/,//p' $CONFIG_FILE_YAML | tail -n +2 >> $yml_temp
@@ -354,33 +336,6 @@ verify() {
     $cloud && dots "ConsolePi Cloud Service" "$cloud_svc"
     dots "User used by Remotes to connect to this ConsolePi" "$rem_user"
     dots "ConsolePi Power Control Support" "$power"
-    # echo     " Send Notifications via PushBullet?:                      $push"
-    # if $push; then
-    #     echo " PushBullet API Key:                                      ${push_api_key}"
-    #     echo " Send Push Notification to all devices?:                  $push_all"
-    #     ! $push_all && \
-    #     echo " iden of device to receive PushBullet Notifications:      ${push_iden}"
-    # fi
-
-    # echo " Enable Automatic VPN?:                                   $ovpn_enable"
-    # if $ovpn_enable; then
-    #     echo " IP used to verify VPN is connected:                      $vpn_check_ip"
-    #     echo " IP used to verify Internet connectivity:                 $net_check_ip"
-    #     echo " Local Lab Domain:                                        $local_domain"
-    # fi
-
-    # echo " Enable Automatic HotSpot (wlan0):                        $hotspot"
-    # if $hotspot ; then
-    #     echo " ConsolePi Hot Spot IP:                                   $wlan_ip"
-    #     echo "  *hotspot DHCP Range:                                    ${wlan_dhcp_start} to ${wlan_dhcp_end}"
-    #     echo " ConsolePi HotSpot SSID:                                  $wlan_ssid"
-    #     echo " ConsolePi HotSpot psk:                                   $wlan_psk"
-    #     echo " ConsolePi HotSpot regulatory domain:                     $wlan_country"
-    # fi
-    # echo " ConsolePi Cloud Support:                                 $cloud"
-    # $cloud && echo " ConsolePi Cloud Service:                                 $cloud_svc"
-    # echo " User used by Remotes to connect to this ConsolePi:       $rem_user"
-    # echo " ConsolePi Power Control Support:                         $power"
     echo
     echo "----------------------------------------------------------------------------------------------------------------"
     echo

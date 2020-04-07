@@ -8,6 +8,9 @@
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
 # --  For more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                                              -- #
 # --                                                                                                                                             -- #
+# --  This is the main installer file it imports and calls the other 2 files after prepping /etc/ConsolePi                                       -- #
+# --    All files source common functions from common.sh pulled directly for git repo                                                            -- #
+# --    Sequence: install.sh (prep, common imports) --> config.sh (get configuration/user input) --> update.sh (perform install/updates)         -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 if [ ! -z $1 ] && [ "$1" = 'local-dev' ] ; then

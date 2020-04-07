@@ -1,5 +1,5 @@
 # - ConsolePi has a couple of features that utilize DHCP
-# - AutoHotSpot and wired-dhcp / ztp
+# - AutoHotSpot and wired-dhcp / ztp (NOTE: Placeholder wired-dhcp / ztp is not implemented yet, will be in near future)
 # - each of these functions runs a separate instance of dnsmasq bound only
 # - to the appropriate interface.
 

@@ -20,7 +20,8 @@ def parse_args():
         if "=" not in user_input:
             continue
         varname = user_input.split("=")[0]
-        varvalue = user_input.split("=")[1]
+        varvalue = '='.join(user_input.split("=")[1:])
+        varvalue = varvalue.replace('{{cr}}', '\n')
         parameter_dict[varname] = varvalue
     return parameter_dict
 

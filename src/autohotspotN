@@ -41,7 +41,14 @@ common_funcs="/etc/ConsolePi/installer/common.sh"
 cfg_file_yaml="/etc/ConsolePi/ConsolePi.yaml"
 cfg_file_conf="/etc/ConsolePi/ConsolePi.conf"  # legacy config support should not be used
 DEBUG=false
-dhcp_config="/etc/dnsmasq.d/wlan-autohotspot"
+ahs_dhcp_config="/etc/ConsolePi/dnsmasq.d/autohotspot/autohotspot"
+# -- allows for support of old autohotspot config using dnsmasq.conf and new separate instance --
+if [ -f $ahs_dhcp_config ] && [ -f /etc/dnsmasq.d/01-consolepi ] &&
+   ( [ -L /etc/systemd/system/consolepi-autohotspot-dhcp.service ] || [ -f /etc/systemd/system/consolepi-autohotspot-dhcp.service ] ); then
+    dhcp_config=$ahs_dhcp_config
+else
+    dhcp_config='/etc/dnsmasq.conf'
+fi
 log_file="/var/log/ConsolePi/consolepi.log"
 process="AutoHotSpot"
 # -- Terminal coloring --
@@ -153,6 +160,18 @@ get_ssid_details() {
     fi
 }
 
+start_stop_dnsmasq() {
+    # if all files are in place to use new separate instance for hotspot dhcp do so otherwise assume using dnsmasq default instance
+    if [ -f $ahs_dhcp_config ] && [ -f /etc/dnsmasq.d/01-consolepi ] &&
+       ( [ -L /etc/systemd/system/consolepi-autohotspot-dhcp.service ] || [ -f /etc/systemd/system/consolepi-autohotspot-dhcp.service ] ); then
+        logit "ConsolePi Specific dnsmasq instance Configured"
+        systemctl $1 consolepi-autohotspot-dhcp.service
+    else
+        logit "ConsolePi Specific dnsmasq instance *not* Configured, using default dnsmasq instance"
+        systemctl $1 dnsmasq.service
+    fi
+}
+
 createAdHocNetwork() {
     logit "Creating Hotspot"
     ip link set dev "$wifidev" down
@@ -165,7 +184,8 @@ createAdHocNetwork() {
     iptables -A FORWARD -i "$ethdev" -o "$wifidev" -m state --state RELATED,ESTABLISHED -j ACCEPT
     iptables -A FORWARD -i "$wifidev" -o "$ethdev" -j ACCEPT
     ChkWiredState
-    systemctl start dnsmasq
+    # systemctl start dnsmasq
+    start_stop_dnsmasq start
     systemctl start hostapd
     echo 1 > /proc/sys/net/ipv4/ip_forward
 }
@@ -174,7 +194,8 @@ KillHotspot() {
     logit "Shutting Down Hotspot"
     ip link set dev "$wifidev" down
     systemctl stop hostapd
-    systemctl stop dnsmasq
+    # systemctl stop dnsmasq
+    start_stop_dnsmasq stop
     iptables -D FORWARD -i "$ethdev" -o "$wifidev" -m state --state RELATED,ESTABLISHED -j ACCEPT
     iptables -D FORWARD -i "$wifidev" -o "$ethdev" -j ACCEPT
     echo 0 > /proc/sys/net/ipv4/ip_forward

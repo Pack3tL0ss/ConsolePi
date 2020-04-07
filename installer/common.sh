@@ -28,6 +28,7 @@ override_dir="/etc/ConsolePi/src/override" # TODO NO TRAILING / make others that
 py3ver=$(python3 -V | cut -d. -f2)
 yml_script="/etc/ConsolePi/src/yaml2bash.py"
 tmp_src="/tmp/consolepi-temp"
+ahs_dhcp_config="/etc/ConsolePi/dnsmasq.d/autohotspot/autohotspot"
 warn_cnt=0
 
 # Terminal coloring

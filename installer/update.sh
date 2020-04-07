@@ -413,13 +413,40 @@ disable_autohotspot() {
     unset process
 }
 
+# TODO need to check if dnsmasq is already ConsolePi version and update appropriately - Need to add 01-consolepi to dnsmasq.d
+# based on wired-dhcp and autohotspot config
 gen_dnsmasq_conf () {
     process="Configure dnsmasq"
     logit "Generating Files for dnsmasq."
-    if $upgrade ; then
+    # check if they are using old method where dnsmasq.conf was used to control dhcp on wlan0
+    if head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
         convert_template dnsmasq.conf /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        ahs_unique_dnsmasq=false
     else
-        convert_template dnsmasq.conf /etc/dnsmasq.d/wlan-autohotspot wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        # ahs_dhcp_config defined in common.sh - new method uses consolepi-autohotspot-dhcp systemd file
+        convert_template dnsmasq.conf $ahs_dhcp_config wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        ahs_unique_dnsmasq=true
+    fi
+
+    if $ahs_unique_dnsmasq ; then
+        if $hotspot && $wired_dhcp ; then
+            grep -q 'except-interface=wlan0' /etc/dnsmasq.d/01-consolepi ; rc=$?
+            grep -q 'except-interface=eth0' /etc/dnsmasq.d/01-consolepi ; ((rc+=$?))
+            if [[ $rc -gt 0 ]] ; then
+                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=wlan0{{cr}}except-interface=eth0"
+            fi
+        elif $hotspot ; then
+            grep -q 'except-interface=wlan0' /etc/dnsmasq.d/01-consolepi ||
+                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=wlan0"
+        elif $wired_dhcp ; then
+            grep -q 'except-interface=eth0' /etc/dnsmasq.d/01-consolepi ||
+                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=eth0"
+        else
+            if [ -f /etc/dnsmasq.d/01-consolepi ] ; then
+                logit "Hotspot and wired_dhcp are disabled but consolepi specific dnsmasq config found moving to bak dir"
+                mv /etc/dnsmasq.d/01-consolepi $bak_dir 2>>$log_file
+            fi
+        fi
     fi
     unset process
 }

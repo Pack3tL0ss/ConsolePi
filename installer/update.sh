@@ -343,6 +343,7 @@ install_autohotspotn () {
 
     systemd_diff_update autohotspot
     if ! head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
+        logit "Using New autohotspot specific dnsmasq instance"
         systemctl is-active consolepi-autohotspot-dhcp >/dev/null 2>&1 && was_active=true || was_active=false
         systemd_diff_update consolepi-autohotspot-dhcp
         if ! $was_active && systemctl is-active consolepi-autohotspot-dhcp >/dev/null 2>&1; then
@@ -353,6 +354,8 @@ install_autohotspotn () {
             systemctl disable consolepi-autohotspot-dhcp 2>>$log_file ||
                 logit "Failed to disable consolepi-autohotspot-dhcp.service check log" "WARNING"
         fi
+    else
+        logit "Using old autohotspot system default dnsmasq instance"
     fi
 
     logit "Installing hostapd via apt."

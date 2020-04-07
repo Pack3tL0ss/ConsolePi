@@ -101,17 +101,18 @@ pre_git_prep() {
                 logit "Success Installing development files for libffi" ||
                     logit "ERROR apt install libffi-dev retrurned an error" "WARNING"
         fi
-        # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
-        process="ConsolePi-Upgrade-Prep (install libssl-dev)"
-        if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
-            apt install -y libssl-dev >/dev/null 2>>${log_file} &&
-                logit "Success Installing development files for libssl" ||
-                    logit "ERROR apt install libssl-dev retrurned an error" "WARNING"
-        fi
+    fi
+
+    # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
+    process="ConsolePi-Upgrade-Prep (install libssl-dev)"
+    if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
+        apt install -y libssl-dev >/dev/null 2>>${log_file} &&
+            logit "Success Installing development files for libssl" ||
+                logit "ERROR apt install libssl-dev retrurned an error" "WARNING"
     fi
 
     process="ConsolePi-Upgrade-Prep (create consolepi group)"
-    for user in pi; do
+    for user in pi; do  # placeholder for additional non-pi users
         if [[ ! $(groups $user) == *"consolepi"* ]]; then
             if ! $(grep -q consolepi /etc/group); then
                 sudo groupadd consolepi &&
@@ -144,17 +145,33 @@ pre_git_prep() {
 
     if [ -d $consolepi_dir ]; then
         process="ConsolePi-Upgrade-Prep (check group perms on ConsolePi dir)"
-        group=$(stat -c '%G' $consolepi_dir)
-        if [ ! $group == "consolepi" ]; then
-            sudo chgrp -R consolepi $consolepi_dir 2>> $log_file &&
-                logit "Successfully Changed ConsolePi dir group" ||
-                logit "Failed to Change ConsolePi dir group" "WARNING"
-            sudo chmod g+w -R $consolepi_dir 2>> $log_file &&
-                logit "Successfully Changed ConsolePi dir group permissions" ||
-                logit "Failed to Change ConsolePi dir group Permissions" "WARNING"
-        else
-            logit "ConsolePi dir group already OK"
-        fi
+
+        check_list=("$consolepi_dir" "$consolepi_dir/.git")
+        [[ -f $consolepi_dir/.static.yaml ]] && check_list+=("$consolepi_dir/.static.yaml")
+
+        for d in "${check_list[@]}"; do
+            [ $(stat -c '%G' $d) == "consolepi" ] && grpok=true || grpok=false
+            stat -c %A $d |grep -q "^....rw....$" && modok=true || modok=false
+            if ! $grpok || ! $modok; then
+                sudo chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?
+                sudo chmod g+w -R ${d} 2>> $log_file ; local ((rc+=$?))
+                [[ $rc > 0 ]] && logit "Error Returned while setting perms for $d" "WARNING" ||
+                    logit "Success ~ Verify Permissions for $d"
+            else
+                logit "Permissions for $d already OK"
+            fi
+        done
+
+        # if [ ! $group == "consolepi" ]; then
+        #     sudo chgrp -R consolepi $consolepi_dir 2>> $log_file &&
+        #         logit "Successfully Changed ConsolePi dir group" ||
+        #         logit "Failed to Change ConsolePi dir group" "WARNING"
+        #     sudo chmod g+w -R $consolepi_dir 2>> $log_file &&
+        #         logit "Successfully Changed ConsolePi dir group permissions" ||
+        #         logit "Failed to Change ConsolePi dir group Permissions" "WARNING"
+        # else
+        #     logit "ConsolePi dir group already OK"
+        # fi
         unset process
     fi
 }

@@ -369,7 +369,7 @@ main() {
         git_ConsolePi                       # git clone or git pull ConsolePi
         do_pyvenv                           # build upgrade python3 venv for ConsolePi
         do_logging                          # Configure logging and rotation
-        do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
+        $upgrade && do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
         update_banner                       # ConsolePi login banner update
         get_config                          # import config.sh functions
         config_main                         # Kick off config.sh functions (Collect Config details from user)

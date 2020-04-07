@@ -345,7 +345,7 @@ install_autohotspotn () {
     if ! head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
         systemctl is-active consolepi-autohotspot-dhcp >/dev/null 2>&1 && was_active=true || was_active=false
         systemd_diff_update consolepi-autohotspot-dhcp
-        if ! was_active && systemctl is-active consolepi-autohotspot-dhcp >/dev/null 2>&1; then
+        if ! $was_active && systemctl is-active consolepi-autohotspot-dhcp >/dev/null 2>&1; then
             systemctl stop consolepi-autohotspot-dhcp 2>>$log_file ||
                 logit "Failed to stop consolepi-autohotspot-dhcp.service check log" "WARNING"
         fi

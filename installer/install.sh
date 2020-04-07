@@ -191,6 +191,22 @@ git_ConsolePi() {
     unset process
 }
 
+post_git() {
+    process="relocate overrides"
+    if [ -d ${src_dir}override ]; then
+        files=($(ls ${src_dir}override | grep -v README 2>/dev/null))
+        if [[ ${#files[@]} > 0 ]]; then
+            cp ${src_dir}override/* $override_dir && error=false &&
+                logit "overrides directory has re-located to $override_dir contents of old override dir moved" ||
+                    ( error=true ; logit "Failure moving existing overrides to relocated ($override_dir)" )
+            mv ${src_dir}override $bak_dir && logit "existing override dir moved to bak" ||
+                logit "Failure moving existing override dir to bak dir" "WARNING"
+        else
+            rm -r ${src_dir}override || logit "Failure to rm old override dir" "WARNING"
+        fi
+    fi
+}
+
 do_pyvenv() {
     process="Prepare/Check Python venv"
     logit "$process - Starting"
@@ -376,6 +392,7 @@ main() {
         do_apt_update                       # apt-get update the pi
         pre_git_prep                        # process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
+        $upgrade && post_git                # post git changes
         do_pyvenv                           # build upgrade python3 venv for ConsolePi
         do_logging                          # Configure logging and rotation
         $upgrade && do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi

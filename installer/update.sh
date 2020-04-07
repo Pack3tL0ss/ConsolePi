@@ -434,8 +434,6 @@ disable_autohotspot() {
     unset process
 }
 
-# TODO need to check if dnsmasq is already ConsolePi version and update appropriately - Need to add 01-consolepi to dnsmasq.d
-# based on wired-dhcp and autohotspot config
 gen_dnsmasq_conf () {
     process="Configure dnsmasq"
     logit "Generating Files for dnsmasq."
@@ -444,8 +442,7 @@ gen_dnsmasq_conf () {
         convert_template dnsmasq.wlan0 /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
         ahs_unique_dnsmasq=false
     else
-        # ahs_dhcp_config defined in common.sh - new method uses consolepi-autohotspot-dhcp systemd file
-        convert_template dnsmasq.wlan0 $ahs_dhcp_config wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        convert_template dnsmasq.wlan0 /etc/ConsolePi/dnsmasq.d/autohotspot/autohotspot wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
         ahs_unique_dnsmasq=true
     fi
 

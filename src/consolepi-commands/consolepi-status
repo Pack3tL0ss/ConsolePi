@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SVCS=("autohotspot" "consolepi-mdnsbrowse" "consolepi-mdnsreg" "consolepi-api" "consolepi-wired-dhcp" "dnsmasq" "hostapd" "ser2net")
+SVCS=("autohotspot" "consolepi-mdnsbrowse" "consolepi-mdnsreg" "consolepi-api" "consolepi-wired-dhcp" "consolepi-autohotspot-dhcp" "dnsmasq" "hostapd" "ser2net" "rfcomm")
 
 for svc in "${SVCS[@]}" ; do
   echo -e "\n---------------- // STATUS OF ${svc}.service \\\\\ ---------------"

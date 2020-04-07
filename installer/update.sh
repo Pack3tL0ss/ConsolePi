@@ -378,6 +378,7 @@ install_autohotspotn () {
         logit "dnsmasq v${dnsmasq_ver} already installed"
     fi
 
+    # -- override_dir set in common.sh
     [[ -f ${override_dir}/hostapd.service ]] && hostapd_override=true || hostapd_override=false
     [[ -f ${override_dir}/dnsmasq.service ]] && dnsmasq_override=true || dnsmasq_override=false
     if ! $hostapd_override ; then

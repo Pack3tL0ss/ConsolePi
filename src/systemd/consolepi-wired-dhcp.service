@@ -9,8 +9,7 @@ After=network.target
 Type=forking
 PIDFile=/run/dnsmasq.eth0.pid
 ExecStart=dnsmasq -7 /etc/ConsolePi/wired-dhcp -C /dev/null -x /run/dnsmasq.eth0.pid
-ExecStop=/bin/kill $(head -1 /run/dnsmasq.eth0.pid) && echo consolepi-wired-dhcp-service Terminated
-ExecReload=/bin/kill $(head -1 /run/dnsmasq.eth0.pid) && dnsmasq -7 /etc/ConsolePi/wired-dhcp -C /dev/null || echo consolepi-wired-dhcp-service Failed to Restart
+ExecReload/usr/bin/pkill "-F /run/dnsmasq.eth0.pid" && dnsmasq -7 /etc/ConsolePi/wired-dhcp -C /dev/null || echo consolepi-wired-dhcp-service Failed to Restart
 
 [Install]
 WantedBy=multi-user.target

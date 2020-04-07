@@ -9,8 +9,7 @@ After=network.target
 Type=forking
 PIDFile=/run/dnsmasq.wlan0.pid
 ExecStart=dnsmasq -7 /etc/ConsolePi/dnsmasq.d/autohotspot -C /dev/null -x /run/dnsmasq.wlan0.pid
-ExecStop=/bin/kill $(head -1 /run/dnsmasq.wlan0.pid) && echo consolepi-autohotspot-dhcp.service Terminated
-ExecReload=/bin/kill $(head -1 /run/dnsmasq.wlan0.pid) && dnsmasq -7 /etc/ConsolePi/dnsmasq.d/autohotspot -C /dev/null || echo consolepi-autohotspot-dhcp.service (autohotspot) Failed to Restart
+ExecReload=/usr/bin/pkill "-F /run/dnsmasq.wlan0.pid" && dnsmasq -7 /etc/ConsolePi/dnsmasq.d/autohotspot -C /dev/null || echo consolepi-autohotspot-dhcp.service (autohotspot) Failed to Restart
 
 [Install]
 WantedBy=multi-user.target

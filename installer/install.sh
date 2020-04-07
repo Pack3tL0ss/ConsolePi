@@ -255,7 +255,8 @@ do_pyvenv() {
     # -- *Always* update venv packages based on requirements file --
     [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"
     logit "pip install/upgrade ConsolePi requirements - This can take some time."
-    sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/${req_file} 1>/dev/null 2>> $log_file &&
+    echo "-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/${req_file}\" --"
+    sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/${req_file} 2> >(tee -a $log_file >&2) &&
         logit "Success - pip install/upgrade ConsolePi requirements" ||
         logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
 
@@ -376,11 +377,6 @@ get_update() {
         . "${consolepi_dir}installer/update.sh" ||
             logit "Error Occured importing update.sh" "Error"
     fi
-}
-
-get_command_log() {
-    echo "------------------- Command Log --------------------------------"
-    cat /var/log/auth.log | grep -o COMMAND=.* | cut -d= -f 2 >> $log_file
 }
 
 main() {

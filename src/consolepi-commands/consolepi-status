@@ -20,10 +20,14 @@ echo -e "\n\n---------------------- // Summary \\\\\ ----------------------"
 echo ".......UNIT.......             ENABLED   ACTIVE     STATUS"
 echo "------------------             -------   ------     -------"
 for svc in "${SVCS[@]}" ; do
-  if systemctl is-enabled $svc >/dev/null 2>&1 ; then
+  if [[ ! $(systemctl is-enabled ${svc} 2>&1) =~ "No such file or directory" ]]; then
     ena=$(systemctl is-enabled $svc 2>/dev/null)
     printf "%-30s %-10s" $svc $ena
-    systemctl -a | grep ${svc} |sed s/'● '//g | awk '{printf "%-10s %-10s \n", $3,$4}'
+    if systemctl is-active $svc > /dev/null; then
+      systemctl -a | grep "^ *${svc}\." |sed s/'● '//g | awk '{printf "%-10s %-10s \n", $3,$4}'
+    else
+      printf "%-10s %-10s \n" $(systemctl is-active $svc) "not-running"
+    fi
   fi
 done
 echo

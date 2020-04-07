@@ -430,16 +430,16 @@ gen_dnsmasq_conf () {
 
     if $ahs_unique_dnsmasq ; then
         if $hotspot && $wired_dhcp ; then
-            grep -q 'except-interface=wlan0' /etc/dnsmasq.d/01-consolepi ; rc=$?
-            grep -q 'except-interface=eth0' /etc/dnsmasq.d/01-consolepi ; ((rc+=$?))
+            grep -q 'except-interface=wlan0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ; rc=$?
+            grep -q 'except-interface=eth0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ; ((rc+=$?))
             if [[ $rc -gt 0 ]] ; then
                 convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=wlan0{{cr}}except-interface=eth0"
             fi
         elif $hotspot ; then
-            grep -q 'except-interface=wlan0' /etc/dnsmasq.d/01-consolepi ||
+            grep -q 'except-interface=wlan0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ||
                 convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=wlan0"
         elif $wired_dhcp ; then
-            grep -q 'except-interface=eth0' /etc/dnsmasq.d/01-consolepi ||
+            grep -q 'except-interface=eth0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ||
                 convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=eth0"
         else
             if [ -f /etc/dnsmasq.d/01-consolepi ] ; then

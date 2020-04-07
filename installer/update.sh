@@ -450,7 +450,7 @@ gen_dnsmasq_conf () {
     logit "Generating Files for dnsmasq."
     # check if they are using old method where dnsmasq.conf was used to control dhcp on wlan0
     if head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
-        convert_template dnsmasq.wlan0 /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        convert_template dnsmasq.conf /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
         ahs_unique_dnsmasq=false
     else
         convert_template dnsmasq.wlan0 /etc/ConsolePi/dnsmasq.d/autohotspot/autohotspot wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}

@@ -361,7 +361,7 @@ class ConsolePiExec:
                                     elif _method == "telnet":
                                         c_list = c.split()
                                         _h = c_list[-2]
-                                        _p = c_list[-1]
+                                        _p = int(c_list[-1])
 
                                     def wait_for_boot():
                                         while True:

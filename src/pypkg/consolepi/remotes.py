@@ -84,11 +84,8 @@ class Remotes:
                     this["fail_cnt"] = 0
                     self.cache_update_pending = True
                 if res.update:
-                    log.info(
-                        f"[GET REM] Updating Cache - Found {0} in Local Cloud Cache, reachable via {1}".format(
-                            remotepi, this["rem_ip"]
-                        )
-                    )
+                    log.info(f"[GET REM] Updating Cache - Found {remotepi} in Local Cloud Cache, "
+                             f"reachable via {this['rem_ip']}")
 
             data[remotepi] = this
 

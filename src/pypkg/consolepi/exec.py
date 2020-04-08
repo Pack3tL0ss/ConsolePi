@@ -351,12 +351,17 @@ class ConsolePiExec:
                                 if _error and self.autopwr_wait:
                                     # TODO simplify this after moving to action object
                                     _method = "ssh -t" if "ssh" in c else "telnet"
-                                    _h = (
-                                        c.split(f"{_method} ")[1]
-                                        .split(" -p")[0]
-                                        .split("@")[1]
-                                    )
-                                    _p = int(c.split("-p ")[1])
+                                    if "ssh" in _method:
+                                        _h = (
+                                            c.split(f"{_method} ")[1]
+                                            .split(" -p")[0]
+                                            .split("@")[1]
+                                        )
+                                        _p = int(c.split("-p ")[1])
+                                    elif _method == "telnet":
+                                        c_list = c.split()
+                                        _h = c_list[-2]
+                                        _p = c_list[-1]
 
                                     def wait_for_boot():
                                         while True:

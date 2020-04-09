@@ -16,6 +16,7 @@ class ConsolePiExec:
         self.pwr = pwr
         self.local = local
         self.menu = menu
+        self.pwr_init_complete = False
         self.autopwr_wait = False
         self.spin = Halo(spinner="dots")
 
@@ -41,7 +42,6 @@ class ConsolePiExec:
                 args=(pwr_key,),
                 name="auto_pwr_on_" + pwr_key_pretty,
             ).start()
-            # self.log.debug('[AUTO PWRON] Active Threads: {}'.format(
             log.debug(
                 "[AUTO PWRON] Active Threads: {}".format(
                     [t.name for t in threading.enumerate() if t.name != "MainThread"]
@@ -61,16 +61,12 @@ class ConsolePiExec:
         Returns:
             No Return - Updates class attributes
         """
-        # config = self.config
-        # log = self.log
-        # if not self.pwr_init_complete:
         if self.wait_for_threads("init"):
             return
 
         outlets = self.pwr.data
         if "linked" not in outlets:
             _msg = "Error linked key not found in outlet dict\nUnable to perform auto power on"
-            # self.config.log_and_show(_msg, log=log.error)
             log.show(_msg, show=True)
             return
 
@@ -198,7 +194,6 @@ class ConsolePiExec:
                     )
                 break
             elif time.time() - start > timeout:
-                # self.config.plog('[{0} {1} WAIT] Timeout Waiting for {0} Threads to Complete, elapsed time: {2}'.format(
                 log.error(
                     "[{0} {1} WAIT] Timeout Waiting for {0} Threads to Complete, elapsed time: {2}".format(
                         name.strip("_").upper(),
@@ -226,9 +221,7 @@ class ConsolePiExec:
         """
         Called by consolepi-menu refresh
         """
-        # config = self.config
         pwr = self.pwr
-        # plog = config.plog
         if config.power:
             outlets = pwr.data if outlets is None else outlets
             if not self.pwr_init_complete or refresh:
@@ -247,7 +240,6 @@ class ConsolePiExec:
                 msg = (
                     f'Invalid key ({key}) passed to outlet_update. Returning "defined"'
                 )
-                # plog(msg, log=True, level='error')
                 log.error(msg, show=True)
                 return _outlets["defined"]
 
@@ -264,16 +256,15 @@ class ConsolePiExec:
         hostname = self.local.hostname
         loc_user = self.local.user
         loc_home = self.local.loc_home
-        # utils = self.utils
 
-        # generate local key file if it doesn't exist
+        # -- generate local key file if it doesn't exist
         if not os.path.isfile(loc_home + "/.ssh/id_rsa"):
             print("\nNo Local ssh cert found, generating...\n")
             utils.do_shell_cmd(
                 f'sudo -u {loc_user} ssh-keygen -m pem -t rsa -C "{loc_user}@{hostname}"'
             )
 
-        # copy keys to remote(s)
+        # -- copy keys to remote(s)
         if not isinstance(rem_data, list):
             rem_data = [rem_data]
         return_list = []
@@ -294,9 +285,7 @@ class ConsolePiExec:
                 print(f'{k}: {adapters[a]["udev"][k]}')
             print("")
             this_ser2net = config.ser2net_conf.get(a, {})
-            ser2net_line = this_ser2net.get("line")
-            if this_ser2net:
-                print(f"ser2net config: {ser2net_line}")
+            print(f"ser2net config: {this_ser2net.get('line', '!! Not Found !!')}")
 
         input("\nPress Any Key To Continue\n")
 
@@ -333,7 +322,7 @@ class ConsolePiExec:
                         # -- // AUTO POWER ON LINKED OUTLETS \\ --
                         if (
                             config.power and "pwr_key" in menu_actions[ch]
-                        ):  # pylint: disable=maybe-no-member
+                        ):
                             self.exec_auto_pwron(menu_actions[ch]["pwr_key"])
 
                         # -- // Print pre-connect messsge if provided \\ --
@@ -398,7 +387,7 @@ class ConsolePiExec:
 
                             # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
                             c = " ".join([str(i) for i in c])
-                            if "picocom" in c:  # pylint: disable=maybe-no-member
+                            if "picocom" in c:
                                 os.system(
                                     "/etc/ConsolePi/src/consolepi-commands/resize >/dev/null"
                                 )
@@ -666,7 +655,6 @@ class ConsolePiExec:
 
         prompt = spin_text = name = confirmed = None  # init
         if _func == "pwr_all":
-            # self.spin.start('Powering *ALL* Outlets {}'.format(self.states[kwargs['desired_state']]))
             if kwargs["action"] == "cycle":
                 prompt = "{} Power Cycle All Powered {} Outlets".format(
                     "" if _type is None else _type + ":" + host_short, _on_str
@@ -713,9 +701,7 @@ class ConsolePiExec:
             except KeyboardInterrupt:
                 name = None
                 confirmed = False
-                print(
-                    ""
-                )  # So header doesn't print on same line as aborted prompt when DEBUG is on
+                print("")  # So header doesn't print on same line as aborted prompt when DEBUG is on
             if name:
                 old_name = port_name
                 _rnm_str = "{red}{old_name}{norm} --> {green}{name}{norm}".format(

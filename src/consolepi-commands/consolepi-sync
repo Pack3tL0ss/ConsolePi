@@ -208,14 +208,15 @@ do_reload_svcs() {
 show_help() {
     echo
     [[ ! "$1" =~ ^(help|-help|--help)$ ]] && echo "Invalid Input $1"
+    echo -e "\nBy default this Script will do a 'git pull' and if necessary fix permissions so members of the consolepi group can pull without sudo\n"
     echo -e "valid command line options:"
     line_dots "-pip" "Update pip and dependencies (skipped by default)"
+    line_dots "-reload" "reload/restart consolepi systemd Services (api, mdnsbrowse, mdnsreg)"
+    line_dots "-nopull" "Don't do a git pull to update the repo, script will do nothing if there are not other options with this"
     echo -e "\nThe Following Options are generally only useful for the developer"
     line_dots "-cp" "Copy consolpi-library to venv after git pull (Should never have to do this - new library)."
     line_dots "-local" "Syncs files via SFTP from the dev ConsolePi."
     line_dots "-stash" "Stashes files previoulsy synced via SFTP to clean local working dir for git pull"
-    line_dots "-reload" "reload/restart consolepi systemd Services (api, mdnsbrowse, mdnsreg)"
-    line_dots "-nopull" "Don't do a git pull to update the repo, script will do nothing if there are not other options with this"
     line_dots "-perms" "Force a Permissions Check/Fix *prior* to pull So member of consolepi group can pull without sudo (script will do this now anyway then retry pull if necessary)"
     line_dots "--local-host <ip or host>" "Override the default local dev ConsolePi ($loc_pull_host)"
     line_dots "--rem_user <username>" "Override the default user ($rem_user) used during local_pull (sftp to $loc_pull_host)"

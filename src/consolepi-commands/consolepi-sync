@@ -41,8 +41,8 @@ user_input_bool() {
   local prompt=$1
   echo
   while [[ -z $response ]] || [[ ! "$response" =~ ^(yes|y|no|n)$ ]]; do
-    read -ep "${prompt}? (y/N): " local response
-    local response=${response,,}
+    read -ep "${prompt}? (y/N): " response
+    response=${response,,}
     [[ "$response" =~ ^(no|n)$ ]] && exit 0
   done
 }

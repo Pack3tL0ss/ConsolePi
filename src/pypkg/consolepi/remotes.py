@@ -227,6 +227,7 @@ class Remotes:
             else:
                 if stdin.isatty():
                     self.spin.warn(_msg + "\n\tNo Remotes Found via Gdrive Sync")
+
             if len(remote_consoles) > 0:
                 _msg = f"[MENU REFRESH] Updating Local Cache with data from {cloud_svc}"
                 log.info(_msg)
@@ -275,11 +276,7 @@ class Remotes:
 
         if len(remote_consoles) > 0:
             if current_remotes is None:
-                current_remotes = (
-                    self.data
-                ) = (
-                    config.remote_update()
-                )  # grabs the remote data from local cloud cache
+                current_remotes = self.data = config.remote_update()  # grabs the remote data from local cloud cache
 
         # update current_remotes dict with data passed to function
         if len(remote_consoles) > 0:
@@ -538,6 +535,11 @@ class Remotes:
                     }:
                         cache_data["adapters"] = _adapters
                         update = True  # --> Update if adapter dict is different
+                    # TODO when update from cloud is accepted it no longer contains udev, need to fetch udev from remote
+                    # ConsolePi... build API method
+                    # else:
+                    #     cached_udev = [True for a in _adapter if 'udev' in _adapters[a]]
+                    #     current_udev = [True for a in current_adapters if 'udev' in _adapters[a]]
                 elif _adapters == 200:
                     log.show(
                         f"Remote {remote_host} is reachable via {_ip},"

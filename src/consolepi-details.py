@@ -64,9 +64,6 @@ else:
     dump['outlets'] = get_outlets()
     jprint(dump)
 
-log.show('This is a test failure')
-log.show('So is this')
-
 if log.error_msgs:
     print('!! ', end='')
     print('\n!! '.join(log.error_msgs))

@@ -51,7 +51,7 @@ user_input_bool() {
 }
 
 dump_log() {
-    if [ -f $log_file ] && [ -f $final_log ]; then
+    if [[ -f $log_file ]] && [[ -f $final_log ]]; then
         echo -e "$(date +"%b %d %T") ----- // Sync Performed via consolepi-sync \\\\ -----"
         cat $log_file >> $final_log
     fi

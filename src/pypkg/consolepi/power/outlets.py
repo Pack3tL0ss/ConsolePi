@@ -84,10 +84,11 @@ class Outlets:
                         _response = 'invalid state returned {}'.format(response.text)
                 else:
                     _response = '[{}] error returned {}'.format(response.status_code, response.text)
-            except requests.exceptions.Timeout:
-                _response = 'Reqest Timed Out'
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                _response = 'Unreachable'
             except requests.exceptions.RequestException as e:
-                _response = 'Exception Occured: {}'.format(e)
+                log.debug(f"[tasmota_req] {url.replace('http://', '').replace('https://', '').split('/')[0]} Exception: {e}")
+                _response = 'Unreachable'  # So I can determine if other exceptions types are possible when unreachable
             return _response
         # -------- END SUB --------
 
@@ -184,8 +185,8 @@ class Outlets:
             _p = []
             for dev in outlet['linked_devs']:
                 if isinstance(outlet['linked_devs'][dev], list):
-                    [_p.append(int(_)) for _ in outlet['linked_devs'][dev]]
-                else:
+                    [_p.append(int(_)) for _ in outlet['linked_devs'][dev] if int(_) not in _p]
+                elif int(outlet['linked_devs'][dev]) not in _p:
                     _p.append(int(outlet['linked_devs'][dev]))
 
             if isinstance(_p, int):

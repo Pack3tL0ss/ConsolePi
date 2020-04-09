@@ -52,7 +52,7 @@ class GoogleDrive:
                 if self.creds is None:
                     self.creds = self.get_credentials()
                 if self.sheets_svc is None:
-                    self.sheets_svc = discovery.build('sheets', 'v4', credentials=self.creds)
+                    self.sheets_svc = discovery.build('sheets', 'v4', credentials=self.creds, cache_discovery=False)
                 if self.file_id is None:
                     self.file_id = self.get_file_id()
                     if self.file_id is None:
@@ -67,10 +67,12 @@ class GoogleDrive:
 
     # Google sheets API credentials - used to update config on Google Drive
     def get_credentials(self):
+        '''Get credentials for google drive / sheets
+
+        Returns:
+            Object -- Credentials Object
+        '''
         log.debug('[GDRIVE]: -->get_credentials() {}'.format(log.name))
-        """
-        Get credentials for google drive / sheets
-        """
         creds = None
         # The file token.pickle stores the user's access and refresh tokens, and is
         # created automatically when the authorization flow completes for the first
@@ -94,15 +96,15 @@ class GoogleDrive:
 
     # Google Drive Get File ID from File Name
     def get_file_id(self):
-        """
-        Gets file id for ConsolePi.csv file on Google Drive
-        Params: credentials object
-        returns: id (or None if not found)
-        """
+        '''Gets file id associated with ConsolePi.csv on Google Drive.
+
+        Returns:
+            str -- file id for ConsolePi.csv if cound otherwise No return
+        '''
         if self.creds is None:
             self.creds = self.get_credentials()
 
-        service = discovery.build('drive', 'v3', credentials=self.creds)
+        service = discovery.build('drive', 'v3', credentials=self.creds, cache_discovery=False)
         results = service.files().list(
             pageSize=10, fields="nextPageToken, files(id, name)", q="name='ConsolePi.csv'").execute()
         items = results.get('files', [])
@@ -166,7 +168,6 @@ class GoogleDrive:
             }
 
             # find out if this ConsolePi already has a row use that row in range
-            # log.setLevel(40)  # 40 = Error
             request = service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id, range='A:B')
             result = self.exec_request(request)
@@ -200,8 +201,6 @@ class GoogleDrive:
                 log.info('cloud_pull_only override enabled not updating cloud with data from this host')
             cnt += 1
         self.resize_cols()
-        # lvl = 20 if not config.debug else 10  # 10 = DEBUG, 20 = INFO
-        # log.setLevel(lvl)
         return remote_consoles
 
 

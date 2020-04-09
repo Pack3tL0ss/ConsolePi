@@ -693,7 +693,7 @@ class ConsolePiMenu(Rename):
 
             if not direct_launch:
                 for host in remotes.data:
-                    if rem[host].get('adapters'):
+                    if rem[host].get('rem_ip') and rem[host].get('adapters'):
                         slines.append(f'Rename Adapters on {host}')
                         mlines, rem_menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item,
                                                                                 remote=True, rem_user=rem[host].get('rem_user'),

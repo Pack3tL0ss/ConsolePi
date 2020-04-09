@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 
 # __author__: Wade Wells ~ Pack3tL0ss
+#
+# A Convenience script to update ConsolePi from repo with numerous options
+#  Most used primarily to aid in testing of remote ConsolePi functionality
+#  during development.
+#
 
 consolepi_dir="/etc/ConsolePi"
 log_file="/tmp/consolepi-sync.log"
-final_log="/var/log/consolepi/install.log"
+final_log="/var/log/ConsolePi/install.log"
 iam=$(who -m |  awk '{print $1}')
 [ -z $iam ] && iam=$USER
 [[ $iam == "root" ]] && [[ ! -z $SUDO_USER ]] && iam=$SUDO_USER
@@ -17,10 +22,11 @@ cp_lib=false
 loc_pull=false
 stash_local=false
 perms=false
+perms_done=false
 reload_svcs=false
 skip_pull=false
 SVCS=("consolepi-mdnsbrowse" "consolepi-mdnsreg" "consolepi-api")
-DEBUG=false
+[[ -z $DEBUG ]] && DEBUG=false
 
 dots() {
     local pad=$(printf "%0.1s" "."{1..70})
@@ -33,8 +39,8 @@ do_error() {
     if [[ $status != 0 ]]; then
         echo 'Failed!!' ; echo -e "\n"
         [[ $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
-        [[ -f $log_file ]] && cat $log_file && ! $DEBUG && dump_log
         popd > /dev/null 2>&1
+        dump_log true
         exit 1
     fi
     echo "OK"
@@ -51,11 +57,12 @@ user_input_bool() {
 }
 
 dump_log() {
+    [[ ! -z "$1" ]] && err=true || err=false
     if [[ -f $log_file ]] && [[ -f $final_log ]]; then
-        echo -e "$(date +"%b %d %T") ----- // Sync Performed via consolepi-sync \\\\ -----"
-        cat $log_file >> $final_log
+        echo -e "$(date +"%b %d %T") ----- // Sync Performed via consolepi-sync \\\\ -----" >> $final_log
+        $err && cat $log_file | tee -a $final_log
     fi
-    [ -f $log_file ] && rm $log_file
+    [[ -f $log_file ]] && ! $DEBUG && rm $log_file
 }
 
 do_perms() {
@@ -78,22 +85,25 @@ do_perms() {
 }
 
 do_git_pull() {
-    go=true
-    echo -e "\n -- Performing git pull"
-    while $go ; do
-        ! $stash_local && go=false
+    x=0; while [ $x -le 2 ]  ; do
         pushd /etc/ConsolePi >/dev/null
         branch=$(git rev-parse --abbrev-ref HEAD)
+        echo -e "\n -- Performing git pull"
         dots "git pull ConsolePi (${branch})"
         git pull >/dev/null 2>>$log_file ; local rc=$?
         popd >/dev/null
         if [[ $rc -eq 0 ]] ; then
             echo OK
-            go=false
+            break
         else
-            if tail $log_file | grep -q "error: insufficient permission" ; then
-                echo 'FIX PERMISSIONS!'
-                do_perms
+            if tail $log_file | grep -q "error: insufficient permission\|Permission denied" ; then
+                if ! $perms_done ; then
+                    echo 'FIX PERMISSIONS!'
+                    do_perms && perms_done=true
+                else
+                    do_error $rc
+                    break
+                fi
             elif $stash_local ; then
                 echo 'STASH!'
                 do_stash_local
@@ -102,6 +112,7 @@ do_git_pull() {
                 do_error $rc
             fi
         fi
+        ((x+=1))
     done
 }
 
@@ -295,7 +306,7 @@ main() {
   $cp_lib && do_cp_lib
   $upgrade_pip && do_pip_upgrade
   $reload_svcs && do_reload_svcs
-  ! $DEBUG && [[ -f $log_file ]] && rm $log_file
+  [[ -f $log_file ]] && dump_log
   echo
 }
 

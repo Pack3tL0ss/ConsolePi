@@ -93,22 +93,11 @@ class Local():
             devs[dev_name]['time_since_init'] = f'{_dev.properties.device.time_since_initialized} ' \
                                                 f"as of {time.strftime('%x %I:%M:%S %p %Z', time.localtime(time.time()))}"
 
-            # -- Deprecating as this method was slow as piss (is piss slow?) On original rpi model B
-            # usb_dev = {k.lower(): d[k] for d in context.list_devices(DRIVER='usb', ID_BUS='usb')
-            #            for k in d.keys() if d.get('DEVPATH') in devs[dev_name]['devpath']}
-            # for k in ['id_model_id', 'id_vendor_id']:
-            #     devs[dev_name][k] = usb_dev.get(k)
-
-            # _ser = devs[dev_name]['id_serial_short'] = _dev.get('ID_SERIAL_SHORT', usb_dev.get('ID_SERIAL_SHORT'))
-
             # clean up some redundant or less useful properties
             rm_list = ['devlinks', 'id_mm_candidate', 'id_model_enc', 'id_path_tag', 'tags', 'major', 'minor',
                        'usec_initialized', 'id_vendor_enc', 'id_pci_interface_from_database', 'id_revision']
-            # d = {k: v for k, v in devs[dev_name].items() if k not in rm_list}
-            # devs[dev_name] = d
+
             devs[dev_name] = {k: v for k, v in devs[dev_name].items() if k not in rm_list}
-            # TODO
-            # devs[dev_name]['z_UP_TIME'] = convert_usecs(_dev.get('USEC_INITIALIZED'))
 
             # --- // Handle Multi-Port adapters that use same serial for all interfaces \\ ---
             # Capture the dict in dup_ser it's later del if no additional devices present with the same serial

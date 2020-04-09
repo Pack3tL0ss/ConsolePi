@@ -408,7 +408,8 @@ class DLI:
             r = self.dli.get(url)
             # -- check to see if session expired --
             if r.content.decode('UTF-8').split('URL=')[1].split('"')[0] != '/index.htm':
-                log.debug('[DLI VRFY SESSION] Session appears expired for {}. Renewing... {}'.format(self.fqdn, ' Retry ' + str(retry) if retry > 0 else ''))
+                log.debug('[DLI VRFY SESSION] Session appears expired for {}. Renewing... {}'.format(
+                          self.fqdn, ' Retry ' + str(retry) if retry > 0 else ''))
                 self.dli = self.get_session(self.dli.auth.username, self.dli.auth.password, fqdn=self.fqdn)
             else:
                 ret_val = r.status_code

@@ -145,7 +145,7 @@ class GoogleDrive:
             if 'udev' in data[self.hostname]['adapters'][x]:
                 del data[self.hostname]['adapters'][x]['udev']
 
-        log.debug('[GDRIVE]: -->update_files - data passed to function\n{}'.format(json.dumps(data, indent=4, sort_keys=True)))
+        log.debugv('[GDRIVE]: -->update_files - data passed to function\n{}'.format(json.dumps(data, indent=4, sort_keys=True)))
         if not self.auth():
             return 'Gdrive-Error: Unable to Connect to Gdrive refer to cloud log for details'
         spreadsheet_id = self.file_id
@@ -183,7 +183,7 @@ class GoogleDrive:
                         remote_consoles[row[0]] = json.loads(row[1])
                         remote_consoles[row[0]]['source'] = 'cloud'
                     x += 1
-                log.debug(f'[GDRIVE]: {len(remote_consoles)} Remote ConsolePis Found on Gdrive: \n{json.dumps(remote_consoles)}')
+                log.debugv(f'[GDRIVE]: {len(remote_consoles)} Remote ConsolePis Found on Gdrive: \n{json.dumps(remote_consoles)}')
             range_ = 'a' + str(cnt) + ':b' + str(cnt)
 
             # -- // Update gdrive with this ConsolePis data \\ --

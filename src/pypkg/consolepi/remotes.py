@@ -181,7 +181,7 @@ class Remotes:
 
         # -- // Update/Refresh Local Data (Adapters/Interfaces) \\ --
         local.data = local.build_local_dict(refresh=True)
-        log.debug(f"Final Data set collected for {local.hostname}: {local.data}")
+        log.debugv(f"Final Data set collected for {local.hostname}: {local.data}")
 
         # -- // Get details from Google Drive - once populated will skip \\ --
         if not bypass_cloud and self.do_cloud and not self.local_only:
@@ -301,8 +301,8 @@ class Remotes:
                             ]
                     else:
 
-                        # -- DEBUG --
-                        log.debug(
+                        # -- VERBOSE DEBUG --
+                        log.debugv(
                             "[CACHE UPD] \n--{}-- \n    remote upd_time: {}\n    remote rem_ip: {}\n    remote source: {}\n    cache rem upd_time: {}\n    cache rem_ip: {}\n    cache source: {}\n".format(  # NoQA
                                 _,
                                 time.strftime(
@@ -331,7 +331,7 @@ class Remotes:
                                 else None,
                             )
                         )
-                        # -- END DEBUG --
+                        # -- END VERBOSE DEBUG --
 
                         # No Change Detected (data passed to function matches cache)
                         if "last_ip" in current_remotes[_]:
@@ -462,7 +462,7 @@ class Remotes:
                 ip
             )
             log.info("[API RQST OUT] {}".format(_msg))
-            log.debug(
+            log.debugv(
                 "[API RQST OUT] Response: \n{}".format(
                     json.dumps(ret, indent=4, sort_keys=True)
                 )

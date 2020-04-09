@@ -181,7 +181,7 @@ class Local():
                    }
 
         if_data['_ip_w_gw'] = if_data.get(if_w_gw, {'ip': None})['ip']
-        log.debug('[GET IFACES] Completed Iface Data: {}'.format(if_data))
+        log.debugv('[GET IFACES] Completed Iface Data: {}'.format(if_data))
         return if_data
 
     def get_ip_list(self):

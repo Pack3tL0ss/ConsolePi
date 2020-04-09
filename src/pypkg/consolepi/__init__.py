@@ -23,17 +23,17 @@ class ConsolePiLog:
     def __init__(self, log_file, debug=False):
         self.error_msgs = []
         self.DEBUG = debug
+        self.verbose = False
         self.log_file = log_file
         self._log = self.get_logger()
         self.name = self._log.name
-        self.plog = self.log_print  # being deprecated in favor of show method
 
     def get_logger(self):
         '''Return custom log object.'''
-        fmtStr = "%(asctime)s [%(module)s:%(funcName)s:%(lineno)d:%(process)d][%(levelname)s]: %(message)s"
+        # fmtStr = "%(asctime)s [%(module)s:%(funcName)s:%(lineno)d:%(process)d][%(levelname)s]: %(message)s"
+        fmtStr = "%(asctime)s [%(process)d][%(levelname)s]: %(message)s"
         dateStr = "%m/%d/%Y %I:%M:%S %p"
         logging.basicConfig(filename=self.log_file,
-                            # level=logging.DEBUG if self.debug else logging.INFO,
                             level=logging.DEBUG if self.DEBUG else logging.INFO,
                             format=fmtStr,
                             datefmt=dateStr)
@@ -67,6 +67,12 @@ class ConsolePiLog:
     def debug(self, msgs, log=True, show=False, *args, **kwargs):
         self.log_print(msgs, log=log, show=show, level='debug', *args, **kwargs)
 
+    # -- more verbose debugging - primarily to get json dumps
+    # -- set verbose_debug: true in OVERRIDES to enable
+    def debugv(self, msgs, log=True, show=False, *args, **kwargs):
+        if self.DEBUG and self.verbose:
+            self.log_print(msgs, log=log, show=show, level='debug', *args, **kwargs)
+
     def info(self, msgs, log=True, show=False, *args, **kwargs):
         self.log_print(msgs, log=log, show=show, *args, **kwargs)
 
@@ -98,3 +104,6 @@ from consolepi.config import Config  # NoQA
 config = Config()  # NoQA
 if config.debug:
     log.setLevel(logging.DEBUG)
+
+if config.ovrd.get('verbose_debug'):
+    log.verbose = True

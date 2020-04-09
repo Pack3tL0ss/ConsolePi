@@ -414,6 +414,45 @@ class Remotes:
 
         return remote_consoles
 
+    # Currently not Used
+    def do_api_request(self, ip: str, path: str, *args, **kwargs):
+        """Send RestFul GET request to Remote ConsolePi to collect data
+
+        params:
+        ip(str): ip address or FQDN of remote ConsolePi
+        path(str): path beyond /api/v1.0/
+
+        returns:
+        response object
+        """
+        url = f"http://{ip}:5000/api/v1.0/{path}"
+        log.debug(f'[do_api_request] URL: {url}')
+
+        headers = {
+            "Accept": "*/*",
+            "Cache-Control": "no-cache",
+            "Host": f"{ip}:5000",
+            "accept-encoding": "gzip, deflate",
+            "Connection": "keep-alive",
+            "cache-control": "no-cache",
+        }
+
+        try:
+            response = requests.request(
+                "GET", url, headers=headers, timeout=config.remote_timeout
+            )
+        except (OSError, TimeoutError):
+            log.warning(f"[API RQST OUT] Remote ConsolePi @ {ip} TimeOut when querying via API - Unreachable.")
+            return False
+
+        if response.ok:
+            log.info(f"[API RQST OUT] {url} Response: OK")
+            log.debugv(f"[API RQST OUT] Response: \n{json.dumps(response.json(), indent=4, sort_keys=True)}")
+        else:
+            log.error(f"[API RQST OUT] API Request Failed {url}")
+
+        return response
+
     def get_adapters_via_api(self, ip: str, rename: bool = False):
         """Send RestFul GET request to Remote ConsolePi to collect adapter info
 
@@ -535,11 +574,11 @@ class Remotes:
                     }:
                         cache_data["adapters"] = _adapters
                         update = True  # --> Update if adapter dict is different
-                    # TODO when update from cloud is accepted it no longer contains udev, need to fetch udev from remote
-                    # ConsolePi... build API method
-                    # else:
-                    #     cached_udev = [True for a in _adapter if 'udev' in _adapters[a]]
-                    #     current_udev = [True for a in current_adapters if 'udev' in _adapters[a]]
+                    else:
+                        cached_udev = [False for a in cache_data["adapters"] if 'udev' not in cache_data["adapters"][a]]
+                        if False in cached_udev:
+                            cache_data["adapters"] = _adapters
+                            update = True  # --> Update if udev key not in existing data (udev not sent to cloud)
                 elif _adapters == 200:
                     log.show(
                         f"Remote {remote_host} is reachable via {_ip},"

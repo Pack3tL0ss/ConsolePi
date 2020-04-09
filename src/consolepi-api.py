@@ -30,7 +30,7 @@ if config.power:
         OUTLETS = cpi.pwr.data if cpi.pwr.data else None
 else:
     OUTLETS = None
-user = local.user  # pylint: disable=maybe-no-member
+user = local.user
 last_update = int(time())
 udev_last_update = int(time())
 
@@ -114,6 +114,12 @@ async def adapters(request: Request, refresh: bool = False):
     return {'adapters': local.adapters}
 
 
+@app.get('/api/v1.0/adapters/udev/{adapter}')
+async def udev(request: Request, adapter: str = None):
+    log_request(request, f'fetching udev details for {adapter}')
+    return {adapter: local.udev_adapters.get(f'/dev/{adapter}')}
+
+
 @app.get('/api/v1.0/remotes')
 def remotes(request: Request):
     log_request(request, 'remotes')
@@ -124,7 +130,6 @@ def remotes(request: Request):
 def get_ifaces(request: Request):
     log_request(request, 'ifaces')
     local.interfaces = local.get_if_info()
-    # ifaces = {k: v for k, v in local.interfaces.items() if not k.startswith('_')}
     return {'interfaces': local.interfaces}
 
 # removing due to fastapi issue #894, outlets method was not being used for anything currently so disabling for now

@@ -218,10 +218,10 @@ class Outlets:
                 all ports for the dli.
             failures:dict: when refreshing outlets pass in previous failures so they can be re-tried
         '''
-        # config = self.config
         # re-attempt connection to failed power controllers on refresh
-        failures = outlet_data.get('failures') if not failures else failures
-        failures = self.data.get('failures') if not failures else failures
+        if not failures:
+            failures = outlet_data.get('failures') if outlet_data.get('failures') else self.data.get('failures')
+
         outlet_data = self.data.get('defined') if not outlet_data else outlet_data
         if failures:
             outlet_data = {**outlet_data, **failures}
@@ -235,20 +235,22 @@ class Outlets:
             # -- // GPIO \\ --
             if outlet['type'].upper() == 'GPIO':
                 if not is_rpi:
+                    log.warning('GPIO Outlet Defined, GPIO Only Supported on RPi - ignored', show=True)
                     continue
-                noff = True if 'noff' not in outlet else outlet['noff']  # default normally off to True if not provided
-                GPIO.setup(outlet['address'], GPIO.OUT)  # pylint: disable=maybe-no-member
+                noff = True if 'noff' not in outlet else outlet['noff']
+                GPIO.setup(outlet['address'], GPIO.OUT)
                 outlet_data[k]['is_on'] = bool(GPIO.input(outlet['address'])) if noff \
-                    else not bool(GPIO.input(outlet['address']))  # pylint: disable=maybe-no-member
+                    else not bool(GPIO.input(outlet['address']))
+
             # -- // tasmota \\ --
             elif outlet['type'] == 'tasmota':
                 response = self.do_tasmota_cmd(outlet['address'])
                 outlet['is_on'] = response
                 if response not in [0, 1, True, False]:
                     failures[k] = outlet_data[k]
-                    failures[k]['error'] = f'[PWR-TASMOTA {k}:{failures[k]["address"]}] Returned Error - Removed'
-                    log.warning(f'[PWR-TASMOTA {k}:{failures[k]["address"]}] Returned Error - Removed',
-                                show=True)
+                    failures[k]['error'] = f'[PWR-TASMOTA] {k}:{failures[k]["address"]} "{response}" - Removed'
+                    log.warning(failures[k]['error'], show=True)
+
             # -- // dli \\ --
             elif outlet['type'].lower() == 'dli':
                 if TIMING:
@@ -289,8 +291,7 @@ class Outlets:
                             if k in outlet_data:
                                 outlet_data[k]['is_on'] = this_dli[_p]
                             else:
-                                # self.log.error('[PWR GET_OUTLETS] {} appears to be unreachable'.format(k))
-                                log.error('[PWR GET_OUTLETS] {} appears to be unreachable'.format(k))
+                                log.error(f'[PWR GET_OUTLETS] {k} appears to be unreachable')
 
                             # TODO not actually using the error returned this turned into a hot mess
                             if isinstance(outlet['is_on'], dict) and not outlet['is_on']:
@@ -306,7 +307,7 @@ class Outlets:
                             # handle error connecting to dli during refresh - when connect worked on menu launch
                             if not dli_power[outlet['address']]:
                                 failures[k] = outlet_data[k]
-                                failures[k]['error'] = '[PWR-DLI {}] {} Unreachable - Removed'.format(k, failures[k]['address'])
+                                failures[k]['error'] = f"[PWR-DLI] {k} {failures[k]['address']} Unreachable - Removed"
                                 log.warning(f'[PWR-DLI {k}] {failures[k]["address"]} Unreachable - Removed',
                                             show=True)
                                 continue
@@ -318,15 +319,15 @@ class Outlets:
 
                 if TIMING:
                     print('[TIMING] this_dli.outlets: {}'.format(time.time() - xstart))  # TIMING
-            # config.log.debug(f'dli {k} Updated. Elapsed Time(secs): {time.time() - _start}')
+
             log.debug(f'dli {k} Updated. Elapsed Time(secs): {time.time() - _start}')
             # -- END for LOOP for k in outlet_data --
 
         # Move failed outlets from the keys that populate the menu to the 'failures' key
         # failures are displayed in the footer section of the menu, then re-tried on refresh
         for _dev in failures:
-            if _dev in outlet_data:
-                del outlet_data[_dev]
+            if self.data['defined'].get(_dev):
+                del self.data['defined'][_dev]
             if failures[_dev]['address'] in dli_power:
                 del dli_power[failures[_dev]['address']]
         self.data['failures'] = failures

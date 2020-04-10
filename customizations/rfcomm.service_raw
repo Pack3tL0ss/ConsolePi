@@ -1,0 +1,13 @@
+# Contributed by @ruipalma 
+# Adapts rfcomm (BlueTooth) service to connect directly to a connected adapter in raw mode
+# 
+[Unit]
+Description=RFCOMM service
+After=bluetooth.service
+Requires=bluetooth.service
+
+[Service]
+ExecStart=/usr/bin/rfcomm watch hci0 1 socat /dev/{ device name or alias },raw,echo=0,crnl /dev/rfcomm0,raw,echo
+
+[Install]
+WantedBy=multi-user.target

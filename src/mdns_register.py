@@ -1,6 +1,5 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-from consolepi.common import ConsolePi_data
 from zeroconf import ServiceInfo, Zeroconf
 import time
 import json
@@ -8,11 +7,17 @@ import socket
 import pyudev
 import threading
 import struct
-from consolepi.gdrive import GoogleDrive
+import sys
 try:
     import better_exceptions  # NoQA pylint: disable=import-error
 except ImportError:
     pass
+
+sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
+from consolepi import log, config  # NoQA
+from consolepi.consolepi import ConsolePi  # NoQA
+from consolepi.gdrive import GoogleDrive  # NoQA
+
 
 UPDATE_DELAY = 30
 
@@ -20,51 +25,47 @@ UPDATE_DELAY = 30
 class MDNS_Register:
 
     def __init__(self):
-        self.config = ConsolePi_data(do_print=False)
         self.zeroconf = Zeroconf()
         self.context = pyudev.Context()
+        self.cpi = ConsolePi()
 
     def build_info(self, squash=None, local_adapters=None):
-        config = self.config
-        hostname = config.hostname
-        local_adapters = local_adapters if local_adapters is not None else config.get_adapters()
-        log = config.log
-        if_ips = config.get_if_ips()
-        # TODO change advertised user when option added to config to specify
-        local_data = {'hostname': hostname, 'user': 'pi'}
+        local = self.cpi.local
+        local.data = local.build_local_dict(refresh=True)
+        loc = local.data[local.hostname]
+        loc['hostname'] = local.hostname
+        for a in loc['adapters']:
+            if 'udev' in loc['adapters'][a]:
+                del loc['adapters'][a]['udev']
 
-        # if squash is None: # if data set is too large for mdns browser on other side will retrieve via API
+        # ip_w_gw = loc['interfaces'].get('_ip_w_gw', '127.0.0.1')
+
+        # if data set is too large for mdns browser on other side will retrieve via API
         if squash is not None:
             if squash == 'interfaces':
-                squashed_if_ips = {}
-                for _if in if_ips:
-                    if '.' not in _if and 'docker' not in _if and 'ifb' not in _if:
-                        squashed_if_ips[_if] = if_ips[_if]
-                        local_data['interfaces'] = json.dumps(squashed_if_ips)
+                del loc['adapters']
+                x = loc['interfaces']
+                loc['interfaces'] = {k: {i: v[i] for i in v if i not in ['mac', 'isgw']}
+                                     for k, v in x.items() if '.' not in k and not k.startswith('_')}
             else:
-                local_data['interfaces'] = json.dumps(if_ips)
-        else:
-            local_data['adapters'] = json.dumps(local_adapters)
-            local_data['interfaces'] = json.dumps(if_ips)
+                del loc['adapters']
 
-        log.debug('[MDNS REG] Current content of local_data \n{}'.format(json.dumps(local_data, indent=4, sort_keys=True)))
-        # print(struct.calcsize(json.dumps(local_data).encode('utf-8')))
+        log.debug('[MDNS REG] Current content of local_data \n{}'.format(json.dumps(loc, indent=4, sort_keys=True)))
+        loc = {k: '{}'.format(loc[k] if isinstance(loc[k], str) else json.dumps(loc[k])) for k in loc.keys()}
 
         info = ServiceInfo(
             "_consolepi._tcp.local.",
-            hostname + "._consolepi._tcp.local.",
-            addresses=[socket.inet_aton("127.0.0.1")],
+            local.hostname + "._consolepi._tcp.local.",
+            addresses=[socket.inet_aton(ip) for ip in local.get_ip_list()],
             port=5000,
-            properties=local_data,
-            server='{}.local.'.format(hostname)
+            properties=loc,
+            server=f'{local.hostname}.local.'
         )
 
         return info
 
     def update_mdns(self, device=None, action=None, *args, **kwargs):
-        config = self.config
         zeroconf = self.zeroconf
-        log = config.log
         info = self.try_build_info()
 
         def sub_restart_zc():
@@ -102,15 +103,13 @@ class MDNS_Register:
                     log.debug('[MDNS REG] Cloud Update Thread Started.  Current Threads:\n    {}'.format(threading.enumerate()))
 
     def try_build_info(self):
-        config = self.config
-        log = config.log
-        # TODO Figure out how to calculate the struct size
         # Try sending with all data
+        local = self.cpi.local
         try:
             info = self.build_info()
         except struct.error as e:
             log.debug('[MDNS REG] data is too big for mdns, removing adapter data \n    {} {}'.format(e.__class__.__name__, e))
-            log.debug('[MDNS REG] offending payload \n    {}'.format(json.dumps(config.local, indent=4, sort_keys=True)))
+            log.debug('[MDNS REG] offending payload \n    {}'.format(json.dumps(local.data, indent=4, sort_keys=True)))
             # Too Big - Try sending without adapter data
             try:
                 info = self.build_info(squash='adapters')
@@ -118,40 +117,46 @@ class MDNS_Register:
                 log.warning('[MDNS REG] data is still too big for mdns, reducing interface payload \n'
                             '    {} {}'.format(e.__class__.__name__, e))
                 log.debug('[MDNS REG] offending interface data \n    {}'.format(
-                          json.dumps(config.interfaces, indent=4, sort_keys=True)))
-                # Still too big - Try reducing advertised interfaces (generally an issue with WAN emulator)
-                info = self.build_info(squash='interfaces')
+                          json.dumps(local.interfaces, indent=4, sort_keys=True)))
+                try:
+                    info = self.build_info(squash='interfaces')
+                except struct.error:
+                    log.critical('[MDNS REG] data is still too big for mdns')
+                    log.debug('[MDNS REG] offending interface data \n    {}'.format(
+                            json.dumps(local.interfaces, indent=4, sort_keys=True)))
 
         return info
 
     def trigger_cloud_update(self):
-        config = self.config
-        log = config.log
+        local = self.cpi.local
+        remotes = self.cpi.remotes
         log.info('[MDNS REG] Cloud Update triggered delaying {} seconds'.format(UPDATE_DELAY))
         time.sleep(UPDATE_DELAY)  # Wait 30 seconds and then update, to accomodate multiple add removes
-        # TODO change advertised user when option added to config to specify
-        data = {config.hostname: {'adapters': config.get_adapters(do_print=False),
-                                  'interfaces': config.get_if_ips(), 'user': 'pi'}}
-        log.debug('[MDNS REG] Final Data set collected for {}: \n{}'.format(config.hostname, data))
+        data = local.build_local_dict(refresh=True)
+        for a in local.data[local.hostname].get('adapters', {}):
+            if 'udev' in local.data[local.hostname]['adapters'][a]:
+                del local.data[local.hostname]['adapters'][a]['udev']
+
+        log.debug(f'[MDNS REG] Final Data set collected for {local.hostname}: \n{json.dumps(data)}')
 
         if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member
-            cloud = GoogleDrive(log)
+            cloud = GoogleDrive(local.hostname)
 
         remote_consoles = cloud.update_files(data)
 
         # Send remotes learned from cloud file to local cache
         if len(remote_consoles) > 0 and 'Gdrive-Error' not in remote_consoles:
-            config.update_local_cloud_file(remote_consoles)
+            remotes.update_local_cloud_file(remote_consoles)
             log.info('[MDNS REG] Cloud Update Completed, Found {} Remote ConsolePis'.format(len(remote_consoles)))
         else:
-            log.warn('[MDNS REG] Cloud Update Completed, No remotes found, or Error Occured')
+            log.warning('[MDNS REG] Cloud Update Completed, No remotes found, or Error Occured')
 
     def run(self):
         zeroconf = self.zeroconf
         info = self.try_build_info()
 
         zeroconf.register_service(info)
-        # monitor udev for add - remove of usb-serial adapters
+        # monitor udev for add/remove of usb-serial adapters
         monitor = pyudev.Monitor.from_netlink(self.context)
         monitor.filter_by('usb')
         observer = pyudev.MonitorObserver(monitor, name='udev_monitor', callback=self.update_mdns)

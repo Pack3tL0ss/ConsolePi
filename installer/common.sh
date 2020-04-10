@@ -4,8 +4,8 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-INSTALLER_VER=43
-CFG_FILE_VER=7
+INSTALLER_VER=45
+CFG_FILE_VER=8
 cur_dir=$(pwd)
 iam=$(who -m |  awk '{print $1}')
 [ -z $iam ] && iam=$SUDO_USER # cockpit shell
@@ -21,11 +21,13 @@ fi
 stage_dir="${home_dir}ConsolePi_stage/"
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
-tmp_log="/tmp/consolepi_install.log" 
+tmp_log="/tmp/consolepi_install.log"
 final_log="/var/log/ConsolePi/install.log"
 cloud_cache="/etc/ConsolePi/cloud.json"
-override_dir="/etc/ConsolePi/src/override" # TODO NO TRAILING / make others that way
+override_dir="/etc/ConsolePi/overrides" # TODO NO TRAILING / make others that way
 py3ver=$(python3 -V | cut -d. -f2)
+yml_script="/etc/ConsolePi/src/yaml2bash.py"
+tmp_src="/tmp/consolepi-temp"
 warn_cnt=0
 
 # Terminal coloring
@@ -110,7 +112,7 @@ logit() {
         status="${_yellow}${status}${_norm}"
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
     fi
-    
+
     # Log to stdout and log-file
     echo -e "$(date +"%b %d %T") [${status}][${process}] ${message}" | tee -a $log_file
     # if status was ERROR which means FATAL then log and exit script
@@ -129,7 +131,7 @@ user_input() {
     pass=0
     [ ! -z "$1" ] && [[ ! "$1" == "NUL" ]] && default="$1"
     [ ! -z "$2" ] && prompt="$2" || prompt="ERROR: No Prompt was set"
-    
+
     # Determine if bool (default value true|false)
     case $1 in
         true|false)
@@ -141,17 +143,17 @@ user_input() {
     esac
 
     # Format full prompt
-    if [ ! -z $default ]; then
+    if [ ! -z "$default" ]; then
         if $bool; then
             prompt+="? (Y/N)"
-            $default && prompt+=" [Y]: " || prompt+=" [N]: "
+            "$default" && prompt+=" [Y]: " || prompt+=" [N]: "
         else
             prompt+=" [${default}]: "
         fi
     else
         prompt+=": "
     fi
-    
+
     # Prompt until a valid entry is collected
     valid_result=false
     while ! $valid_result; do
@@ -213,7 +215,7 @@ systemd_diff_update() {
         override=false
         src_file="${src_dir}systemd/${1}.service"
         if [[ -f "$src_file" ]] && [[ -f "$dst_file" ]]; then
-            file_diff=$(diff -s ${src_file} ${dst_file}) 
+            file_diff=$(diff -s ${src_file} ${dst_file})
         else
             file_diff="doit"
         fi
@@ -225,15 +227,15 @@ systemd_diff_update() {
             if [[ -f "/etc/ConsolePi/src/systemd/${1}.service" ]]; then
                 if [ -f /etc/systemd/system/${1}.service ]; then
                     sudo cp /etc/systemd/system/${1}.service "$bak_dir${1}.service.$(date +%F_%H%M)" 1>/dev/null 2>> $log_file &&
-                        logit "existing $1 unit file backed up to bak dir" || 
+                        logit "existing $1 unit file backed up to bak dir" ||
                         logit "FAILED to backup existing $1 unit file" "WARNING"
                 fi
                 sudo cp /etc/ConsolePi/src/systemd/${1}.service /etc/systemd/system 1>/dev/null 2>> $log_file &&
-                    logit "${1} systemd unit file created/updated" || 
+                    logit "${1} systemd unit file created/updated" ||
                     logit "FAILED to create/update ${1} systemd service" "WARNING"
                 sudo systemctl daemon-reload 1>/dev/null 2>> $log_file || logit "Failed to reload Daemons: ${1}" "WARNING"
                 # TODO consider logic change. to only enable on upgrade if we find it in enabled state
-                #  This logic would appear to always enable the service in some cases we don't want that 
+                #  This logic would appear to always enable the service in some cases we don't want that
                 #  installer will disable / enable after if necessary, but this would retain user customizations
                 if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
                     if [[ -f /etc/systemd/system/${1}.service ]]; then
@@ -244,9 +246,15 @@ systemd_diff_update() {
                         logit "Failed ${1}.service file not found in systemd after move"
                     fi
                 fi
-                [[ $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]] &&
-                    sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file || 
-                    logit "FAILED to restart ${1} systemd service" "WARNING"
+                # -- if the service is enabled and active currently restart the service --
+                if systemctl is-enabled ${1}.service >/dev/null ; then
+                    if systemctl is-active ${1}.service >/dev/null ; then
+                        sudo systemctl daemon-reload 2>>$log_file
+                        sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file &&
+                        ( [[ ! "${1}" =~ "autohotspot" ]] &&
+                            logit "FAILED to restart ${1} systemd service" "WARNING" )
+                    fi
+                fi
             else
                 logit "${1} file not found in src directory.  git pull failed?" "WARNING"
             fi
@@ -265,7 +273,7 @@ file_diff_update() {
     else
         override=false
         if [[ -f ${1} ]] && [[ -f ${2} ]]; then
-            this_diff=$(diff -s ${1} ${2}) 
+            this_diff=$(diff -s ${1} ${2})
         else
             this_diff="doit"
         fi
@@ -274,10 +282,10 @@ file_diff_update() {
     # -- if file on system doesn't exist or doesn't match src copy and enable from the source directory
     if ! $override; then
         if [[ ! "$this_diff" = *"identical"* ]]; then
-            if [[ -f ${1} ]]; then 
+            if [[ -f ${1} ]]; then
                 if [ -f ${2} ]; then        # if dest file exists but doesn't match stash in bak dir
                     sudo cp $2 "$bak_dir${2##*/}.$(date +%F_%H%M)" 1>/dev/null 2>> $log_file &&
-                        logit "${2} backed up to bak dir" || 
+                        logit "${2} backed up to bak dir" ||
                         logit "FAILED to backup existing ${2}" "WARNING"
                 fi
 
@@ -287,7 +295,7 @@ file_diff_update() {
                 fi
 
                 sudo cp ${1} ${2} 1>/dev/null 2>> $log_file &&
-                    logit "${2} Updated" || 
+                    logit "${2} Updated" ||
                     logit "FAILED to create/update ${2}" "WARNING"
             else
                 logit "${1} file not found in src directory.  git pull failed?" "WARNING"
@@ -353,14 +361,16 @@ get_pi_info_pretty() {
         hw_array["a03111"]="Raspberry Pi 4 Model B  hw rev 1.1  1 GB  (Mfg by Sony)"
         hw_array["b03111"]="Raspberry Pi 4 Model B  hw rev 1.1  2 GB  (Mfg by Sony)"
         hw_array["c03111"]="Raspberry Pi 4 Model B  hw rev 1.1  4 GB  (Mfg by Sony)"
-    fi            
+    fi
     $compat_bash && echo ${hw_array["$1"]} || echo $1
 }
 
 # Gather Some info about the Pi useful in triage of issues
 get_pi_info() {
     process="Collect Pi Info"
-    [ ! -z $branch ] && [ $branch != "master" ] && logit "Running alternate branch: $branch"
+    [ ! -z $branch ] && [ $branch != "master" ] && logit "Running alternate branch: ${_green}$branch${_norm}"
+    git_rem=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git remote -v | head -1 | cut -d '(' -f-1 ; popd >/dev/null 2>&1)
+    [[ ! -z $git_rem ]] && [[ $(echo $git_rem | awk '{print $2}') != $consolepi_source ]] && logit "Using alternative repo: ${_green}$git_rem${_norm}"
     # cat /etc/os-release
     ver_full=$(head -1 /etc/debian_version)
     ver=$(echo $ver_full | cut -d. -f1)
@@ -368,10 +378,10 @@ get_pi_info() {
     if [ $ver -eq 10 ]; then
         version="Raspbian $ver_full (Buster)"
     elif [ $ver -eq 9 ]; then
-        version="Raspbian $ver_full (Stretch)" 
-    elif [ $ver -eq 8 ]; then 
-        version="Raspbian $ver_full (Jessie)" 
-    else 
+        version="Raspbian $ver_full (Stretch)"
+    elif [ $ver -eq 8 ]; then
+        version="Raspbian $ver_full (Jessie)"
+    else
         version="Raspbian $ver_full (Wheezy)"
     fi
 
@@ -395,16 +405,21 @@ convert_template() {
     rm /tmp/${1} >/dev/null 2>>$log_file
 }
 
+process_yaml() {
+    $yml_script "${@}" > $tmp_src 2>>$log_file && . $tmp_src && rm $tmp_src ||
+        logit "Error returned from yaml config import ($yml_script ${@}), check $log_file" "ERROR"
+}
+
 do_systemd_enable_load_start() {
     if [[ ! -f "${override_dir}/${1}.service" ]] ; then
         status=$(systemctl is-enabled $1 2>&1)
         if [ "$status" == "disabled" ]; then
-            sudo systemctl enable $1 1>/dev/null 2>> $log_file  && logit "${1} systemd unit file enabled" || 
+            sudo systemctl enable $1 1>/dev/null 2>> $log_file  && logit "${1} systemd unit file enabled" ||
                         logit "FAILED to enable ${1} systemd unit file" "WARNING"
         elif [ "$status" == "enabled" ]; then
             logit "$1 unit file already enabled"
         elif [[ "$status" =~ "No such file or directory" ]]; then
-            logit "$1 unit file not found" "ERROR" 
+            logit "$1 unit file not found" "ERROR"
         fi
         # Will only exectue if systemd script enabled
         sudo systemctl daemon-reload 2>> $log_file || logit "daemon-reload failed, check logs" "WARNING"
@@ -415,8 +430,33 @@ do_systemd_enable_load_start() {
     fi
 }
 
+# -- Find path for any files pre-staged in user home or ConsolePi_stage subdir --
+get_staged_file_path() {
+    [[ -z $1 ]] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
+    if [[ -f "${home_dir}${1}" ]]; then
+        found_path="${home_dir}${1}"
+    elif [[ -f ${stage_dir}$1 ]]; then
+        found_path="${home_dir}ConsolePi_stage/${1}"
+    else
+        found_path=
+    fi
+    echo $found_path
+}
+
+dots() {
+    local pad=$(printf "%0.1s" "."{1..51})
+    printf " %s%*.*s" "$1" 0 $((51-${#1})) "$pad" "$2"; echo
+    return 0;
+}
+
+spaces() {
+    local pad=$(printf "%0.1s" " "{1..70})
+    printf "  %s%*.*s" "$1" 0 $((70-${#1})) "$pad" "$2"; echo
+    return 0;
+}
+
 process_cmds() {
-    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg')
+    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
     ret=0
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
@@ -460,6 +500,7 @@ process_cmds() {
                 shift
                 ;;
             -apt-install) # install pkg via apt
+                local do_apt_install=true
                 shift
                 go=true; while (( "$#" )) && $go ; do
                     # echo -e "DEBUG apt-install ~ Currently evaluating: '$1'" # -- DEBUG LINE --
@@ -486,7 +527,7 @@ process_cmds() {
                 pmsg="Success - Install $pname (apt)"
                 fmsg="Error - Install $pname (apt)"
                 stop=true
-                [[ ! -z $pexclude ]] && cmd="sudo apt-get -y install $pkg ${pexclude}-" || 
+                [[ ! -z $pexclude ]] && cmd="sudo apt-get -y install $pkg ${pexclude}-" ||
                     cmd="sudo apt-get -y install $pkg"
                 # shift $_shift
                 ;;
@@ -516,11 +557,11 @@ process_cmds() {
                 shift 2
                 ;;
             -p) # msg displayed if command successful
-                pmsg="Success - $2"
+                local pmsg="Success - $2"
                 shift 2
                 ;;
             -f) # msg displayed if command fails
-                fmsg="Error - $2"
+                local fmsg="Error - $2"
                 shift 2
                 ;;
             -*|--*=) # unsupported flags
@@ -544,28 +585,47 @@ process_cmds() {
             [[ ! -z $cmd_pfx ]] && cmd="$cmd_pfx $cmd"
             [[ -z $out ]] && out='/dev/null'
             [[ -z $showstart ]] && showstart=true
+            [[ -z $do_apt_install ]] && do_apt_install=false
             # echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
             # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
             # -- // PROCESS THE CMD \\ --
             ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
             if eval "$cmd" >>"$out" 2>>"$err"; then
+                cmd_failed=false
                 ! $silent && logit "$pmsg"
                 # if cmd was an apt-get purge - automatically issue autoremove to clean unnecessary deps
                 # TODO re-factor to only do purge at the end of all other proccesses
                 if [[ "$cmd" =~ "purge" ]]; then
                     logit "Tidying Up packages that are no longer in use (apt autoremove)"
                     sudo apt-get -y autoremove >/dev/null 2>>$log_file &&
-                        logit "Success - All Tidy Now" || 
+                        logit "Success - All Tidy Now" ||
                         logit "Error - apt autoremove returned error-code" "WARNING"
                 fi
             else
+                cmd_failed=true
+                if $do_apt_install ; then
+                    x=1
+                    while [[ $(tail -2 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
+                        logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
+                        sleep 5
+                        logit "Starting ${pmsg/Success - /} ~ retry $x"
+                        if eval "$cmd" >>"$out" 2>>"$err"; then
+                            cmd_failed=false
+                            ! $silent && logit "$pmsg"
+                        fi
+                        ((x+=1))
+                        done
+                fi
+            fi
+
+            if $cmd_failed ; then
                 logit "$fmsg" "$fail_lvl" && ((ret+=1))
                 $stop && logit "aborting remaining tasks due to previous failure" && cd $cur_dir && break
             fi
             # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
             # -- // unset all flags \\ --
             for c in "${reset_vars[@]}"; do
-                unset ${c} 
+                unset ${c}
             done
         fi
 

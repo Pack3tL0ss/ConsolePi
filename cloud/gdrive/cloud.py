@@ -1,25 +1,50 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-from consolepi.common import ConsolePi_data
-from consolepi.gdrive import GoogleDrive
-
-config = ConsolePi_data(do_print=False)
+import sys
+sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
+from consolepi import config, log, utils  # NoQA
+from consolepi.consolepi import ConsolePi  # NoQA
+from consolepi.gdrive import GoogleDrive # NoQA
 
 
 def main():
-    log = config.log
-    data = config.local
-    log.debug('[CLOUD TRIGGER (IP)]: Final Data set collected for {}: \n{}'.format(config.hostname, data))
+    cpi = ConsolePi()
+    cloud_svc = config.cfg.get("cloud_svc", "error")
+    local = cpi.local
+    remotes = cpi.remotes
+    cpiexec = cpi.cpiexec
     log.info('[CLOUD TRIGGER (IP)]: Cloud Update triggered by IP Update')
-    if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member
-        cloud = GoogleDrive(log)
-    remote_consoles = cloud.update_files(data)
+    CLOUD_CREDS_FILE = config.static.get("CLOUD_CREDS_FILE", '/etc/ConsolePi/cloud/gdrive/.credentials/credentials.json')
+    if not utils.is_reachable("www.googleapis.com", 443):
+        log.error(f"Not Updating {cloud_svc} due to connection failure")
+        sys.exit(1)
+        if not utils.valid_file(CLOUD_CREDS_FILE):
+            log.error('Credentials file not found or invalid')
+            sys.exit(1)
 
-    # Send remotes learned from cloud file to local cache
-    if remote_consoles and 'Gdrive-Error:' not in remote_consoles:
-        config.update_local_cloud_file(remote_consoles)
-    elif 'Gdrive-Error:' in remote_consoles:
-        log.warning('[CLOUD TRIGGER (IP)]: Cloud Update Failed {}'.format(remote_consoles))
+    # -- // Get details from Google Drive - once populated will skip \\ --
+    if cloud_svc == "gdrive" and remotes.cloud is None:
+        remotes.cloud = GoogleDrive(hostname=local.hostname)
+
+    if cpiexec.wait_for_threads(thread_type="remotes") and (
+       config.power and cpiexec.wait_for_threads(name="_toggle_refresh")):
+        log.error('IP Change Cloud Update Trigger: TimeOut Waiting for Threads to Complete')
+
+    remote_consoles = remotes.cloud.update_files(local.data)
+    if remote_consoles and "Gdrive-Error:" in remote_consoles:
+        log.error(remote_consoles)
+    else:
+        for r in remote_consoles:
+            # -- Convert Any Remotes with old API schema to new API schema --
+            if isinstance(remote_consoles[r].get("adapters", {}), list):
+                remote_consoles[r]["adapters"] = remotes.convert_adapters(
+                    remote_consoles[r]["adapters"]
+                )
+                log.warning(
+                    f"Adapter data for {r} retrieved from cloud in old API format... Converted"
+                )
+        if len(remote_consoles) > 0:
+            remotes.update_local_cloud_file(remote_consoles)
 
 
 if __name__ == '__main__':

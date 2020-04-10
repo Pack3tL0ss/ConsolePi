@@ -1,17 +1,33 @@
 #!/usr/bin/env bash
 
-for svc in consolepi-mdnsbrowse consolepi-mdnsreg consolepi-api hostapd autohotspot ser2net; do 
-  echo -e "\n---------------- // STATUS OF ${svc}.service \\\\ ---------------"
+SVCS=("autohotspot" "consolepi-mdnsbrowse" "consolepi-mdnsreg" "consolepi-api" "consolepi-wired-dhcp" "consolepi-autohotspot-dhcp" "dnsmasq" "hostapd" "ser2net" "rfcomm")
+
+for svc in "${SVCS[@]}" ; do
+  echo -e "\n---------------- // STATUS OF ${svc}.service \\\\\ ---------------"
   systemctl status $svc
-  # echo
-  # read -en 1 -p "press any key to continue"
 done
 
-[ ! -z $1 ] && [ $1 == 'log' ] &&
-  echo "---------------- // ERRORS from log file \\\\ ---------------" &&
-  cat /var/log/ConsolePi/cloud.log | grep -v INFO &&
-  # echo &&
-  # read -en 1 -p "press any key to continue"
+if [ ! -z $1 ] && [ $1 == 'log' ] ; then
+  echo "---------------- // ERRORS from log file \\\\\ ---------------"
+  if [[ -f /var/log/ConsolePi/consolepi.log ]] ; then
+    cat /var/log/ConsolePi/consolepi.log | grep -v INFO | grep -v DEBUG
+  else
+    cat /var/log/ConsolePi/cloud.log | grep -v INFO | grep -v DEBUG
+  fi
+fi
 
-echo -e "\n---------------- // Summary \\\\ ---------------"
-systemctl -a | grep "rfcomm\|consolepi-\|hostapd\|autohotspot\|ser2net"
+echo -e "\n\n---------------------- // Summary \\\\\ ----------------------"
+echo ".......UNIT.......             ENABLED   ACTIVE     STATUS"
+echo "------------------             -------   ------     -------"
+for svc in "${SVCS[@]}" ; do
+  if [[ ! $(systemctl is-enabled ${svc} 2>&1) =~ "No such file or directory" ]]; then
+    ena=$(systemctl is-enabled $svc 2>/dev/null)
+    printf "%-30s %-10s" $svc $ena
+    if systemctl is-active $svc > /dev/null; then
+      systemctl -a | grep "^ *${svc}\." |sed s/'● '//g | awk '{printf "%-10s %-10s \n", $3,$4}'
+    else
+      printf "%-10s %-10s \n" $(systemctl is-active $svc) "not-running"
+    fi
+  fi
+done
+echo

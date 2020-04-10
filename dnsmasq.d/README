@@ -1,0 +1,22 @@
+# - ConsolePi has a couple of features that utilize DHCP
+# - AutoHotSpot and wired-dhcp / ztp (NOTE: Placeholder wired-dhcp / ztp is not implemented yet, will be in near future)
+# - each of these functions runs a separate instance of dnsmasq bound only
+# - to the appropriate interface.
+
+# - Additionally CosnolePi places directives in /etc/dnsmasq.d/01-consolepi that tell
+# - the default instance of dnsmasq (which gets its config from /etc/dnsmas.conf and anything in /etc/dnsmasq.d)
+# - to exclude interfaces configured for ConsolePi Control.
+
+# - If AutoHotSpot is enabled wlan0 (currently hard-coded) will be excluded from the default dnsmasq instance
+# - If wired-dhcp is enabled eth0 (also currently hard-coded) will be excluded from the default dnsmasq instance
+
+# - This is done because the start/stop of these instances is handled by scripts and only occurs as a fallback
+# - i.e. for AutoHotSpot if the adapter connects to a defined SSID as a client, you generally don't want the DHCP
+# - server running as you could provide bogus details to clients on that network.
+# - Likewise for wired-ztp, a script will enable an instance of dnsmasq only if it is not provided an address from
+# - a DHCP server on the network.
+
+# - There are 2 folders that the dnsmasq instances created for these functions pull config from
+# - 'autohotspot' and 'consolepi-wired-dhcp'
+# - Any specific configuration beyond that required for ConsolePi functionality should be added in new files in
+# - those directories.

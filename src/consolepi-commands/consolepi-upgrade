@@ -4,8 +4,8 @@ branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD
 [ ! "$branch" == "master" ] && echo -e "Script updating ${branch} branch.\n  You are on a development branch."
 if [ ! -z "$@" ] && [ $1 == "loc" ] ; then
     echo "Local Pull"
-    sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi local-dev && sudo rm -r /tmp/ConsolePi
+    sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi local-dev && rm /tmp/ConsolePi
     # $(git remote -v | awk '{print $2}'##/)/installer/install.sh
 else
-    sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/$branch/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
+    wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/$branch/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && rm /tmp/ConsolePi
 fi

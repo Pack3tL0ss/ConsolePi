@@ -1,0 +1,16 @@
+[Unit]
+Description=dnsmasq DHCP/DNS (ConsolePi autohotspot (wlan0) speciffic instance)
+Requires=network.target
+Wants=nss-lookup.target
+Before=nss-lookup.target
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=/run/dnsmasq.wlan0.pid
+ExecStart=dnsmasq -7 /etc/ConsolePi/dnsmasq.d/autohotspot -C /dev/null -x /run/dnsmasq.wlan0.pid
+ExecReload=/usr/bin/pkill "-F /run/dnsmasq.wlan0.pid" && dnsmasq -7 /etc/ConsolePi/dnsmasq.d/autohotspot -C /dev/null || echo consolepi-autohotspot-dhcp.service (autohotspot) Failed to Restart
+
+[Install]
+WantedBy=multi-user.target
+Alias=dnsmasq.wlan0.service

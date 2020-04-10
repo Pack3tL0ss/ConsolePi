@@ -1,6 +1,8 @@
-# ** This is a *Partial* dhcpcd.conf for ConsolePi interfaces are configured
-# ** dynamically by install script.  For customization create a j2 template 
-# in the overrides subdir
+# ** This is a *Partial* dhcpcd.conf for ConsolePi. Interfaces are configured
+# ** dynamically by install script.  For customization touch dhcpcd.conf in
+# ** in the overrides dir, then customize /etc/dhcpcd.conf as desired.
+# ** The existence of the file in the overrides dir causes the upgrade script
+# ** to bypass validation of the file ... consolepi-upgrade won't make any changes
 #
 # A sample configuration for dhcpcd.
 # See dhcpcd.conf(5) for details.
@@ -74,5 +76,5 @@ interface eth0
 # fallback static_eth0
 vendorclassid "dhcpcd:ConsolePi"
 
-# For AutoHotkeyN
+# For AutoHotSpotN
 nohook wpa_supplicant

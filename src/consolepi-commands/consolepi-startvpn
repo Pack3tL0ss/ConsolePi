@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+echo 'ovpn_log="/var/log/ConsolePi/ovpn.log"
+ovpn_config="/etc/openvpn/client/ConsolePi.ovpn"
+ovpn_creds="/etc/openvpn/client/ovpn_credentials"
+ovpn_options="--persist-remote-ip --ping 15"
+openvpn --config ${ovpn_config} --auth-user-pass ${ovpn_creds} --log-append ${ovpn_log} ${ovpn_options} --writepid /var/run/ovpn.pid --daemon
+' > /tmp/consolepi-tmp-exec && sudo bash /tmp/consolepi-tmp-exec && 
+openvpn started || echo Something went wrong
+[ -f /tmp/consolepi-tmp-exec ] && rm /tmp/consolepi-tmp-exec

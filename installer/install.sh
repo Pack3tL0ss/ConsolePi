@@ -8,6 +8,9 @@
 # --  This script aims to automate the installation of ConsolePi.                                                                                -- #
 # --  For more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                                              -- #
 # --                                                                                                                                             -- #
+# --  This is the main installer file it imports and calls the other 2 files after prepping /etc/ConsolePi                                       -- #
+# --    All files source common functions from common.sh pulled directly for git repo                                                            -- #
+# --    Sequence: install.sh (prep, common imports) --> config.sh (get configuration/user input) --> update.sh (perform install/updates)         -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 if [ ! -z $1 ] && [ "$1" = 'local-dev' ] ; then
@@ -27,7 +30,7 @@ get_common() {
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
     # overwrite the default source directory to local repo when running local tests
-    $local_dev && consolepi_source='pi@kabrewpi:/etc/ConsolePi'
+    $local_dev && consolepi_source='pi@consolepi-dev:/etc/ConsolePi'
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
     header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
 }
@@ -59,7 +62,7 @@ do_apt_update() {
     logit "Tidying up (autoremove)"
     apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
 
-    logit "Installing git via apt"
+    logit "Install/update git (apt)"
     apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
     logit "Process Complete"
     unset process
@@ -91,17 +94,25 @@ pre_git_prep() {
                     logit "ERROR Unable to remove old consolepi-menu quick-launch file" "WARNING"
         fi
     else
-        # 02-05-2020 raspbian buster could not pip install requirements -sido would error with no libffi
+        # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
         process="ConsolePi-Upgrade-Prep (install libffi-dev)"
-        if ! dpkg -l libffi-dev >/dev/null 1>&2 ; then
+        if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
             apt install -y libffi-dev >/dev/null 2>>${log_file} &&
                 logit "Success Installing development files for libffi" ||
                     logit "ERROR apt install libffi-dev retrurned an error" "WARNING"
         fi
     fi
 
+    # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
+    process="ConsolePi-Upgrade-Prep (install libssl-dev)"
+    if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
+        apt install -y libssl-dev >/dev/null 2>>${log_file} &&
+            logit "Success Installing development files for libssl" ||
+                logit "ERROR apt install libssl-dev retrurned an error" "WARNING"
+    fi
+
     process="ConsolePi-Upgrade-Prep (create consolepi group)"
-    for user in pi; do
+    for user in pi; do  # placeholder for additional non-pi users
         if [[ ! $(groups $user) == *"consolepi"* ]]; then
             if ! $(grep -q consolepi /etc/group); then
                 sudo groupadd consolepi &&
@@ -133,34 +144,41 @@ pre_git_prep() {
     fi
 
     if [ -d $consolepi_dir ]; then
-        process="ConsolePi-Upgrade-Prep (check group perms on ConsolePi dir)"
-        group=$(stat -c '%G' $consolepi_dir)
-        if [ ! $group == "consolepi" ]; then
-            sudo chgrp -R consolepi $consolepi_dir 2>> $log_file &&
-                logit "Successfully Changed ConsolePi dir group" ||
-                logit "Failed to Change ConsolePi dir group" "WARNING"
-            sudo chmod g+w -R $consolepi_dir 2>> $log_file &&
-                logit "Successfully Changed ConsolePi dir group permissions" ||
-                logit "Failed to Change ConsolePi dir group Permissions" "WARNING"
-        else
-            logit "ConsolePi dir group already OK"
-        fi
+        process="ConsolePi-Upgrade-Prep (verify permissions)"
+
+        check_list=("$consolepi_dir" "${consolepi_dir}.git")
+        [[ -f ${consolepi_dir}.static.yaml ]] && check_list+=("${consolepi_dir}.static.yaml")
+
+        for d in "${check_list[@]}"; do
+            [ $(stat -c '%G' $d) == "consolepi" ] && grpok=true || grpok=false
+            stat -c %A $d |grep -q "^....rw....$" && modok=true || modok=false
+            if ! $grpok || ! $modok; then
+                sudo chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?
+                sudo chmod g+w -R ${d} 2>> $log_file ; ((rc+=$?))
+                [[ $rc > 0 ]] && logit "Error Returned while setting perms for $d" "WARNING" ||
+                    logit "Success ~ Update Permissions for $d"
+            else
+                logit "Permissions for $d already OK"
+            fi
+        done
         unset process
     fi
 }
 
 git_ConsolePi() {
     process="git Clone/Update ConsolePi"
+
+    # -- exit if python3 ver < 3.6
+    [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && (
+        echo "ConsolePi Requires Python3 ver >= 3.6, aborting install."
+        echo "Reccomend using ConsolePi_image_creator to creator to create a fresh image on a new sd-card" &&
+        exit 1
+    )
+
     cd "/etc"
     if [ ! -d $consolepi_dir ]; then
         logit "Clean Install git clone ConsolePi"
         git clone "${consolepi_source}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
-        # if [ ! -z $branch ] && [ $branch != 'master' ] ; then
-        #     pushd ${consolepi_dir} >/dev/null
-        #     git checkout $branch && logit "Success checkout $branch branch" || 
-        #         ( popd >/dev/null && logit "Failed to checkout $branch branch" "ERROR" )
-        #     popd >/dev/null
-        # fi
     else
         cd $consolepi_dir
         logit "Directory exists Updating ConsolePi via git"
@@ -168,9 +186,25 @@ git_ConsolePi() {
             logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "ERROR"
     fi
     [[ ! -d $bak_dir ]] && sudo mkdir $bak_dir
-    # change group ownership to consolepi
+    # -- change group ownership to consolepi --
     sudo chgrp -R consolepi /etc/ConsolePi || logit "Failed to chgrp for ConsolePi dir to consolepi group" "WARNING"
     unset process
+}
+
+post_git() {
+    process="relocate overrides"
+    if [ -d ${src_dir}override ]; then
+        files=($(ls ${src_dir}override | grep -v README 2>/dev/null))
+        if [[ ${#files[@]} > 0 ]]; then
+            cp ${src_dir}override/* $override_dir && error=false &&
+                logit "overrides directory has re-located to $override_dir contents of old override dir moved" ||
+                    ( error=true ; logit "Failure moving existing overrides to relocated ($override_dir)" )
+            mv ${src_dir}override $bak_dir && logit "existing override dir moved to bak" ||
+                logit "Failure moving existing override dir to bak dir" "WARNING"
+        else
+            rm -r ${src_dir}override || logit "Failure to rm old override dir" "WARNING"
+        fi
+    fi
 }
 
 do_pyvenv() {
@@ -221,17 +255,24 @@ do_pyvenv() {
     # -- *Always* update venv packages based on requirements file --
     [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"
     logit "pip install/upgrade ConsolePi requirements - This can take some time."
-    sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/${req_file} 1>/dev/null 2>> $log_file &&
+    echo "-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/${req_file}\" --"
+    sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/${req_file} 2> >(tee -a $log_file >&2) &&
         logit "Success - pip install/upgrade ConsolePi requirements" ||
         logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
 
     # -- temporary until I have consolepi module on pypi --
-    logit "moving consolepi python module into venv site-packages"
     python_ver=$(ls -l /etc/ConsolePi/venv/lib | grep python3 |  awk '{print $9}')
-    sudo cp -R ${src_dir}PyConsolePi/. ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
-    # sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
-        logit "Success - moving consolepi python module into venv site-packages" ||
-        logit "Error - moving consolepi python module into venv site-packages" "ERROR"
+    pkg_dir=${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi
+    if [[ ! -L $pkg_dir ]] ; then
+        logit "link consolepi python module in venv site-packages"
+        # sudo cp -R ${src_dir}PyConsolePi/. ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
+        [[ -d $pkg_dir ]] && rm -r $pkg_dir >/dev/null 2>> $log_file
+        ln -s ${src_dir}PyConsolePi/ ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
+        # sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
+            logit "Success - link consolepi python module into venv site-packages" ||
+            logit "Error - link consolepi python module into venv site-packages" "ERROR"
+    fi
+
 
     unset process
 }
@@ -249,12 +290,14 @@ do_logging() {
     # Create Log Files
     touch /var/log/ConsolePi/ovpn.log || logit "Failed to create OpenVPN log file" "WARNING"
     touch /var/log/ConsolePi/push_response.log || logit "Failed to create PushBullet log file" "WARNING"
-    touch /var/log/ConsolePi/cloud.log || logit "Failed to create cloud log file" "WARNING"
+    touch /var/log/ConsolePi/cloud.log || logit "Failed to create consolepi log file" "WARNING"
     touch /var/log/ConsolePi/install.log || logit "Failed to create install log file" "WARNING"
+    touch /var/log/ConsolePi/consolepi.log || logit "Failed to create install log file" "WARNING"
 
     # Update permissions
     sudo chgrp -R consolepi /var/log/ConsolePi || logit "Failed to update group for log file" "WARNING"
-    if [ ! $(stat -c "%a" /var/log/ConsolePi/cloud.log) == 664 ]; then
+    # if [ ! $(stat -c "%a" /var/log/ConsolePi/cloud.log) == 664 ]; then
+    if [ ! $(stat -c "%a" /var/log/ConsolePi/consolepi.log) == 664 ]; then
         sudo chmod g+w /var/log/ConsolePi/* &&
             logit "Logging Permissions Updated (group writable)" ||
             logit "Failed to make log files group writable" "WARNING"
@@ -320,12 +363,19 @@ update_banner() {
     unset process
 }
 
-get_install2() {
-    if [ -f "${consolepi_dir}installer/install2.sh" ]; then
-        . "${consolepi_dir}installer/install2.sh"
-    else
-        echo "FATAL ERROR install2.sh not found exiting"
-        exit 1
+get_config() {
+    local process="import config.sh"
+    if [[ -f /etc/ConsolePi/installer/config.sh ]]; then
+        . /etc/ConsolePi/installer/config.sh ||
+            logit "Error Occured importing config.sh" "Error"
+    fi
+}
+
+get_update() {
+    local process="import update.sh"
+    if [ -f "${consolepi_dir}installer/update.sh" ]; then
+        . "${consolepi_dir}installer/update.sh" ||
+            logit "Error Occured importing update.sh" "Error"
     fi
 }
 
@@ -338,12 +388,15 @@ main() {
         do_apt_update                       # apt-get update the pi
         pre_git_prep                        # process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
+        $upgrade && post_git                # post git changes
         do_pyvenv                           # build upgrade python3 venv for ConsolePi
         do_logging                          # Configure logging and rotation
-        do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
+        $upgrade && do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
         update_banner                       # ConsolePi login banner update
-        get_install2                        # get and import install2 functions
-        install2_main                       # Kick off install2 functions
+        get_config                          # import config.sh functions
+        config_main                         # Kick off config.sh functions (Collect Config details from user)
+        get_update                          # import update.sh functions
+        update_main                         # Kick off update.sh functions
     else
       echo 'Script should be ran as root. exiting.'
     fi

@@ -6,7 +6,9 @@ if [ -z $(which multitail) ]; then
     sudo apt-get install -y multitail
 fi
 
-multitail -i /var/log/ConsolePi/cloud.log \
+[[ -f /var/log/ConsolePi/consolepi.log ]] && log_file=consolepi.log || log_file=cloud.log
+
+multitail -i /var/log/ConsolePi/${log_file} \
     -L "tail -f /var/log/kern.log | grep wlan0" \
     -L "tail -f  /var/log/syslog | grep 'puship\|dhcpcd\|dhcpcd-run-hooks\|wpa_supplicant\|ser2net\|python3\|hostapd\|autohotspotN\|bluetoothd\|dnsmasq'"
 

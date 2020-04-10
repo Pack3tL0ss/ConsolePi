@@ -1,0 +1,7 @@
+# Ignore everything in this directory
+*
+# Except this file and the README and the 2 directories
+!.gitignore
+!/wired-dhcp/
+!/autohotspot/
+!README

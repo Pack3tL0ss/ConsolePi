@@ -1,0 +1,12 @@
+# dnsmasq configuration created by ConsolePi installer
+# modifications should not be made to this file add additional options
+# in new files in this directory.
+dhcp-script=/etc/ConsolePi/src/dhcp-trigger.py
+interface=wlan0
+except-interface=lo
+bogus-priv
+domain-needed
+dhcp-range={{wlan_dhcp_start}},{{wlan_dhcp_end}},255.255.255.0,12h
+bind-interfaces
+resolv-file=/run/dnsmasq/resolv.conf
+dhcp-option=wlan0,3

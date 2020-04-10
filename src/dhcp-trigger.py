@@ -1,18 +1,20 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-""" 
+"""
     -- dev testing file currently --
     This file currently only logs
     Eventually this file may be used for ztp trigger or oobm switch discovery for the menu
-
 """
 
-from consolepi.common import check_reachable
+# from consolepi.common import check_reachable
 import sys
-import os
-import json
-import requests
-from consolepi.common import ConsolePi_Log
+sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
+from consolepi import utils, log, requests  # NoQA
+import sys  # NoQA
+import os  # NoQA
+# import json
+# import requests
+# from consolepi.common import ConsolePi_Log
 # from consolepi.common import get_local
 
 # -- Some Testing Stuff --
@@ -21,9 +23,6 @@ from consolepi.common import ConsolePi_Log
 
 # -- Some Testing Stuff - eventually move to ztp.conf or oobm.conf file --
 match = ['2530', '3810', '8320', '8325', '6300']
-
-cpi_log = ConsolePi_Log()
-log = cpi_log.log
 
 add_del = sys.argv[1]
 mac = sys.argv[2]
@@ -38,7 +37,7 @@ try:
 except KeyError:
     vendor = None
 
-log.info('[DHCP LEASE] DHCP Client Connected ({}): iface: {}, mac: {}, ip: {}, vendor: {}'.format(add_del, iface, mac, ip, vendor))
+log.info('[DHCP LEASE] DHCP Client Connected ({}): iface: {}, mac: {}, ip: {}, vendor: {}'.format(add_del, iface, mac, ip, vendor))  # NoQA
 
 if vendor is not None and 'ConsolePi' in vendor:
     log.info('ConsolePi Discovered via DHCP')
@@ -57,7 +56,7 @@ if vendor is not None and 'ConsolePi' in vendor:
     try:
         response = requests.request("GET", url, headers=headers)
         log.info('[DHCP TRIGGER] Response from {}[{}]: \n{}'.format(ip, response.status_code, response.text))
-    except:
+    except Exception:
         pass
 
     # TODO get/post info from/to ConsolePi that just connected via API
@@ -66,10 +65,9 @@ if vendor is not None and 'ConsolePi' in vendor:
 elif vendor is not None and iface is not None and iface == 'eth0':
     for _ in match:
         if _ in vendor:
-            if check_reachable(ip, 22):
+            if utils.is_reachable(ip, 22):
                 log.info('{} is reachable via ssh @ {}'.format(_, ip))
-            elif check_reachable(ip, 23):
+            elif utils.is_reachable(ip, 23):
                 log.info('{} is reachable via telnet @ {}'.format(_, ip))
     # TODO add connection to reachable ssh/telnet on eth if oobm is enabled in config
     # TODO add option to ztp via jinja2 templates (longer term goal)
-

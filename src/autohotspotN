@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #version 0.95-4-N/HS-I ConsolePi Rev 1.5
 
-#You may share this script on the condition a reference to RaspberryConnect.com 
-#must be included in copies or derivatives of this script. 
+#You may share this script on the condition a reference to RaspberryConnect.com
+#must be included in copies or derivatives of this script.
 
 #Network Wifi & Hotspot with Internet
 #A script to switch between a wifi network and an Internet routed Hotspot
@@ -11,38 +11,47 @@
 #Other setup required find out more at
 #http://www.raspberryconnect.com
 
-#Slight Modifications for ConsolePi
-#variablelize hotspot IP referenced in createAdHocNetwork
-#import ConsolePi.conf for variable values
-#Add chkWiredState function
-# chkWiredState modifies the dnsmasq DHCP server configuration
-# So the hotspot will provide an IP with no default gateway
-# if the wired interface is down.  It also cheks the domain
-# provided to the wired interface via DHCP and provides that
-# same domain to hotspot clients.
+# -- Modified for ConsolePi --
+# -- variablelize hotspot IP referenced in createAdHocNetwork
+# -- import ConsolePi configuration (ConsolePi.yaml)
+# -- INFO/DEBUG Logging sent to consolepi.log
+# -- Add chkWiredState function
+#      chkWiredState modifies the dnsmasq DHCP server configuration
+#      So the hotspot will provide an IP with no default gateway
+#      if the wired interface is down.  It also cheks the domain
+#      provided to the wired interface via DHCP and provides that
+#      same domain to hotspot clients.
 
-# The default-gateway bit is done so you can connect
-# in a dual nic setup and not corrupt your routing table
-# with an invalid route
+# -- The default-gateway bit is done so you can connect
+# -- in a dual nic setup and not corrupt your routing table
+# -- with an invalid route
 
-# Passing on the domain the the hostpot users is primarily done
-# for auto-openvpn which will not initiate a connection if the
-# ConsolePi is connected to your home network.  So it's primarily
-# for me during dev to prevent openvpn from starting while I'm testing
-# stuff i.e. ConsolePi connected to ConsolePi
+# -- Passing on the domain the the hostpot uses is primarily done
+# -- for auto-openvpn which will not initiate a connection if the
+# -- ConsolePi is connected to your home network.  So it's primarily
+# -- for me during dev to prevent openvpn from starting while I'm testing
+# -- stuff i.e. ConsolePi connected to ConsolePi
 
-# Supported override variables (define the variable in ConsolePi.conf to override with different value)
-# wlan_wait_time: The amount of time the script waits for connection to an SSID before reverting to hotspot
+# Supported override variables (define the variable in ConsolePi.yaml OVERRIDES section)
+# -- None @ this time
 
-[[ -f "/etc/ConsolePi/ConsolePi.conf" ]] && . "/etc/ConsolePi/ConsolePi.conf" || wlan_ip=10.99.99.1
-
-wifidev="wlan0" #device name to use. Default is wlan0.
-ethdev="eth0" #Ethernet port to use with IP tables
-#use the command: iw dev ,to see wifi interface name 
-
-IFSdef=$IFS
-cnt=0
-# Terminal coloring
+# -- // GLOBALS \\ --
+hostapd_conf="/etc/hostapd/hostapd.conf"
+common_funcs="/etc/ConsolePi/installer/common.sh"
+cfg_file_yaml="/etc/ConsolePi/ConsolePi.yaml"
+cfg_file_conf="/etc/ConsolePi/ConsolePi.conf"  # legacy config support should not be used
+DEBUG=false
+ahs_dhcp_config="/etc/ConsolePi/dnsmasq.d/autohotspot/autohotspot"
+# -- allows for support of old autohotspot config using dnsmasq.conf and new separate instance --
+if [ -f $ahs_dhcp_config ] && [ -f /etc/dnsmasq.d/01-consolepi ] &&
+   ( [ -L /etc/systemd/system/consolepi-autohotspot-dhcp.service ] || [ -f /etc/systemd/system/consolepi-autohotspot-dhcp.service ] ); then
+    dhcp_config=$ahs_dhcp_config
+else
+    dhcp_config='/etc/dnsmasq.conf'
+fi
+log_file="/var/log/ConsolePi/consolepi.log"
+process="AutoHotSpot"
+# -- Terminal coloring --
 _norm='\e[0m'
 _bold='\033[1;32m'
 _blink='\e[5m'
@@ -51,6 +60,77 @@ _blue='\e[34m'
 _lred='\e[91m'
 _yellow='\e[33;1m'
 _green='\e[32m'
+
+logit() {
+    # Logging Function: logit <message|string> [<status|string>]
+    # usage:
+    #   process="AutoHotSpot"  # Define prior to calling or defaults to UNDEFINED
+    #   logit "building package" <"WARNING">
+    # NOTE: Sending a status of "ERROR" results in the script exiting
+    #       default status is INFO if none provided.
+    [ -z "$process" ] && process="UNDEFINED"
+    message=$1                                      # 1st arg = the log message
+    [ -z "${2}" ] && status="INFO" && c_status="INFO" || status=${2^^} # to upper
+    fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
+    if [[ "${status}" == "ERROR" ]]; then
+        fatal=true
+        c_status="${_red}${status}${_norm}"
+    elif [[ ! "${status}" == "INFO" ]]; then
+        c_status="${_yellow}${status}${_norm}"
+        [[ "${status}" == "WARNING" ]]
+    fi
+
+    # -- Log to log-file --
+    echo -e "$(date +"%b %d %T") [${c_status}][${process}] ${message}" >> $log_file
+
+    # -- Any warning/errors log to syslog/stdout as well --
+    if [[ ! "${status}" == "INFO" ]] && [[ ! "${status}" == "DEBUG" ]]; then
+        echo -e "[${status}] ${message}"  # log any errors to syslog as well
+        if $fatal ; then
+            # if status was ERROR which means FATAL then log and exit script
+            echo -e "[${status}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
+        fi
+    else
+        # -- Always Log to stdout if this is a tty --
+        [ -t 1 ] && echo -e "[${c_status}][${process}] ${message}"
+    fi
+}
+
+# -- update path so script can find executables when ran as cron job --
+[[ ! "$PATH" =~ 'sbin' ]]  && PATH="$PATH:/sbin:/usr/sbin"
+
+# -- // extract wlan_ip and hotspot variables from config \\ --
+if [[ -f $cfg_file_yaml ]] ; then
+    wlan_ip=$(grep wlan_ip: $cfg_file_yaml | cut -d : -f 2 | cut -d' ' -f 2)
+    wlan_ip="${wlan_ip//\"/}"
+    hotspot=$(grep "hotspot:" $cfg_file_yaml | cut -d : -f 2 | cut -d' ' -f 2)
+    hotspot="${hotspot//\"/}"
+elif [[ -f $cfg_file_conf ]] ; then
+    . $cfg_file_conf
+fi
+if [[ -z $wlan_ip ]] ; then
+    logit "Unable to collect HotSpot IP from ConsolePi.yaml" "WARNING"
+    if [[ -f "$dhcp_config" ]] ; then
+        wlan_pfx=$(grep -q wlan0 $dhcp_config && grep dhcp-range= $dhcp_config | cut -d = -f 2 | cut -d . -f 1-3)
+        [[ ! -z $wlan_pfx ]] && wlan_ip="${wlan_pfx}.1" && logit "Guessed HotSpot IP based on $dhcp_config ($wlan_ip)" ||
+            ( logit "Unable to Guess HotSpot IP based on $dhcp_config Giving Up" "ERROR" && exit 1 )
+    fi
+fi
+
+[[ -z $hotspot ]] && hotspot=true && logit "HotSpot variable not found in ConsolePi Configuration falling back to true (Enabled)" "WARNING"
+! $hotspot && logit "ConsolePi Auto HotSpot is disabled in the config but this script was triggered, Disable the systemd file" "WARNING" &&
+    logit "Auto HotSpot script will now exit" && exit 0
+
+ifaces=$(ip -br link show | grep -v lo | awk '{printf $1 " "}')
+# -- get wlan interface from hostapd.conf if found/defined --
+[[ -f "$hostapd_conf" ]] && . "$hostapd_conf"
+[ ! -z "$interface" ] && wifidev=$interface || wifidev="wlan0"
+ethdev="eth0" #Ethernet port to use with IP tables
+# TODO test for adverse .. change iptables rules to -s $wifinet -d ! $wifinet
+# wifinet = printf "%s.0/24" $(echo $wlan_ip | cut -d. -f1-3)  # Not Used for now
+
+IFSdef=$IFS
+cnt=0
 #These four lines capture the wifi networks the RPi is setup to use
 wpassid=$(awk '/ssid="/{ print $0 }' /etc/wpa_supplicant/wpa_supplicant.conf | awk -F'ssid=' '{ print $2 }' ORS=',' | sed 's/\"/''/g' | sed 's/,$//')
 IFS=","
@@ -65,44 +145,57 @@ IFS=$IFSdef #reset back to defaults
 # separated by a space, eg ('mySSID1' 'mySSID2')
 #ssids=('mySSID1' 'mySSID2' 'mySSID3')
 
-#Enter the Routers Mac Addresses for hidden SSIDs, seperated by spaces ie 
-#( '11:22:33:44:55:66' 'aa:bb:cc:dd:ee:ff' ) 
+#Enter the Routers Mac Addresses for hidden SSIDs, seperated by spaces ie
+#( '11:22:33:44:55:66' 'aa:bb:cc:dd:ee:ff' )
 mac=()
 
 ssidsmac=("${ssids[@]}" "${mac[@]}") #combines ssid and MAC for checking
 
 get_ssid_details() {
-       wlan_ip_addr=$(wpa_cli -i $wifidev status | grep ip_address | cut -d'=' -f2)
-       which iwgetid >/dev/null &&
-       echo -e "$1 connected to ${_green}$(iwgetid $wifidev -r)${_norm} with IP ${wlan_ip_addr} AP $(iwgetid $wifidev -a | awk '{print $4}') using $(iwgetid $wifidev -f|awk '{print $2}')" ||
-       echo "$HOSTNAME is connected to a valid SSID"
+    wlan_ip_addr=$(wpa_cli -i $wifidev status | grep ip_address | cut -d'=' -f2)
+    if which iwgetid >/dev/null ; then
+        logit "$1 connected to ${_green}$(iwgetid $wifidev -r)${_norm} with IP ${wlan_ip_addr} AP $(iwgetid $wifidev -a | awk '{print $4}') using $(iwgetid $wifidev -f|awk '{print $2}')"
+    else
+        logit "$HOSTNAME is connected to a valid SSID"
+    fi
 }
 
-createAdHocNetwork()
-{
-    echo "Creating Hotspot"
+start_stop_dnsmasq() {
+    # if all files are in place to use new separate instance for hotspot dhcp do so otherwise assume using dnsmasq default instance
+    if [ -f $ahs_dhcp_config ] && [ -f /etc/dnsmasq.d/01-consolepi ] &&
+       ( [ -L /etc/systemd/system/consolepi-autohotspot-dhcp.service ] || [ -f /etc/systemd/system/consolepi-autohotspot-dhcp.service ] ); then
+        logit "ConsolePi Specific dnsmasq instance Configured"
+        systemctl $1 consolepi-autohotspot-dhcp.service
+    else
+        logit "ConsolePi Specific dnsmasq instance *not* Configured, using default dnsmasq instance"
+        systemctl $1 dnsmasq.service
+    fi
+}
+
+createAdHocNetwork() {
+    logit "Creating Hotspot"
     ip link set dev "$wifidev" down
     ip a add ${wlan_ip}/24 brd + dev "$wifidev"
     ip link set dev "$wifidev" up
-    debug=`ip addr show dev wlan0 | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
-	echo "${wifidev} is up with ip: ${debug}"
-    # logger -t autohotspot $wifidev is up with ip: $debug
+    debug_ip=`ip addr show dev wlan0 | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
+	logit "${wifidev} is up with ip: ${debug_ip}"
     dhcpcd -k "$wifidev" >/dev/null 2>&1
     iptables -t nat -A POSTROUTING -o "$ethdev" -j MASQUERADE
     iptables -A FORWARD -i "$ethdev" -o "$wifidev" -m state --state RELATED,ESTABLISHED -j ACCEPT
     iptables -A FORWARD -i "$wifidev" -o "$ethdev" -j ACCEPT
     ChkWiredState
-    systemctl start dnsmasq
+    # systemctl start dnsmasq
+    start_stop_dnsmasq start
     systemctl start hostapd
     echo 1 > /proc/sys/net/ipv4/ip_forward
 }
 
-KillHotspot()
-{
-    echo "Shutting Down Hotspot"
+KillHotspot() {
+    logit "Shutting Down Hotspot"
     ip link set dev "$wifidev" down
     systemctl stop hostapd
-    systemctl stop dnsmasq
+    # systemctl stop dnsmasq
+    start_stop_dnsmasq stop
     iptables -D FORWARD -i "$ethdev" -o "$wifidev" -m state --state RELATED,ESTABLISHED -j ACCEPT
     iptables -D FORWARD -i "$wifidev" -o "$ethdev" -j ACCEPT
     echo 0 > /proc/sys/net/ipv4/ip_forward
@@ -111,14 +204,13 @@ KillHotspot()
     dhcpcd  -n "$wifidev" >/dev/null 2>&1
 }
 
-ChkWifiUp()
-{
-	echo "Checking WiFi connection ok"
-       echo "pausing $wlan_wait_time seconds to allow wpa_supplicant time to connect"
+ChkWifiUp() {
+	logit "Checking WiFi connection ok"
+       logit "pausing $wlan_wait_time seconds to allow wpa_supplicant time to connect"
        sleep $wlan_wait_time #give time for connection to be completed to router
 	if ! wpa_cli -i "$wifidev" status | grep 'ip_address' >/dev/null 2>&1
         then #Failed to connect to wifi (check your wifi settings, password etc)
-	       echo 'Wifi failed to connect, falling back to Hotspot.'
+	       logit 'Wifi failed to connect, falling back to Hotspot.' "WARNING"
                wpa_cli terminate "$wifidev" >/dev/null 2>&1
 	       createAdHocNetwork
        else
@@ -126,152 +218,157 @@ ChkWifiUp()
 	fi
 }
 
-ChkWiredState()
-{
-       eth0_ip=`ip addr show dev eth0 | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
-       eth0_state=`ip addr show dev eth0 | head -1 | sed -n -e 's/^.*state //p' | cut -d ' ' -f1 |awk '{ print $1 }'`
-       if [ ${eth0_state} == "UP" ] && [ ${#eth0_ip} -gt 6 ]; then    
-              eth0_up=true
-       else
-              eth0_up=false     
-       fi
+ChkWiredState() {
+    if [[ "$ifaces" =~ "$ethdev" ]]; then
+        eth0_ip=`ip addr show dev $ethdev | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
+        eth0_state=`ip addr show dev $ethdev | head -1 | sed -n -e 's/^.*state //p' | cut -d ' ' -f1 |awk '{ print $1 }'`
+        if [ ${eth0_state} == "UP" ] && [ ${#eth0_ip} -gt 6 ]; then
+                eth0_up=true
+        else
+                eth0_up=false
+        fi
+    else
+        eth0_up=false
+    fi
 
-       # Find out if lease file exists for wired interface
-       [ -f /var/lib/dhcpcd*/*${ethdev}*.lease ] && wired_lease=true || wired_lease=false   
-       # If ethdev is up and has a lease, pass the same domain to WLAN clients on the hotspot
-       if $eth0_up && $wired_lease; then 
-            [ -f /tmp/$ethdev ] && eth0_dom=$(grep 'domain=' /tmp/$ethdev) || echo [ConsolePi-AutoHotSpot] $ethdev tmp file not found
-            [ ${#eth0_dom} -gt 9 ] && valid_dom=true || valid_dom=false
-            if $valid_dom; then
-                if ! $(grep -q 'domain=' /etc/dnsmasq.conf); then
-                    sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' /etc/dnsmasq.conf # make sure EoF has \n 
-                        echo "${eth0_dom}" >> /etc/dnsmasq.conf &&
-                        use_eth_dom=true || use_eth_dom=false
-                else
-                     sed -i "/domain=/s/.*/${eth0_dom}/" /etc/dnsmasq.conf && 
-                     use_eth_dom=true || use_eth_dom=false
-                fi
-                $use_eth_dom && echo Active Lease Found on $ethdev with $eth0_dom using same for HotSpot clients ||
-                echo [ERROR AutoHotSpotN:ChkWiredState] Failed to Configure Domain $eth0_dom for HostSpot clients
+    # Find out if lease file exists for wired interface
+    [ -f /var/lib/dhcpcd*/*${ethdev}*.lease ] && wired_lease=true || wired_lease=false
+    # If ethdev is up and has a lease, pass the same domain to WLAN clients on the hotspot
+    if $eth0_up && $wired_lease; then
+        [ -f /tmp/$ethdev ] && eth0_dom=$(grep 'domain=' /tmp/$ethdev) || logit "[ConsolePi-AutoHotSpot] $ethdev tmp file not found" "WARNING"
+        [ ${#eth0_dom} -gt 9 ] && valid_dom=true || valid_dom=false
+        if $valid_dom; then
+            if ! $(grep -q 'domain=' $dhcp_config); then
+                sed -i -e :a -e  '/^\\n*$/{$d;N;};/\\n$/ba' $dhcp_config # make sure EoF has \n
+                    echo "${eth0_dom}" >> $dhcp_config &&
+                    use_eth_dom=true || use_eth_dom=false
             else
-                echo A lease was found for $ethdev but no Domain was provided Removing Domain for HotSpot clients
-                sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf
+                sed -i "/domain=/s/.*/${eth0_dom}/" $dhcp_config &&
+                use_eth_dom=true || use_eth_dom=false
             fi
-       fi
+            $use_eth_dom && logit "Active Lease Found on $ethdev with $eth0_dom using same for HotSpot clients" ||
+                logit "[ChkWiredState] Failed to Configure Domain $eth0_dom for HostSpot clients" "WARNING"
+        else
+            logit "A lease was found for $ethdev but no Domain was provided Removing Domain for HotSpot clients"
+            sed -i '/^domain=.*/s/^/#/g' $dhcp_config
+        fi
+    fi
 
-       if ! $eth0_up || ! $wired_lease; then
-              sed -i '/^domain=.*/s/^/#/g' /etc/dnsmasq.conf &&
-              echo Removing Domain for HotSpot clients as there is no lease on $ethdev or $ethdev is down ||
-              echo [ERROR AutoHotSpotN:ChkWiredState] Failed to Remove Domain for HotSpot clients
-       fi
+    if ! $eth0_up || ! $wired_lease; then
+        sed -i '/^domain=.*/s/^/#/g' $dhcp_config &&
+        logit "Removing Domain for HotSpot clients as there is no lease on $ethdev or $ethdev is down" ||
+        logit "[ChkWiredState] Failed to Remove Domain for HotSpot clients" "WARNING"
+    fi
 
-       if $eth0_up; then
-              sed -i '/^dhcp-option=wlan0,3/s/^/#/g' /etc/dnsmasq.conf #comment out option 3 - default behavior assigns i/f address as def-gw
-              echo Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip
-       else
-              sed -i '/^#dhcp-option=wlan0,3/s/^#//g' /etc/dnsmasq.conf	#uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
-              echo Bringing up hotspot with no gateway due to no eth0 connection
-       fi
+    if $eth0_up; then
+        sed -i '/^dhcp-option=wlan0,3/s/^/#/g' $dhcp_config  # comment out option 3 - default behavior assigns i/f address as def-gw
+        logit "Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip"
+    else
+        sed -i '/^#dhcp-option=wlan0,3/s/^#//g' $dhcp_config  # uncomment line defines option 3 with no value, over-riding default behavior no gw assigned
+        logit "Bringing up hotspot with no gateway due to no eth0 connection"
+    fi
 }
 
-FindSSID()
-{
-#Check to see what SSID's and MAC addresses are in range
-ssidChk=('NoSSid')
-i=0; j=0
-until [ $i -eq 1 ] #wait for wifi if busy, usb wifi is slower.
-do
-        ssidreply=$((iw dev "$wifidev" scan ap-force | egrep "^BSS|SSID:") 2>&1) >/dev/null 2>&1 
-        echo "SSid's in range: " $ssidreply
-        echo "Device Available Check try " $j
+FindSSID() {
+    #Check to see what SSID's and MAC addresses are in range
+    ssidChk=('NoSSid')
+    i=0; j=1
+    until [ $i -eq 1 ] ; do # wait for wifi if busy, usb wifi is slower.
+        ssidreply=$((iw dev "$wifidev" scan ap-force | egrep "^BSS|SSID:") 2>&1) >/dev/null 2>&1
+
+        if ! $DEBUG ; then
+            x=($(echo "$ssidreply" | grep "SSID:" | cut -d' ' -f 2))
+            for ssid in "${x[@]}" ; do if [[ ! "$ssids_pretty" =~ "$ssid" ]] ; then ssids_pretty="$ssids_pretty, $ssid"; fi; done
+            logit "SSid's in range: ${ssids_pretty/, /}"
+        else
+            logit "SSid's in range: $ssidreply" "DEBUG"
+        fi
+
+        (($j > 1)) && logit "Device Available Check try $j"
         if (($j >= 10)); then #if busy 10 times goto hotspot
-                 echo "Device busy or unavailable 10 times, going to Hotspot"
-                 ssidreply=""
-                 i=1
-	elif echo "$ssidreply" | grep "No such device (-19)" >/dev/null 2>&1; then
-                echo "No Device Reported, try " $j
-		NoDevice
+            logit "Device busy or unavailable 10 times, going to Hotspot"
+            ssidreply=""
+            i=1
+        elif echo "$ssidreply" | grep "No such device (-19)" >/dev/null 2>&1; then
+            logit "No Device Reported, try $j"
+            NoDevice
         elif echo "$ssidreply" | grep "Network is down (-100)" >/dev/null 2>&1 ; then
-                echo "Network Not available, trying again" $j
-                j=$((j + 1))
-                sleep 2
-	elif echo "$ssidreply" | grep "Read-only file system (-30)" >/dev/null 2>&1 ; then
-		echo "Temporary Read only file system, trying again"
-		j=$((j + 1))
-		sleep 2
-	elif echo "$ssidreply" | grep "Invalid exchange (-52)" >/dev/null 2>&1 ; then
-		echo "Invalid Exchange ~ Transient Error, trying again"
-		j=$((j + 1))
-		sleep 2
-	elif ! echo "$ssidreply" | grep "resource busy (-16)"  >/dev/null 2>&1 ; then
-               echo "Device Available, checking SSid Results"
-		i=1
-	else #see if device not busy in 2 seconds
-                echo "Device unavailable checking again, try " $j
-		j=$((j + 1))
-		sleep 2
-	fi
-done
+            logit "Network Not available, trying again $j"
+            j=$((j + 1))
+            sleep 2
+        elif echo "$ssidreply" | grep "Read-only file system (-30)" >/dev/null 2>&1 ; then
+            logit "Temporary Read only file system, trying again"
+            j=$((j + 1))
+            sleep 2
+        elif echo "$ssidreply" | grep "Invalid exchange (-52)" >/dev/null 2>&1 ; then
+            logit "Invalid Exchange ~ Transient Error, trying again"
+            j=$((j + 1))
+            sleep 2
+        elif ! echo "$ssidreply" | grep "resource busy (-16)"  >/dev/null 2>&1 ; then
+            logit "Device Available, checking SSid Results"
+            i=1
+        else #see if device not busy in 2 seconds
+            logit "Device unavailable checking again, try $j"
+            j=$((j + 1))
+            sleep 2
+        fi
+    done
 
-for ssid in "${ssidsmac[@]}"
-do
-     if (echo "$ssidreply" | grep "$ssid") >/dev/null 2>&1
-     then
-	      #Valid SSid found, passing to script
-              echo "Valid SSID Detected, assesing Wifi status"
-              ssidChk=$ssid
-              return 0
-      else
-	      #No Network found, NoSSid issued"
-              echo "No SSid found, assessing WiFi status"
-              ssidChk='NoSSid'
-     fi
-done
+    for ssid in "${ssidsmac[@]}" ; do
+        if (echo "$ssidreply" | grep "$ssid") >/dev/null 2>&1 ; then
+            #Valid SSid found, passing to script
+            logit "Valid SSID $ssid Detected, assesing Wifi status"
+            ssidChk=$ssid
+            return 0
+        else
+            #No Network found, NoSSid issued"
+            logit "Configured SSID $ssid not found..."
+            ssidChk='NoSSid'
+        fi
+    done
 }
 
-NoDevice()
-{
-	#if no wifi device,ie usb wifi removed, activate wifi so when it is
-	#reconnected wifi to a router will be available
-	echo "No wifi device connected"
+NoDevice() {
+	# if no wifi device,ie usb wifi removed, activate wifi so when it is
+	# reconnected wifi to a router will be available
+	logit "No wifi device connected"
 	wpa_supplicant -B -i "$wifidev" -c /etc/wpa_supplicant/wpa_supplicant.conf >/dev/null 2>&1
 	exit 1
 }
 
+# -- // main \\ --
 FindSSID
 
 #Create Hotspot or connect to valid wifi networks
-if [ "$ssidChk" != "NoSSid" ] 
-then
-       echo 0 > /proc/sys/net/ipv4/ip_forward #deactivate ip forwarding
-       if systemctl status hostapd | grep "(running)" >/dev/null 2>&1
-       then #hotspot running and ssid in range
-              KillHotspot
-              echo "Hotspot Deactivated, Bringing Wifi Up"
-              wpa_supplicant -B -i "$wifidev" -c /etc/wpa_supplicant/wpa_supplicant.conf >/dev/null 2>&1
-              ChkWifiUp
-       elif { wpa_cli -i "$wifidev" status | grep 'ip_address'; } >/dev/null 2>&1
-       then #Already connected
-              # echo "Wifi already connected to a network"
-              get_ssid_details Already
-       else #ssid exists and no hotspot running connect to wifi network
-              echo "Connecting to the WiFi Network"
-              wpa_supplicant -B -i "$wifidev" -c /etc/wpa_supplicant/wpa_supplicant.conf >/dev/null 2>&1
-              ChkWifiUp
-       fi
+if [ "$ssidChk" != "NoSSid" ] ; then
+    echo 0 > /proc/sys/net/ipv4/ip_forward #deactivate ip forwarding
+    if systemctl status hostapd | grep "(running)" >/dev/null 2>&1 ; then #hotspot running and ssid in range
+        KillHotspot
+        logit "Hotspot Deactivated, Bringing Wifi Up"
+        wpa_supplicant -B -i "$wifidev" -c /etc/wpa_supplicant/wpa_supplicant.conf >/dev/null 2>&1
+        ChkWifiUp
+    elif { wpa_cli -i "$wifidev" status | grep 'ip_address'; } >/dev/null 2>&1 ; then #Already connected
+        # echo "Wifi already connected to a network"
+        get_ssid_details Already
+        exit 0
+    else #ssid exists and no hotspot running connect to wifi network
+        logit "Connecting to the WiFi Network"
+        wpa_supplicant -B -i "$wifidev" -c /etc/wpa_supplicant/wpa_supplicant.conf >/dev/null 2>&1
+        ChkWifiUp
+    fi
 else #ssid or MAC address not in range
-       if systemctl status hostapd | grep "(running)" >/dev/null 2>&1
-       then
-              echo "Hostspot already active"
-       elif { wpa_cli status | grep "$wifidev"; } >/dev/null 2>&1
-       then
-              echo "Cleaning wifi files and Activating Hotspot"
-              wpa_cli terminate >/dev/null 2>&1
-              ip addr flush "$wifidev"
-              ip link set dev "$wifidev" down
-              rm -r /var/run/wpa_supplicant >/dev/null 2>&1
-              createAdHocNetwork
-       else #"No SSID, activating Hotspot"
-              createAdHocNetwork
-       fi
+    if systemctl status hostapd | grep "(running)" >/dev/null 2>&1 ; then
+        logit "Hostspot already active"
+    elif { wpa_cli status | grep "$wifidev"; } >/dev/null 2>&1 ; then
+        logit "Cleaning wifi files and Activating Hotspot"
+        wpa_cli terminate >/dev/null 2>&1
+        ip addr flush "$wifidev"
+        ip link set dev "$wifidev" down
+        rm -r /var/run/wpa_supplicant >/dev/null 2>&1
+        createAdHocNetwork
+        exit 0
+    else #"No SSID, activating Hotspot"
+        createAdHocNetwork
+        exit 0
+    fi
 fi

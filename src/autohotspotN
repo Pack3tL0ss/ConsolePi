@@ -77,15 +77,23 @@ logit() {
         c_status="${_red}${status}${_norm}"
     elif [[ ! "${status}" == "INFO" ]]; then
         c_status="${_yellow}${status}${_norm}"
-        [[ "${status}" == "WARNING" ]]
+        # [[ "${status}" == "WARNING" ]]
     fi
 
+    # -- Strip any ascii coloring out for sending to log
+    no_color_msg=${message/\\${_green}/} ; no_color_msg=${no_color_msg/\\${_red}/} ; no_color_msg=${no_color_msg/\\${_norm}/}
+
     # -- Log to log-file --
-    echo -e "$(date +"%b %d %T") [${c_status}][${process}] ${message}" >> $log_file
+    echo -e "$(date +"%b %d %T") [${c_status}][${process}] ${no_color_msg}" >> $log_file
 
     # -- Any warning/errors log to syslog/stdout as well --
     if [[ ! "${status}" == "INFO" ]] && [[ ! "${status}" == "DEBUG" ]]; then
-        echo -e "[${status}] ${message}"  # log any errors to syslog as well
+        if [[ -t 1 ]]; then
+            echo -e "[${c_status}] ${message}"  # log any errors to syslog as well
+        else
+            echo -e "[${status}] ${no_color_msg}"  # log any errors to syslog as well
+        fi
+
         if $fatal ; then
             # if status was ERROR which means FATAL then log and exit script
             echo -e "[${status}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1

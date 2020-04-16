@@ -102,6 +102,7 @@ logit() {
         # -- Always Log to stdout if this is a tty --
         [ -t 1 ] && echo -e "[${c_status}][${process}] ${message}"
     fi
+    return 0
 }
 
 # -- update path so script can find executables when ran as cron job --

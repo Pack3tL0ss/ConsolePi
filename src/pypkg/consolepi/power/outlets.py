@@ -252,6 +252,15 @@ class Outlets:
                     failures[k]['error'] = f'[PWR-TASMOTA] {k}:{failures[k]["address"]} "{response}" - Removed'
                     log.warning(failures[k]['error'], show=True)
 
+            # -- // esphome \\ --
+            # elif outlet['type'] == 'esphome':
+            #     response = self.do_esphome_cmd(outlet['address'])
+            #     outlet['is_on'] = response
+            #     if response not in [0, 1, True, False]:
+            #         failures[k] = outlet_data[k]
+            #         failures[k]['error'] = f'[PWR-ESP] {k}:{failures[k]["address"]} "{response}" - Removed'
+            #         log.warning(failures[k]['error'], show=True)
+
             # -- // dli \\ --
             elif outlet['type'].lower() == 'dli':
                 if TIMING:
@@ -387,6 +396,12 @@ class Outlets:
                 desired_state = not self.do_tasmota_cmd(address)
             response = self.do_tasmota_cmd(address, desired_state)
 
+        # -- // Toggle espHome port \\ --
+        # elif pwr_type.lower() == 'esphome':
+        #     if desired_state is None:
+        #         desired_state = not self.do_esphome_cmd(address)
+        #     response = self.do_esphome_cmd(address, desired_state)
+
         else:
             raise Exception('pwr_toggle: Invalid type ({}) or no name provided'.format(pwr_type))
 
@@ -426,6 +441,12 @@ class Outlets:
             if response:  # Only Cycle if outlet is currently ON
                 response = self.do_tasmota_cmd(address, 'cycle')
 
+        # --// CYCLE ESPHOME PORT \\--
+        # elif pwr_type == 'esphome':
+            # response = self.do_esphome_cmd(address)
+            # if response:  # Only Cycle if outlet is currently ON
+            #     response = self.do_tasmota_cmd(address, 'cycle')
+
         return response
 
     def pwr_rename(self, type, address, name=None, port=None):
@@ -442,10 +463,10 @@ class Outlets:
                     self.data['dli_power'][address][port]['name'] = name
             else:
                 response = 'ERROR port must be provided for outlet type dli'
-        elif (type.upper() == 'GPIO' or type.lower() == 'tasmota'):
-            print('rename of GPIO and tasmota ports not yet implemented')
-            print('They can be renamed manually by updating power.json')
-            response = 'rename of GPIO and tasmota ports not yet implemented'
+        elif type.lower in ['gpio', 'tasmota', 'esphome']:
+            print('rename of GPIO, tasmota, and espHome ports not yet implemented')
+            print('They can be renamed manually by updating ConsolePi.yaml')
+            response = 'rename of GPIO, tasmota, and espHome ports not yet implemented'
             # TODO get group name based on address, read json file into dict, change the name write it back
             #      and update dict
         else:

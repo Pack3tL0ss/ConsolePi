@@ -84,7 +84,7 @@ logit() {
     no_color_msg=${message/\\${_green}/} ; no_color_msg=${no_color_msg/\\${_red}/} ; no_color_msg=${no_color_msg/\\${_norm}/}
 
     # -- Log to log-file --
-    echo -e "$(date +"%b %d %T") [${c_status}][${process}] ${no_color_msg}" >> $log_file
+    echo -e "$(date +"%b %d %T") [${status}][${process}] ${no_color_msg}" >> $log_file
 
     # -- Any warning/errors log to syslog/stdout as well --
     if [[ ! "${status}" == "INFO" ]] && [[ ! "${status}" == "DEBUG" ]]; then
@@ -248,7 +248,7 @@ ChkWiredState() {
         if $valid_dom; then
             if ! $(grep -q 'domain=' $dhcp_config); then
                 sed -i -e :a -e  '/^\\n*$/{$d;N;};/\\n$/ba' $dhcp_config # make sure EoF has \n
-                    echo "${eth0_dom}" >> $dhcp_config &&
+                echo "${eth0_dom}" >> $dhcp_config &&
                     use_eth_dom=true || use_eth_dom=false
             else
                 sed -i "/domain=/s/.*/${eth0_dom}/" $dhcp_config &&

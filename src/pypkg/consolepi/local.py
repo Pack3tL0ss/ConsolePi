@@ -56,17 +56,22 @@ class Local():
         devs = {'_dup_ser': {}}
         usb_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='usb', subsystem='tty')]
         pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
-        root_dev_list = usb_list + pci_list
+        ama_list = [dev.replace('/dev/', '') for dev in config.cfg_yml.get('TTYAMA', {})]
+        root_dev_list = usb_list + pci_list + ama_list
 
         for root_dev in root_dev_list:
             # determine if the device already has a udev alias & collect available path options for use on lame adapters
             dev_name = by_path = by_id = None
-            _dev = pyudev.Devices.from_name(context, 'tty', root_dev)
+            try:
+                _dev = pyudev.Devices.from_name(context, 'tty', root_dev)
+            except pyudev._errors.DeviceNotFoundByNameError:
+                log.error(f'pyudev Ubable to find {root_dev}')
+                continue  # TODO Catching error as have seen it in consolepi-mdnsreg not sure if continue is appropriate
             _devlinks = _dev.get('DEVLINKS', '').split()
             if not _devlinks:   # skip occurs on non rpi
                 continue
             for _d in _devlinks:
-                if '/dev/serial/by-' not in _d:
+                if '/dev/serial' not in _d:
                     dev_name = _d.replace('/dev/', '')
                 elif '/dev/serial/by-path/' in _d:
                     by_path = _d
@@ -81,6 +86,10 @@ class Local():
             _props = {p.lower() if p != 'ID_USB_INTERFACE_NUM' else 'id_ifnum': _dev.properties[p]
                       for p in _dev.properties}
             devs[dev_name] = {**devs[dev_name], **_props}
+
+            # -- no need for remaining logic on ttyAMA adapters (local UART)
+            if 'ttyAMA' in root_dev:
+                continue
 
             # with some multi-port adapters the model_id and vendor_id need to be pulled from higher in stack
             this_dev = _dev

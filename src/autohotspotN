@@ -173,7 +173,7 @@ start_stop_dnsmasq() {
     # if all files are in place to use new separate instance for hotspot dhcp do so otherwise assume using dnsmasq default instance
     if [ -f $ahs_dhcp_config ] && [ -f /etc/dnsmasq.d/01-consolepi ] &&
        ( [ -L /etc/systemd/system/consolepi-autohotspot-dhcp.service ] || [ -f /etc/systemd/system/consolepi-autohotspot-dhcp.service ] ); then
-        logit "ConsolePi Specific dnsmasq instance Configured"
+        logit "Using ConsolePi Specific dnsmasq instance"
         systemctl $1 consolepi-autohotspot-dhcp.service
     else
         logit "ConsolePi Specific dnsmasq instance *not* Configured, using default dnsmasq instance"

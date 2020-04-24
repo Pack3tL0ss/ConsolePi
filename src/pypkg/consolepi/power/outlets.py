@@ -11,7 +11,7 @@ except RuntimeError:
     is_rpi = False
 
 from halo import Halo
-from consolepi import log, config, requests
+from consolepi import log, config, requests, utils
 from consolepi.power import DLI
 
 try:
@@ -128,6 +128,85 @@ class Outlets:
                 return 'Unexpected response, port returned on state expected off'
         return r
 
+    def do_esphome_cmd(self, address, relay_id, command=None):
+        '''Perform Operation on espHome outlets.
+
+        params:
+        address: IP or resolvable hostname
+        command:
+            True | 'ON': power the outlet on
+            False | 'OFF': power the outlet off
+            'Toggle': Toggle the outlet
+            'cycle': Cycle Power on outlets that are powered On
+            Will Return current state by default
+        '''
+        # sub to make the api call to the tasmota device
+        def esphome_req(*args, command: str = command):
+            try:
+                method = "GET" if command is None else "POST"
+                response = requests.request(method, url=url if command is not None else status_url, headers=headers, timeout=3)
+                if response.status_code == 200:
+                    if command is None:
+                        _response = response.json().get('value')
+                    else:
+                        if command in ['toggle', 'cycle']:
+                            _response = not cur_state
+                        else:
+                            _response = command
+                        # _response = requests.request("GET", status_url,
+                        #                              headers=headers, timeout=3).json().get('value')
+                else:
+                    _response = '[{}] error returned {}'.format(response.status_code, response.text)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                _response = 'Unreachable'
+            except requests.exceptions.RequestException as e:
+                log.debug(f"[esphome_req] {url.replace('http://', '').replace('https://', '').split('/')[0]} Exception: {e}")
+                _response = 'Unreachable'  # So I can determine if other exceptions types are possible when unreachable
+            return _response
+        # -------- END SUB --------
+
+        status_url = 'http://' + address + '/switch/' + str(relay_id)
+        headers = {
+            'Cache-Control': "no-cache",
+            'Connection': "keep-alive",
+            'cache-control': "no-cache"
+            }
+        # -- Get initial State of Outlet --
+        cur_state = esphome_req(command=None)
+
+        cycle = False
+        if command is not None:
+            if isinstance(command, bool):
+                if command:
+                    if cur_state is True:
+                        return cur_state
+                    url = status_url + '/turn_on'
+                else:
+                    if cur_state is False:
+                        return cur_state
+                    url = status_url + '/turn_off'
+            elif command in ['toggle', 'cycle']:
+                url = status_url + '/toggle'
+                if command == 'cycle':
+                    if cur_state:
+                        cycle = True
+                    else:
+                        return 'Cycle is only valid for ports that are Currently ON'
+            else:
+                return f'[PWR-ESP] DEV Note: Invalid command \'{command}\' passed to func'
+
+        # -- // Send Request to esphome \\ --
+        r = esphome_req()
+        if isinstance(r, bool):
+            cur_state = r
+            if cycle:
+                if r is False:
+                    time.sleep(CYCLE_TIME)
+                    r = esphome_req()
+                else:
+                    return 'Unexpected response, port returned on state expected off'
+        return r
+
     def load_dli(self, address, username, password):
         '''
         Returns instace of DLI class
@@ -150,24 +229,24 @@ class Outlets:
 
     def pwr_start_update_threads(self, upd_linked=False, failures={}, t_name='init'):
         kwargs = {'upd_linked': upd_linked, 'failures': failures}
-        outlet_data = self.data.get('defined')
+        outlets = self.data.get('defined')
         if not failures:
-            if 'failures' in outlet_data:
-                failures = outlet_data['failures']
+            if 'failures' in outlets:
+                failures = outlets['failures']
         if failures:  # re-attempt connection to failed power controllers on refresh
-            outlet_data = {**outlet_data, **failures}
+            outlets = {**outlets, **failures}
             failures = {}
 
         # this shouldn't happen, but prevents spawning multiple updates for same outlet
-        if outlet_data is not None:
-            for k in outlet_data:
+        if outlets is not None:
+            for k in outlets:
                 found = False
                 for t in threading.enumerate():
                     if t.name == f'{t_name}_pwr_{k}':
                         found = True
                         break
                 if not found:
-                    threading.Thread(target=self.pwr_get_outlets, args=[{k: outlet_data[k]}],
+                    threading.Thread(target=self.pwr_get_outlets, args=[{k: outlets[k]}],
                                      kwargs=kwargs, name=t_name + '_pwr_' + k).start()
 
     def update_linked_devs(self, outlet):
@@ -211,10 +290,10 @@ class Outlets:
                     threading.Thread(target=dlis[address].dli.session.close).start()
 
     def pwr_get_outlets(self, outlet_data={}, upd_linked=False, failures={}):
-        '''Get Details for Outlets defined in power.json
+        '''Get Details for Outlets defined in ConsolePi.yaml power section
 
         params: - All Optional
-            outlet_data:dict, The outlets that need to be updated, if not provided will get all outlets defined in power.json
+            outlet_data:dict, The outlets that need to be updated, if not provided will get all outlets defined in ConsolePi.yaml
             upd_linked:Bool, If True will update just the linked ports, False is for dli and will update
                 all ports for the dli.
             failures:dict: when refreshing outlets pass in previous failures so they can be re-tried
@@ -253,13 +332,17 @@ class Outlets:
                     log.warning(failures[k]['error'], show=True)
 
             # -- // esphome \\ --
-            # elif outlet['type'] == 'esphome':
-            #     response = self.do_esphome_cmd(outlet['address'])
-            #     outlet['is_on'] = response
-            #     if response not in [0, 1, True, False]:
-            #         failures[k] = outlet_data[k]
-            #         failures[k]['error'] = f'[PWR-ESP] {k}:{failures[k]["address"]} "{response}" - Removed'
-            #         log.warning(failures[k]['error'], show=True)
+            elif outlet['type'] == 'esphome':
+                # TODO have do_esphome accept list, slice, or str for one or multiple relays
+                relays = utils.listify(outlet.get('relays', k))  # if they have not specified the relay try name of outlet
+                outlet['is_on'] = {}
+                for r in relays:
+                    response = self.do_esphome_cmd(outlet['address'], r)
+                    outlet['is_on'][r] = {'state': response, 'name': r}
+                    if response not in [True, False]:
+                        failures[k] = outlet_data[k]
+                        failures[k]['error'] = f'[PWR-ESP] {k}:{failures[k]["address"]} "{response}" - Removed'
+                        log.warning(failures[k]['error'], show=True)
 
             # -- // dli \\ --
             elif outlet['type'].lower() == 'dli':
@@ -397,10 +480,10 @@ class Outlets:
             response = self.do_tasmota_cmd(address, desired_state)
 
         # -- // Toggle espHome port \\ --
-        # elif pwr_type.lower() == 'esphome':
-        #     if desired_state is None:
-        #         desired_state = not self.do_esphome_cmd(address)
-        #     response = self.do_esphome_cmd(address, desired_state)
+        elif pwr_type.lower() == 'esphome':
+            if desired_state is None:
+                desired_state = not self.do_esphome_cmd(address, port)
+            response = {'state': self.do_esphome_cmd(address, port, desired_state)}
 
         else:
             raise Exception('pwr_toggle: Invalid type ({}) or no name provided'.format(pwr_type))
@@ -442,10 +525,8 @@ class Outlets:
                 response = self.do_tasmota_cmd(address, 'cycle')
 
         # --// CYCLE ESPHOME PORT \\--
-        # elif pwr_type == 'esphome':
-            # response = self.do_esphome_cmd(address)
-            # if response:  # Only Cycle if outlet is currently ON
-            #     response = self.do_tasmota_cmd(address, 'cycle')
+        elif pwr_type == 'esphome':
+            response = {'state': self.do_esphome_cmd(address, port, 'cycle')}
 
         return response
 
@@ -497,27 +578,25 @@ class Outlets:
                                      port=self.update_linked_devs(outlet)[1] if outlet['type'] == 'dli' else None,  # NoQA
                                      noff=noff, noconfirm=True))
             elif action == 'cycle':
-                if outlet['type'] != 'dli':
+                if outlet['type'] in ['dli', 'esphome']:
+                    if 'linked_ports' in outlet:
+                        linked_ports = utils.listify(outlet['linked_ports'])
+                        for p in linked_ports:
+                            # Start a thread for each port run in parallel
+                            # menu status for (linked) power menu is updated on load
+                            threading.Thread(
+                                    target=self.pwr_cycle,
+                                    args=[outlet['type'], outlet['address']],
+                                    kwargs={'port': p, 'noff': noff},
+                                    name=f'cycle_{p}'
+                                ).start()
+                else:
                     threading.Thread(
                             target=self.pwr_cycle,
                             args=[outlet['type'], outlet['address']],
                             kwargs={'noff': noff},
                             name='cycle_{}'.format(outlet['address'])
                         ).start()
-                elif 'linked_ports' in outlet:
-                    if isinstance(outlet['linked_ports'], int):
-                        linked_ports = [outlet['linked_ports']]
-                    else:
-                        linked_ports = outlet['linked_ports']
-                    for p in linked_ports:
-                        # Start a thread for each port run in parallel
-                        # menu status for (linked) power menu is updated on load
-                        threading.Thread(
-                                target=self.pwr_cycle,
-                                args=[outlet['type'], outlet['address']],
-                                kwargs={'port': p, 'noff': noff},
-                                name='cycle_{}'.format(p)
-                            ).start()
 
         # Wait for all threads to complete
         while True:

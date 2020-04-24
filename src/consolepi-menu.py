@@ -194,7 +194,7 @@ class ConsolePiMenu(Rename):
                     _linked = ', '.join([x for x in outlet.get('linked_devs', []) if x in _menu_devs])
 
                 # -- // Linked DLI OUTLET MENU LINE(s) \\ --
-                if outlet['type'].lower() == 'dli':
+                if outlet['type'].lower() in ['dli', 'esphome']:
                     if outlet.get('linked_devs') and outlet.get('is_on'):  # Avoid orphan header when no outlets are linked
                         for dli_port in outlet['is_on']:
                             _outlet = outlet['is_on'][dli_port]

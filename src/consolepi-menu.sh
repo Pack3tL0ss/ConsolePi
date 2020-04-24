@@ -321,7 +321,7 @@ main_menu() {
         for this_tty in ${tty_list[@]}; do
             get_tty_name    # checks for alias created via udev rules and uses alias as a descriptor if exists
             [[ $item -lt 10 ]] && spc="  " || spc=" "
-            echo " ${item}.${spc}${tty_name}" #  Using $WORD settings"
+            echo " ${item}.${spc}${tty_name}"
             ((item++))
         done
 

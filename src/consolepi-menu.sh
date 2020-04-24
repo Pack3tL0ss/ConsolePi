@@ -26,8 +26,9 @@ get_tty_devices() {
 }
 
 # -- If ttyUSB device has defined alias, Display the alias in menu --
+# TODO when ttyUSB1 and ttyUSB10 11 12 13 all are present all names will be assigned to same root in menu
 get_tty_name() {
-    tty_name=$(ls -l /dev |grep ^lrwx.*${this_tty##*/} |cut -d: -f2|awk '{print $2}')
+    tty_name=$(ls -l /dev |grep ^lrwx.*${this_tty##*/}$ |cut -d: -f2|awk '{print $2}')
     [[ -z $tty_name ]] && tty_name=${this_tty##*/} ||
         tty_name="${tty_name} (${this_tty##*/})"
 
@@ -38,9 +39,9 @@ get_remote_devices() {
     if [[ -f $cloud_file ]]; then
         unset rem_cmd_list
         prev_host="init"
-        while IFS=, read rem_host rem_ip rem_user rem_dev rem_port 
+        while IFS=, read rem_host rem_ip rem_user rem_dev rem_port
         do
-            if [ ! $rem_host == '' ]; then 
+            if [ ! $rem_host == '' ]; then
                 [[ ! $prev_host == $rem_host ]] && echo " -- REMOTE CONNECTIONS (${rem_host}) --"
                 echo "${item}. Connect to ${rem_dev##*/} on ${rem_host} Using $WORD settings"
                 rem_cmd_list+=("ssh -t ${rem_user}@${rem_ip} picocom '${rem_dev}'")
@@ -75,7 +76,7 @@ flow_menu() {
     do_flow_pretty
     valid_selection=false
     while ! $valid_selection; do
-        valid_selection=true        
+        valid_selection=true
         echo ' ======================================================='
         echo '  -----------  Select Desired Flow Control  ----------- '
         echo ' ======================================================='
@@ -183,7 +184,7 @@ databits_menu() {
             dbits=$selection
             valid_input=true
         elif [[ ${selection,,} == "b" ]]; then
-            valid_input=true                
+            valid_input=true
         else
             echo -e  "Invalid Selection '$selection' please try again."
         fi
@@ -203,7 +204,7 @@ baud_menu() {
 		echo ' 2. 1200'
 		echo ' 3. 9600 (default)'
 		echo ' 4. 19200'
-		echo ' 5. 57600'            
+		echo ' 5. 57600'
 		echo ' 6. 115200'
 		echo ' 7. custom'
         echo
@@ -211,7 +212,7 @@ baud_menu() {
 		echo
         echo '======================================================='
 		read -ep " Select Desired Baud Rate >>" selection
-		
+
         if (( ! $selection == "b" )) && (( $selection > 0 )) && (( $selection < 7 )); then
             baud=${baud_list[ (($selection-1)) ]}
             baud_valid=true
@@ -317,7 +318,7 @@ main_menu() {
         item=1
         # echo " -- LOCAL CONNECTIONS --"
         echo ''
-        for this_tty in ${tty_list[@]}; do 
+        for this_tty in ${tty_list[@]}; do
             get_tty_name    # checks for alias created via udev rules and uses alias as a descriptor if exists
             echo " ${item}. ${tty_name}" #  Using $WORD settings"
             ((item++))

@@ -544,7 +544,7 @@ class Outlets:
                     self.data['dli_power'][address][port]['name'] = name
             else:
                 response = 'ERROR port must be provided for outlet type dli'
-        elif type.lower in ['gpio', 'tasmota', 'esphome']:
+        elif type.lower() in ['gpio', 'tasmota', 'esphome']:
             print('rename of GPIO, tasmota, and espHome ports not yet implemented')
             print('They can be renamed manually by updating ConsolePi.yaml')
             response = 'rename of GPIO, tasmota, and espHome ports not yet implemented'

@@ -483,7 +483,7 @@ class Outlets:
         elif pwr_type.lower() == 'esphome':
             if desired_state is None:
                 desired_state = not self.do_esphome_cmd(address, port)
-            response = {'state': self.do_esphome_cmd(address, port, desired_state)}
+            response = self.do_esphome_cmd(address, port, desired_state)
 
         else:
             raise Exception('pwr_toggle: Invalid type ({}) or no name provided'.format(pwr_type))
@@ -526,7 +526,7 @@ class Outlets:
 
         # --// CYCLE ESPHOME PORT \\--
         elif pwr_type == 'esphome':
-            response = {'state': self.do_esphome_cmd(address, port, 'cycle')}
+            response = self.do_esphome_cmd(address, port, 'cycle')
 
         return response
 
@@ -573,12 +573,21 @@ class Outlets:
             if action == 'toggle':
                 # skip any defined dlis that don't have any linked_outlets defined
                 # if not outlet['type'] == 'dli' or outlet.get('linked_devs')):
-                if outlet.get('linked_devs'):
+                if outlet['type'] == 'dli':
+                    if outlet.get('linked_devs'):
+                        responses.append(self.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
+                                        port=self.update_linked_devs(outlet)[1] ,  # NoQA
+                                        noff=noff, noconfirm=True))
+                elif outlet['type'] == 'esphome':
+                    _relays = utils.listify(outlet.get('relays'))
+                    for p in _relays:
+                        responses.append(self.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
+                                         port=p, noff=noff, noconfirm=True))
+                else:
                     responses.append(self.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
-                                     port=self.update_linked_devs(outlet)[1] if outlet['type'] == 'dli' else None,  # NoQA
                                      noff=noff, noconfirm=True))
             elif action == 'cycle':
-                if outlet['type'] in ['dli', 'esphome']:
+                if outlet['type'] == 'dli':
                     if 'linked_ports' in outlet:
                         linked_ports = utils.listify(outlet['linked_ports'])
                         for p in linked_ports:
@@ -590,6 +599,16 @@ class Outlets:
                                     kwargs={'port': p, 'noff': noff},
                                     name=f'cycle_{p}'
                                 ).start()
+                elif outlet['type'] == 'esphome':
+                    relays = utils.listify(outlet.get('relays', []))
+                    for p in relays:
+                        # Start a thread for each port run in parallel
+                        threading.Thread(
+                                target=self.pwr_cycle,
+                                args=[outlet['type'], outlet['address']],
+                                kwargs={'port': p, 'noff': noff},
+                                name=f'cycle_{p}'
+                            ).start()
                 else:
                     threading.Thread(
                             target=self.pwr_cycle,

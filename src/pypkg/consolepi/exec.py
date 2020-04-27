@@ -76,7 +76,7 @@ class ConsolePiExec:
         # -- // Perform Auto Power On (if not already on) \\ --
         for o in outlets["linked"][pwr_key]:
             outlet = outlets["defined"].get(o.split(":")[0])
-            ports = [] if ":" not in o else json.loads(o.split(":")[1])
+            ports = [] if ":" not in o else json.loads(o.split(":")[1].replace('\'', '"'))
             _addr = outlet["address"]
 
             # -- // DLI web power switch Auto Power On \\ --
@@ -100,6 +100,25 @@ class ConsolePiExec:
                                 ).start()
                                 self.autopwr_wait = True
                         else:
+                            log.warning(
+                                f"{pwr_key} Error operating linked outlet @ {o}",
+                                show=True,
+                            )
+
+            # -- // esphome Auto Power On \\ --
+            elif outlet["type"].lower() == "esphome":
+                for p in ports:
+                    log.debug(
+                        f"[Auto PwrOn] Power ON {pwr_key} Linked Outlet {outlet['type']}:{_addr} p{p}"
+                    )
+                    if not outlet["is_on"][p]["state"]:  # This is just checking what's in the dict
+                        r = self.pwr.pwr_toggle(
+                            outlet["type"], _addr, desired_state=True, port=p
+                        )
+                        if isinstance(r, bool):
+                            self.pwr.data['defined'][o.split(':')[0]]['is_on'][p]['state'] = r
+                        else:
+                            log.show(r)
                             log.warning(
                                 f"{pwr_key} Error operating linked outlet @ {o}",
                                 show=True,
@@ -568,6 +587,24 @@ class ConsolePiExec:
                                                         f"Error returned from dli {host_short} when "
                                                         f"attempting to {_action} port {_port}"
                                                     )
+                                    # --// EVAL responses for espHome outlets \\--
+                                    elif _type == "esphome":
+                                        host_short = utils.get_host_short(_addr)
+                                        _port = menu_actions[ch]["kwargs"]["port"]
+                                        # --// Operations performed on ALL outlets \\--
+                                        if (isinstance(response, bool) and _port is not None):
+                                            pwr.data['defined'][_grp]['is_on'][_port]['state'] = response
+                                            if (
+                                                menu_actions[ch]["function"].__name__
+                                                == "pwr_cycle"
+                                                and not response
+                                            ):
+                                                _msg = f"{_grp}({host_short})" if _grp != host_short else f"{_grp}"
+                                                log.show(
+                                                    f"{_msg} Port {_port} if Off.  Cycle is not valid"
+                                                )
+                                        elif (isinstance(response, str) and _port is not None):
+                                            log.show(response)
 
                                     # --// EVAL responses for GPIO and tasmota outlets \\--
                                     else:
@@ -633,8 +670,7 @@ class ConsolePiExec:
         _on_str = "{{green}}ON{{norm}}"
         _cycle_str = "{{red}}C{{green}}Y{{red}}C{{green}}L{{red}}E{{norm}}"
         _type = _addr = None
-        if "desired_state" in kwargs:
-            to_state = kwargs["desired_state"]
+        to_state = kwargs.get("desired_state")
         if _func in ["pwr_toggle", "pwr_cycle", "pwr_rename"]:
             _type = args[0].lower()
             _addr = args[1]
@@ -644,6 +680,10 @@ class ConsolePiExec:
                 if not port == "all":
                     port_name = pwr.data["dli_power"][_addr][port]["name"]
                     to_state = not pwr.data["dli_power"][_addr][port]["state"]
+            elif _type == "esphome":
+                port = port_name = kwargs["port"]
+                if not port == "all":
+                    to_state = not pwr.data['defined'][_grp]['is_on'][port]['state']
             else:
                 port = f"{_type}:{_addr}"
                 port_name = _grp
@@ -680,6 +720,8 @@ class ConsolePiExec:
             elif not to_state:
                 if _type == "dli":
                     prompt = f"Power {_off_str} {host_short} Outlet {port}({port_name})"
+                elif _type == "esphome":
+                    prompt = f"Power {_off_str} {host_short} Outlet {port}"
                 else:  # GPIO or TASMOTA
                     prompt = f"Power {_off_str} Outlet {_grp}({_type}:{_addr})"
 
@@ -730,6 +772,9 @@ class ConsolePiExec:
                 prompt = "Cycle Power on {} Outlet {}({})".format(
                     host_short, port, port_name
                 )
+            elif _type == "esphome":
+                _msg = f"{_grp}({host_short})" if _grp != host_short else f"{_grp}"
+                prompt = f"Cycle Power on {_msg} Outlet {port}"
             else:  # GPIO or TASMOTA
                 prompt = "Cycle Power on Outlet {}({})".format(port_name, port)
             spin_text = "Cycling {}Outlet{}".format(

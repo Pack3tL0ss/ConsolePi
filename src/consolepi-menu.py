@@ -193,35 +193,37 @@ class ConsolePiMenu(Rename):
                 if show_linked:
                     _linked = ', '.join([x for x in outlet.get('linked_devs', []) if x in _menu_devs])
 
-                # -- // Linked DLI OUTLET MENU LINE(s) \\ --
-                if outlet['type'].lower() in ['dli', 'esphome']:
-                    if outlet.get('linked_devs') and outlet.get('is_on'):  # Avoid orphan header when no outlets are linked
-                        for dli_port in outlet['is_on']:
-                            _outlet = outlet['is_on'][dli_port]
-                            _state = states[_outlet['state']]
-                            state_list.append(_outlet['state'])
-                            _state = menu.format_line(_state).text
-                            _name = ' ' + _outlet['name'] if 'ON' in _state else _outlet['name']
-                            body.append(f"[{_state}] {_name} ({r} Port:{dli_port}) {_linked}")
-                            menu_actions[str(item)] = {
-                                'function': pwr.pwr_toggle,
-                                'args': [outlet['type'], outlet['address']],
-                                'kwargs': {'port': dli_port, 'desired_state': not _outlet['state']},
-                                'key': r
-                                }
-                            menu_actions['c' + str(item)] = {
-                                'function': pwr.pwr_cycle,
-                                'args': ['dli', outlet['address']],
-                                'kwargs': {'port': dli_port},
-                                'key': 'dli_pwr'
-                                }
-                            menu_actions['r' + str(item)] = {
-                                'function': pwr.pwr_rename,
-                                'args': ['dli', outlet['address']],
-                                'kwargs': {'port': dli_port},
-                                'key': 'dli_pwr'
-                                }
-                            item += 1
+                # -- // Linked DLI OUTLET AND ESPHOME MENU LINE(s) \\ --
+                if (outlet['type'].lower() == 'dli' and outlet.get('linked_devs') and outlet.get('is_on')) or \
+                   (outlet['type'].lower()) == 'esphome':
+                    for dli_port in outlet['is_on']:
+                        _outlet = outlet['is_on'][dli_port]
+                        _state = states[_outlet['state']]
+                        state_list.append(_outlet['state'])
+                        _state = menu.format_line(_state).text
+                        _name = ' ' + _outlet['name'] if 'ON' in _state else _outlet['name']
+                        body.append(f"[{_state}] {_name} ({r} Port:{dli_port}) {_linked}")
+                        menu_actions[str(item)] = {
+                            'function': pwr.pwr_toggle,
+                            'args': [outlet['type'], outlet['address']],
+                            'kwargs': {'port': dli_port, 'desired_state': not _outlet['state']},
+                            'key': r
+                            }
+                        menu_actions['c' + str(item)] = {
+                            'function': pwr.pwr_cycle,
+                            'args': [outlet['type'].lower(),
+                                     outlet['address'] if outlet['type'].lower() == 'dli' else r],
+                            'kwargs': {'port': dli_port},
+                            'key': 'dli_pwr' if outlet['type'].lower() == 'dli' else r
+                            }
+                        menu_actions['r' + str(item)] = {
+                            'function': pwr.pwr_rename,
+                            'args': [outlet['type'].lower(),
+                                     outlet['address'] if outlet['type'].lower() == 'dli' else r],
+                            'kwargs': {'port': dli_port},
+                            'key': 'dli_pwr' if outlet['type'].lower() == 'dli' else r
+                            }
+                        item += 1
 
                 # -- // GPIO or tasmota OUTLET MENU LINE \\ --
                 else:

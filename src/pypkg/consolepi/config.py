@@ -123,8 +123,14 @@ class Config():
                                                                  hosts=self.hosts, with_path=True)
                 self.linked_exists = True
                 for dev in outlet_data[k]['linked_devs']:
-                    _this = [k] if outlet_data[k].get('type').lower() != 'dli' \
-                        else [f"{k}:{[int(p) for p in outlet_data[k]['linked_devs'][dev]]}"]
+                    _type = outlet_data[k].get('type').lower()
+                    if _type == 'dli':
+                        _this = [f"{k}:{[int(p) for p in outlet_data[k]['linked_devs'][dev]]}"]
+                    elif _type == 'esphome':
+                        _linked = utils.listify(outlet_data[k]['linked_devs'][dev])
+                        _this = [f'{k}:{[p for p in _linked]}']
+                    else:
+                        _this = [k]
                     by_dev[dev] = _this if dev not in by_dev else by_dev[dev] + _this
             else:
                 outlet_data[k]['linked_devs'] = []

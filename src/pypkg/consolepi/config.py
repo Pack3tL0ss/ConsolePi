@@ -89,7 +89,7 @@ class Config():
         self.default_dbits = ovrd.get('default_dbits', DEFAULT_DBITS)
         self.default_parity = ovrd.get('default_parity', DEFAULT_PARITY)
         self.default_flow = ovrd.get('default_flow', DEFAULT_FLOW)
-        self.default_sbits = ovrd.get('default_flow', DEFAULT_SBITS)
+        self.default_sbits = ovrd.get('default_sbits', DEFAULT_SBITS)
         self.cloud_pull_only = ovrd.get('cloud_pull_only', False)
         self.compact_mode = ovrd.get('compact_mode', False)
         self.remote_timeout = int(ovrd.get('remote_timeout', 3))

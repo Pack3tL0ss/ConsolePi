@@ -1,5 +1,7 @@
 # Google Drive | Google Sheets Setup for ConsolePi cloud/clustering feature
 
+> NOTE: Initial cloud authorization for raspbian desktop versions is done by doing a cloud refresh from the `consolepi-menu`, however by default `consolepi-menu` invokes a wrapper script which actually launches the menu with sudo privs.  Given most browsers don't allow running with sudo privs, you'll need to launch the menu with the `cloud` argument to authorize gdrive as described below (i.e. `consolepi-menu cloud`).  The `cloud` argument is only necessary once to complete authorization.  After that you can simply launch with `consolepi-menu`.
+
 ## Create Project
 
 - Go To https://console.developers.google.com/ login to your google account if not already
@@ -30,7 +32,7 @@ Rename the resulting file ```credentials.json```
 
 Before ConsolePi can leverage the Google APIs to update the spreadsheet, we will need to Authorize the script.
 
-* First place the ```credentials.json``` file retrieved from the developers console in ```/etc/ConsolePi/cloud/gdrive/.credentials``` directory.  
+* First place the ```credentials.json``` file retrieved from the developers console in ```/etc/ConsolePi/cloud/gdrive/.credentials``` directory.
 
   *Notice the dot prepending the credentials directory, it won't show up in directory listings unless you do an ```ls -a```, and won't appear in the GUI file browser unless the option to display hidden files and folders is enabled.*
 
@@ -38,9 +40,9 @@ Before ConsolePi can leverage the Google APIs to update the spreadsheet, we will
 
 - Login to a desktop (GUI) session on Raspbian and open a terminal window.
 
-- issue the ```consolepi-menu``` command.  Then select the option to refresh cloud data.  This will start the script, which needs authorization the first time it is ran (on each ConsolePi)
+- issue the ```consolepi-menu cloud``` command.  Then select the option to refresh cloud data.  This will start the script, which needs authorization the first time it is ran (on each ConsolePi).  The ```cloud``` argument is necessary as ```consolepi-menu``` currently runs with a sudo wrapper and most browsers don't support running as sudo.  After authorization is complete you can launch the menu using ```consolepi-menu``` without the ```cloud``` argument.
 
-  - A browser should open prompting you to login and authorize the permissions being requested by the app. 
+  - A browser should open prompting you to login and authorize the permissions being requested by the app.
 
   - You should end up with 2 files in the ```/etc/ConsolePi/cloud/gdrive/.credentials``` directory.
 
@@ -62,7 +64,7 @@ To get around this I've provided a Windows compatible exe (created and tested on
 
 - Place the ```credentials.json``` file in the same directory as the executable on a Windows system and double click the ```gdrive-ConsolePi-headless-auth-win.exe```
 
-  - This should cause a browser to launch and present the Authorization flow. 
+  - This should cause a browser to launch and present the Authorization flow.
 
   Once Complete you should have a new token.pickle file in the same directory.
 
@@ -70,7 +72,7 @@ To get around this I've provided a Windows compatible exe (created and tested on
 
   *Notice the dot prepending the credentials directory, it won't show up in directory listings unless you do an ```ls -a```, and won't appear in the GUI file browser unless the option to display hidden files and folders is enabled.*
 
-* Login to the ConsolePi and issue the ```consolepi-menu``` command.  Then press the option to update the cloud config.  
+* Login to the ConsolePi and issue the ```consolepi-menu``` command.  Then press the option to update the cloud config.
 
 
 

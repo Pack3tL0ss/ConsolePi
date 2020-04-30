@@ -68,6 +68,7 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
 - Fixed minor issue with keyboard update to US when regulatory domain for hotspot for WLAN is set to US, issue was if user opted to not enable AutoHotSpot (a new option in last release), reg domain wasn't used but was defaulted to US.
 - Fixed Show/Hide Linked devices toggle in Power Menu for dli and espHome.  Now correctly displays just what is linked to that specific port (was showing all linked to any port on that dli/espHome device).  Also fixed display of locally defined hosts (TELNET/SSH hosts defined in ConsolePi.yaml), so they appear if linked as well.
 - Enhanced the Show/Hide Linked devices toggle to show any adapters defined, vs. previously only showing if the adapter was actually connected. If your terminal client is configured to honor ASCII coloring linked adapters that are disconnected will appear in red (Only applies to adapters, connevtivity is not verified for TELNET/SSH hosts configured in ConsolePi.yaml).
+- Fixed issue with rename function for adapters that don't present a serial #
 
 # Features
 ## **Feature Summary Image**

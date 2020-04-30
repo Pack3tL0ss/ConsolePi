@@ -306,7 +306,7 @@ class ConsolePiExec:
             this_ser2net = config.ser2net_conf.get(a, {})
             print(f"ser2net config: {this_ser2net.get('line', '!! Not Found !!')}")
 
-        input("\nPress Any Key To Continue\n")
+        input("\nPress Enter To Continue\n")
 
     # ------ // EXECUTE MENU SELECTIONS \\ ------ #
     def menu_exec(self, choice, menu_actions, calling_menu="main_menu"):

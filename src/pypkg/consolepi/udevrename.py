@@ -1,10 +1,12 @@
 #!/etc/ConsolePi/venv/bin/python3
 
+import os
 from consolepi import log, config, utils
 
 
 class Rename():
-    def __init__(self):
+    def __init__(self, menu):
+        self.menu = menu
         self.udev_pending = False
         self.baud = config.default_baud
         self.data_bits = config.default_dbits
@@ -14,6 +16,7 @@ class Rename():
         self.parity_pretty = {'o': 'Odd', 'e': 'Even', 'n': 'No'}
         self.flow_pretty = {'x': 'Xon/Xoff', 'h': 'RTS/CTS', 'n': 'No'}
         self.rules_file = config.static.get('RULES_FILE', '/etc/udev/rules.d/10-ConsolePi.rules')
+        self.ttyama_rules_file = config.static.get('TTYAMA_RULES_FILE', '/etc/udev/rules.d/11-ConsolePi-ttyama.rules')
         self.ser2net_file = config.static.get('SER2NET_FILE', '/etc/ser2net.conf')
 
     # --- // START MONSTER RENAME FUNCTION \\ --- # TODO maybe break this up a bit
@@ -59,6 +62,7 @@ class Rename():
                 if i == f'/dev/{from_name}':
                     break
             _dev = local.adapters[i].get('config')  # dict
+            # -- these values are always safe, values set by config.py if not extracted from ser2net.conf
             baud = _dev['baud']
             dbits = _dev['dbits']
             flow = _dev['flow']
@@ -91,7 +95,7 @@ class Rename():
                 self.sbits = self.con_dict['sbits']
                 self.con_dict = None
 
-            if 'ttyUSB' in from_name or 'ttyACM' in from_name:
+            if 'ttyUSB' in from_name or 'ttyACM' in from_name or 'ttyAMA' in from_name:
                 devs = local.detect_adapters()
                 if f'/dev/{from_name}' in devs:
                     _tty = devs[f'/dev/{from_name}']
@@ -101,7 +105,8 @@ class Rename():
                     id_vendor = _tty['id_vendor']  # NoQA pylint: disable=unused-variable
                     id_serial = _tty['id_serial_short']
                     id_ifnum = _tty['id_ifnum']
-                    id_path = _tty['id_path']
+                    id_path = _tty['id_path']  # NoQA
+                    lame_devpath = _tty['lame_devpath']
                     root_dev = _tty['root_dev']
                 else:
                     return 'ERROR: Adapter no longer found'
@@ -142,74 +147,95 @@ class Rename():
                                                          parity=parity, flow=flow)
                             break
 
-                # -- // LAME ADAPTERS NO SERIAL NUM (map usb port) \\ --
                 else:
-                    # config.log.warning('[ADD ADAPTER] Lame adapter missing key detail: idVendor={}, idProduct={}, serial#={}'.format(  # NoQA
-                    log.warning('[ADD ADAPTER] Lame adapter missing key detail: idVendor={}, idProduct={}, serial#={}'.format(  # NoQA
-                                id_vendorid, id_prod, id_serial))
-                    print('\n\n This Device Does not present a serial # (LAME!).  So the adapter itself can\'t be uniquely '
-                          'identified.\n There are 2 options for naming this device:')
+                    if f'/dev/{from_name}' in devs:
+                        devname = devs[f'/dev/{from_name}'].get('devname', '')
+                        # -- // local ttyAMA adapters \\ --
+                        if 'ttyAMA' in devname:
+                            udev_line = ('KERNEL=="{}", SYMLINK+="{}"'.format(
+                                            devname.replace('/dev/', ''), to_name))
 
-                    mlines = [
-                        'Map it to the USB port it\'s plugged in to'
-                        '\n\tAnytime a {} {} tty device is plugged into the port it\n\tis currently plugged into it will adopt '
-                        'the {} alias'.format(
-                            _tty['id_vendor_from_database'], _tty['id_model_from_database'], to_name),
-                        'Map it by vedor ({0}) and model ({1}) alone.'
-                        '\n\tThis will only work if this is the only {0} {1} adapter you plan to plug in'.format(
-                            _tty['id_vendor_from_database'], _tty['id_model_from_database'])
-                        # 'Temporary mapping' \
-                        # '\n\tnaming will only persist during this menu session\n'
-                    ]
-                    self.menu_formatting('body', text=mlines)
-                    print('\n b. back (abort rename)\n')
-                    valid_ch = {
-                        '1': 'by_path',
-                        '2': 'by_id'
-                    }
-                    valid = False
-                    while not valid:
-                        print(' Please Select an option')
-                        ch = self.wait_for_input(lower=True)
-                        if ch == 'b':
-                            return
-                        elif ch in valid_ch:
-                            valid = True
+                            error = None
+                            while not error:
+                                error = self.add_to_udev(udev_line, '# END TTYAMA-DEVS')
+                                error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
+                                                             parity=parity, flow=flow)
+                                break
                         else:
-                            print('invalid choice {} Try Again.'.format(ch))
+                            # -- // LAME ADAPTERS NO SERIAL NUM (map usb port) \\ --
+                            log.warning('[ADD ADAPTER] Lame adapter missing key detail: idVendor={}, idProduct={}, serial#={}'.format(  # NoQA
+                                        id_vendorid, id_prod, id_serial))
+                            print('\n\n This Device Does not present a serial # (LAME!).  So the adapter itself can\'t be '
+                                  'uniquely identified.\n There are 2 options for naming this device:')
 
-                    udev_line = None
-                    if valid_ch[ch] == 'temp':
-                        error = True
-                        print('The Temporary rename feature is not yet implemented')
-                    elif valid_ch[ch] == 'by_path':
-                        udev_line = (
-                            'SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(
-                                id_vendorid, id_prod), 'ENV{{ID_PATH}}=="{}", SYMLINK+="{}"'.format(id_path, to_name),
-                        )
-                    elif valid_ch[ch] == 'by_id':
-                        udev_line = (
-                            'SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(
-                                id_vendorid, id_prod),
-                            'ENV{{ID_USB_INTERFACE_NUM}}=="{}", SYMLINK+="{}", GOTO="END"'.format(_tty['id_ifnum'], to_name)
-                        )
+                            mlines = [
+                                'Map it to the USB port it\'s plugged in to'
+                                '\n\tAnytime a {} {} tty device is plugged into the port it\n\tis currently plugged into it will '
+                                'adopt the {} alias'.format(
+                                    _tty['id_vendor_from_database'], _tty['id_model_from_database'], to_name),
+                                'Map it by vedor ({0}) and model ({1}) alone.'
+                                '\n\tThis will only work if this is the only {0} {1} adapter you plan to plug in'.format(
+                                    _tty['id_vendor_from_database'], _tty['id_model_from_database'])
+                                # 'Temporary mapping' \
+                                # '\n\tnaming will only persist during this menu session\n'
+                            ]
+                            self.menu.menu_formatting('body', text=mlines)
+                            print('\n b. back (abort rename)\n')
+                            valid_ch = {
+                                '1': 'by_path',
+                                '2': 'by_id'
+                            }
+                            valid = False
+                            while not valid:
+                                print(' Please Select an option')
+                                ch = self.wait_for_input()
+                                if ch.lower == 'b':
+                                    log.show(f'Rename {from_name} --> {to_name} Aborted')
+                                    return
+                                elif ch.lower in valid_ch:
+                                    valid = True
+                                else:
+                                    print('invalid choice {} Try Again.'.format(ch.orig))
+
+                            udev_line = None
+                            if valid_ch[ch.lower] == 'temp':
+                                error = True
+                                print('The Temporary rename feature is not yet implemented')
+                            elif valid_ch[ch.lower] == 'by_path':
+                                udev_line = (
+                                    'ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(  # NoQA
+                                        id_vendorid, id_prod), 'ATTRS{{devpath}}=="{}", ENV{{ID_USB_INTERFACE_NUM}}=="{}", '\
+                                                               'SYMLINK+="{}"'.format(lame_devpath, id_ifnum, to_name),
+                                )
+                            elif valid_ch[ch.lower] == 'by_id':
+                                udev_line = (
+                                    'SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(  # NoQA
+                                        id_vendorid, id_prod),
+                                    'ENV{{ID_USB_INTERFACE_NUM}}=="{}", SYMLINK+="{}", GOTO="END"'.format(id_ifnum, to_name)  # NoQA
+                                )
+                            else:
+                                error = ['Unable to add udev rule adapter missing details', 'idVendor={}, idProduct={}, serial#={}'.format(  # NoQA
+                                    id_vendorid, id_prod, id_serial)]
+
+                            while udev_line:
+                                error = self.add_to_udev(udev_line[0], '# END BYPATH-POINTERS')
+                                error = self.add_to_udev(udev_line[1], '# END BYPATH-DEVS', label='{}_{}'.format(id_vendorid, id_prod))  # NoQA
+                                error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
+                                                             parity=parity, flow=flow)
+                                break
                     else:
-                        error = ['Unable to add udev rule adapter missing details', 'idVendor={}, idProduct={}, serial#={}'.format(  # NoQA
-                            id_vendorid, id_prod, id_serial)]
-
-                    while udev_line:
-                        error = self.add_to_udev(udev_line[0], '# END BYPATH-POINTERS')
-                        error = self.add_to_udev(udev_line[1], '# END BYPATH-DEVS', label='{}_{}'.format(id_vendorid, id_prod))
-                        error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
-                                                     parity=parity, flow=flow)
-                        break
+                        log.error(f'Device {from_name} No Longer Found', show=True)
 
             # TODO simplify once ser2net existing verified
             else:   # renaming previously named port.
+                # -- // local ttyAMA adapters \\ --
+                devname = local.adapters[f'/dev/{from_name}']['udev'].get('devname', '')
+                rules_file = self.rules_file if 'ttyAMA' not in devname else self.ttyama_rules_file
+
                 cmd = 'sudo sed -i "s/{0}{3}/{1}{3}/g" {2} && grep -q "{1}{3}" {2} && [ $(grep -c "{0}{3}" {2}) -eq 0 ]'.format(
                     from_name,
                     to_name,
-                    self.rules_file,
+                    rules_file,
                     ''
                     )
                 error = utils.do_shell_cmd(cmd, shell=True)
@@ -340,7 +366,7 @@ class Rename():
         '''
         found = ser_label_exists = get_next = update_file = False  # init
         goto = ''  # init
-        rules_file = config.static.get('RULES_FILE')
+        rules_file = self.rules_file if 'ttyAMA' not in udev_line else self.ttyama_rules_file
         if utils.valid_file(rules_file):   # pylint: disable=maybe-no-member
             with open(rules_file) as x:  # pylint: disable=maybe-no-member
                 for line in x:
@@ -372,7 +398,7 @@ class Rename():
             if goto is None:
                 goto = last_line.strip().replace('LABEL=', '').replace('"', '') if 'LABEL=' in last_line else None
         else:
-            error = utils.do_shell_cmd('sudo cp /etc/ConsolePi/src/10-ConsolePi.rules /etc/udev/rules.d/')
+            error = utils.do_shell_cmd(f'sudo cp /etc/ConsolePi/src/{os.path.basename(rules_file)} /etc/udev/rules.d/')
             found = True
             goto = 'END'
 

@@ -175,14 +175,6 @@ misc_imports(){
             logit "Success - copying staged autohotspot-dchp configs" ||
                 logit "Failure - copying staged autohotspot-dchp configs" "WARNING"
         fi
-        # -- power.json --
-        # TODO REMOVE this config is now part of ConsolePi.yaml
-        # if $power && [[ -d ${stage_dir}power.json ]]; then
-        #     found_path=${stage_dir}power.json
-        #     mv $found_path $consolepi_dir 2>> $log_file &&
-        #     logit "Found power control definitions @ ${found_path} Moving into $consolepi_dir"  ||
-        #     logit "Error occurred moving your ${found_path} into $consolepi_dir " "WARNING"
-        # fi
 
     fi
     unset process
@@ -701,7 +693,7 @@ get_known_ssids() {
 }
 
 misc_stuff() {
-    if [ ${wlan_country^^} == "US" ]; then
+    if $hotspot && [ ${wlan_country^^} == "US" ]; then
         process="Set Keyboard Layout"
         logit "${process} - Starting"
         sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard && logit "KeyBoard Layout changed to ${wlan_country,,}"

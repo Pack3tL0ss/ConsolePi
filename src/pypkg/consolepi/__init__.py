@@ -8,6 +8,11 @@ from consolepi.utils import Utils  # NoQA
 LOG_FILE = '/var/log/ConsolePi/consolepi.log'
 
 
+# class Response(requests.Response):
+#     def __init__(self, state=None):
+#         self.state = state
+
+
 class Response():
     def __init__(self, ok: bool, output=None, error=None, status_code=None, state=None, do_json=False,  **kwargs):
         self.ok = ok
@@ -15,7 +20,10 @@ class Response():
         self.error = error
         self.state = state
         self.status_code = status_code
-        self.json = None if not do_json else json.dumps(output)
+        if 'json' in kwargs:
+            self.json = kwargs['json']
+        else:
+            self.json = None if not do_json else json.dumps(output)
 
 
 class ConsolePiLog:

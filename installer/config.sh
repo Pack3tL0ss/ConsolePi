@@ -298,7 +298,7 @@ collect() {
             echo -e "\nTo Complete Power Control Setup you need to populate the power section of /etc/ConsolePi/ConsolePi.yaml"
             echo -e "You can copy and edit ConsolePi.yaml.example.  Ensure you follow proper yaml format"
             echo -e "\nConsolePi currently supports Control of GPIO controlled Power Outlets (relays), IP connected"
-            echo -e "outlets running tasmota firmware, and digital-loggers web/ethernet Power Switches."
+            echo -e "outlets flashed with espHome or tasmota firmware, and digital-loggers web/ethernet Power Switches."
             echo -e "See GitHub for more details.\n"
             read -n 1 -p "Press any key to continue"
         fi

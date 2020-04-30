@@ -4,6 +4,9 @@ BETTER_EXCEPTIONS=1
 if [ ! -z $1 ] && [ "$1" = 'sh' ]; then
     echo "Launching -bash- ConsolePi Serial Console Menu"
     sudo /etc/ConsolePi/src/consolepi-menu.sh; rt=$?
+elif [ ! -z $1 ] && [ "$1" = 'cloud' ]; then
+    echo "Launching ConsolePi Menu for cloud Authorization"
+    /etc/ConsolePi/src/consolepi-menu.py; rt=$?
 elif [ ! -z $1 ] && [ "$1" = 'dev' ]; then
     echo "Launching ConsolePi Development Menu"
     sudo /etc/ConsolePi/src/consolepi-menu-dev.py "${@:2}"; rt=$?

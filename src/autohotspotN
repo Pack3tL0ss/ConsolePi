@@ -77,15 +77,23 @@ logit() {
         c_status="${_red}${status}${_norm}"
     elif [[ ! "${status}" == "INFO" ]]; then
         c_status="${_yellow}${status}${_norm}"
-        [[ "${status}" == "WARNING" ]]
+        # [[ "${status}" == "WARNING" ]]
     fi
 
+    # -- Strip any ascii coloring out for sending to log
+    no_color_msg=${message/\\${_green}/} ; no_color_msg=${no_color_msg/\\${_red}/} ; no_color_msg=${no_color_msg/\\${_norm}/}
+
     # -- Log to log-file --
-    echo -e "$(date +"%b %d %T") [${c_status}][${process}] ${message}" >> $log_file
+    echo -e "$(date +"%b %d %T") [${status}][${process}] ${no_color_msg}" >> $log_file
 
     # -- Any warning/errors log to syslog/stdout as well --
     if [[ ! "${status}" == "INFO" ]] && [[ ! "${status}" == "DEBUG" ]]; then
-        echo -e "[${status}] ${message}"  # log any errors to syslog as well
+        if [[ -t 1 ]]; then
+            echo -e "[${c_status}] ${message}"  # log any errors to syslog as well
+        else
+            echo -e "[${status}] ${no_color_msg}"  # log any errors to syslog as well
+        fi
+
         if $fatal ; then
             # if status was ERROR which means FATAL then log and exit script
             echo -e "[${status}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
@@ -94,6 +102,7 @@ logit() {
         # -- Always Log to stdout if this is a tty --
         [ -t 1 ] && echo -e "[${c_status}][${process}] ${message}"
     fi
+    return 0
 }
 
 # -- update path so script can find executables when ran as cron job --
@@ -164,7 +173,7 @@ start_stop_dnsmasq() {
     # if all files are in place to use new separate instance for hotspot dhcp do so otherwise assume using dnsmasq default instance
     if [ -f $ahs_dhcp_config ] && [ -f /etc/dnsmasq.d/01-consolepi ] &&
        ( [ -L /etc/systemd/system/consolepi-autohotspot-dhcp.service ] || [ -f /etc/systemd/system/consolepi-autohotspot-dhcp.service ] ); then
-        logit "ConsolePi Specific dnsmasq instance Configured"
+        logit "Using ConsolePi Specific dnsmasq instance"
         systemctl $1 consolepi-autohotspot-dhcp.service
     else
         logit "ConsolePi Specific dnsmasq instance *not* Configured, using default dnsmasq instance"
@@ -240,7 +249,7 @@ ChkWiredState() {
         if $valid_dom; then
             if ! $(grep -q 'domain=' $dhcp_config); then
                 sed -i -e :a -e  '/^\\n*$/{$d;N;};/\\n$/ba' $dhcp_config # make sure EoF has \n
-                    echo "${eth0_dom}" >> $dhcp_config &&
+                echo "${eth0_dom}" >> $dhcp_config &&
                     use_eth_dom=true || use_eth_dom=false
             else
                 sed -i "/domain=/s/.*/${eth0_dom}/" $dhcp_config &&

@@ -187,6 +187,9 @@ do_reload_svcs() {
         if systemctl is-active $svc >/dev/null 2>&1 ; then
             dots "restart $svc"
             sudo systemctl restart $svc ; do_error $?
+        elif systemctl is-failed $svc >/dev/null 2>&1 ; then
+            dots "Starting Previously Failed $svc"
+            sudo systemctl start $svc ; do_error $?
         else
             dots "$svc is not active"; echo "SKIP"
         fi

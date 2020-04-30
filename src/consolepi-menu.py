@@ -40,7 +40,7 @@ class ConsolePiMenu(Rename):
             re.compile('Warning: Permanently added .* to the list of known hosts')
         ]
         self.do_menu_load_warnings()
-        super().__init__()
+        super().__init__(self.menu)
 
     def print_attribute(self, ch, locs={}):
         '''Debugging Function allowing user to print class attributes / function returns.
@@ -187,41 +187,47 @@ class ConsolePiMenu(Rename):
             body = []
             _linked = ''
             footer = {'opts': [], 'before': []}
-            _menu_devs = {**cpi.local.adapters, **config.hosts}
             for r in sorted(outlets):
                 outlet = outlets[r]
-                if show_linked:
-                    _linked = ', '.join([x for x in outlet.get('linked_devs', []) if x in _menu_devs])
-
-                # -- // Linked DLI OUTLET MENU LINE(s) \\ --
-                if outlet['type'].lower() == 'dli':
-                    if outlet.get('linked_devs') and outlet.get('is_on'):  # Avoid orphan header when no outlets are linked
-                        for dli_port in outlet['is_on']:
-                            _outlet = outlet['is_on'][dli_port]
-                            _state = states[_outlet['state']]
-                            state_list.append(_outlet['state'])
-                            _state = menu.format_line(_state).text
-                            _name = ' ' + _outlet['name'] if 'ON' in _state else _outlet['name']
-                            body.append(f"[{_state}] {_name} ({r} Port:{dli_port}) {_linked}")
-                            menu_actions[str(item)] = {
-                                'function': pwr.pwr_toggle,
-                                'args': [outlet['type'], outlet['address']],
-                                'kwargs': {'port': dli_port, 'desired_state': not _outlet['state']},
-                                'key': r
-                                }
-                            menu_actions['c' + str(item)] = {
-                                'function': pwr.pwr_cycle,
-                                'args': ['dli', outlet['address']],
-                                'kwargs': {'port': dli_port},
-                                'key': 'dli_pwr'
-                                }
-                            menu_actions['r' + str(item)] = {
-                                'function': pwr.pwr_rename,
-                                'args': ['dli', outlet['address']],
-                                'kwargs': {'port': dli_port},
-                                'key': 'dli_pwr'
-                                }
-                            item += 1
+                # -- // Linked DLI OUTLET AND ESPHOME MENU LINE(s) \\ --
+                if (outlet['type'].lower() == 'dli' and outlet.get('linked_devs') and outlet.get('is_on')) or \
+                   (outlet['type'].lower()) == 'esphome':
+                    for _port in outlet['is_on']:
+                        if show_linked:
+                            this_linked = config.cfg_yml.get('POWER', {}).get(r, {}).get('linked_devs', {})
+                            _linked = [
+                                        '{}'.format('{{red}}' + k + '{{norm}}'
+                                                    if k not in cpi.local.adapters and '/host/' not in k else k)
+                                        for k in this_linked if str(_port) in this_linked[k]
+                                      ]
+                            # _linked = ', '.join([k for k in this_linked if str(_port) in this_linked[k]])
+                        _outlet = outlet['is_on'][_port]
+                        _state = states[_outlet['state']]
+                        state_list.append(_outlet['state'])
+                        _state = menu.format_line(_state).text
+                        _name = ' ' + _outlet['name'] if 'ON' in _state else _outlet['name']
+                        body.append(f"[{_state}] {_name} ({r} Port:{_port}) {_linked if _linked else ''}")
+                        menu_actions[str(item)] = {
+                            'function': pwr.pwr_toggle,
+                            'args': [outlet['type'], outlet['address']],
+                            'kwargs': {'port': _port, 'desired_state': not _outlet['state']},
+                            'key': r
+                            }
+                        menu_actions['c' + str(item)] = {
+                            'function': pwr.pwr_cycle,
+                            'args': [outlet['type'].lower(),
+                                     outlet['address'] if outlet['type'].lower() == 'dli' else r],
+                            'kwargs': {'port': _port},
+                            'key': 'dli_pwr' if outlet['type'].lower() == 'dli' else r
+                            }
+                        menu_actions['r' + str(item)] = {
+                            'function': pwr.pwr_rename,
+                            'args': [outlet['type'].lower(),
+                                     outlet['address'] if outlet['type'].lower() == 'dli' else r],
+                            'kwargs': {'port': _port},
+                            'key': 'dli_pwr' if outlet['type'].lower() == 'dli' else r
+                            }
+                        item += 1
 
                 # -- // GPIO or tasmota OUTLET MENU LINE \\ --
                 else:
@@ -229,12 +235,18 @@ class ConsolePiMenu(Rename):
                     if pwr.data['defined'][r].get('errors'):
                         log.show(f'{r} - {pwr.data["defined"][r]["errors"]}')
                         del pwr.data['defined'][r]['errors']
+                    elif show_linked:
+                        this_linked = config.cfg_yml.get('POWER', {}).get(r, {}).get('linked_devs', {})
+                        # _linked = ', '.join([k for k in this_linked])
+                        _linked = ['{}'.format('{{red}}' + k + '{{norm}}'
+                                   if k not in cpi.local.adapters and '/host/' not in k else k)
+                                   for k in this_linked]
                     if isinstance(outlet.get('is_on'), bool):
                         _state = states[outlet['is_on']]
                         state_list.append(outlet['is_on'])
                         _state = menu.format_line(_state).text
                         body.append(f"[{_state}] {' ' + r if 'ON' in _state else r} ({outlet['type']}:{outlet['address']}) "
-                                    f"{_linked}")
+                                    f"{_linked if _linked else ''}")
                         menu_actions[str(item)] = {
                             'function': pwr.pwr_toggle,
                             'args': [outlet['type'], outlet['address']],

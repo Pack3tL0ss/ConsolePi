@@ -2,7 +2,7 @@
 
 Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to local **or remote** ConsolePis via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).
 
-*Check out the [ConsolePi Clustering Feature](#consolepi-cluster--cloud-config)!!*
+*Check out the [ConsolePi Clustering Feature](#consolepi-cluster--cloud-sync)!!*
 
 ***TL;DR:***
 Single Command Install Script. Run from a RaspberryPi running raspbian (that has internet access):
@@ -28,7 +28,8 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
       - [Power Control](#power-control)
           - [Power Control Setup](#power-control-setup)
               - [GPIO Connected Relays](#gpio-connected-relays)
-              - [WiFi Smart Outlets (tasmota)](#wifi-smart-outlets-tasmota)
+              - [espHome flashed WiFi Smart Outlets](#esphome-flashed-wifi-smart-outlets)
+              - [Tasmota flashed WiFi Smart Outlets](#tasmota-flashed-wifi-smart-outlets)
               - [DLI Web/Ethernet Power Switch](#dli-webethernet-power-switch)
       - [Manual Host Entries](#manual-host-entries)
       - [ConsolePi Extras](#consolepi-extras)
@@ -39,6 +40,9 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
      - [Alternative Hardware Installs](#alternative-hardware-installs)
  - [ConsolePi Usage](#consolepi-usage)
      - [Configuration](#configuration)
+       - [menu sorting and connection settings](#consolepi-menu-sorting-and-connection-settings)
+       - [Local UART support (GPIO)](#local-uart-support)
+       - [OVERRIDES](#overrides)
      - [Console Server](#console-server)
          - [TELNET](#telnet)
          - [SSH / BlueTooth (`consolepi-menu`)](#ssh--bluetooth)
@@ -58,22 +62,12 @@ Python 3.6 or greater is *now* required for the menu, mdns, and api to work prop
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
 
-### APR 2019 *Biggest Update since original Posting*
-- This update was primarily an exercise in code organization (more work needs to be done here, learning on the fly a bit), breaking things up, but a lot of features were added in the process
-- Configuration File format/file changed from ConsolePi.conf to ConsolePi.yaml all configuration including optional outlets and manually defined hosts should be configured in ConsolePi.yaml
-    - During the upgrade ConsolePi.conf settings are converted for you.  power.json and hosts.json if they exist are not converted, those settings *should* still work, but very little testing is done with the old file formats so user is warned during upgrade and should change to the new format
-- The rename function for adding / changing adapter names (udev rules and connection settings) overhauled, and now works for remote adapters.
-- hosts function has additional features, you can group hosts, and determine what menu they will display in:  show_in_main: true and they will show in the main menu along with available adapters discovered locally and/or on remotes otherwise they will show in the rshell menu.
-- Outlet auto-pwr-on shows more detail about linked outlets when auto-pwr-on is invoked for a remote
-- Auto-Pwr-on works for manually defined hosts.  If it fails the initial connection it will check-wait-repeat to see if the host has booted if the initial state of the outlet was OFF, then attempt to re-connect automatically.
-- The power menu has a toggle option to show/hide associated linked devices/hosts (only connected linked devices show up, but any defined host linkage will show)
-- AutoHotSpot now runs it's own instance of dnsmasq and does not get it's config from dnsmasq.conf or /etc/dnsmasq.d - allows custom dnsmasq setup for other interfaces without conflict
-- The I broke shit fallback:  consolepi-menu will provide a prompt to launch into the simplified backup menu if the menu crashes.  I catch most exceptions, but occasionally a scenario comes up I failed to accomodate, if that happens so you're not dead in the water re the menu it will offer to launch the backup... The backup is fast and simple, and has essentially no dependencies, but it only supports local adapters (not remotes, hosts, outlets, etc)
-- The local shell option is no longer.  The menu now directly supports valid shell commands, so if you want to ping a device without exiting and re-launching you can just type `ping 10.0.30.51` from the menu prompt and it will work.
-- Added support for more OVERRIDE options in ConsolePi.yaml.  These options change the default behavior of ConsolePi i.e. 'cloud_pull_only: true'.  Will retrieve from cloud but won't update the cloud with it's information... That one is useful for the feature below:
-- ConsolePi can now be deployed to non RaspberryPis with minimal effort, including Windows Subsystem for Linux (because why not).  See more detailed explanation and install options below.
-- There is more stuff but I can't recall all of it... the [picture](#feature-summary-image) below hightlights the bulk of the feature set.
-
+### APR 2020 .1 minor release
+- Most Significant Change is addition of support for espHome flashed outlets
+- Added Support for local UARTs.  The Pi4 actually has 6 UARTs (5 are useable), ConsolePi now supports those onboard UARTS (they will show in the menu).  See the [Local UART support (GPIO)](#local-uart-support) section for details.
+- Fixed minor issue with keyboard update to US when regulatory domain for hotspot for WLAN is set to US, issue was if user opted to not enable AutoHotSpot (a new option in last release), reg domain wasn't used but was defaulted to US.
+- Fixed Show/Hide Linked devices toggle in Power Menu for dli and espHome.  Now correctly displays just what is linked to that specific port (was showing all linked to any port on that dli/espHome device).  Also fixed display of locally defined hosts (TELNET/SSH hosts defined in ConsolePi.yaml), so they appear if linked as well.
+- Enhanced the Show/Hide Linked devices toggle to show any adapters defined, vs. previously only showing if the adapter was actually connected. If your terminal client is configured to honor ASCII coloring linked adapters that are disconnected will appear in red (Only applies to adapters, connevtivity is not verified for TELNET/SSH hosts configured in ConsolePi.yaml).
 
 # Features
 ## **Feature Summary Image**
@@ -164,9 +158,10 @@ Triggered by ConsolePi Acting as DHCP server (generally hotspot):
 
    **Make Hostnames unique for each ConsolePi**
 
- - The ```consolepi-addconsole``` command supports assingment of custom names to the aliases used to identify the serial adapters when using the predictable TELNET ports. (udev rules).  If configured these names are used in ```consolepi-menu```, the default device name is used if not (i.e. ttyUSB0), but that's less predictable.
+ - The rename option in `consolepi-menu` or the `consolepi-addconsole` command supports assingment of custom aliases used to predictably identify the serial adapters with friendly names (udev rules).  If configured these names are used in `consolepi-menu`, the default device name is used if not (i.e. ttyUSB0), but that's less predictable.
 
- - `consolepi-menu` does not attempt to connect to the cloud on launch, it retrieves remote data from the local cache file only, verifies the devices are reachable, and if so adds them to the menu.  To trigger a cloud update use the refresh option.  *Note that ConsolePi will automatically update the local cache file when it gets an IP address, or adapters are added/removed, so the refresh should only be necessary if other ConsolePis have come online since the refresh.*
+ - `consolepi-menu` does not attempt to connect to the cloud on launch, it retrieves remote data from the local cache file only, verifies the devices are reachable, and if so adds them to the menu.  To trigger a cloud update use the refresh option.
+ >Note: that ConsolePi will automatically update the local cache file when it gets an IP address, or adapters are added/removed, so the refresh should only be necessary if other ConsolePis have come online since the refresh.  Additionally ConsolePis will automatically discover each other via mdns if on the same network, this will automatically update the local-cache if a new remote ConsolePi is discovered.
 
  - Read The [Google Drive Setup](readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
 
@@ -210,6 +205,19 @@ POWER:
     address: 4
     linked_devs: ofc-2930F-sw
     type: GPIO
+  outlet1:
+    address: outlet1.kabrew.com
+    type: esphome
+    relays: outlet1
+    linked_devs:
+      Orange6: outlet1
+  powerstrip1:
+    address: powerstrip1.kabrew.com
+    type: esphome
+    relays: [relay1, relay2, relay3, relay4]
+    linked_devs:
+      AP-SERU: relay1
+      r2-6200f-sw: [relay3, relay4]
   labpower1:
     type: dli
     address: labpower1.example.com
@@ -263,10 +271,18 @@ POWER: <-- required section header
 
 ![GPIO Pin Layout](readme_content/pin_layout.svg)
 
-#### WiFi Smart Outlets (Tasmota)
-- You'll need a WiFi smart outlet running Tasmota.  There are plenty of resources online to help with that.  You should start [here](https://blakadder.github.io/templates/)
+#### espHome Flashed WiFi Smart Outlets
+- You'll need a WiFi smart outlet running espHome.  There are plenty of resources online to help with that.
+- The one requirement from an espHome standpoint is to enable the local web-server via
+```
+# Enable Local Web Server  ## THIS IS NOT FOR ConsolePi.yaml, it's for espHome config used to build Binary ##
+web_server:
+  port: 80
+```
+*This is done in the yaml file used to compile the binary for flashing the espHome device*
+
 - You can control the outlet as long as ConsolePi can reach it (IP).
-- When setting the outlet to connect to ConsolePi via hotspot, it's best to configure a DHCP reservation so it is assigned the same IP everytime.  This way the IP in power.json is always valid.
+- When setting the outlet to connect to ConsolePi via hotspot, it's best to configure a DHCP reservation so it is assigned the same IP everytime.  This way the IP in ConsolePi.yaml is always valid.
 
 To add a DHCP reservation you'll need to determine the MAC address of the smart-outlet.  If you're not sure what the MAC is, you can run `tail -f /var/log/syslog | grep DHCPACK`.  Then power on the smart-outlet.  Once it connects and gets DHCP you should see a log with the MAC.  Then use <ctrl+c> to break out of `tail -f`.
 To Create the reservation add a file in either `/etc/ConsolePi/dnsmasq.d/autohotspot/` (`/etc/dnsmasq.d/` if your ConsolePi was deployed before the change to a ConsolePi specific dnsmasq instance) directory called something like `smartoutlets`
@@ -279,6 +295,51 @@ Then in nano add something like the following:
 dhcp-host=b4:e6:2d:aa:bb:99,outleta,10.3.0.11
 ```
 repeat as needed for multiple outlets.
+
+Then the `POWER:` section of your `ConsolePi.yaml` would include something like this:
+```
+POWER:
+  outlet1:
+    address: outlet1.example.com
+    type: esphome
+    relays: outlet1
+    linked_devs:
+      Orange6: outlet1
+  powerstrip1:
+    address: 10.0.10.123
+    type: esphome
+    relays: [relay1, relay2, relay3, relay4]
+    linked_devs:
+      AP-SERU: relay1
+      Orange6: [relay2, relay3]
+```
+The example above highlights a couple of scenarios.  A multi-port power-strip, and a single port device.  With espHome there is a "relays:" key in the config where the relays are defined.  The values should match what was configured in the yaml used to compile the binary flashed to the device, for example this is a snippet from the config used to build the binary for powerstrip1 above:
+```
+### THIS IS NOT AN EXAMPLE FOR ConsolePi.yaml, This is an example for espHome, more details found on espHome's site
+switch:
+  - platform: gpio
+    name: "Relay1"
+    id: relay1
+    icon: "mdi:power-socket-us"
+    pin:
+      number: GPIO13
+  - platform: gpio
+    name: "Relay2"
+    id: relay2
+    icon: "mdi:power-socket-us"
+    pin:
+      number: GPIO12
+```
+Notice the `id` of the relay that controls the outlet is what is configured as `relays:` in ConsolePi.yaml.  Beyond that similar to other outlet types you can link a device with a single outlet/relay or multiple.  You can also specify the same device across multiple controlled outlets/power-strips.  "Orange6" above will lead to outlet1 as well as relay2 and 3 on powerstrip1 all being toggled ON when connecting to Orange6 via the menu.
+
+
+
+#### Tasmota Flashed WiFi Smart Outlets
+> Note: I only tested Tasmota with single outlet devices, never with a multi-relay device like a power strip.  So support for Tasmota at the moment is for single port devices.  espHome which should be supported on the same devices Tasmota is supported on does have support for power-strips.
+- You'll need a WiFi smart outlet running Tasmota.  There are plenty of resources online to help with that.  You should start [here](https://blakadder.github.io/templates/)
+- You can control the outlet as long as ConsolePi can reach it (IP).
+- When setting the outlet to connect to ConsolePi via hotspot, it's best to configure a DHCP reservation so it is assigned the same IP everytime.  This way the IP in ConsolePi.yaml is always valid.  *some instructions on how that is done can be found above in the espHome section*
+
 
 Then the `POWER:` section of your `ConsolePi.yaml` would include something like this:
 ```
@@ -358,6 +419,13 @@ HOSTS:
 - omv will show up in the rshell menu under group "WADELAB-HOSTS"
 - outlet linkages with these devices are supported by adding the device name in linked_devs for an outlet defined in the POWER: section
     > Ensure names are unique across both hosts defined here and the adapters defined via the menu or `consolepi-addconsole`.  If there is a conflict the serial adapter wins.
+
+### consolepi-extras
+Toward the end of the install, and via `consolepi-extras` anytime after the install, you are provided with options to automate the deployment (and removal for most) of some additional tools.  This is a selection of tools not required for ConsolePi, but often desired, or useful for the kind of folks that would be reading this/using ConsolePi.
+
+![`consolepi-extras`](readme_content/consolepi-extras.png)
+
+>Note: speed test (locally hosted browser based speed-test), is only presented as an option for Pi4.
 
 # Installation
 
@@ -527,7 +595,111 @@ The Use Cases
 
 ## **Configuration:**
 
-The Configuration file is validated and created during the install.  Settings can be modified post-install via the configuration file `/etc/ConsolePi.yaml` (Some Changes will require consolepi-upgrade to be ran to take effect). See ConsolePi.yaml.example for an example of the options.
+The Configuration file is validated and created during the install.  Settings can be modified post-install via the configuration file `/etc/ConsolePi.yaml` (Some Changes will require consolepi-upgrade to be ran to take effect). See ConsolePi.yaml.example for an example of the available options.
+
+### **consolepi-menu sorting and connection settings**
+When you assign a friendly alias to an adapter for predictability via the `rn` (rename) option in `consolepi-menu` or via `consolepi-addconsole` an alias (udev rule) is created for that adapter and ser2net.conf is updated with a pointer to that alias using the next available TELNET port in the 7xxx range which includes the desired serial settings.  The `consolepi-menu` parses the ser2net.conf to retrieve the serial settings for each device, but it also uses this file to determine the order the adapters appear in the menu.  The menu is sorted by TELNET port#.  So if you want re-arrange the order devices show up you just need to re-arrange the port #s used in ser2net.conf for the devices.
+
+### **Local UART Support**
+
+With Version 2020.2.1 ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 actually has 6 UARTs onboard (5 useable).  The additional UARTs would need to be enabled.  The examples below should get you there if you want to make use of the extra UARTs, obviously you can search the internet or refer to the Pi4 [datasheet](https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2711/rpi_DATA_2711_1p0.pdf) for info beyond that.
+
+>Note: The RaspberryPis onboard UARTs are TTL level.  This is useful for connecting to other devices with TTL level UARTs (i.e. Another Rpi, Arduino, or Aruba APs that used the flat 4 pin connector (The grey Aruba Adapter used to connect to these APs `AP-SER` has a TTL to RS232 level shifter built into the cable)).  To use these to connect to RS232 ports typically found on Network Hardware and other equipment you need a ttl<-->RS232 level shifter i.e. (max232 family).
+>
+>The example is pulled from my [primary ConsolePi](#consolepi-@-work) which has been customized to the extent that it is powered via PoE hat (LoveRpi Pi4 PoE Hat) and extends GPIO via a modified 30 pin idc cable.  The first 10 pins are not extended, as a result of the PoE hat consuming the first 6.
+
+  **To Enable:**
+  ```
+  # related snippet from /boot/config.txt
+
+  #Enable Default UART (used to access this ConsolePi not externally)
+  enable_uart=1
+
+  # Enable Additional UARTs
+  # dtoverlay=uart0,<param>=<val>
+  # Params: txd0_pin                GPIO pin for TXD0 (14, 32 or 36 - default 14)
+  #         rxd0_pin                GPIO pin for RXD0 (15, 33 or 37 - default 15)
+  #         pin_func                Alternative pin function - 4(Alt0) for 14&15,
+  #                                 7(Alt3) for 32&33, 6(Alt2) for 36&37
+
+  # Enable uart 2 on GPIOs 0,1
+  dtoverlay=uart2
+
+  # Enable uart 3 on GPIOs 4,5
+  # Disabled, no access to this UART due to PoE hat (This unit extends GPIO using modified 30 pin IDC cable where GPIO17/pin 11 is first pin extended)
+  # dtoverlay=uart3
+
+  # Enable uart 4 on GPIOs 8,9
+  dtoverlay=uart4
+
+  # Enable uart 5 on GPIOs 12,13
+  dtoverlay=uart5
+  ```
+
+  ```
+# /boot/cmdline.txt
+
+# The default UART is enabled for "inbound" access to this Pi, the pins are actually not accessible in my setup so they are not used at all
+console=serial0,115200 console=tty1 root=PARTUUID=73aabb67-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
+
+# the remaining UARTS configured for external access, Note that uart3 is not actually being used due to pin access
+console=ttyAMA1,115200
+console=ttyAMA2,115200
+console=ttyAMA3,115200
+console=ttyAMA4,115200
+```
+
+#### ConsolePi.yaml Configuration to enable local UARTs
+
+ConsolePi.yaml needs to include a TTYAMA: key (where `TTYAMA` is not indented, it should be at the same level as `CONFIG` or the optional `OVERRIDES`, `HOSTS`, and `POWER` keys)
+
+Given the example above with 3 uarts enabled (technically 4 but the default UART is used for "inbound" access)
+
+```
+TTYAMA: [ttyAMA1, ttyAMA2, ttyAMA3]
+```
+The onboard UARTs will then showup in the consolepi-menu as ttyAMA#, you can then use the rename option to assign a friendly name and configure custom serial settings (i.e. change the baud used by the menu, the rename option will also add the device to ser2net using the next available TELNET port in the 7xxx range)
+
+### **OVERRIDES:**
+
+**Optional Overrides to prevent `consolepi-upgrade` from updating ConsolePi related system files**
+
+To Upgrade ConsolePi it's recommended to use the `consolepi-upgrade` command.  This runs the install/upgrade script which on upgrade will verify some of the system configuration related to ConsolePi functionality.  If you've made customizations to any of the system files ConsolePi initially configures, the upgrade script will backup the file (to /etc/ConsolePi/bak) and replace it.  This may be undesired if you've made customizations, to prevent this from occuring simply create an empty file (doesn't technically have to be empty) with the same name as the file you want to prevent being modified by ConsolePi in '/etc/ConsolePi/overrides' (i.e. `touch /etc/ConsolePi/overrides/dhcpcd.conf`)
+
+**List of files ConsolePi will verify and potentially update**
+- /etc/dhcpcd.conf
+- /etc/network/interfaces
+- /etc/default/hostapd
+- /etc/hostapd/hostapd.conf
+- /etc/profile.d/consolepi.sh  *This file adds the consolepi-commands directory to PATH, but also prints the ConsolePi ascii banner on login, to get rid of the banner, or create a custom banner you could modify the file and place an empty consolepi.sh in overrides dir, you do need the PATH update for any of the `consolepi-...` commands to work.*
+- /etc/hosts  *Hostname is added mapped to hotspot IP, needed for proper resolution if client where to connect to the hotspot and try to access by hostname)*
+
+
+ *On ConsolePis Built prior to v2020.2 (merged in April 2020) the following may also apply (AutoHotSpot now uses it's own dnsmasq service separate from the default)*
+- /etc/dnsmasq.conf
+
+**Service Files**
+
+Overriding Service files not only turns off validation of the contents of the systemd unit file, but also the state of the service (enabled/disabled)
+
+- bluetooth.service
+- rfcomm.service *You can override rfcomm.service if running ConsolePi on older hardware lacking bluetooth (it'll fail given no hardware is present)*
+
+And for systems built prior to v2020.2:
+- dnsmasq.service *Script will ensure the servie is disabled as startup is handled by AutoHotSpot*
+- hostapd.service *Script will ensure the servie is disabled as startup is handled by AutoHotSpot*
+
+**Optional override Variables in ConsolePi.yaml**
+
+ConsolePi.yaml also supports a few customizations via the optional `OVERRIDES` section.  Examples of most of them should be in your configuration after the install (with the default values, so they are not overriding anything just in place as a reference).
+
+A summary of available overrides:
+- **skip_utils:** Instruct the upgrade script to skip the optional utilities step (this step can be done outside the installer via `consolepi-extras`).
+- **default_baud:** This rarely comes into play.  It only applies to a device that is detected, but has no entry in ser2net.conf  Given ser2net.conf is pre-populated with 20 devices for ttyUSB# and ttyACM# both, it's unlikely default_baud would ever apply to a device.  (default_dbits, default_parity, default_flow, default_sbits - are all available as overrides as well)
+- **cloud_pull_only:** Primary use case is for Non-rPi where you want to launch the menu and access adapters on remotes (i.e. a laptop).  This only applies if cloud-sync is enabled.  Will result in pulling data from the cloud, but not updating the cloud with the laptops details (so the laptop would never show up in the menu if accessed from one of the other ConsolePis)
+- **compact_mode:**  This feature is still a bit of a test use, and will only apply if you have multiple remotes (multiple ConsolePis that discover each other via mdns or cloud sync).  Remotes are typically broken into groupings by remote ConsolePi, `compact_mode: true` will result in all remote adapters appearing in the same group.
+- **remote_timeout:**  If remotes have been discovered ConsolePi fetches current adapter details from that remote when the menu is launched to ensure adapter data is current and verify the remote is reachable.  The default timeout is 3 seconds, if the request takes longer it's considered unreachable and doesn't show up in the menu.  This is normally a good balance.  If it's too high verification and menu_load is delayed when remotes are not reachable, however I have seen cases where 3 seconds may be too low.  Typically on very old Raspberry Pis with a lot of adapters connected (i.e. had the issue on original Pi B with ~ 20 adapters).
+
 
 ## **Console Server:**
 
@@ -645,12 +817,13 @@ ConsolePi Should work on all variants of the RaspberryPi and will work on other 
     - Tested via wired port, and with external USB-WiFi adapter.  Have not tested any BlueTooth Dongles
     - Pretty slow to load the Google Drive Libraries, slower menu-load, slower for about everything, but works.  `consolepi-menu sh` which loads the faster local-only shell menu loads faster given it has no libraries to pull in, but these are best relegated to seldomly used remotes if used at all.
 
-> ConsolePi will also work on other Linux systems as described in Alternative Hardware TODO Make this section.
+> ConsolePi will also work on other Linux systems as described in [Alternative Hardware Installs](#alternative-hardware-installs).
 
 # ConsolePi @ Work!
 
-Have some good pics of ConsolePi in action?  Let me know.
+*Have some good pics of ConsolePi in action?  Let me know.*
 
+  ![ConsolePi in action](readme_content/garagepi.png)
   ![ConsolePi in action](readme_content/ConsolePi0.jpg)
   ![ConsolePi in action](readme_content/ConsolePi.jpg)
   ![ConsolePi in action](readme_content/consolepi_cy.jpg)

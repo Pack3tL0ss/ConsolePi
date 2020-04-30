@@ -40,7 +40,7 @@ class ConsolePiMenu(Rename):
             re.compile('Warning: Permanently added .* to the list of known hosts')
         ]
         self.do_menu_load_warnings()
-        super().__init__()
+        super().__init__(self.menu)
 
     def print_attribute(self, ch, locs={}):
         '''Debugging Function allowing user to print class attributes / function returns.

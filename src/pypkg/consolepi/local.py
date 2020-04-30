@@ -96,6 +96,12 @@ class Local():
             while '0x' in this_dev.properties.get('ID_MODEL_ID', '0x') and hasattr(this_dev, 'parent'):
                 this_dev = this_dev.parent
 
+            # -- Collect path for mapping to specific USB port
+            lame_devpath = this_dev.attributes.get('devpath')
+            if lame_devpath and isinstance(lame_devpath, bytes):
+                lame_devpath = lame_devpath.decode('UTF-8')
+            devs[dev_name]['lame_devpath'] = lame_devpath
+
             fallback_ser = this_dev.properties.get('ID_SERIAL_SHORT')
             devs[dev_name]['id_model_id'] = this_dev.properties['ID_MODEL_ID']
             devs[dev_name]['id_vendor_id'] = this_dev.properties['ID_VENDOR_ID']

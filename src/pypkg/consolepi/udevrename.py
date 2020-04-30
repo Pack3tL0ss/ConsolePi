@@ -5,7 +5,8 @@ from consolepi import log, config, utils
 
 
 class Rename():
-    def __init__(self):
+    def __init__(self, menu):
+        self.menu = menu
         self.udev_pending = False
         self.baud = config.default_baud
         self.data_bits = config.default_dbits
@@ -104,7 +105,8 @@ class Rename():
                     id_vendor = _tty['id_vendor']  # NoQA pylint: disable=unused-variable
                     id_serial = _tty['id_serial_short']
                     id_ifnum = _tty['id_ifnum']
-                    id_path = _tty['id_path']
+                    id_path = _tty['id_path']  # NoQA
+                    lame_devpath = _tty['lame_devpath']
                     root_dev = _tty['root_dev']
                 else:
                     return 'ERROR: Adapter no longer found'
@@ -147,7 +149,7 @@ class Rename():
 
                 else:
                     if f'/dev/{from_name}' in devs:
-                        devname = devs[from_name].get('devname', '')
+                        devname = devs[f'/dev/{from_name}'].get('devname', '')
                         # -- // local ttyAMA adapters \\ --
                         if 'ttyAMA' in devname:
                             udev_line = ('KERNEL=="{}", SYMLINK+="{}"'.format(
@@ -177,7 +179,7 @@ class Rename():
                                 # 'Temporary mapping' \
                                 # '\n\tnaming will only persist during this menu session\n'
                             ]
-                            self.menu_formatting('body', text=mlines)
+                            self.menu.menu_formatting('body', text=mlines)
                             print('\n b. back (abort rename)\n')
                             valid_ch = {
                                 '1': 'by_path',
@@ -186,28 +188,30 @@ class Rename():
                             valid = False
                             while not valid:
                                 print(' Please Select an option')
-                                ch = self.wait_for_input(lower=True)
-                                if ch == 'b':
+                                ch = self.wait_for_input()
+                                if ch.lower == 'b':
+                                    log.show(f'Rename {from_name} --> {to_name} Aborted')
                                     return
-                                elif ch in valid_ch:
+                                elif ch.lower in valid_ch:
                                     valid = True
                                 else:
-                                    print('invalid choice {} Try Again.'.format(ch))
+                                    print('invalid choice {} Try Again.'.format(ch.orig))
 
                             udev_line = None
-                            if valid_ch[ch] == 'temp':
+                            if valid_ch[ch.lower] == 'temp':
                                 error = True
                                 print('The Temporary rename feature is not yet implemented')
-                            elif valid_ch[ch] == 'by_path':
+                            elif valid_ch[ch.lower] == 'by_path':
                                 udev_line = (
-                                    'SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(  # NoQA
-                                        id_vendorid, id_prod), 'ENV{{ID_PATH}}=="{}", SYMLINK+="{}"'.format(id_path, to_name),
+                                    'ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(  # NoQA
+                                        id_vendorid, id_prod), 'ATTRS{{devpath}}=="{}", ENV{{ID_USB_INTERFACE_NUM}}=="{}", '\
+                                                               'SYMLINK+="{}"'.format(lame_devpath, id_ifnum, to_name),
                                 )
-                            elif valid_ch[ch] == 'by_id':
+                            elif valid_ch[ch.lower] == 'by_id':
                                 udev_line = (
                                     'SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", GOTO="{0}_{1}"'.format(  # NoQA
                                         id_vendorid, id_prod),
-                                    'ENV{{ID_USB_INTERFACE_NUM}}=="{}", SYMLINK+="{}", GOTO="END"'.format(_tty['id_ifnum'], to_name)  # NoQA
+                                    'ENV{{ID_USB_INTERFACE_NUM}}=="{}", SYMLINK+="{}", GOTO="END"'.format(id_ifnum, to_name)  # NoQA
                                 )
                             else:
                                 error = ['Unable to add udev rule adapter missing details', 'idVendor={}, idProduct={}, serial#={}'.format(  # NoQA

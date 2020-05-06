@@ -97,9 +97,18 @@ class Local():
                 this_dev = this_dev.parent
 
             # -- Collect path for mapping to specific USB port
+            # TODO clean this up not efficient could combine search for ID_MODEL_ID and devpath
             lame_devpath = this_dev.attributes.get('devpath')
             if lame_devpath and isinstance(lame_devpath, bytes):
                 lame_devpath = lame_devpath.decode('UTF-8')
+            else:
+                for p in _dev.ancestors:
+                    if 'devpath' in p.attributes.available_attributes:
+                        lame_devpath = p.attributes.get('devpath')
+                        if lame_devpath and isinstance(lame_devpath, bytes):
+                            lame_devpath = lame_devpath.decode('UTF-8')
+                            break
+
             devs[dev_name]['lame_devpath'] = lame_devpath
 
             fallback_ser = this_dev.properties.get('ID_SERIAL_SHORT')

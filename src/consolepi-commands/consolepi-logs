@@ -1,16 +1,38 @@
 #!/usr/bin/env bash
 
-
-if [ -z $(which multitail) ]; then
-    echo "multitail not installed... installing"
-    sudo apt-get install -y multitail
-fi
-
 [[ -f /var/log/ConsolePi/consolepi.log ]] && log_file=consolepi.log || log_file=cloud.log
 
-multitail -i /var/log/ConsolePi/${log_file} \
-    -L "tail -f /var/log/kern.log | grep wlan0" \
-    -L "tail -f  /var/log/syslog | grep 'puship\|dhcpcd\|dhcpcd-run-hooks\|wpa_supplicant\|ser2net\|python3\|hostapd\|autohotspotN\|bluetoothd\|dnsmasq'"
+check_multitail() {
+    if [ -z $(which multitail) ]; then
+        echo "multitail not installed... installing"
+        sudo apt-get install -y multitail
+    fi
+}
 
-# tail -f /var/log/ConsolePi/cloud.log & tail -f /var/log/kern.log | grep wlan0 &
-#     tail -f  /var/log/syslog | grep 'puship\|dhcpcd\|dhcpcd-run-hooks\|wpa_supplicant\|ser2net\|python3\|hostapd\|autohotspotN\|bluetoothd\|dnsmasq'
+do_multitail() {
+    multitail -i /var/log/ConsolePi/${log_file} \
+        -L "tail -f /var/log/kern.log | grep wlan0" \
+        -L "tail -f  /var/log/syslog | grep 'puship\|dhcpcd\|dhcpcd-run-hooks\|wpa_supplicant\|ser2net\|python3\|hostapd\|autohotspotN\|bluetoothd\|dnsmasq'"
+}
+
+run() {
+    if [ ! -z "$1" ]; then
+        case "$1" in
+            all)
+                cat /var/log/ConsolePi/${log_file}
+                ;;
+            -*)
+                tail "$1" /var/log/ConsolePi/${log_file}
+                ;;
+            *)
+                tail -"$1" /var/log/ConsolePi/${log_file}
+                ;;
+        esac
+    else
+        check_multitail && do_multitail
+    fi
+}
+
+# MAIN
+run "${@}"
+

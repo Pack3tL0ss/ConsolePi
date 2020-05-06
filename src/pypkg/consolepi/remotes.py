@@ -93,49 +93,51 @@ class Remotes:
             data = config.remotes  # remotes from local cloud cache
 
         if not data:
-            print(self.log_sym_warn + " No Remotes in Local Cache")
+            # print(self.log_sym_warn + " No Remotes in Local Cache")
+            log.info("No Remotes found in Local Cache")
             data = {}  # convert None type to empy dict
-
-        if socket.gethostname() in data:
-            del data[socket.gethostname()]
-            log.show(
-                "Local cache included entry for self - do you have other ConsolePis using the same hostname?"
-            )
-
-        # Verify Remote ConsolePi details and reachability
-        if stdin.isatty():
-            spin.start(
-                "Querying Remotes via API to verify reachability and adapter data"
-            )
-        for remotepi in data:
-            # -- // Launch Threads to verify all remotes in parallel \\ --
-            threading.Thread(
-                target=verify_remote_thread,
-                args=(remotepi, data, rename),
-                name=f"vrfy_{remotepi}",
-            ).start()
-            # verify_remote_thread(remotepi, data)  # Non-Threading DEBUG
-
-        # -- wait for threads to complete --
-        if not self.cpiexec.wait_for_threads(name="vrfy_", thread_type="remote"):
-            if config.remotes:
-                if stdin.isatty():
-                    spin.succeed(
-                        "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
-                        f"Found {len(config.remotes)} Remote ConsolePis"
-                    )
-            else:
-                if stdin.isatty():
-                    spin.warn(
-                        "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
-                        "No Reachable Remote ConsolePis Discovered"
-                    )
         else:
-            log.error(
-                "[GET REM] Remote verify threads Still running / exceeded timeout"
-            )
+            # if self is in the remote-data remove and warn user (can occur in rare scenarios i.e. hostname changes)
+            if socket.gethostname() in data:
+                del data[socket.gethostname()]
+                log.show(
+                    "Local cache included entry for self - do you have other ConsolePis using the same hostname?"
+                )
+
+            # Verify Remote ConsolePi details and reachability
             if stdin.isatty():
-                spin.stop()
+                spin.start(
+                    "Querying Remotes via API to verify reachability and adapter data"
+                )
+            for remotepi in data:
+                # -- // Launch Threads to verify all remotes in parallel \\ --
+                threading.Thread(
+                    target=verify_remote_thread,
+                    args=(remotepi, data, rename),
+                    name=f"vrfy_{remotepi}",
+                ).start()
+                # verify_remote_thread(remotepi, data)  # Non-Threading DEBUG
+
+            # -- wait for threads to complete --
+            if not self.cpiexec.wait_for_threads(name="vrfy_", thread_type="remote"):
+                if config.remotes:
+                    if stdin.isatty():
+                        spin.succeed(
+                            "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
+                            f"Found {len(config.remotes)} Remote ConsolePis"
+                        )
+                else:
+                    if stdin.isatty():
+                        spin.warn(
+                            "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
+                            "No Reachable Remote ConsolePis Discovered"
+                        )
+            else:
+                log.error(
+                    "[GET REM] Remote verify threads Still running / exceeded timeout"
+                )
+                if stdin.isatty():
+                    spin.stop()
 
         # update local cache if any ConsolePis found UnReachable
         if self.cache_update_pending:

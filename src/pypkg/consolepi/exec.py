@@ -303,8 +303,9 @@ class ConsolePiExec:
             for k in sorted(adapters[a]["udev"].keys()):
                 print(f'{k}: {adapters[a]["udev"][k]}')
             print("")
-            this_ser2net = config.ser2net_conf.get(a, {})
-            print(f"ser2net config: {this_ser2net.get('line', '!! Not Found !!')}")
+            # this_ser2net = config.ser2net_conf.get(a, {})
+            # print(f"ser2net config: {this_ser2net.get('line', '!! Not Found !!')}")
+            print(f'ser2net config: {adapters[a]["config"]["line"]}')
 
         input("\nPress Enter To Continue\n")
 

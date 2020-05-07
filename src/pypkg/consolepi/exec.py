@@ -280,7 +280,7 @@ class ConsolePiExec:
         if not os.path.isfile(loc_home + "/.ssh/id_rsa"):
             print("\nNo Local ssh cert found, generating...\n")
             utils.do_shell_cmd(
-                f'sudo -u {loc_user} ssh-keygen -m pem -t rsa -C "{loc_user}@{hostname}"'
+                f'sudo -u {loc_user} ssh-keygen -m pem -t rsa -C "{loc_user}@{hostname}"', timeout=360
             )
 
         # -- copy keys to remote(s)
@@ -289,7 +289,7 @@ class ConsolePiExec:
         return_list = []
         for _rem in rem_data:
             rem, rem_ip, rem_user = _rem
-            print(f"Attempting to copy ssh cert to {rem}")
+            print(self.menu.format_line("{{magenta}}Attempting to copy ssh cert to " + rem + "{{norm}}").text)
             ret = utils.do_shell_cmd(
                 f"sudo -u {loc_user} ssh-copy-id {rem_user}@{rem_ip}", timeout=360
             )
@@ -303,8 +303,9 @@ class ConsolePiExec:
             for k in sorted(adapters[a]["udev"].keys()):
                 print(f'{k}: {adapters[a]["udev"][k]}')
             print("")
-            this_ser2net = config.ser2net_conf.get(a, {})
-            print(f"ser2net config: {this_ser2net.get('line', '!! Not Found !!')}")
+            # this_ser2net = config.ser2net_conf.get(a, {})
+            # print(f"ser2net config: {this_ser2net.get('line', '!! Not Found !!')}")
+            print(f'ser2net config: {adapters[a]["config"]["line"]}')
 
         input("\nPress Enter To Continue\n")
 

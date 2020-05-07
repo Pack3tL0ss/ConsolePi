@@ -21,7 +21,7 @@ class Local():
         self.ip_list = self.get_ip_list()
         self.data = self.build_local_dict()
         self.user = config.loc_user
-        self.loc_home = os.getenv('HOME')
+        self.loc_home = os.path.expanduser(f'~{self.user}')
 
     def build_local_dict(self, rem_ip=None, refresh=False):
         '''Display representation of all local data in combined dict.'''

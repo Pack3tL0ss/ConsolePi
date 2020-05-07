@@ -31,7 +31,7 @@ if [[ ${rt} != 0 ]] && [[ "$1" != 'sh' ]] ; then
     echo
     echo "Please report the error above @ https://github.com/Pack3tL0ss/ConsolePi"
     echo
-    read -ep "Would you like to launch the (backup) shell menu (y/n)? " ch
+    read -ep "Enter y/yes to launch the backup shell menu, or enter to exit. " ch
     case "${ch,,}" in
         y|yes)
         sudo /etc/ConsolePi/src/consolepi-menu.sh

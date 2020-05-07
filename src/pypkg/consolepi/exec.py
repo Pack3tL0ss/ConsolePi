@@ -280,7 +280,7 @@ class ConsolePiExec:
         if not os.path.isfile(loc_home + "/.ssh/id_rsa"):
             print("\nNo Local ssh cert found, generating...\n")
             utils.do_shell_cmd(
-                f'sudo -u {loc_user} ssh-keygen -m pem -t rsa -C "{loc_user}@{hostname}"'
+                f'sudo -u {loc_user} ssh-keygen -m pem -t rsa -C "{loc_user}@{hostname}"', timeout=360
             )
 
         # -- copy keys to remote(s)

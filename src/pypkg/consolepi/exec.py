@@ -289,7 +289,7 @@ class ConsolePiExec:
         return_list = []
         for _rem in rem_data:
             rem, rem_ip, rem_user = _rem
-            print(f"Attempting to copy ssh cert to {rem}")
+            print(self.menu.format_line("{{magenta}}Attempting to copy ssh cert to " + rem + "{{norm}}").text)
             ret = utils.do_shell_cmd(
                 f"sudo -u {loc_user} ssh-copy-id {rem_user}@{rem_ip}", timeout=360
             )

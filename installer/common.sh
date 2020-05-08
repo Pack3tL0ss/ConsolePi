@@ -239,7 +239,7 @@ systemd_diff_update() {
                 #  installer will disable / enable after if necessary, but this would retain user customizations
                 if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
                     if [[ -f /etc/systemd/system/${1}.service ]]; then
-                        sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file
+                        # sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file  # TODO this seems unnecessary reason for it or just copy / paste error?
                         sudo systemctl enable ${1}.service 1>/dev/null 2>> $log_file ||
                             logit "FAILED to enable ${1} systemd service" "WARNING"
                     else
@@ -249,10 +249,11 @@ systemd_diff_update() {
                 # -- if the service is enabled and active currently restart the service --
                 if systemctl is-enabled ${1}.service >/dev/null ; then
                     if systemctl is-active ${1}.service >/dev/null ; then
-                        sudo systemctl daemon-reload 2>>$log_file
-                        sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file &&
-                        ( [[ ! "${1}" =~ "autohotspot" ]] &&
-                            logit "FAILED to restart ${1} systemd service" "WARNING" )
+                        # sudo systemctl daemon-reload 2>>$log_file # redundant
+                        if [[ ! "${1}" =~ "autohotspot" ]] ; then
+                            sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file ||
+                                logit "FAILED to restart ${1} systemd service" "WARNING"
+                        fi
                     fi
                 fi
             else

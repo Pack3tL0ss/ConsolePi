@@ -412,7 +412,8 @@ main() {
         get_common                          # get and import common functions script
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if autolaunch install is configured remove
-        $doapt && do_apt_update             # apt-get update the pi
+        $doapt && do_apt_update ||          # apt-get update the pi
+            logit "apt updates skipped based on -noapt argument" "WARNING"
         pre_git_prep                        # process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes
@@ -448,7 +449,6 @@ process_args() {
                 ;;
             -noapt)
                 doapt=false
-                logit "apt updates will be skipped based on -noapt argument" "WARNING"
                 shift
                 ;;
             -*|--*=) # unsupported flags

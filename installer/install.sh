@@ -69,7 +69,7 @@ do_apt_update() {
     process="Update/Upgrade ConsolePi (apt)"
     logit "Update Sources"
     # Only update if initial install (no install.log) or if last update was not today
-    if [[ ! -f "${final_log}" ]] || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
+    if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
         sudo apt-get update 1>/dev/null 2>> $log_file && logit "Update Successful" || logit "FAILED to Update" "ERROR"
     else
         logit "Skipping Source Update - Already Updated today"

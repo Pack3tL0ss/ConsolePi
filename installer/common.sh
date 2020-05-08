@@ -4,7 +4,7 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-INSTALLER_VER=45
+INSTALLER_VER=46
 CFG_FILE_VER=8
 cur_dir=$(pwd)
 iam=$(who -m |  awk '{print $1}')

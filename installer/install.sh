@@ -412,7 +412,7 @@ main() {
         get_common                          # get and import common functions script
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if autolaunch install is configured remove
-        do_apt_update                       # apt-get update the pi
+        $doapt && do_apt_update             # apt-get update the pi
         pre_git_prep                        # process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes
@@ -434,6 +434,7 @@ process_args() {
     branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
     local_dev=false
     dopip=true
+    doapt=true
     while (( "$#" )); do
         case "$1" in
             -dev)
@@ -443,6 +444,11 @@ process_args() {
                 ;;
             -nopip)
                 dopip=false
+                shift
+                ;;
+            -noapt)
+                doapt=false
+                logit "apt updates will be skipped based on -noapt argument" "WARNING"
                 shift
                 ;;
             -*|--*=) # unsupported flags

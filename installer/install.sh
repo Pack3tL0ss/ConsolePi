@@ -67,26 +67,30 @@ remove_first_boot() {
 
 do_apt_update() {
     process="Update/Upgrade ConsolePi (apt)"
-    logit "Update Sources"
-    # Only update if initial install (no install.log) or if last update was not today
-    if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
-        sudo apt-get update 1>/dev/null 2>> $log_file && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+    if $doapt; then
+        logit "Update Sources"
+        # Only update if initial install (no install.log) or if last update was not today
+        if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
+            sudo apt-get update 1>/dev/null 2>> $log_file && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+        else
+            logit "Skipping Source Update - Already Updated today"
+        fi
+
+        logit "Upgrading ConsolePi via apt. This may take a while"
+        sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
+
+        logit "Performing dist-upgrade"
+        sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
+
+        logit "Tidying up (autoremove)"
+        apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
+
+        logit "Install/update git (apt)"
+        apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
+        logit "Process Complete"
     else
-        logit "Skipping Source Update - Already Updated today"
+        logit "apt updates skipped based on -noapt argument" "WARNING"
     fi
-
-    logit "Upgrading ConsolePi via apt. This may take a while"
-    sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
-
-    logit "Performing dist-upgrade"
-    sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
-
-    logit "Tidying up (autoremove)"
-    apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
-
-    logit "Install/update git (apt)"
-    apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
-    logit "Process Complete"
     unset process
 }
 
@@ -412,8 +416,7 @@ main() {
         get_common                          # get and import common functions script
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if autolaunch install is configured remove
-        $doapt && do_apt_update ||          # apt-get update the pi
-            logit "apt updates skipped based on -noapt argument" "WARNING"
+        do_apt_update ||          # apt-get update the pi
         pre_git_prep                        # process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes

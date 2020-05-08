@@ -2,7 +2,7 @@
 
 branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
 [ ! "$branch" == "master" ] && echo -e "Script updating ${branch} branch.\n  You are on a development branch."
-if [ ! -z "$@" ] && [ "$@" == '-dev' ]; then
+if [ ! -z "$@" ] && [ "$@" =~ '-dev' ]; then
     echo "Local Pull"
     sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi "$@" && rm /tmp/ConsolePi
 else

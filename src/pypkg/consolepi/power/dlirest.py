@@ -391,7 +391,7 @@ class DLI:
 
         if isinstance(ret_val, bool):
             return ret_val
-        elif ret_val <= 204:    # toggle power
+        elif isinstance(ret_val, int) and ret_val <= 204:    # toggle power
             return toState if isinstance(toState, bool) else bool_state[toState]
         else:
             return 'An Error occured {}'.format(ret_val)

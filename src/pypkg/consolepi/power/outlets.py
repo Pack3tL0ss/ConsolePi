@@ -312,6 +312,7 @@ class Outlets:
             failures = outlet_data.get('failures') if outlet_data.get('failures') else self.data.get('failures')
 
         outlet_data = self.data.get('defined') if not outlet_data else outlet_data
+        print(f'get_outlets called with {outlet_data.keys()} failures  {failures.keys()}')
         if failures:
             outlet_data = {**outlet_data, **failures}
             failures = {}

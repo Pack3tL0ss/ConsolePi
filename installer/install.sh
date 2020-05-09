@@ -52,7 +52,7 @@ get_common() {
     else
         sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
     fi
-    . /tmp/common.sh
+    . /tmp/common.sh 2>>$log_file
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
     # overwrite the default source directory to local repo when running local tests
     $local_dev && consolepi_source='pi@consolepi-dev:/etc/ConsolePi'

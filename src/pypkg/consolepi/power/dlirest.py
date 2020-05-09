@@ -11,7 +11,7 @@ import requests
 from dlipower import PowerSwitch
 from requests.auth import HTTPDigestAuth
 
-DLI_TIMEOUT = 5
+DLI_TIMEOUT = 7
 SEQUENCE_DELAY = 1
 DEBUG = False
 TIMING = False

@@ -10,25 +10,18 @@ try:
 except RuntimeError:
     is_rpi = False
 
-from halo import Halo
 from consolepi import log, config, requests, utils
 from consolepi.power import DLI
 
-try:
-    import better_exceptions
-    better_exceptions.MAX_LENGTH = None
-except ImportError:
-    pass
-
-# from consolepi import config
-
 TIMING = False
-CYCLE_TIME = 3
+
+
+class ConsolePiPowerException(Exception):
+    pass
 
 
 class Outlets:
     def __init__(self):
-        self.spin = Halo(spinner='dots')
         if is_rpi:
             GPIO.setmode(GPIO.BCM)
             GPIO.setwarnings(False)
@@ -71,10 +64,10 @@ class Outlets:
         TODO: remove int returns and re-factor all returns to use a return class (like requests)
         '''
         # sub to make the api call to the tasmota device
-        def tasmota_req(*args, **kwargs):
+        def tasmota_req(**kwargs):
             querystring = kwargs['querystring']
             try:
-                response = requests.request("GET", url, headers=headers, params=querystring, timeout=3)
+                response = requests.request("GET", url, headers=headers, params=querystring, timeout=config.so_timeout)
                 if response.status_code == 200:
                     if json.loads(response.text)['POWER'] == 'ON':
                         _response = True
@@ -88,7 +81,7 @@ class Outlets:
                 _response = 'Unreachable'
             except requests.exceptions.RequestException as e:
                 log.debug(f"[tasmota_req] {url.replace('http://', '').replace('https://', '').split('/')[0]} Exception: {e}")
-                _response = 'Unreachable'  # So I can determine if other exceptions types are possible when unreachable
+                _response = 'Unreachable ~ hit catchall exception handler'  # determine if other exceptions types are possible
             return _response
         # -------- END SUB --------
 
@@ -99,6 +92,7 @@ class Outlets:
             'cache-control': "no-cache"
             }
 
+        querystring = {"cmnd": "Power"}
         cycle = False
         if command is not None:
             if isinstance(command, bool):
@@ -107,54 +101,64 @@ class Outlets:
             command = command.upper()
             if command in ['ON', 'OFF', 'TOGGLE']:
                 querystring = {"cmnd": f"Power {command}"}
-            elif command == 'CYCLE':  # Power off if cycle is command, powered back on below
-                if tasmota_req(querystring={"cmnd": "Power"}):
-                    querystring = {"cmnd": "Power OFF"}
-                    cycle = True
+            elif command == 'CYCLE':
+                cur_state = tasmota_req(querystring={"cmnd": "Power"})
+                if isinstance(cur_state, bool):
+                    if cur_state:
+                        querystring = {"cmnd": "Power OFF"}
+                        cycle = True
+                    else:
+                        return False  # return False for cycle if outlet was off indicating state is invalid for cycle
                 else:
-                    return 'Cycle is only valid for ports that are Currently ON'
+                    return cur_state  # an error occured getting current state
             else:
-                raise KeyError
-        else:  # if no command specified return the status of the port
-            querystring = {"cmnd": "Power"}
+                raise ConsolePiPowerException(f'Invalid Type {type(command)} passed to do_tasmota_cmd')
 
         # -- // Send Request to TASMOTA \\ --
         r = tasmota_req(querystring=querystring)
         if cycle:
-            if not r:
-                time.sleep(CYCLE_TIME)
-                r = tasmota_req(querystring={"cmnd": "Power ON"})
-            else:
-                return 'Unexpected response, port returned on state expected off'
+            if isinstance(r, bool):
+                if not r:
+                    time.sleep(config.cycle_time)
+                    r = tasmota_req(querystring={"cmnd": "Power ON"})
+                else:
+                    return 'Unexpected response, port returned on state expected off'
         return r
 
     def do_esphome_cmd(self, address, relay_id, command=None):
         '''Perform Operation on espHome outlets.
 
-        params:
-        address: IP or resolvable hostname
-        command:
-            True | 'ON': power the outlet on
-            False | 'OFF': power the outlet off
-            'Toggle': Toggle the outlet
-            'cycle': Cycle Power on outlets that are powered On
-            Will Return current state by default
+        Arguments:
+            address {str} -- ip of fqdn of espHome outlet
+            relay_id {str} -- The id of the relay/port
+
+        Keyword Arguments:
+            command {Bool|str|None} -- The command to perform on the outlet (default: {None})
+                None (Default): get current state of outlet
+                True | 'ON':    power the outlet on
+                False | 'OFF':  power the outlet off
+                'Toggle':       Toggle the outlet
+                'cycle':        Cycle Power on outlets that are powered On
+
+        Returns:
+            Bool or str -- Bool indicating state of outlet after operation or str with error text
         '''
-        # sub to make the api call to the tasmota device
-        def esphome_req(*args, command: str = command):
+        def esphome_req(*args, command=command):
+            '''sub function to perform operation on outlet
+            '''
             try:
                 method = "GET" if command is None else "POST"
-                response = requests.request(method, url=url if command is not None else status_url, headers=headers, timeout=3)
+                response = requests.request(method, url=url,
+                                            headers=headers, timeout=config.so_timeout)
                 if response.status_code == 200:
                     if command is None:
                         _response = response.json().get('value')
                     else:
+                        # espHome returns status Code 200 with no content for /toggle
                         if command in ['toggle', 'cycle']:
                             _response = not cur_state
                         else:
-                            _response = command
-                        # _response = requests.request("GET", status_url,
-                        #                              headers=headers, timeout=3).json().get('value')
+                            _response = command  # success return bool command
                 else:
                     _response = '[{}] error returned {}'.format(response.status_code, response.text)
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
@@ -165,7 +169,7 @@ class Outlets:
             return _response
         # -------- END SUB --------
 
-        status_url = 'http://' + address + '/switch/' + str(relay_id)
+        url = status_url = 'http://' + address + '/switch/' + str(relay_id)
         headers = {
             'Cache-Control': "no-cache",
             'Connection': "keep-alive",
@@ -175,36 +179,37 @@ class Outlets:
         cur_state = esphome_req(command=None)
 
         cycle = False
-        if command is not None:
-            if isinstance(command, bool):
-                if command:
-                    if cur_state is True:
-                        return cur_state
-                    url = status_url + '/turn_on'
+        if command is None:
+            return cur_state
+        elif isinstance(command, bool):
+            if command:  # Turn On Outlet
+                url = status_url + '/turn_on'
+                if cur_state is True:
+                    return cur_state
+            else:  # Turn Off Outlet
+                url = status_url + '/turn_off'
+                if cur_state is False:
+                    return cur_state
+        elif command in ['toggle', 'cycle']:
+            url = status_url + '/toggle'
+            if command == 'cycle':
+                if cur_state:
+                    cycle = True
                 else:
-                    if cur_state is False:
-                        return cur_state
-                    url = status_url + '/turn_off'
-            elif command in ['toggle', 'cycle']:
-                url = status_url + '/toggle'
-                if command == 'cycle':
-                    if cur_state:
-                        cycle = True
-                    else:
-                        return 'Cycle is only valid for ports that are Currently ON'
-            else:
-                return f'[PWR-ESP] DEV Note: Invalid command \'{command}\' passed to func'
+                    return False  # Cycle invalid for outlets in off state
+        else:
+            return f'[PWR-ESP] DEV Note: Invalid command \'{command}\' passed to func'
 
         # -- // Send Request to esphome \\ --
-        r = esphome_req()
+        r = esphome_req(command=command)
         if isinstance(r, bool):
-            cur_state = r
             if cycle:
                 if r is False:
-                    time.sleep(CYCLE_TIME)
+                    cur_state = False
+                    time.sleep(config.cycle_time)
                     r = esphome_req()
                 else:
-                    return 'Unexpected response, port returned on state expected off'
+                    return '[PWR-ESP] Unexpected response, port returned on state expected off'
         return r
 
     def load_dli(self, address, username, password):
@@ -214,9 +219,10 @@ class Outlets:
         Response: tuple
             DLI-class-object, Bool: True if class was previously instantiated ~ needs update
                                     False indicating class was just instantiated ~ data is fresh
+            i.e.: (<dli object>, True)
         '''
         if not self._dli.get(address):
-            self._dli[address] = DLI(address, username, password, log=log)
+            self._dli[address] = DLI(address, username, password, timeout=config.dli_timeout, log=log)
             # --// Return Pass or fail based on reachability \\--
             if self._dli[address].reachable:
                 return self._dli[address], False
@@ -257,7 +263,7 @@ class Outlets:
 
         Returns:
             tuple -- 0: dict: updated outlet dict or same dict if no linked_devs
-                        1: list: list of all ports linked on this dli (used to initiate query against the dli)
+                     1: list: list of all ports linked on this dli (used to initiate query against the dli)
         '''
         this_dli = self._dli.get(outlet['address'])
         if outlet.get('linked_devs'):
@@ -292,6 +298,9 @@ class Outlets:
     def pwr_get_outlets(self, outlet_data={}, upd_linked=False, failures={}):
         '''Get Details for Outlets defined in ConsolePi.yaml power section
 
+        On Menu Launch this method is called in parallel (threaded) for each outlet
+        On Refresh all outlets are passed to the method
+
         params: - All Optional
             outlet_data:dict, The outlets that need to be updated, if not provided will get all outlets defined in ConsolePi.yaml
             upd_linked:Bool, If True will update just the linked ports, False is for dli and will update
@@ -303,6 +312,7 @@ class Outlets:
             failures = outlet_data.get('failures') if outlet_data.get('failures') else self.data.get('failures')
 
         outlet_data = self.data.get('defined') if not outlet_data else outlet_data
+        print(f'get_outlets called with {outlet_data.keys()} failures  {failures.keys()}')
         if failures:
             outlet_data = {**outlet_data, **failures}
             failures = {}
@@ -328,7 +338,7 @@ class Outlets:
                 outlet['is_on'] = response
                 if response not in [0, 1, True, False]:
                     failures[k] = outlet_data[k]
-                    failures[k]['error'] = f'[PWR-TASMOTA] {k}:{failures[k]["address"]} "{response}" - Removed'
+                    failures[k]['error'] = f'[PWR-TASMOTA] {k}:{failures[k]["address"]} {response} - Removed'
                     log.warning(failures[k]['error'], show=True)
 
             # -- // esphome \\ --
@@ -341,7 +351,7 @@ class Outlets:
                     outlet['is_on'][r] = {'state': response, 'name': r}
                     if response not in [True, False]:
                         failures[k] = outlet_data[k]
-                        failures[k]['error'] = f'[PWR-ESP] {k}:{failures[k]["address"]} "{response}" - Removed'
+                        failures[k]['error'] = f'[PWR-ESP] {k}:{failures[k]["address"]} {response} - Removed'
                         log.warning(failures[k]['error'], show=True)
 
             # -- // dli \\ --
@@ -418,12 +428,24 @@ class Outlets:
 
         # Move failed outlets from the keys that populate the menu to the 'failures' key
         # failures are displayed in the footer section of the menu, then re-tried on refresh
+        # TODO this may be causing - RuntimeError: dictionary changed size during iteration
+        # in pwr_start_update_threads. witnessed on mdnsreg daemon on occasion (Move del logic after wait_for_threads?)
         for _dev in failures:
+            if outlet_data.get(_dev):
+                del outlet_data[_dev]
             if self.data['defined'].get(_dev):
                 del self.data['defined'][_dev]
             if failures[_dev]['address'] in dli_power:
                 del dli_power[failures[_dev]['address']]
-        self.data['failures'] = failures
+            self.data['failures'][_dev] = failures[_dev]
+
+        # restore outlets that failed on menu launch but found reachable during refresh
+        for _dev in outlet_data:
+            if _dev not in self.data['defined']:
+                self.data['defined'][_dev] = outlet_data[_dev]
+            if _dev in self.data['failures']:
+                del self.data['failures'][_dev]
+
         self.data['dli_power'] = dli_power
 
         return self.data
@@ -491,9 +513,9 @@ class Outlets:
         return response
 
     def pwr_cycle(self, pwr_type, address, port=None, noff=True):
-        '''
-        returns Bool True = Power Cycle success, False Not performed Outlet OFF
-            TODO Check error handling if unreachable
+        '''returns Bool True = Power Cycle success, False Not performed Outlet OFF
+
+        TODO Check error handling if unreachable
         '''
         pwr_type = pwr_type.lower()
         # --// CYCLE DLI PORT \\--
@@ -501,17 +523,16 @@ class Outlets:
             if port is not None:
                 response = self._dli[address].cycle(port)
             else:
-                raise Exception('pwr_cycle: port must be provided for outlet type dli')
+                raise ConsolePiPowerException('pwr_cycle: port must be provided for outlet type dli')
 
         # --// CYCLE GPIO PORT \\--
         elif pwr_type == 'gpio':
-            # normally off states are normal 0:off 1:on - if not normally off it's reversed 0:on 1:off
-            # pylint: disable=maybe-no-member
             gpio = address
+            # normally off states are normal 0:off, 1:on - if not normally off it's reversed 0:on 1:off
             cur_state = GPIO.input(gpio) if noff else not GPIO.input(gpio)
             if cur_state:
                 GPIO.output(gpio, int(not noff))
-                time.sleep(CYCLE_TIME)
+                time.sleep(config.cycle_time)
                 GPIO.output(gpio, int(noff))
                 response = bool(GPIO.input(gpio))
                 response = response if noff else not response
@@ -520,9 +541,9 @@ class Outlets:
 
         # --// CYCLE TASMOTA PORT \\--
         elif pwr_type == 'tasmota':
-            response = self.do_tasmota_cmd(address)
-            if response:  # Only Cycle if outlet is currently ON
-                response = self.do_tasmota_cmd(address, 'cycle')
+            # response = self.do_tasmota_cmd(address)  # this logic is handled in the function now
+            # if response:  # Only Cycle if outlet is currently ON
+            response = self.do_tasmota_cmd(address, 'cycle')
 
         # --// CYCLE ESPHOME PORT \\--
         elif pwr_type == 'esphome':
@@ -551,7 +572,7 @@ class Outlets:
             # TODO get group name based on address, read json file into dict, change the name write it back
             #      and update dict
         else:
-            raise Exception('pwr_rename: Invalid type ({}) or no name provided'.format(type))
+            raise ConsolePiPowerException('pwr_rename: Invalid type ({}) or no name provided'.format(type))
 
         return response
 

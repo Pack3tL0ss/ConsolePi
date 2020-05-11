@@ -146,7 +146,13 @@ if __name__ == '__main__':
 
     try:
         while True:
-            mdns.zc = mdns.run()
+            try:
+                mdns.zc = mdns.run()
+            except AttributeError:
+                # hopefully this handles "Zeroconf object has no attribute '_handlers_lock'"
+                log.warning('[MDNS BROWSE] caught _handlers_lock exception retrying in 5 sec')
+                time.sleep(5)
+                continue
             start = time.time()
             # re-init zeroconf browser every RESTART_INTERVAL seconds
             while time.time() < start + RESTART_INTERVAL:

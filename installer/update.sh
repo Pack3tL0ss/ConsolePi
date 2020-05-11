@@ -431,9 +431,15 @@ install_autohotspotn () {
 
 disable_autohotspot() {
     process="Verify Auto HotSpot is disabled"
-    systemctl is-active autohotspot >/dev/null 2>&1 && systemctl stop autohotspot >/dev/null 2>>$log_file ; rc=$?
-    systemctl is-enabled autohotspot >/dev/null 2>&1 && systemctl disable autohotspot >/dev/null 2>>$log_file ; rc=$?
-    [[ $rc -eq 0 ]] && logit "Success Auto HotSpot Service is Disabled" || logit "Error Disabling Auto HotSpot Service"
+    rc=0
+    if systemctl is-active autohotspot >/dev/null 2>&1; then
+        systemctl stop autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
+    fi
+
+    if systemctl is-enabled autohotspot >/dev/null 2>&1; then
+        systemctl disable autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
+    fi
+    [[ $rc -eq 0 ]] && logit "Success Auto HotSpot Service is Disabled" || logit "Error Disabling Auto HotSpot Service" "WARNING"
     unset process
 }
 

@@ -74,7 +74,7 @@ class MDNS_Browser:
 
                         from_mdns_adapters = mdns_data.get('adapters')
                         mdns_data['rem_ip'] = rem_ip
-                        mdns_data['adapters'] = from_mdns_adapters if from_mdns_adapters is not None else cur_known_adapters
+                        mdns_data['adapters'] = from_mdns_adapters if from_mdns_adapters else cur_known_adapters
                         mdns_data['source'] = 'mdns'
                         mdns_data['upd_time'] = int(time.time())
                         mdns_data = {hostname: mdns_data}
@@ -100,11 +100,15 @@ class MDNS_Browser:
                             print(hostname + '({}) Discovered via mdns.'.format(rem_ip if rem_ip is not None else '?'))
 
                             try:
-                                print('{}\n{}'.format(
+                                print('{}\n{}\n{}'.format(
                                     'mdns: None' if from_mdns_adapters is None else 'mdns: {}'.format(
                                                 [d.replace('/dev/', '') for d in from_mdns_adapters]
                                                 if not isinstance(from_mdns_adapters, list) else
                                                 [d['dev'].replace('/dev/', '') for d in from_mdns_adapters]),
+                                    'api (mdns trigger): None' if not mdns_data[hostname]['adapters'] else 'api (mdns trigger): {}'.format(  # NoQA
+                                                [d.replace('/dev/', '') for d in mdns_data[hostname]['adapters']]
+                                                if not isinstance(mdns_data[hostname]['adapters'], list) else
+                                                [d['dev'].replace('/dev/', '') for d in mdns_data[hostname]['adapters']]),
                                     'cache: None' if cur_known_adapters is None else 'cache: {}'.format(
                                                 [d.replace('/dev/', '') for d in cur_known_adapters]
                                                 if not isinstance(cur_known_adapters, list) else
@@ -116,6 +120,8 @@ class MDNS_Browser:
 
                         log.debug('[MDNS DSCVRY] {} Final data set:\n{}'.format(hostname,
                                                                                 json.dumps(mdns_data, indent=4, sort_keys=True)))
+
+                        # TODO could probably just put the call to cache update in the api_reachable method
                         if update_cache:
                             if 'hostname' in mdns_data[hostname]:
                                 del mdns_data[hostname]['hostname']

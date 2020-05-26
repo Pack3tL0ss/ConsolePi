@@ -134,7 +134,7 @@ class Config():
                 for dev in outlet_data[k]['linked_devs']:
                     _type = outlet_data[k].get('type').lower()
                     if _type == 'dli':
-                        _this = [f"{k}:{[int(p) for p in outlet_data[k]['linked_devs'][dev]]}"]
+                        _this = [f"{k}:{[int(p) for p in utils.listify(outlet_data[k]['linked_devs'][dev])]}"]
                     elif _type == 'esphome':
                         _linked = utils.listify(outlet_data[k]['linked_devs'][dev])
                         _this = [f'{k}:{[p for p in _linked]}']
@@ -175,7 +175,8 @@ class Config():
         if os.path.isfile(yaml_file) and os.stat(yaml_file).st_size > 0:
             with open(yaml_file) as f:
                 try:
-                    return yaml.load(f, Loader=yaml.BaseLoader)
+                    # return yaml.load(f, Loader=yaml.BaseLoader)
+                    return yaml.load(f, Loader=yaml.FullLoader)
                 except ValueError as e:
                     log.warning(f'Unable to load configuration from {yaml_file}\n\t{e}', show=True)
 

@@ -24,9 +24,12 @@ jprint = utils.json_print
 
 
 def get_outlets():
-    if not cpi.cpiexec.pwr_init_complete:
+    if not config.outlets:
+        cpi.cpiexec.pwr_init_complete = True
+    if config.outlets and not cpi.cpiexec.pwr_init_complete:
         utils.spinner('Waiting for Power Threads To Complete', cpi.cpiexec.wait_for_threads)
-        return cpi.pwr.data
+        if cpi.pwr:
+            return cpi.pwr.data
 
 
 if len(sys.argv) > 1:

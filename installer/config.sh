@@ -97,6 +97,7 @@ update_config() {
         sed -n '/debug:/,//p' $CONFIG_FILE_YAML | tail -n +2 >> $yml_temp
     fi
     if [[ -f $CONFIG_FILE_YAML ]] ; then
+        # TODO check if they are different and keep existing if the same
         cp $CONFIG_FILE_YAML $bak_dir && logit "Backed up existing ConsolePi.yaml to bak dir" ||
             logit "Failed to Back up existing ConsolePi.yaml to bak dir"
 

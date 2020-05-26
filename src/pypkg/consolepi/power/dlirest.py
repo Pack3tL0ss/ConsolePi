@@ -11,7 +11,7 @@ import requests
 from dlipower import PowerSwitch
 from requests.auth import HTTPDigestAuth
 
-DLI_TIMEOUT = 5
+DLI_TIMEOUT = 7
 SEQUENCE_DELAY = 1
 DEBUG = False
 TIMING = False
@@ -90,12 +90,10 @@ class DLI:
                 ret_val = {}
                 for o in outlets:
                     if o >= index.start and o <= index.stop:
-                        # ret_val[o] = outlets[o]
                         ret_val[o] = {'state': self.state(o), 'name': outlets[o]['name']}
             elif isinstance(index, list):
                 ret_val = {}
                 for o in index:
-                    # ret_val[o] = outlets[o]
                     ret_val[o] = {'state': self.state(o), 'name': outlets[o]['name']}
             else:
                 ret_val = {index: {'state': self.state(index), 'name': outlets[index]['name']}}
@@ -225,7 +223,11 @@ class DLI:
             if self.reachable:
                 retry = 0
                 while retry <= 2:
-                    outlet_list = self.dli.statuslist()
+                    try:
+                        outlet_list = self.dli.statuslist()
+                    except AttributeError as e:
+                        log.error(f'dlirest.py, get_dli_outlets exceptions occured attempting to get outlet_list: {e}')
+                        continue
                     if outlet_list:  # can be None if dli suffers transient issue
                         for outlet in outlet_list:
                             outlet_dict[outlet[0]] = {'name': outlet[1], 'state': True if outlet[2].upper() == 'ON' else False}
@@ -391,7 +393,7 @@ class DLI:
 
         if isinstance(ret_val, bool):
             return ret_val
-        elif ret_val <= 204:    # toggle power
+        elif isinstance(ret_val, int) and ret_val <= 204:    # toggle power
             return toState if isinstance(toState, bool) else bool_state[toState]
         else:
             return 'An Error occured {}'.format(ret_val)
@@ -500,28 +502,3 @@ class DLI:
 
 if __name__ == '__main__':
     pass
-    fqdn = 'labpower1.kabrew.com'
-    # start = time.time() # TIMING
-    l1 = DLI(fqdn, username='admin', password='hpIMC!!!')
-    # print('[TIMING] get l1 session time: {}'.format(time.time() - start)) # TIMING
-    # # print(l1.s.auth)
-    # # print(l1.outlets)
-    # # print('l1-toggle', l1.toggle('all', 'off'))
-    # # range = slice(3, 7)
-    print(l1[5])
-    # # print('l1-cycle', l1.cycle(8))
-    # print('l1-toggle', l1.toggle([1, 5], 'off'))
-    # print('l1-cycle-all', l1.cycle('all'))
-    # print('l1-rename', l1.rename(1, 'Digi'))
-    l1.close()
-    # # print(l1.s.auth)
-    fqdn = 'labpower2.kabrew.com'
-    l2 = DLI(fqdn, username='admin', password='hpIMC!!!')
-    print(l2[5])
-    # # print(l2.switch.session.auth)
-    # # print(l2.outlets)
-    # print('l2-toggle', l2.toggle([1, 4]))
-    # print('l2-cycle', l2.cycle('all'))
-    # print('l2-rename', l2.rename(7, 'VACANT'))
-    l2.close()
-    # print(l2.switch.session.auth)

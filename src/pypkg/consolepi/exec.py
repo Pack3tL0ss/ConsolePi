@@ -527,7 +527,7 @@ class ConsolePiExec:
                                                 and not response
                                             ):
                                                 log.show(
-                                                    f"{host_short} Port {_port} if Off.  Cycle is not valid"
+                                                    f"{host_short} Port {_port} is Off.  Cycle is not valid"
                                                 )
                                             elif (
                                                 menu_actions[ch]["function"].__name__
@@ -601,9 +601,11 @@ class ConsolePiExec:
                                                 and not response
                                             ):
                                                 _msg = f"{_grp}({host_short})" if _grp != host_short else f"{_grp}"
-                                                log.show(
-                                                    f"{_msg} Port {_port} if Off.  Cycle is not valid"
-                                                )
+                                                if _msg != _port:
+                                                    _msg = f"{_msg} Port {_port} is Off. Cycle is not valid"
+                                                else:
+                                                    _msg = f"{_msg} is Off. Cycle is not valid"
+                                                log.show(_msg)
                                         elif (isinstance(response, str) and _port is not None):
                                             log.show(response)
 

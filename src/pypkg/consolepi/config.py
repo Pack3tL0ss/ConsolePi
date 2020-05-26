@@ -5,11 +5,17 @@ import json
 
 from consolepi import utils, log
 LOG_FILE = '/var/log/ConsolePi/consolepi.log'
+
+# overridable defaults (via OVERRIDES section of ConsolePi.yaml)
 DEFAULT_BAUD = 9600
 DEFAULT_DBITS = 8
 DEFAULT_PARITY = 'n'
 DEFAULT_FLOW = 'n'
 DEFAULT_SBITS = 1
+DEFAULT_REMOTE_TIMEOUT = 3
+DEFAULT_DLI_TIMEOUT = 7
+DEFAULT_SO_TIMEOUT = 3  # smart outlets
+DEFAULT_CYCLE_TIME = 3
 
 
 class Config():
@@ -92,7 +98,10 @@ class Config():
         self.default_sbits = ovrd.get('default_sbits', DEFAULT_SBITS)
         self.cloud_pull_only = ovrd.get('cloud_pull_only', False)
         self.compact_mode = ovrd.get('compact_mode', False)
-        self.remote_timeout = int(ovrd.get('remote_timeout', 3))
+        self.remote_timeout = int(ovrd.get('remote_timeout', DEFAULT_REMOTE_TIMEOUT))
+        self.dli_timeout = int(ovrd.get('dli_timeout', DEFAULT_DLI_TIMEOUT))
+        self.so_timeout = int(ovrd.get('smartoutlet_timeout', DEFAULT_SO_TIMEOUT))
+        self.cycle_time = int(ovrd.get('cycle_time', DEFAULT_CYCLE_TIME))
 
     def get_outlets_from_file(self):
         '''Get outlets defined in power.json
@@ -125,7 +134,7 @@ class Config():
                 for dev in outlet_data[k]['linked_devs']:
                     _type = outlet_data[k].get('type').lower()
                     if _type == 'dli':
-                        _this = [f"{k}:{[int(p) for p in outlet_data[k]['linked_devs'][dev]]}"]
+                        _this = [f"{k}:{[int(p) for p in utils.listify(outlet_data[k]['linked_devs'][dev])]}"]
                     elif _type == 'esphome':
                         _linked = utils.listify(outlet_data[k]['linked_devs'][dev])
                         _this = [f'{k}:{[p for p in _linked]}']
@@ -166,7 +175,8 @@ class Config():
         if os.path.isfile(yaml_file) and os.stat(yaml_file).st_size > 0:
             with open(yaml_file) as f:
                 try:
-                    return yaml.load(f, Loader=yaml.BaseLoader)
+                    # return yaml.load(f, Loader=yaml.BaseLoader)
+                    return yaml.load(f, Loader=yaml.FullLoader)
                 except ValueError as e:
                     log.warning(f'Unable to load configuration from {yaml_file}\n\t{e}', show=True)
 

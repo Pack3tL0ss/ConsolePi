@@ -2,8 +2,16 @@
 
 import json
 import logging
+import os
 import requests  # NoQA
 from consolepi.utils import Utils  # NoQA
+
+try:
+    import better_exceptions
+    better_exceptions.MAX_LENGTH = None
+    os.environ['BETTER_EXCEPTIONS'] = '1'
+except ImportError:
+    pass
 
 LOG_FILE = '/var/log/ConsolePi/consolepi.log'
 

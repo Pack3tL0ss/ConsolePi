@@ -13,17 +13,42 @@
 # --    Sequence: install.sh (prep, common imports) --> config.sh (get configuration/user input) --> update.sh (perform install/updates)         -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-if [ ! -z $1 ] && [ "$1" = 'local-dev' ] ; then
-    branch=dev
-    local_dev=true
-else
-    branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
-    local_dev=false
-fi
+# if [ ! -z $1 ] && [ "$1" = 'local-dev' ] ; then
+#     branch=dev
+#     local_dev=true
+# else
+#     branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
+#     local_dev=false
+# fi
 
+# get_common() {
+#     if ! $local_dev ; then
+#         wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
+#     else
+#         sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
+#     fi
+#     . /tmp/common.sh
+#     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
+#     # overwrite the default source directory to local repo when running local tests
+#     $local_dev && consolepi_source='pi@consolepi-dev:/etc/ConsolePi'
+#     [ -f /tmp/common.sh ] && rm /tmp/common.sh
+#     header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
+# }
+
+# Testing improved get_common that should work with install scenarios where they pull then run this script directly or from a zipped release
 get_common() {
     if ! $local_dev ; then
-        wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
+        if [[ "$0" =~ install.sh ]] ; then
+            this_path=$(dirname $(realpath consolepi/install.sh ))
+            [[ -f ${this_path}/common.sh ]] && cp ${this_path}/common.sh /tmp ||
+            (
+            echo "This appeared to be an install from a pkg release, but common.sh not found in $this_path.  Attempting to fetch from GitHub Repo." "WARNING" ;
+            wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh || echo Failed to fetch common.sh from repo "WARNING"
+            )
+        else
+            # install via TL;DR install line on GitHub
+            wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
+        fi
     else
         sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
     fi
@@ -45,26 +70,30 @@ remove_first_boot() {
 
 do_apt_update() {
     process="Update/Upgrade ConsolePi (apt)"
-    logit "Update Sources"
-    # Only update if initial install (no install.log) or if last update was not today
-    if [[ ! -f "${final_log}" ]] || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
-        sudo apt-get update 1>/dev/null 2>> $log_file && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+    if $doapt; then
+        logit "Update Sources"
+        # Only update if initial install (no install.log) or if last update was not today
+        if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
+            sudo apt-get update 1>/dev/null 2>> $log_file && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+        else
+            logit "Skipping Source Update - Already Updated today"
+        fi
+
+        logit "Upgrading ConsolePi via apt. This may take a while"
+        sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
+
+        logit "Performing dist-upgrade"
+        sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
+
+        logit "Tidying up (autoremove)"
+        apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
+
+        logit "Install/update git (apt)"
+        apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
+        logit "Process Complete"
     else
-        logit "Skipping Source Update - Already Updated today"
+        logit "apt updates skipped based on -noapt argument" "WARNING"
     fi
-
-    logit "Upgrading ConsolePi via apt. This may take a while"
-    sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
-
-    logit "Performing dist-upgrade"
-    sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
-
-    logit "Tidying up (autoremove)"
-    apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
-
-    logit "Install/update git (apt)"
-    apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
-    logit "Process Complete"
     unset process
 }
 
@@ -171,7 +200,7 @@ git_ConsolePi() {
     # -- exit if python3 ver < 3.6
     [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && (
         echo "ConsolePi Requires Python3 ver >= 3.6, aborting install."
-        echo "Reccomend using ConsolePi_image_creator to creator to create a fresh image on a new sd-card" &&
+        echo "Reccomend using ConsolePi_image_creator to create a fresh image on a new sd-card" &&
         exit 1
     )
 
@@ -244,34 +273,39 @@ do_pyvenv() {
         logit "${consolepi_dir}venv directory already exists"
     fi
 
-    if $upgrade; then
-        # -- *Upgrade Only* update pip to current --
-        logit "Upgrade pip"
-        sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade pip 1>/dev/null 2>> $log_file &&
-            logit "Success - pip upgrade" ||
-            logit "WARNING - pip upgrade returned error" "WARNING"
-    fi
+    if $dopip; then
+        if $upgrade; then
+            # -- *Upgrade Only* update pip to current --
+            logit "Upgrade pip"
+            sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade pip 1>/dev/null 2>> $log_file &&
+                logit "Success - pip upgrade" ||
+                logit "WARNING - pip upgrade returned error" "WARNING"
+        fi
 
-    # -- *Always* update venv packages based on requirements file --
-    [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"
-    logit "pip install/upgrade ConsolePi requirements - This can take some time."
-    echo "-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/${req_file}\" --"
-    sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/${req_file} 2> >(tee -a $log_file >&2) &&
-        logit "Success - pip install/upgrade ConsolePi requirements" ||
-        logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
+        # -- *Always* update venv packages based on requirements file --
+        [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"
+        logit "pip install/upgrade ConsolePi requirements - This can take some time."
+        echo "-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/${req_file}\" --"
+        sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/${req_file} 2> >(tee -a $log_file >&2) &&
+            logit "Success - pip install/upgrade ConsolePi requirements" ||
+            logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
+    else
+        logit "pip upgrade / requirements upgrade skipped based on -nopip argument" "WARNING"
+    fi
 
     # -- temporary until I have consolepi module on pypi --
-    python_ver=$(ls -l /etc/ConsolePi/venv/lib | grep python3 |  awk '{print $9}')
-    pkg_dir=${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi
-    if [[ ! -L $pkg_dir ]] ; then
-        logit "link consolepi python module in venv site-packages"
-        # sudo cp -R ${src_dir}PyConsolePi/. ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
-        [[ -d $pkg_dir ]] && rm -r $pkg_dir >/dev/null 2>> $log_file
-        ln -s ${src_dir}PyConsolePi/ ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
-        # sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
-            logit "Success - link consolepi python module into venv site-packages" ||
-            logit "Error - link consolepi python module into venv site-packages" "ERROR"
-    fi
+    # !! No Longer Required, using sys.path.insert in the scripts until loaded on pypi
+    # python_ver=$(ls -l /etc/ConsolePi/venv/lib | grep python3 |  awk '{print $9}')
+    # pkg_dir=${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi
+    # if [[ ! -L $pkg_dir ]] ; then
+    #     logit "link consolepi python module in venv site-packages"
+    #     # sudo cp -R ${src_dir}PyConsolePi/. ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
+    #     [[ -d $pkg_dir ]] && rm -r $pkg_dir >/dev/null 2>> $log_file
+    #     ln -s ${src_dir}PyConsolePi/ ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
+    #     # sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
+    #         logit "Success - link consolepi python module into venv site-packages" ||
+    #         logit "Error - link consolepi python module into venv site-packages" "ERROR"
+    # fi
 
 
     unset process
@@ -385,7 +419,7 @@ main() {
         get_common                          # get and import common functions script
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if autolaunch install is configured remove
-        do_apt_update                       # apt-get update the pi
+        do_apt_update ||          # apt-get update the pi
         pre_git_prep                        # process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes
@@ -402,4 +436,34 @@ main() {
     fi
 }
 
+process_args() {
+    # All currently supported arguments are for dev/testing use
+    branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
+    local_dev=false
+    dopip=true
+    doapt=true
+    while (( "$#" )); do
+        case "$1" in
+            -dev)
+                branch=dev
+                local_dev=true
+                shift
+                ;;
+            -nopip)
+                dopip=false
+                shift
+                ;;
+            -noapt)
+                doapt=false
+                shift
+                ;;
+            -*|--*=) # unsupported flags
+                echo "Error: Unsupported flag passed to process_cmds $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+}
+
+process_args "$@"
 main

@@ -154,7 +154,7 @@ class ConsolePiMenu(Rename):
         menu = self.menu
         states = self.states
         menu_actions = {
-            'b': self.main_menu,
+            # 'b': self.main_menu,
             'x': self.exit,
             'power_menu': self.power_menu,
         }
@@ -206,7 +206,10 @@ class ConsolePiMenu(Rename):
                         state_list.append(_outlet['state'])
                         _state = menu.format_line(_state).text
                         _name = ' ' + _outlet['name'] if 'ON' in _state else _outlet['name']
-                        body.append(f"[{_state}] {_name} ({r} Port:{_port}) {_linked if _linked else ''}")
+                        if _name != r:
+                            body.append(f"[{_state}] {_name} ({r} Port:{_port}) {_linked if _linked else ''}")
+                        else:
+                            body.append(f"[{_state}] {_name} (Port:{_port}) {_linked if _linked else ''}")
                         menu_actions[str(item)] = {
                             'function': pwr.pwr_toggle,
                             'args': [outlet['type'], outlet['address']],
@@ -215,15 +218,13 @@ class ConsolePiMenu(Rename):
                             }
                         menu_actions['c' + str(item)] = {
                             'function': pwr.pwr_cycle,
-                            'args': [outlet['type'].lower(),
-                                     outlet['address'] if outlet['type'].lower() == 'dli' else r],
+                            'args': [outlet['type'].lower(), outlet['address']],
                             'kwargs': {'port': _port},
                             'key': 'dli_pwr' if outlet['type'].lower() == 'dli' else r
                             }
                         menu_actions['r' + str(item)] = {
                             'function': pwr.pwr_rename,
-                            'args': [outlet['type'].lower(),
-                                     outlet['address'] if outlet['type'].lower() == 'dli' else r],
+                            'args': [outlet['type'].lower(), outlet['address']],
                             'kwargs': {'port': _port},
                             'key': 'dli_pwr' if outlet['type'].lower() == 'dli' else r
                             }

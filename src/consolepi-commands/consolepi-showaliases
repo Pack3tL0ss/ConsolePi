@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+udev=($(cat /etc/udev/rules.d/10-ConsolePi.rules | grep -o SYMLINK+=\".*\" | cut -d'"' -f2))
+ser2net=($(cat /etc/ser2net.conf | grep -v "/dev/ttyUSB\|/dev/ttyACM" | grep -o "/dev/.*" | cut -d'/' -f3 | cut -d':' -f1))
+#C=($(comm -12 <(printf '%s\n' "${udev[@]}" | LC_ALL=C sort) <(printf '%s\n' "${ser2net[@]}" | LC_ALL=C sort)))
+# Devices that appear in both
+echo -e "\nThese Aliases are properly configured"
+unset LC_ALL; LC_COLLATE=C ; comm -12 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)
+# Only Appears in udev
+echo -e "\nThe Following Aliases appear in udev but don't have an associated ser2net mapping"
+unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${ser2net[@]}" | sort) <(printf '%s\n' "${udev[@]}" | sort)
+# Only Appears in ser2net
+echo -e "\nThese Entries are in ser2net but don't have a udev alias, they will never appear"
+unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)

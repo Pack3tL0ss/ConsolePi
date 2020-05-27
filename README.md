@@ -73,6 +73,11 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
 ### May 2020 v2020.2.2 minor release
   - The feature was fixed for many use-cases in v2020.2.1, but I discovered issues in some scenarios when a hub was used.  That logic was improved so mapping "lame" adapters to a specific port should now work consistently regardless of the use of hub(s).
 
+### May 2020 v2020.2.3 minor release
+  - Fix consolepi-details in some scnearios relaating to existence of outlets in config.
+  - Fix configuration parsing of yaml for bools, and related nooff setting for outlets
+  - Minor Formatting improvements to consolepi-showaliases
+
 # Features
 ## **Feature Summary Image**
 ![consolepi-menu image](readme_content/ConsolePi_features.jpg)

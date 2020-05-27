@@ -10,13 +10,14 @@ unset LC_ALL; LC_COLLATE=C ; comm -12 <(printf '%s\n' "${udev[@]}" | sort) <(pri
 # Only Appears in udev
 x=($(comm -13 <(printf '%s\n' "${ser2net[@]}" | sort) <(printf '%s\n' "${udev[@]}" | sort)))
 if [[ ${#x[@]} -gt 0 ]]; then
-    echo -e "\nThe Following Aliases appear in udev but don't have an associated ser2net mapping"
+    echo -e "\nThe Following Aliases appear in udev rules file (10-Consolepi.rules) but don't have an associated ser2net mapping"
     unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${ser2net[@]}" | sort) <(printf '%s\n' "${udev[@]}" | sort)
 fi
 
 # Only Appears in ser2net
 x=($(comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)))
+echo
 if [[ ${#x[@]} -gt 0 ]]; then
-    echo -e "\nThese Entries are in ser2net but don't have a udev alias, they will never appear"
+    echo -e "\nThese Entries are in ser2net.conf but don't have a udev alias, they will never appear"
     unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)
 fi

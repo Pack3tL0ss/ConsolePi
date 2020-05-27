@@ -16,8 +16,8 @@ fi
 
 # Only Appears in ser2net
 x=($(comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)))
-echo
 if [[ ${#x[@]} -gt 0 ]]; then
     echo -e "\nThese Entries are in ser2net.conf but don't have a udev alias, they will never appear"
     unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)
 fi
+echo

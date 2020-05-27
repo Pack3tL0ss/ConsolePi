@@ -6,9 +6,17 @@ ser2net=($(cat /etc/ser2net.conf | grep -v "/dev/ttyUSB\|/dev/ttyACM" | grep -o 
 # Devices that appear in both
 echo -e "\nThese Aliases are properly configured"
 unset LC_ALL; LC_COLLATE=C ; comm -12 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)
+
 # Only Appears in udev
-echo -e "\nThe Following Aliases appear in udev but don't have an associated ser2net mapping"
-unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${ser2net[@]}" | sort) <(printf '%s\n' "${udev[@]}" | sort)
+x=($(comm -13 <(printf '%s\n' "${ser2net[@]}" | sort) <(printf '%s\n' "${udev[@]}" | sort)))
+if [[ ${#x[@]} -gt 0 ]]; then
+    echo -e "\nThe Following Aliases appear in udev but don't have an associated ser2net mapping"
+    unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${ser2net[@]}" | sort) <(printf '%s\n' "${udev[@]}" | sort)
+fi
+
 # Only Appears in ser2net
-echo -e "\nThese Entries are in ser2net but don't have a udev alias, they will never appear"
-unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)
+x=($(comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)))
+if [[ ${#x[@]} -gt 0 ]]; then
+    echo -e "\nThese Entries are in ser2net but don't have a udev alias, they will never appear"
+    unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)
+fi

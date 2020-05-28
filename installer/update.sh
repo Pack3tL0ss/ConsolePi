@@ -911,7 +911,9 @@ post_install_msg() {
             -foot "ConsolePi Installation Script v${INSTALLER_VER}"
         )
     menu_print "${_msg[@]}"
+
     # Display any warnings
+    echo $warn_cnt
     if [ $warn_cnt -gt 0 ]; then
         echo -e "\n${_red}---- warnings exist ----${_norm}"
         # grep "$log_start" -A 99 | grep WARNING $log_file

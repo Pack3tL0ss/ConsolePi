@@ -151,9 +151,9 @@ logit() {
     #   logit "building package" <"WARNING">
     # NOTE: Sending a status of "ERROR" results in the script exiting
     #       default status is INFO if none provided.
-    [ "${1}" == '-start' ] && start=true && shift || start=false
+    [[ "${1}" == '-start' ]] && start=true && shift || start=false
     [ -z "$process" ] && process="UNDEFINED"
-    message=$1                                      # 1st arg = the log message
+    message="${1}"                                      # 1st arg = the log message
     [ -z "${2}" ] && status="INFO" || status=${2^^} # to upper
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
     if [[ "${status}" == "ERROR" ]]; then
@@ -164,9 +164,9 @@ logit() {
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
     fi
 
+    log_msg="$(date +"%b %d %T") [${status}][${process}] ${message}"
     if ! $start; then
         # Log to stdout and log-file
-        log_msg="$(date +"%b %d %T") [${status}][${process}] ${message}"
         echo -e "$log_msg" | tee -a $log_file
     else
         # log_start is used to parse log file and display warnings after the matching start-line

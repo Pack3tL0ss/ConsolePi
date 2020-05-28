@@ -16,11 +16,6 @@ except ImportError:
 LOG_FILE = '/var/log/ConsolePi/consolepi.log'
 
 
-# class Response(requests.Response):
-#     def __init__(self, state=None):
-#         self.state = state
-
-
 class Response():
     def __init__(self, ok: bool, output=None, error=None, status_code=None, state=None, do_json=False,  **kwargs):
         self.ok = ok
@@ -34,8 +29,21 @@ class Response():
             self.json = None if not do_json else json.dumps(output)
 
 
-class ConsolePiLog:
+class ConsolePiAction():
+    def __init__(self, *args, function=None, callback=None, calling_menu=None, update_attribute=None,
+                 spin=False, confirm=False, **kwargs):
+        self.function = function
+        self.args = args
+        self.callback = callback
+        self.calling_menu = calling_menu
+        self.update_attribute = update_attribute
+        self.spin = spin
+        self.confirm = confirm
+        self.kwargs = kwargs
+        self.available = self.__dict__.keys()
 
+
+class ConsolePiLog:
     def __init__(self, log_file, debug=False):
         self.error_msgs = []
         self.DEBUG = debug

@@ -107,17 +107,18 @@ menu_print() {
             -head)
                 str=" $2 "
                 len=${#str}
+                # ((line_len+=1)) #actual line_len ends up aw line_len +1 not sure why
                 left=$(( ((line_len-len))/2 ))
-                [[ $((left+len+right)) -eq $line_len ]] && right=$left || right=$((left-1))
+                [[ $((left+len+left)) -eq $line_len ]] && right=$left || right=$((left+1))
                 printf -v pad_left "%*s" $left && pad_left=${pad_left// /*}
                 printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
-                printf "%s %s %s\n" "$pad_left" "$str" "$pad_right"
+                printf "%s%s%s\n" "$pad_left" "$str" "$pad_right"
                 shift 2
                 ;;
             -foot)
                 str="**$2"
                 len=${#str}
-                right=$(( ((line_len-len+1)) ))
+                right=$(( ((line_len-len)) ))
                 printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
                 printf "%s%s\n" "$str" "$pad_right"
                 shift 2
@@ -134,7 +135,7 @@ menu_print() {
                 len=${#str}
                 [[ "$str" =~ "\e[" ]] && ((len-=11))
                 [[ "$str" =~ ';1m' ]] && ((len-=2))
-                pad_len=$(( ((line_len-len-4)) ))
+                pad_len=$(( ((line_len-len-5)) ))
                 printf -v pad "%*s" $pad_len # && pad=${pad// /-}
                 printf '* %b %s *\n' "$str" "$pad"
                 shift
@@ -160,8 +161,8 @@ logit() {
         fatal=true
         status="${_red}${status}${_norm}"
     elif [[ ! "${status}" == "INFO" ]]; then
-        status="${_yellow}${status}${_norm}"
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
+        status="${_yellow}${status}${_norm}"
     fi
 
     log_msg="$(date +"%b %d %T") [${status}][${process}] ${message}"

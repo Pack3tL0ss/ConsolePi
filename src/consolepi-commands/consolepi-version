@@ -11,7 +11,7 @@ echo -e ""
 VER=$(grep 'CONSOLEPI_VER:' /etc/ConsolePi/.static.yaml 2>/dev/null| awk '{print $2}')
 [ -z "$VER" ] && VER="Error"
 printf "ConsolePi Version: %s Installer Version %s \n" $VER $INSTALLER_VER
-echo -e "  - Versioning Style is YYYY.major.minor\n"
+echo -e "  - Versioning Style is YYYY-major.minor\n"
 pushd $consolepi_dir >/dev/null
 echo "Your current commit is dated$( git log -1 | grep Date: | cut -d' ' -f2-  )"
 # until I sort permissions or create a wrapper try non-sudo then sudo

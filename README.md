@@ -80,7 +80,7 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
 
 # Features
 ## **Feature Summary Image**
-![consolepi-menu image](readme_content/ConsolePi_features.jpg)
+![consolepi-menu image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePi_features.jpg)
 
 ## **Serial Console Server**
 This is the core feature of ConsolePi.  Connect USB to serial adapters to ConsolePi (or use the onboard UART(s)), then access the devices on those adapters via the ConsolePi.  Supports TELNET directly to the adapter, or connect to ConsolePi via SSH or BlueTooth and select the adapter from the menu.  A menu is launched automatically when connecting via BlueTooth, use `consolepi-menu` to launch the menu from an SSH connection.  The menu will show connection options for any locally connected adapters, as well as connections to any remote ConsolePis discovered via Cluster/sync.
@@ -549,20 +549,21 @@ From an existing ConsolePi just copy the script to your home-dir for convenience
 
 #### **ConsolePi_image_creator brief summary:**
 
-*The "Stage dir" referenced below is a sub directory found in the script dir (the directory you run the script from).  The script looks for the Stage dir which needs to be named 'ConsolePi_stage' and moves the entire directory to the pi users home directory.*
+*The "Stage dir" referenced below is a sub directory found in the script dir (the directory you run the script from).  The script looks for the Stage dir which needs to be named 'ConsolePi_stage' and moves the entire directory to the pi users home directory on the media being imaged.*
 
-The Pre-staging described below is optional, this script can be used without any pre-staging files, it will simply burn the Raspbian-lite image to the micro-sd and set the installer to run automatically on boot (unless you set auto_install to false in the script.  It's true by default).
+The Pre-staging described below is optional, this script can be used without any pre-staging files, it will simply burn a Raspbian image to the micro-sd and set the installer to run automatically on boot (unless you set auto_install to false in the script.  It's true by default).
 
 > NOTE: The script will look for and pull down the most current Raspbian "lite" image, to use the desktop of full image change the img_type line in the script (comments within the script explain the options)
 
 **What the script does**
 - automatically pull the most recent raspbian image (lite by default) if one is not found in the script-dir (whatever dir you run it from)
+  - It will check to see if a more current image is available and prompt for image selection even if an image exists in the script dir.
 - Make an attempt to determine the correct drive to be flashed, and display details for confirmation.  User to verify/confirm before writing.
 - Flash image to micro-sd card
 - PreConfigure ConsolePi with parameters normally entered during the initial install.  So you bypass data entry and just get a verification screen.
 - The entire stage dir (ConsolePi_stage) is moved to the micro-sd if found in the script dir.  This can be used to pre-stage a number of config files the installer will detect and use, along with anything else you'd like on the ConsolePi image.
 - Pre-Configure a psk or open WLAN via parameters in script, and Enable SSH.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP if doing a headless install.
-- You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the stage dir.  This method supports EAP-TLS with certificates.  Just place the cert files referenced in the provided wpa_supplicant.conf file in a 'cert' folder inside the stage dir.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ).
+- You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the stage dir.  This method supports the typical methods along with EAP-TLS with certificates.  Just place the cert files referenced in the provided wpa_supplicant.conf file in a 'cert' folder inside the stage dir.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ).
 - PreStage all OpenVPN related files (ConsolePi.ovpn and ovpn_credentials) by placing them on the ConsolePi image.  The script will detect them if found in the stage dir.  The installer will then detect them and place them in the /etc/openvpn/client directory.  By default the installer places example files in for OpenVPN (as the specifics depend on your server config).
 - create a quick command 'consolepi-install' to simplify the command string to pull the installer from this repo and launch.
 - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled by setting auto_install to false in this script.
@@ -575,30 +576,33 @@ For my use case I manually installed these, but depending on the system/use-case
 
 The Use Cases
   1. ConsolePi running on a Linux Mint LapTop
-      - desire was to be able to load the menu, see the remotes, and use a locally connected adapter if I wanted, but to only sync one way (learn about the remotes, but don't advertise to them).  This is because the laptop is used ad-hoc and if I'm using it I'm on it, not remote.
+      - desire was to be able to load the menu, see the remotes, and use a locally connected adapter if I wanted, but to only sync one way (discover remote ConsolePis, but don't advertise to them).  This is because the laptop is used ad-hoc and if I'm using it I'm on it, not remote.
       - Install Process was simply (this is from memory so might be off a bit):
-          1. cd /tmp then Clone the repo
-          2. sudo apt install python3-pip (if required pip not installed for python3)
-          3. python3 -m pip install virtualenv
-          4. cd /tmp/ConsolePi
-          5. python3 -m virtualenv venv
-          6. sudo mv /tmp/ConsolePi /etc
-          7. sudo cp /etc/ConsolePi/src/consolepi.sh /etc/profile.d && . /etc/profile.d/consolepi.sh <-- this script adds the consolepi-commands to PATH
-          8. consolepi-sync -perms -pip  <-- this updates the permissions on the directory and installs/updates all the requirements the venv
-          9. cp /etc/ConsolePi/ConsolePi.yaml.example /etc/ConsolePi/ConsolePi.yaml
-          10. nano /etc/ConsolePi/ConsolePi.yaml  -- edit as necessary for this use case, I used `cloud_pull_only: true` option in the OVERRIDES: section.
-          11. sudo cp /etc/ConsolePi/src/systemd/consolepi-mdnsbrowse.service /etc/systemd/system
-          12. sudo systemctl enable consolepi-mdnsbrowse
-          13. sudo systemctl start consolepi-mdnsbrowse
-          14. consolepi-menu <-- test the menu (note if cloud sync enabled you still need to put the creds in the dir).
-            -  Test refresh if cloud enabled and creds in place
+          1. `cd /tmp`
+          2. `git clone https://github.com/Pack3tL0ss/ConsolePi.git`
+          3. `cd ConsolePi`
+          2. `sudo apt install python3-pip` (if required pip not installed for python3)
+          3. `python3 -m pip install virtualenv`
+          4. `cd /tmp/ConsolePi`
+          5. `python3 -m virtualenv venv`
+          6. `sudo mv /tmp/ConsolePi /etc`
+          7. `sudo cp /etc/ConsolePi/src/consolepi.sh /etc/profile.d && . /etc/profile.d/consolepi.sh` <-- this script adds the consolepi-commands to PATH
+          8. `consolepi-sync -pip`  <-- this updates the permissions on the directory if necessary and installs/updates all the requirements.
+          9. `cp /etc/ConsolePi/ConsolePi.yaml.example /etc/ConsolePi/ConsolePi.yaml`
+          10. `consolepi-config`  -- edit as necessary for this use case, I used `cloud_pull_only: true` option in the OVERRIDES: section.
+          11. `sudo cp /etc/ConsolePi/src/systemd/consolepi-mdnsbrowse.service /etc/systemd/system`
+          12. `sudo systemctl enable consolepi-mdnsbrowse`
+          13. `sudo systemctl start consolepi-mdnsbrowse`
+          14. `consolepi-menu` <-- test the menu (note if cloud sync enabled you still need to put the creds in the dir).
+            -  Select option `r` (refresh) if cloud enabled and creds in place.
+            > If you've completed [Google Drive Setup](readme_content/gdrive.md), and need to authorize ConsolePi for the first time launch the menu with the `cloud` argument (`consolepi-menu cloud`) (then select the `r` (refresh) option).  This is only required to create the credential files for the first time, you can use `consolepi-menu` without arguments to launch after the creds have been created.
 
         *I think that's it.  So the above will allow use of the menu on the LapTop, will detect any local adapters if any are plugged in, will discover and allow connection to any remotes, manually defined hosts, power outlets, etc, but will not advertise itself to any other ConsolePis*
   2. ConsolePi running on wsl-ubuntu (Windows Subsystem for Linux)
       - Use Case... I just wanted to see if it would work.  I also have it open a lot so handy to be able to just run from there.
       - Not using local-adapters wsl would be remote only.
       - Install process: Same as above with the exception of leave out the consolpi-mdnsbrowse bit (no systemd on wsl)
-      - Result is it works as expected, with the minor caveat that it's only source to get remote details is via cloud-sync.  Adapter data is still refreshed on menu-load by querying the remote directly.
+      - Result is it works as expected, with the minor caveat that it's only source to get remote details is via cloud-sync.  Adapter data is still refreshed on menu-load by querying the remote directly.  You also can not create the cloud credentials files (do the initial Authorization) in wsl.  That needs to be done on another system and coppied over.
 
 # ConsolePi Usage
 

@@ -1,23 +1,42 @@
 #!/usr/bin/env bash
 
-udev=($(cat /etc/udev/rules.d/10-ConsolePi.rules | grep -o SYMLINK+=\".*\" | cut -d'"' -f2))
-ser2net=($(cat /etc/ser2net.conf | grep -v "/dev/ttyUSB\|/dev/ttyACM" | grep -o "/dev/.*" | cut -d'/' -f3 | cut -d':' -f1))
-#C=($(comm -12 <(printf '%s\n' "${udev[@]}" | LC_ALL=C sort) <(printf '%s\n' "${ser2net[@]}" | LC_ALL=C sort)))
+rules_file='/etc/udev/rules.d/10-ConsolePi.rules'
+ser2net_conf='/etc/ser2net.conf'
+
+udev=($(cat $rules_file | grep -o SYMLINK+=\".*\" | cut -d'"' -f2))
+ser2net=($(cat $ser2net_conf | grep -v "/dev/ttyUSB\|/dev/ttyACM" | grep -o "/dev/.*" | cut -d'/' -f3 | cut -d':' -f1))
+
+[[ -f /etc/ConsolePi/installer/common.sh ]] && . /etc/ConsolePi/installer/common.sh
+! menu_print " " >/dev/null 2>&1 && echo  Unable to import common functions && exit 1
+
+
 # Devices that appear in both
-echo -e "\nThese Aliases are properly configured"
-unset LC_ALL; LC_COLLATE=C ; comm -12 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)
+clear; echo
+menu_print -head "Properly Configured Aliases"
+menu_print -nl
+menu_print "These Aliases are properly configured" -nl
+menu_print $(unset LC_ALL; LC_COLLATE=C ; comm -12 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort))
+menu_print -nl
 
 # Only Appears in udev
 x=($(comm -13 <(printf '%s\n' "${ser2net[@]}" | sort) <(printf '%s\n' "${udev[@]}" | sort)))
 if [[ ${#x[@]} -gt 0 ]]; then
-    echo -e "\nThe Following Aliases appear in udev rules file (10-Consolepi.rules) but don't have an associated ser2net mapping"
-    unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${ser2net[@]}" | sort) <(printf '%s\n' "${udev[@]}" | sort)
+    menu_print -head "Aliases with No matching ser2net Entry"
+    menu_print -nl
+    menu_print "The Following Aliases appear in udev rules file ($rules_file) but don't have an"
+    menu_print "associated ser2net mappingThese devices would fallback to default connection settings [9600 8N1 Flow: None]"
+    menu_print "if connected, and would not be available via TELNET on predictable ports (7xxx) range."
+    menu_print -nl
+    menu_print $(unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${ser2net[@]}" | sort) <(printf '%s\n' "${udev[@]}" | sort))
 fi
 
 # Only Appears in ser2net
 x=($(comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)))
 if [[ ${#x[@]} -gt 0 ]]; then
-    echo -e "\nThese Entries are in ser2net.conf but don't have a udev alias, they will never appear"
-    unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort)
+    menu_print -head "Undefined Aliases that appear in ser2net.conf"
+    menu_print -nl "These Entries are in $ser2net_conf but don't have a udev alias.  This means these adapters will never show up"
+    menu_print "on the system.  The ser2net entries reference aliases, but these aliases are not defined in $rules_file"
+    menu_print -nl
+    menu_print $(unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort))
 fi
-echo
+menu_print -nl -foot "*"

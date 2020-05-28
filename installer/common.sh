@@ -32,7 +32,7 @@ warn_cnt=0
 
 # Terminal coloring
 _norm='\e[0m'
-_bold='\033[1;32m'
+_bold='\e[32;1m'
 _blink='\e[5m'
 _red='\e[31m'
 _blue='\e[34m'
@@ -93,6 +93,57 @@ header() {
     fi
 }
 
+
+menu_print() {
+    # -- send array of strings to function and it will print a formatted menu
+    # Args: -head: str that follows is header
+    #       -foot: str that follows is footer
+    #
+    # Used to print post-install message
+    # NOTE: Line Length of 121 is currently hardcoded
+    line_len=121
+    while (( "$#" )); do
+        case "$1" in
+            -head)
+                str=" $2 "
+                len=${#str}
+                # ((line_len+=1)) #actual line_len ends up aw line_len +1 not sure why
+                left=$(( ((line_len-len))/2 ))
+                [[ $((left+len+left)) -eq $line_len ]] && right=$left || right=$((left+1))
+                printf -v pad_left "%*s" $left && pad_left=${pad_left// /*}
+                printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
+                printf "%s%s%s\n" "$pad_left" "$str" "$pad_right"
+                shift 2
+                ;;
+            -foot)
+                str="**$2"
+                len=${#str}
+                right=$(( ((line_len-len)) ))
+                printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
+                printf "%s%s\n" "$str" "$pad_right"
+                shift 2
+                ;;
+            -nl|-li|*)
+                if [[ "$1" == "-nl" ]]; then
+                    str=" "
+                elif [[ "$1" == "-li" ]]; then
+                    str="  -${2}"
+                    shift
+                else
+                    str="$1"
+                fi
+                len=${#str}
+                [[ "$str" =~ "\e[" ]] && ((len-=11))
+                [[ "$str" =~ ';1m' ]] && ((len-=2))
+                pad_len=$(( ((line_len-len-5)) ))
+                printf -v pad "%*s" $pad_len # && pad=${pad// /-}
+                printf '* %b %s *\n' "$str" "$pad"
+                shift
+                ;;
+        esac
+    done
+}
+
 # -- Logging function prints to terminal and log file assign value of process prior to calling logit --
 logit() {
     # Logging Function: logit <message|string> [<status|string>]
@@ -101,20 +152,29 @@ logit() {
     #   logit "building package" <"WARNING">
     # NOTE: Sending a status of "ERROR" results in the script exiting
     #       default status is INFO if none provided.
+    [[ "${1}" == '-start' ]] && start=true && shift || start=false
     [ -z "$process" ] && process="UNDEFINED"
-    message=$1                                      # 1st arg = the log message
+    message="${1}"                                      # 1st arg = the log message
     [ -z "${2}" ] && status="INFO" || status=${2^^} # to upper
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
     if [[ "${status}" == "ERROR" ]]; then
         fatal=true
         status="${_red}${status}${_norm}"
     elif [[ ! "${status}" == "INFO" ]]; then
-        status="${_yellow}${status}${_norm}"
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
+        status="${_yellow}${status}${_norm}"
     fi
 
-    # Log to stdout and log-file
-    echo -e "$(date +"%b %d %T") [${status}][${process}] ${message}" | tee -a $log_file
+    log_msg="$(date +"%b %d %T") [${status}][${process}] ${message}"
+    if ! $start; then
+        # Log to stdout and log-file
+        echo -e "$log_msg" | tee -a $log_file
+    else
+        # log_start is used to parse log file and display warnings after the matching start-line
+        echo -e "$log_msg" >> $log_file
+        log_start=$(echo "$log_msg" | cut -d'[' -f1)
+    fi
+
     # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
         echo -e "$(date +'%b %d %T') [${status}][${process}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1

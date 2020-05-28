@@ -28,9 +28,9 @@ def parse_args():
 
 parameter_dict = parse_args()
 templateLoader = jinja2.FileSystemLoader(searchpath="/etc/ConsolePi/src/j2/")
-templateEnv = jinja2.Environment(loader=templateLoader)
+templateEnv = jinja2.Environment(loader=templateLoader, keep_trailing_newline=True)
 template = templateEnv.get_template(sys.argv[1] + '.j2')
 outputText = template.render(parameter_dict)
-template.stream(parameter_dict).dump('/tmp/{}'.format(sys.argv[1]))
+template.stream(parameter_dict).dump(f'/tmp/{sys.argv[1]}')
 
 # print(outputText)

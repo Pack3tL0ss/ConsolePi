@@ -5,55 +5,38 @@
 # --  Wade Wells (Pack3tL0ss)                                                                                                                    -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
-# --  This script aims to automate the installation of ConsolePi.                                                                                -- #
+# --  This script automates the installation of ConsolePi.                                                                                       -- #
 # --  For more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                                              -- #
 # --                                                                                                                                             -- #
 # --  This is the main installer file it imports and calls the other 2 files after prepping /etc/ConsolePi                                       -- #
-# --    All files source common functions from common.sh pulled directly for git repo                                                            -- #
+# --    All files source common functions from common.sh pulled directly from git repo                                                           -- #
 # --    Sequence: install.sh (prep, common imports) --> config.sh (get configuration/user input) --> update.sh (perform install/updates)         -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-# if [ ! -z $1 ] && [ "$1" = 'local-dev' ] ; then
-#     branch=dev
-#     local_dev=true
-# else
-#     branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
-#     local_dev=false
-# fi
-
-# get_common() {
-#     if ! $local_dev ; then
-#         wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
-#     else
-#         sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
-#     fi
-#     . /tmp/common.sh
-#     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
-#     # overwrite the default source directory to local repo when running local tests
-#     $local_dev && consolepi_source='pi@consolepi-dev:/etc/ConsolePi'
-#     [ -f /tmp/common.sh ] && rm /tmp/common.sh
-#     header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
-# }
-
-# Testing improved get_common that should work with install scenarios where they pull then run this script directly or from a zipped release
 get_common() {
     if ! $local_dev ; then
         if [[ "$0" =~ install.sh ]] ; then
-            this_path=$(dirname $(realpath consolepi/install.sh ))
+            this_path=$(dirname $(realpath "$0" ))
             [[ -f ${this_path}/common.sh ]] && cp ${this_path}/common.sh /tmp ||
             (
-            echo "This appeared to be an install from a pkg release, but common.sh not found in $this_path.  Attempting to fetch from GitHub Repo." "WARNING" ;
-            wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh || echo Failed to fetch common.sh from repo "WARNING"
+            echo "WARNING: This appeared to be an install from a pkg release, but common.sh not found in $this_path.  Attempting to fetch from GitHub Repo." ;
+            wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh || echo "WARNING Failed to fetch common.sh from repo"
             )
         else
             # install via TL;DR install line on GitHub
             wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
         fi
     else
-        sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
+        if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
+            sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
+        else
+            [[ -f /etc/ConsolePi/installer/common.sh ]] && cp /etc/ConsolePi/installer/common.sh /tmp ||
+            echo "ERROR: This is the dev ConsolePi, script called with -dev flag, but common.sh not found in installer dir"
+        fi
     fi
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
+
     # overwrite the default source directory to local repo when running local tests
     $local_dev && consolepi_source='pi@consolepi-dev:/etc/ConsolePi'
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
@@ -293,21 +276,6 @@ do_pyvenv() {
         logit "pip upgrade / requirements upgrade skipped based on -nopip argument" "WARNING"
     fi
 
-    # -- temporary until I have consolepi module on pypi --
-    # !! No Longer Required, using sys.path.insert in the scripts until loaded on pypi
-    # python_ver=$(ls -l /etc/ConsolePi/venv/lib | grep python3 |  awk '{print $9}')
-    # pkg_dir=${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi
-    # if [[ ! -L $pkg_dir ]] ; then
-    #     logit "link consolepi python module in venv site-packages"
-    #     # sudo cp -R ${src_dir}PyConsolePi/. ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
-    #     [[ -d $pkg_dir ]] && rm -r $pkg_dir >/dev/null 2>> $log_file
-    #     ln -s ${src_dir}PyConsolePi/ ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
-    #     # sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
-    #         logit "Success - link consolepi python module into venv site-packages" ||
-    #         logit "Error - link consolepi python module into venv site-packages" "ERROR"
-    # fi
-
-
     unset process
 }
 
@@ -330,7 +298,6 @@ do_logging() {
 
     # Update permissions
     sudo chgrp -R consolepi /var/log/ConsolePi || logit "Failed to update group for log file" "WARNING"
-    # if [ ! $(stat -c "%a" /var/log/ConsolePi/cloud.log) == 664 ]; then
     if [ ! $(stat -c "%a" /var/log/ConsolePi/consolepi.log) == 664 ]; then
         sudo chmod g+w /var/log/ConsolePi/* &&
             logit "Logging Permissions Updated (group writable)" ||
@@ -399,41 +366,20 @@ update_banner() {
 
 get_config() {
     local process="import config.sh"
-    if [[ -f /etc/ConsolePi/installer/config.sh ]]; then
-        . /etc/ConsolePi/installer/config.sh ||
-            logit "Error Occured importing config.sh" "Error"
-    fi
+    . "${consolepi_dir}installer/config.sh" 2>>$log_file || logit "Error Occured importing config.sh" "Error"
 }
 
 get_update() {
     local process="import update.sh"
-    if [ -f "${consolepi_dir}installer/update.sh" ]; then
-        . "${consolepi_dir}installer/update.sh" ||
-            logit "Error Occured importing update.sh" "Error"
-    fi
+    . "${consolepi_dir}installer/update.sh" 2>>$log_file || logit "Error Occured importing update.sh" "Error"
 }
 
-main() {
-    script_iam=`whoami`
-    if [ "${script_iam}" = "root" ]; then
-        get_common                          # get and import common functions script
-        get_pi_info                         # (common.sh func) Collect some version info for logging
-        remove_first_boot                   # if autolaunch install is configured remove
-        do_apt_update ||          # apt-get update the pi
-        pre_git_prep                        # process upgrade tasks required prior to git pull
-        git_ConsolePi                       # git clone or git pull ConsolePi
-        $upgrade && post_git                # post git changes
-        do_pyvenv                           # build upgrade python3 venv for ConsolePi
-        do_logging                          # Configure logging and rotation
-        $upgrade && do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
-        update_banner                       # ConsolePi login banner update
-        get_config                          # import config.sh functions
-        config_main                         # Kick off config.sh functions (Collect Config details from user)
-        get_update                          # import update.sh functions
-        update_main                         # Kick off update.sh functions
-    else
-      echo 'Script should be ran as root. exiting.'
-    fi
+show_help() {
+    echo
+    echo " All Available Command Line arguments are intended primarily for dev/testing use."
+    echo
+    echo " Valid Arguments include '-dev, -nopip, -noapt, -silent (silent is not implemented yet)'"
+    echo
 }
 
 process_args() {
@@ -457,12 +403,46 @@ process_args() {
                 doapt=false
                 shift
                 ;;
+            -silent)  # Not implemented yet
+                silent=true
+                shift
+                ;;
+            help|-help|--help)
+                show_help
+                exit 0
+                ;;
             -*|--*=) # unsupported flags
                 echo "Error: Unsupported flag passed to process_cmds $1" >&2
                 exit 1
                 ;;
         esac
     done
+}
+
+main() {
+    script_iam=`whoami`
+    if [ "${script_iam}" = "root" ]; then
+        get_common                          # get and import common functions script
+        # the following captures the date string for the start of this run used to parse file for WARNINGS
+        # after the install
+        process="Script Starting"; logit -start "Install/Ugrade Scipt Starting"; unset process
+        get_pi_info                         # (common.sh func) Collect some version info for logging
+        remove_first_boot                   # if autolaunch install is configured remove
+        do_apt_update                       # apt-get update the pi
+        pre_git_prep                        # process upgrade tasks required prior to git pull
+        git_ConsolePi                       # git clone or git pull ConsolePi
+        $upgrade && post_git                # post git changes
+        do_pyvenv                           # build upgrade python3 venv for ConsolePi
+        do_logging                          # Configure logging and rotation
+        $upgrade && do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
+        update_banner                       # ConsolePi login banner update
+        get_config                          # import config.sh functions
+        config_main                         # Kick off config.sh functions (Collect Config details from user)
+        get_update                          # import update.sh functions
+        update_main                         # Kick off update.sh functions
+    else
+      echo 'Script should be ran as root. exiting.'
+    fi
 }
 
 process_args "$@"

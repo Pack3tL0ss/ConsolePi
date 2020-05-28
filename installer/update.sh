@@ -168,6 +168,14 @@ misc_imports(){
                 logit "Failure - copying staged wired-dchp configs" "WARNING"
         fi
 
+        # -- ztp configurations --
+        if [[ -d ${stage_dir}ztp ]]; then
+            logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
+            cp ${stage_dir}ztp/* /etc/ConsolePi/ztp/ &&
+            logit "Success - copying staged ztp configs" ||
+                logit "Failure - copying staged ztp configs" "WARNING"
+        fi
+
         # -- autohotspot dhcp configurations --
         if [[ -d ${stage_dir}autohotspot-dhcp ]]; then
             logit "Staged autohotspot-dhcp directory found copying contents to ConsolePi autohotspot dchp dir"
@@ -833,65 +841,83 @@ custom_post_install_script() {
 
 # -- Display Post Install Message --
 post_install_msg() {
-    clear
-    echo
-    echo "*********************************************** Installation Complete ***************************************************"
-    echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mNext Steps/Info\033[m                                                                                                       *"
-    echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mCloud Sync:\033[m                                                                                                           *"
-    echo "*   if you plan to use cloud sync.  You will need to do some setup on the Google side and Authorize ConsolePi           *"
-    echo "*   refer to the GitHub for more details                                                                                *"
-    echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mOpenVPN:\033[m                                                                                                              *"
-    echo "*   if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and ovpn_credentials files in    *"
-    echo "*   /etc/openvpn/client.  Then run 'consolepi-upgrade' which will add a few lines to the config to enable some          *"
-    echo "*   ConsolePi functionality.  There is a .example file for reference as well.                                           *"
-    echo "*     You should \"sudo chmod 600 <filename>\" both of the files for added security                                       *"
-    echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mser2net Usage:\033[m                                                                                                        *"
-    echo "*   Serial Ports are available starting with telnet port 8001 (ttyUSB#) or 9001 (ttyACM#) incrementing with each        *"
-    echo "*   adapter plugged in.  if you configured predictable ports for specific serial adapters those start with 7001.        *"
-    echo "*   **OR** just launch the consolepi-menu for a menu w/ detected adapters (there is a rename option in the menu).       *"
-    echo "*                                                                                                                       *"
-    echo "*   The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available                   *"
-    echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mBlueTooth:\033[m                                                                                                            *"
-    echo "*   ConsolePi should be discoverable (after reboot if this is the initial installation).                                *"
-    echo "*   - Configure bluetooth serial on your device and pair with ConsolePi                                                 *"
-    echo "*   - On client device attach to the com port created after the step above was completed                                *"
-    echo "*   - Once Connected the Console Menu will automatically launch allowing you to connect to any serial devices found     *"
-    echo "*   NOTE: The Console Menu is available from any shell session (bluetooth or SSH) via the consolepi-menu command        *"
-    echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mLogging:\033[m                                                                                                              *"
-    echo "*   The bulk of logging for ConsolePi ends up in /var/log/ConsolePi/consolepi.log                                       *"
-    echo "*   The tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest in syslog                         *"
-    echo "*   - openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn   *"
-    echo "*   - pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log                *"
-    echo "*   - An install log can be found in ${consolepi_dir}installer/install.log                                               *"
-    echo "*                                                                                                                       *"
-    echo -e "* \033[1;32mConsolePi Commands:\033[m                                                                                                   *"
-    echo "*   **Refer to the GitHub for the most recent complete list**                                                           *"
-    echo -e "*   - ${_cyan}consolepi-menu${_norm}: Launch Console Menu which will provide connection options for connected serial adapters           *"
-    echo -e "*       if cloud config feature is enabled menu will also show adapters on reachable remote ConsolePis                  *"
-    echo -e "*   - ${_cyan}consolepi-upgrade${_norm}: upgrade ConsolePi. - supported update method.                                                  *"
-    echo -e "*   - ${_cyan}consolepi-extras${_norm}: Launch optional utilites installer (tftp, ansible, lldp, cockpit, speedtest...(Pi 4 only ))     *"
-    echo -e "*   - ${_cyan}consolepi-addssids${_norm}: Add additional known ssids. same as doing sudo /etc/ConsolePi/ssids.sh                        *"
-    echo -e "*   - ${_cyan}consolepi-addconsole${_norm}: Configure serial adapter to telnet port rules. same as doing sudo /etc/ConsolePi/udev.sh    *"
-    echo -e "*   - ${_cyan}consolepi-killvpn${_norm}: Gracefully terminate openvpn tunnel if one is established                                      *"
-    echo -e "*   - ${_cyan}consolepi-autohotspot${_norm}: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found  *"
-    echo -e "*       then fall-back to HotSpot mode if not found or unable to connect.                                               *"
-    echo -e "*   - ${_cyan}consolepi-testhotspot${_norm}: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot.     *"
-    echo -e "*       Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa.                 *"
-    echo -e "*   - ${_cyan}consolepi-bton${_norm}: Make BlueTooth Discoverable and Pairable - this is the default behavior on boot.                  *"
-    echo -e "*   - ${_cyan}consolepi-btoff${_norm}: Disable BlueTooth Discoverability.  You can still connect if previously paired.                  *"
-    echo -e "*   - ${_cyan}consolepi-details${_norm}: Refer to GitHub for usage, but in short dumps the data the ConsolePi would run with based      *"
-    echo "*       on configuration, discovery, etc.  Dumps everything if no args,                                                 *"
-    echo "*        valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail       *"
-    echo "*                                                                                                                       *"
-    echo "**ConsolePi Installation Script v${INSTALLER_VER}**************************************************************************************"
+    clear;echo
+    declare -a _msg=(
+            -head "Installation Complete"
+            "${_bold}Next Steps/Info${_norm}"
+            -nl
+            " ${_bold}Cloud Sync:${_norm}"
+            "  if you plan to use cloud sync.  You will need to do some setup on the Google side and Authorize ConsolePi"
+            "  refer to the GitHub for more details"
+            -nl
+            " ${_bold}OpenVPN:${_norm}"
+            "  if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and ovpn_credentials files in"
+            "  /etc/openvpn/client.  Then run 'consolepi-upgrade' which will add a few lines to the config to enable some"
+            "  ConsolePi functionality.  There is a .example file for reference as well."
+            "  !! You should \"sudo chmod 600 <filename>\" both of the files for added security !!"
+            -nl
+            " ${_bold}ser2net Usage:${_norm}"
+            "  Serial Ports are available starting with telnet port 8001 (ttyUSB#) or 9001 (ttyACM#) incrementing with each"
+            "  adapter plugged in.  if you configured predictable ports for specific serial adapters those start with 7001."
+            "  **OR** just launch the ${_cyan}consolepi-menu${_norm} for a menu w/ detected adapters (there is a rename option in the menu)."
+            -nl
+            "  The Console Server has a control port on telnet 7000 type \"help\" for a list of commands available"
+            -nl
+            " ${_bold}BlueTooth:${_norm}"
+            "  ConsolePi should be discoverable (after reboot if this is the initial installation)."
+            -li " Configure Bluetooth serial on your device and pair with ConsolePi"
+            -li " On client device attach to the com port created after the step above was completed"
+            -li " Once Connected the Console Menu will automatically launch allowing you to connect to any serial devices found"
+            "  NOTE: The Console Menu is available from any shell session (Bluetooth or SSH) via the ${_cyan}consolepi-menu${_norm} command"
+            -nl
+            " ${_bold}Logging${_norm}"
+            "  The bulk of logging for ConsolePi ends up in /var/log/ConsolePi/consolepi.log"
+            "  The tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest in syslog"
+            -li " openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn"
+            -li " pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log"
+            -li " An install log can be found in ${consolepi_dir}installer/install.log"
+            -nl
+            " ${_bold}ConsolePi Commands:${_norm}"
+            "  **Refer to the GitHub for the most recent & most complete list of convenience commands"
+            -nl
+            -li " ${_cyan}consolepi-menu${_norm}: Launch Console Menu which will provide connection options for connected serial adapters."
+            "     Menu also displays connection options for discovered remote ConsolePis, as well as power control options, etc."
+            -nl
+            -li " ${_cyan}consolepi-help${_norm}: Extract and display the ConsolePi Commands section of the ReadMe"
+            -li " ${_cyan}consolepi-version${_norm}: Display version information"
+            -li " ${_cyan}consolepi-config${_norm}: Opens ConsolePi.yaml with nano with -ET2 option (best for yaml)"
+            -li " ${_cyan}consolepi-status${_norm}: Display status of ConsolePi daemons, and system daemons related to ConsolePi"
+            -li " ${_cyan}consolepi-upgrade${_norm}: Upgrade ConsolePi. This is the supported update method"
+            -li " ${_cyan}consolepi-leases${_norm}: Shows dnsmasq (dhcp) leases.  Typically clients connected to HotSpot"
+            -li " ${_cyan}consolepi-extras${_norm}: Launch optional utilities installer (tftp, ansible, lldp, cockpit, speedtest...)"
+            -li " ${_cyan}consolepi-addssids${_norm}: Add additional known ssids. Alternatively you can add entries to wpa_supplicant manually"
+            -li " ${_cyan}consolepi-addconsole${_norm}: Configure serial adapter to telnet port rules"
+            -li " ${_cyan}consolepi-showaliases${_norm}: Shows Configured adapter aliases, helps identify any issues with aliases"
+            -li " ${_cyan}consolepi-logs${_norm}: Displays ConsolePi logs (Note this will install mutli-tail the first time it's ran)"
+            "     valid args: all (will cat consolepi.log), any other argument is passed to tail as a flag."
+            "                 If no arguments are specified, script will follow tail on consolepi-log, and syslog (with filters)"
+            "     examples: \"consolepi-logs all\", \"consolepi-logs -f\", \"consolepi-logs -20\", \"consolepi-logs 20\""
+            -li " ${_cyan}consolepi-killvpn${_norm}: Gracefully terminate openvpn tunnel if one is established"
+            -li " ${_cyan}consolepi-autohotspot${_norm}: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found"
+            "     then fall-back to HotSpot mode if not found or unable to connect"
+            -li " ${_cyan}consolepi-testhotspot${_norm}: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot"
+            "     Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa"
+            -li " ${_cyan}consolepi-bton${_norm}: Make BlueTooth Discoverable and pairable - this is the default behavior on boot"
+            -li " ${_cyan}consolepi-btoff${_norm}: Disable BlueTooth Discoverability.  You can still connect if previously paired"
+            -li " ${_cyan}consolepi-details${_norm}: Refer to GitHub for usage, but in short dumps the data the ConsolePi would run with based"
+            "     on configuration, discovery, etc.  Dumps everything if no args"
+            "     valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail"
+            -nl
+            -foot "ConsolePi Installation Script v${INSTALLER_VER}"
+        )
+    menu_print "${_msg[@]}"
+
     # Display any warnings
-    [ $warn_cnt -gt 0 ] && echo -e "\n${_red}---- warnings exist ----${_norm}" && grep warning $log_file && echo ''
+    if [ $warn_cnt -gt 0 ]; then
+        echo -e "\n${_red}---- warnings exist ----${_norm}"
+        sed -n "/${log_start}/,/*/p" $log_file | grep WARNING
+        echo
+    fi
     # Script Complete Prompt for reboot if first install
     if $upgrade; then
         echo -e "\nConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade\n"
@@ -905,11 +931,20 @@ post_install_msg() {
 
 update_main() {
     # -- install.sh does --
-    # remove_first_boot
-    # updatepi
-    # pre_git_prep
-    # gitConsolePi
+    # get_common                          # get and import common functions script
+    # get_pi_info                         # (common.sh func) Collect some version info for logging
+    # remove_first_boot                   # if autolaunch install is configured remove
+    # do_apt_update                       # apt-get update the pi
+    # pre_git_prep                        # process upgrade tasks required prior to git pull
+    # git_ConsolePi                       # git clone or git pull ConsolePi
+    # $upgrade && post_git                # post git changes
+    # do_pyvenv                           # build upgrade python3 venv for ConsolePi
+    # do_logging                          # Configure logging and rotation
+    # $upgrade && do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
+    # update_banner                       # ConsolePi login banner update
+
     # -- config.sh does --
+    # get_static
     # get_config
     # ! $bypass_verify && verify
     # while ! $input; do
@@ -917,7 +952,7 @@ update_main() {
     #     verify
     # done
     # update_config
-    # update_config_overrides
+
     if ! $upgrade; then
         chg_password
         set_hostname

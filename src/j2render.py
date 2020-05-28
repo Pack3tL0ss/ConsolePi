@@ -30,7 +30,7 @@ parameter_dict = parse_args()
 templateLoader = jinja2.FileSystemLoader(searchpath="/etc/ConsolePi/src/j2/")
 templateEnv = jinja2.Environment(loader=templateLoader)
 template = templateEnv.get_template(sys.argv[1] + '.j2')
-outputText = template.render(parameter_dict)
+outputText = template.render(parameter_dict) + '\n'
 template.stream(parameter_dict).dump('/tmp/{}'.format(sys.argv[1]))
 
 # print(outputText)

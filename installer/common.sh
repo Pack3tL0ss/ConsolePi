@@ -32,7 +32,7 @@ warn_cnt=0
 
 # Terminal coloring
 _norm='\e[0m'
-_bold='\033[1;32m'
+_bold='\e[32;1m'
 _blink='\e[5m'
 _red='\e[31m'
 _blue='\e[34m'
@@ -91,6 +91,56 @@ header() {
         echo -e "${_blue}  https://github.com/Pack3tL0ss/ConsolePi${_norm}"
         echo -e ""
     fi
+}
+
+
+menu_print() {
+    # -- send array of strings to function and it will print a formatted menu
+    # Args: -head: str that follows is header
+    #       -foot: str that follows is footer
+    #
+    # Used to print post-install message
+    # NOTE: Line Length of 121 is currently hardcoded
+    line_len=121
+    while (( "$#" )); do
+        case "$1" in
+            -head)
+                str=" $2 "
+                len=${#str}
+                left=$(( ((line_len-len))/2 ))
+                [[ $((left+len+right)) -eq $line_len ]] && right=$left || right=$((left-1))
+                printf -v pad_left "%*s" $left && pad_left=${pad_left// /*}
+                printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
+                printf "%s %s %s\n" "$pad_left" "$str" "$pad_right"
+                shift 2
+                ;;
+            -foot)
+                str="**$2"
+                len=${#str}
+                right=$(( ((line_len-len+1)) ))
+                printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
+                printf "%s%s\n" "$str" "$pad_right"
+                shift 2
+                ;;
+            -nl|-li|*)
+                if [[ "$1" == "-nl" ]]; then
+                    str=" "
+                elif [[ "$1" == "-li" ]]; then
+                    str="  -${2}"
+                    shift
+                else
+                    str="$1"
+                fi
+                len=${#str}
+                [[ "$str" =~ "\e[" ]] && ((len-=11))
+                [[ "$str" =~ ';1m' ]] && ((len-=2))
+                pad_len=$(( ((line_len-len-4)) ))
+                printf -v pad "%*s" $pad_len # && pad=${pad// /-}
+                printf '* %b %s *\n' "$str" "$pad"
+                shift
+                ;;
+        esac
+    done
 }
 
 # -- Logging function prints to terminal and log file assign value of process prior to calling logit --

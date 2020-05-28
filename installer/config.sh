@@ -104,13 +104,15 @@ update_config() {
                 logit "Successfully Updated Config File Group Ownership" ||
                 logit "Failed to Update Config File Group Ownership (consolepi)" "WARNING"
         else
-            logit "Config File ownership already OK"
+            logit "Config File Group ownership already OK"
         fi
-        # if [ ! $(stat -c "%a" $CONFIG_FILE_YAML) == 664 ]; then
-        #     sudo chmod g+w $CONFIG_FILE_YAML &&
-        #         logit "Config File Permissions Updated (group writable)" ||
-        #         logit "Failed to make Config File group writable" "WARNING"
-        # fi
+        if [ ! $(stat -c "%a" $CONFIG_FILE_YAML) == 664 ]; then
+            sudo chmod g+w $CONFIG_FILE_YAML &&
+                logit "Config File Permissions Updated (group writable)" ||
+                logit "Failed to make Config File group writable" "WARNING"
+        else
+            logit "Config File Group Permissions already OK"
+        fi
     fi
     # if [[ -f $CONFIG_FILE_YAML ]] ; then
     #     # TODO check if they are different and keep existing if the same

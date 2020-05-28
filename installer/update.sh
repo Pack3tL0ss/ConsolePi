@@ -912,7 +912,12 @@ post_install_msg() {
         )
     menu_print "${_msg[@]}"
     # Display any warnings
-    [ $warn_cnt -gt 0 ] && echo -e "\n${_red}---- warnings exist ----${_norm}" && grep warning $log_file && echo ''
+    if [ $warn_cnt -gt 0 ]; then
+        echo -e "\n${_red}---- warnings exist ----${_norm}"
+        # grep "$log_start" -A 99 | grep WARNING $log_file
+        sed -n "/${log_start}/,/*/p" $log_file | grep WARNING $log_file
+        echo
+    fi
     # Script Complete Prompt for reboot if first install
     if $upgrade; then
         echo -e "\nConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade\n"

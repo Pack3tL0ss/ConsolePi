@@ -407,6 +407,7 @@ main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
         get_common                          # get and import common functions script
+        logit -start "Install/Ugrade Scipt Starting"
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if autolaunch install is configured remove
         do_apt_update                       # apt-get update the pi

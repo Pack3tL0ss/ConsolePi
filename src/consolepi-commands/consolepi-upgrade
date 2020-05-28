@@ -20,7 +20,16 @@ done
 
 if $local_dev; then
     echo "Local Pull"
-    sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${ARGS[@]}" && rm /tmp/ConsolePi
+    if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
+        sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${ARGS[@]}" && rm /tmp/ConsolePi
+    else
+        if [[ -f /etc/ConsolePi/installer/install.sh ]]; then
+            cp /etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${ARGS[@]}" && rm /tmp/ConsolePi ||
+            echo "ERROR: An Error Occured"
+        else
+            echo "ERROR: This is the dev ConsolePi, script called with -dev flag, but install.sh not found in installer dir"
+        fi
+    fi
 else
     wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/$branch/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${ARGS[@]}" && rm /tmp/ConsolePi
 fi

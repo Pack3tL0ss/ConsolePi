@@ -6,6 +6,7 @@ import sys
 import re
 import threading
 import itertools
+from pprint import pprint
 from collections import OrderedDict as od
 from halo import Halo
 
@@ -64,6 +65,13 @@ class ConsolePiMenu(Rename):
             pwr = cpi.pwr  # NoQA
             menu = self.menu # NoQA
             _var = None
+
+            if ' -pprint' in ch:
+                do_pprint = True
+                ch = ch.replace(' -pprint', '')
+            else:
+                do_pprint = False
+
             _class_str = '.'.join(ch.split('.')[0:-1])
             _attr = ch.split('.')[-1].split('[')[0].split('(')[0]
             if _class_str.split('.')[0] == 'this':
@@ -100,7 +108,11 @@ class ConsolePiMenu(Rename):
                                     continue
                         else:
                             var = [v if not callable(v) else f'{_class_str}{v.__name__}()' for v in self.var]
-                        print(json.dumps(var, indent=4, sort_keys=True))
+
+                        if not do_pprint:
+                            print(json.dumps(var, indent=4, sort_keys=True))
+                        else:
+                            pprint(var)
                         print(f'{type(self.var)} length: {len(self.var)}')
                     else:
                         print(self.var)

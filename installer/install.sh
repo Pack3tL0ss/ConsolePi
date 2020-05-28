@@ -403,30 +403,6 @@ get_update() {
     fi
 }
 
-main() {
-    script_iam=`whoami`
-    if [ "${script_iam}" = "root" ]; then
-        get_common                          # get and import common functions script
-        logit -start "Install/Ugrade Scipt Starting"
-        get_pi_info                         # (common.sh func) Collect some version info for logging
-        remove_first_boot                   # if autolaunch install is configured remove
-        do_apt_update                       # apt-get update the pi
-        pre_git_prep                        # process upgrade tasks required prior to git pull
-        git_ConsolePi                       # git clone or git pull ConsolePi
-        $upgrade && post_git                # post git changes
-        do_pyvenv                           # build upgrade python3 venv for ConsolePi
-        do_logging                          # Configure logging and rotation
-        $upgrade && do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
-        update_banner                       # ConsolePi login banner update
-        get_config                          # import config.sh functions
-        config_main                         # Kick off config.sh functions (Collect Config details from user)
-        get_update                          # import update.sh functions
-        update_main                         # Kick off update.sh functions
-    else
-      echo 'Script should be ran as root. exiting.'
-    fi
-}
-
 show_help() {
     echo
     echo " All Available Command Line arguments are intended primarily for dev/testing use."
@@ -470,6 +446,30 @@ process_args() {
                 ;;
         esac
     done
+}
+
+main() {
+    script_iam=`whoami`
+    if [ "${script_iam}" = "root" ]; then
+        get_common                          # get and import common functions script
+        logit -start "Install/Ugrade Scipt Starting"
+        get_pi_info                         # (common.sh func) Collect some version info for logging
+        remove_first_boot                   # if autolaunch install is configured remove
+        do_apt_update                       # apt-get update the pi
+        pre_git_prep                        # process upgrade tasks required prior to git pull
+        git_ConsolePi                       # git clone or git pull ConsolePi
+        $upgrade && post_git                # post git changes
+        do_pyvenv                           # build upgrade python3 venv for ConsolePi
+        do_logging                          # Configure logging and rotation
+        $upgrade && do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
+        update_banner                       # ConsolePi login banner update
+        get_config                          # import config.sh functions
+        config_main                         # Kick off config.sh functions (Collect Config details from user)
+        get_update                          # import update.sh functions
+        update_main                         # Kick off update.sh functions
+    else
+      echo 'Script should be ran as root. exiting.'
+    fi
 }
 
 process_args "$@"

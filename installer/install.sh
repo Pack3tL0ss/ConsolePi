@@ -5,37 +5,14 @@
 # --  Wade Wells (Pack3tL0ss)                                                                                                                    -- #
 # --    report any issues/bugs on github or fork-fix and submit a PR                                                                             -- #
 # --                                                                                                                                             -- #
-# --  This script aims to automate the installation of ConsolePi.                                                                                -- #
+# --  This script automates the installation of ConsolePi.                                                                                       -- #
 # --  For more detail visit https://github.com/Pack3tL0ss/ConsolePi                                                                              -- #
 # --                                                                                                                                             -- #
 # --  This is the main installer file it imports and calls the other 2 files after prepping /etc/ConsolePi                                       -- #
-# --    All files source common functions from common.sh pulled directly for git repo                                                            -- #
+# --    All files source common functions from common.sh pulled directly from git repo                                                           -- #
 # --    Sequence: install.sh (prep, common imports) --> config.sh (get configuration/user input) --> update.sh (perform install/updates)         -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-# if [ ! -z $1 ] && [ "$1" = 'local-dev' ] ; then
-#     branch=dev
-#     local_dev=true
-# else
-#     branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
-#     local_dev=false
-# fi
-
-# get_common() {
-#     if ! $local_dev ; then
-#         wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
-#     else
-#         sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
-#     fi
-#     . /tmp/common.sh
-#     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
-#     # overwrite the default source directory to local repo when running local tests
-#     $local_dev && consolepi_source='pi@consolepi-dev:/etc/ConsolePi'
-#     [ -f /tmp/common.sh ] && rm /tmp/common.sh
-#     header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
-# }
-
-# Testing improved get_common that should work with install scenarios where they pull then run this script directly or from a zipped release
 get_common() {
     if ! $local_dev ; then
         if [[ "$0" =~ install.sh ]] ; then
@@ -59,6 +36,7 @@ get_common() {
     fi
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
+
     # overwrite the default source directory to local repo when running local tests
     $local_dev && consolepi_source='pi@consolepi-dev:/etc/ConsolePi'
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
@@ -320,7 +298,6 @@ do_logging() {
 
     # Update permissions
     sudo chgrp -R consolepi /var/log/ConsolePi || logit "Failed to update group for log file" "WARNING"
-    # if [ ! $(stat -c "%a" /var/log/ConsolePi/cloud.log) == 664 ]; then
     if [ ! $(stat -c "%a" /var/log/ConsolePi/consolepi.log) == 664 ]; then
         sudo chmod g+w /var/log/ConsolePi/* &&
             logit "Logging Permissions Updated (group writable)" ||
@@ -389,18 +366,12 @@ update_banner() {
 
 get_config() {
     local process="import config.sh"
-    if [[ -f /etc/ConsolePi/installer/config.sh ]]; then
-        . /etc/ConsolePi/installer/config.sh ||
-            logit "Error Occured importing config.sh" "Error"
-    fi
+    . "${consolepi_dir}installer/config.sh" 2>>$log_file || logit "Error Occured importing config.sh" "Error"
 }
 
 get_update() {
     local process="import update.sh"
-    if [ -f "${consolepi_dir}installer/update.sh" ]; then
-        . "${consolepi_dir}installer/update.sh" ||
-            logit "Error Occured importing update.sh" "Error"
-    fi
+    . "${consolepi_dir}installer/update.sh" 2>>$log_file || logit "Error Occured importing update.sh" "Error"
 }
 
 show_help() {
@@ -452,6 +423,8 @@ main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
         get_common                          # get and import common functions script
+        # the following captures the date string for the start of this run used to parse file for WARNINGS
+        # after the install
         process="Script Starting"; logit -start "Install/Ugrade Scipt Starting"; unset process
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if autolaunch install is configured remove

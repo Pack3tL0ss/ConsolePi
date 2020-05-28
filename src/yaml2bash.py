@@ -26,6 +26,9 @@ def get_config(cfg=cfg):
                 print(f'{k}={v}')
             else:
                 print(f'{k}="{v}"')
+        elif isinstance(v, list):
+            v = ' '.join(v)
+            print(f'{k}=({v})')
         elif isinstance(v, bool):
             v = 'true' if v else 'false'
             print(f'{k}={v}')

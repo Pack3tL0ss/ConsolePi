@@ -164,12 +164,15 @@ logit() {
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
     fi
 
-    # Log to stdout and log-file
-    log_msg="$(date +"%b %d %T") [${status}][${process}] ${message}"
-    echo -e "$log_msg" | tee -a $log_file
-
-    # log_start is used to parse log file and display warnings after the matching start-line
-    $start && log_start=$(echo "$log_msg" | cut -d'[' -f1)
+    if ! $start; then
+        # Log to stdout and log-file
+        log_msg="$(date +"%b %d %T") [${status}][${process}] ${message}"
+        echo -e "$log_msg" | tee -a $log_file
+    else
+        # log_start is used to parse log file and display warnings after the matching start-line
+        echo -e "$log_msg" >> $log_file
+        log_start=$(echo "$log_msg" | cut -d'[' -f1)
+    fi
 
     # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then

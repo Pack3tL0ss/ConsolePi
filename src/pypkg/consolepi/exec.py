@@ -85,6 +85,16 @@ class ConsolePiExec:
                     log.debug(
                         f"[Auto PwrOn] Power ON {pwr_key} Linked Outlet {outlet['type']}:{_addr} p{p}"
                     )
+                    # TODO have seen this, but unable to recreate.  may be transient failure???
+                    # Exception in thread auto_pwr_on_r1-8320T-sw:
+                    # Traceback (most recent call last):
+                    # File "/usr/lib/python3.7/threading.py", line 917, in _bootstrap_inner
+                    #     self.run()
+                    # File "/usr/lib/python3.7/threading.py", line 865, in run
+                    #     self._target(*self._args, **self._kwargs)
+                    # File "/etc/ConsolePi/src/pypkg/consolepi/exec.py", line 88, in auto_pwron_thread
+                    #     if not outlet["is_on"][p][
+                    # KeyError: 2
                     if not outlet["is_on"][p][
                         "state"
                     ]:  # This is just checking what's in the dict not querying the DLI
@@ -311,6 +321,12 @@ class ConsolePiExec:
 
     # ------ // EXECUTE MENU SELECTIONS \\ ------ #
     def menu_exec(self, choice, menu_actions, calling_menu="main_menu"):
+        '''Execute Menu Selection.  This method needs to be overhauled.
+
+        The ConsolePiAction object defined but not used in __init__ is part of the plan for overhaul
+        menu will build insance of the object for each selection. That will be used to determine what
+        action to perform and what to do after etc.
+        '''
         pwr = self.pwr
 
         if not config.debug and calling_menu not in ["dli_menu", "power_menu"]:
@@ -657,13 +673,13 @@ class ConsolePiExec:
 
     def confirm_and_spin(self, action_dict, *args, **kwargs):
         """
-        called by the exec menu.
+        called by menu_exec.
         Collects user Confirmation if operation warrants it (Powering off or cycle outlets)
         and Generates appropriate spinner text
 
         returns tuple
-            0: Bool True if user confirmed False if aborted (set to True when no confirmation reqd)
-            1: str spinner_text used in exec_menu while function runs
+            0: Bool False indicates user abort otherwise True should be returned
+            1: str spinner_text used in menu_exec while function runs
             3: str name (for rename operation)
         """
         pwr = self.pwr

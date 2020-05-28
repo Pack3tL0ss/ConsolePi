@@ -29,6 +29,8 @@ def get_config(cfg=cfg):
         elif isinstance(v, bool):
             v = 'true' if v else 'false'
             print(f'{k}={v}')
+        else:
+            print(f'{k}={v}')
 
 
 if __name__ == '__main__':

@@ -293,21 +293,6 @@ do_pyvenv() {
         logit "pip upgrade / requirements upgrade skipped based on -nopip argument" "WARNING"
     fi
 
-    # -- temporary until I have consolepi module on pypi --
-    # !! No Longer Required, using sys.path.insert in the scripts until loaded on pypi
-    # python_ver=$(ls -l /etc/ConsolePi/venv/lib | grep python3 |  awk '{print $9}')
-    # pkg_dir=${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi
-    # if [[ ! -L $pkg_dir ]] ; then
-    #     logit "link consolepi python module in venv site-packages"
-    #     # sudo cp -R ${src_dir}PyConsolePi/. ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
-    #     [[ -d $pkg_dir ]] && rm -r $pkg_dir >/dev/null 2>> $log_file
-    #     ln -s ${src_dir}PyConsolePi/ ${consolepi_dir}venv/lib/${python_ver}/site-packages/consolepi 2>> $log_file &&
-    #     # sudo cp -r ${src_dir}PyConsolePi ${consolepi_dir}venv/lib/python3*/site-packages 2>> $log_file &&
-    #         logit "Success - link consolepi python module into venv site-packages" ||
-    #         logit "Error - link consolepi python module into venv site-packages" "ERROR"
-    # fi
-
-
     unset process
 }
 
@@ -419,7 +404,7 @@ main() {
         get_common                          # get and import common functions script
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if autolaunch install is configured remove
-        do_apt_update ||          # apt-get update the pi
+        do_apt_update                       # apt-get update the pi
         pre_git_prep                        # process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes
@@ -434,6 +419,14 @@ main() {
     else
       echo 'Script should be ran as root. exiting.'
     fi
+}
+
+show_help() {
+    echo
+    echo " All Available Command Line arguments are intended primarily for dev/testing use."
+    echo
+    echo " Valid Arguments include '-dev, -nopip, -noapt, -silent (silent is not implemented yet)'"
+    echo
 }
 
 process_args() {
@@ -456,6 +449,14 @@ process_args() {
             -noapt)
                 doapt=false
                 shift
+                ;;
+            -silent)  # Not implemented yet
+                silent=true
+                shift
+                ;;
+            help|-help|--help)
+                show_help
+                exit 0
                 ;;
             -*|--*=) # unsupported flags
                 echo "Error: Unsupported flag passed to process_cmds $1" >&2

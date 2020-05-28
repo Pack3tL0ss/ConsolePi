@@ -22,5 +22,5 @@ if $local_dev; then
     echo "Local Pull"
     sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${ARGS[@]}" && rm /tmp/ConsolePi
 else
-    wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/$branch/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && rm /tmp/ConsolePi
+    wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/$branch/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${ARGS[@]}" && rm /tmp/ConsolePi
 fi

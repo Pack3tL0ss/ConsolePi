@@ -95,21 +95,37 @@ update_config() {
     # echo "" >> $yml_temp
     if [[ -f $CONFIG_FILE_YAML ]] ; then
         sed -n '/debug:/,//p' $CONFIG_FILE_YAML | tail -n +2 >> $yml_temp
-    fi
-    if [[ -f $CONFIG_FILE_YAML ]] ; then
-        # TODO check if they are different and keep existing if the same
-        cp $CONFIG_FILE_YAML $bak_dir && logit "Backed up existing ConsolePi.yaml to bak dir" ||
-            logit "Failed to Back up existing ConsolePi.yaml to bak dir"
 
+        # Test Below -- Above stays either way
+        file_diff_update $yml_temp $CONFIG_FILE_YAML
+        group=$(stat -c '%G' $CONFIG_FILE_YAML)
+        if [ ! $group == "consolepi" ]; then
+            sudo chgrp consolepi $CONFIG_FILE_YAML 2>> $log_file &&
+                logit "Successfully Updated Config File Group Ownership" ||
+                logit "Failed to Update Config File Group Ownership (consolepi)" "WARNING"
+        else
+            logit "Config File ownership already OK"
+        fi
+        # if [ ! $(stat -c "%a" $CONFIG_FILE_YAML) == 664 ]; then
+        #     sudo chmod g+w $CONFIG_FILE_YAML &&
+        #         logit "Config File Permissions Updated (group writable)" ||
+        #         logit "Failed to make Config File group writable" "WARNING"
+        # fi
     fi
-    # -- // Move updated yaml to Config.yaml \\ --
-    if cat $yml_temp > $CONFIG_FILE_YAML ; then
-        chgrp consolepi $CONFIG_FILE_YAML 2>>$log_file || logit "Failed to chg group for ConsolePi.yaml to consolepi group" "WARNING"
-        chmod g+w $CONFIG_FILE_YAML 2>>$log_file || logit "Failed to make ConsolePi.yaml group writable" "WARNING"
-        rm $yml_temp
-    else
-        logit "Failed to Copy updated yaml Config to ConsolePi.yaml" "ERROR"
-    fi
+    # if [[ -f $CONFIG_FILE_YAML ]] ; then
+    #     # TODO check if they are different and keep existing if the same
+    #     cp $CONFIG_FILE_YAML $bak_dir && logit "Backed up existing ConsolePi.yaml to bak dir" ||
+    #         logit "Failed to Back up existing ConsolePi.yaml to bak dir"
+
+    # fi
+    # # -- // Move updated yaml to Config.yaml \\ --
+    # if cat $yml_temp > $CONFIG_FILE_YAML ; then
+    #     chgrp consolepi $CONFIG_FILE_YAML 2>>$log_file || logit "Failed to chg group for ConsolePi.yaml to consolepi group" "WARNING"
+    #     chmod g+w $CONFIG_FILE_YAML 2>>$log_file || logit "Failed to make ConsolePi.yaml group writable" "WARNING"
+    #     rm $yml_temp
+    # else
+    #     logit "Failed to Copy updated yaml Config to ConsolePi.yaml" "ERROR"
+    # fi
 
     if [[ -f $CONFIG_FILE ]] ; then
         echo "ConsolePi now supports a new Configuration format and is configured via ConsolePi.yaml"

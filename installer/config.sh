@@ -98,6 +98,7 @@ update_config() {
 
         # Test Below -- Above stays either way
         file_diff_update $yml_temp $CONFIG_FILE_YAML
+        rm $yml_temp
         group=$(stat -c '%G' $CONFIG_FILE_YAML)
         if [ ! $group == "consolepi" ]; then
             sudo chgrp consolepi $CONFIG_FILE_YAML 2>> $log_file &&

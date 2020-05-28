@@ -39,18 +39,23 @@
 get_common() {
     if ! $local_dev ; then
         if [[ "$0" =~ install.sh ]] ; then
-            this_path=$(dirname $(realpath consolepi/install.sh ))
+            this_path=$(dirname $(realpath "$0" ))
             [[ -f ${this_path}/common.sh ]] && cp ${this_path}/common.sh /tmp ||
             (
-            echo "This appeared to be an install from a pkg release, but common.sh not found in $this_path.  Attempting to fetch from GitHub Repo." "WARNING" ;
-            wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh || echo Failed to fetch common.sh from repo "WARNING"
+            echo "WARNING: This appeared to be an install from a pkg release, but common.sh not found in $this_path.  Attempting to fetch from GitHub Repo." ;
+            wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh || echo "WARNING Failed to fetch common.sh from repo"
             )
         else
             # install via TL;DR install line on GitHub
             wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
         fi
     else
-        sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
+        if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
+            sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
+        else
+            [[ -f /etc/ConsolePi/installer/common.sh ]] && cp /etc/ConsolePi/installer/common.sh /tmp ||
+            echo "ERROR: This is the dev ConsolePi, script called with -dev flag, but common.sh not found in installer dir"
+        fi
     fi
     . /tmp/common.sh
     [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1

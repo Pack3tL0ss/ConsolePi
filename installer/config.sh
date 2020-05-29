@@ -94,11 +94,12 @@ update_config() {
     spaces "debug: ${debug}" "# Turns on additional debugging" >> $yml_temp
     # echo "" >> $yml_temp
     if [[ -f $CONFIG_FILE_YAML ]] ; then
-        sed -n '/debug:/,//p' $CONFIG_FILE_YAML | tail -n +2 >> $yml_temp
+        # sed -n '/debug:/,//p' $CONFIG_FILE_YAML | tail -n +2 >> $yml_temp
+        # get all other optional config sections from existing config (POWER, HOSTS, TTYAMA)
+        awk 'matched; /^  debug:/ { matched = 1 } ' $CONFIG_FILE_YAML | awk '/^[A-Z]*$/ { matched = 1 } matched' >> $yml_temp
 
         # Test Below -- Above stays either way
-        # get all other optional config sections from existing config (POWER, HOSTS, TTYAMA)
-        awk 'matched; /^OVERRIDES:$/ { matched = 1 } ' $CONFIG_FILE_YAML | awk '/^[A-Z]*$/ { matched = 1 } matched' >> $yml_temp
+        # awk 'matched; /^OVERRIDES:$/ { matched = 1 } ' $CONFIG_FILE_YAML | awk '/^[A-Z]*$/ { matched = 1 } matched' >> $yml_temp
         file_diff_update $yml_temp $CONFIG_FILE_YAML
         rm $yml_temp
         group=$(stat -c '%G' $CONFIG_FILE_YAML)

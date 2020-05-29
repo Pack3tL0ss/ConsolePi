@@ -94,13 +94,11 @@ update_config() {
     spaces "debug: ${debug}" "# Turns on additional debugging" >> $yml_temp
     # echo "" >> $yml_temp
     if [[ -f $CONFIG_FILE_YAML ]] ; then
-        sed -n '/debug:/,//p' $CONFIG_FILE_YAML | tail -n +2 >> $yml_temp
-
-        # Test Below -- Above stays either way
         # get all other optional config sections from existing config (POWER, HOSTS, TTYAMA)
-        awk 'matched; /^OVERRIDES:$/ { matched = 1 } ' $CONFIG_FILE_YAML | awk '/^[A-Z]*$/ { matched = 1 } matched' >> $yml_temp
+        awk 'matched; /^  debug:/ { matched = 1 } ' $CONFIG_FILE_YAML | awk '/^[A-Z]*$/ { matched = 1 } matched' >> $yml_temp
         file_diff_update $yml_temp $CONFIG_FILE_YAML
         rm $yml_temp
+        # TODO Move this to common as a function
         group=$(stat -c '%G' $CONFIG_FILE_YAML)
         if [ ! $group == "consolepi" ]; then
             sudo chgrp consolepi $CONFIG_FILE_YAML 2>> $log_file &&
@@ -117,20 +115,6 @@ update_config() {
             logit "Config File Group Permissions already OK"
         fi
     fi
-    # if [[ -f $CONFIG_FILE_YAML ]] ; then
-    #     # TODO check if they are different and keep existing if the same
-    #     cp $CONFIG_FILE_YAML $bak_dir && logit "Backed up existing ConsolePi.yaml to bak dir" ||
-    #         logit "Failed to Back up existing ConsolePi.yaml to bak dir"
-
-    # fi
-    # # -- // Move updated yaml to Config.yaml \\ --
-    # if cat $yml_temp > $CONFIG_FILE_YAML ; then
-    #     chgrp consolepi $CONFIG_FILE_YAML 2>>$log_file || logit "Failed to chg group for ConsolePi.yaml to consolepi group" "WARNING"
-    #     chmod g+w $CONFIG_FILE_YAML 2>>$log_file || logit "Failed to make ConsolePi.yaml group writable" "WARNING"
-    #     rm $yml_temp
-    # else
-    #     logit "Failed to Copy updated yaml Config to ConsolePi.yaml" "ERROR"
-    # fi
 
     if [[ -f $CONFIG_FILE ]] ; then
         echo "ConsolePi now supports a new Configuration format and is configured via ConsolePi.yaml"

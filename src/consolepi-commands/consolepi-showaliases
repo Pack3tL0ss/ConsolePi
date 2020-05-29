@@ -24,7 +24,7 @@ if [[ ${#x[@]} -gt 0 ]]; then
     menu_print -head "Aliases with No matching ser2net Entry"
     menu_print -nl
     menu_print "The Following Aliases appear in udev rules file ($rules_file) but don't have an"
-    menu_print "associated ser2net mappingThese devices would fallback to default connection settings [9600 8N1 Flow: None]"
+    menu_print "associated ser2net mapping.  These devices will fallback to default connection settings [9600 8N1 Flow: None]"
     menu_print "if connected, and would not be available via TELNET on predictable ports (7xxx) range."
     menu_print -nl
     menu_print $(unset LC_ALL; LC_COLLATE=C ; comm -13 <(printf '%s\n' "${ser2net[@]}" | sort) <(printf '%s\n' "${udev[@]}" | sort))

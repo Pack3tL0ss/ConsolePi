@@ -41,6 +41,10 @@ get_common() {
     $local_dev && consolepi_source='pi@consolepi-dev:/etc/ConsolePi'
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
     header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
+
+    # the following captures the date string for the start of this run used to parse file for WARNINGS
+    # after the install
+    # process="Script Starting"; logit -start "Install/Ugrade Scipt Starting"; unset process
 }
 
 remove_first_boot() {
@@ -98,6 +102,7 @@ pre_git_prep() {
                 logit "Removed old consolepi-menu symlink will replace during upgade" ||
                     logit "ERROR Unable to remove old consolepi-menu symlink verify it should link to file in src dir" "WARNING"
         fi
+
         # Remove old launch file if it exists
         process="ConsolePi-Upgrade-Prep (remove consolepi-menu quick-launch file)"
         if [[ -f /usr/local/bin/consolepi-menu ]]; then
@@ -105,7 +110,37 @@ pre_git_prep() {
                 logit "Removed old consolepi-menu quick-launch file will replace during upgade" ||
                     logit "ERROR Unable to remove old consolepi-menu quick-launch file" "WARNING"
         fi
-    else
+
+        # verify group membership -- upgrade only -- checks
+        process="create consolepi group"
+        if ! grep -q consolepi /etc/group; then
+            sudo groupadd consolepi &&
+            logit "Added consolepi group" ||
+            logit "Error adding consolepi group" "WARNING"
+        else
+            logit "consolepi group already exists"
+        fi
+        process="Verify Group Membership"
+        [[ "$iam" == "pi" ]] && _users=pi || _users=("pi" "$iam")
+        _groups=('consolepi' 'dialout')
+        for user in "${_users[@]}"; do
+            if ! grep -q "^${user}:" /etc/passwd; then
+                logit "$user does not exist. Skipping"
+                continue
+            fi
+            for grp in "${_groups[@]}"; do
+                if [[ ! $(groups $user) == *"${grp}"* ]]; then
+                    sudo usermod -a -G $grp $user &&
+                        logit "Added ${user} user to $grp group" ||
+                            logit "Error adding ${user} user to $grp group" "WARNING"
+                else
+                    logit "${user} already belongs to $grp group"
+                fi
+            done
+        done
+        unset process
+
+    else  # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
         # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
         process="ConsolePi-Upgrade-Prep (install libffi-dev)"
         if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
@@ -113,34 +148,67 @@ pre_git_prep() {
                 logit "Success Installing development files for libffi" ||
                     logit "ERROR apt install libffi-dev retrurned an error" "WARNING"
         fi
+
+        process="Create consolepi user/group"
+        # add consolepi user
+        header
+        cp /etc/adduser.conf /tmp/adduser.conf
+        extra_groups="dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
+        extra_groups2="consolepi dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
+        echo "EXTRA_GROUPS=\"$extra_groups\"" >> /tmp/adduser.conf
+        echo 'ADD_EXTRA_GROUPS=1' >> /tmp/adduser.conf
+
+        if ! grep "^consolepi:" /etc/group; then
+            echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
+            if adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null; then
+                user_input true "Make consolepi user auto-launch menu on login"
+                $result && echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
+            else
+                logit "Error adding consolepi user check $log_file" "ERROR"
+            fi
+        fi
+
+        # Create additional Users (with appropriate rights for ConsolePi)
+        sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups2\"/" /tmp/adduser.conf
+        _res=true; while $_res; do
+            echo
+            user_input false "Would you like to create additional users"
+            _res=$result
+            if $result; then
+                user_input "" "Username for new user"
+                adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null &&
+                    logit "Successfully added new user $result" ||
+                    logit "Error adding new user $result" "WARNING"
+            fi
+        done
+
+        rm /tmp/adduser.conf
+
+        # Provide option to remove default pi user
+        # process="Remove Default pi User"
+        # if [[ $iam == "pi" ]]; then
+        #     user_input false "Do You want to remove the default pi user?"
+        #     if $result; then
+        #         userdel pi 2>> $log_file && logit "pi user removed" || "Error returned when attempting to remove pi user" "WARNING"
+        #     fi
+        # fi
+    fi
+    # -- // Operations performed on both installs and upgrades \\ --
+
+    # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
+    if [ ! -f /etc/sudoers.d/010_consolepi ]; then
+        echo '%consolepi ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*, /etc/ConsolePi/src/consolepi-commands/*, /etc/ConsolePi/venv/bin/python3 *' > /etc/sudoers.d/010_consolepi &&
+        logit "consolepi group given sudo rights for consolepi-commands" ||
+        logit "FAILED to give consolepi group sudo rights for ConsolePi functions" "WARNING"
     fi
 
     # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
-    process="ConsolePi-Upgrade-Prep (install libssl-dev)"
+    process="install libssl-dev"
     if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
         apt install -y libssl-dev >/dev/null 2>>${log_file} &&
             logit "Success Installing development files for libssl" ||
                 logit "ERROR apt install libssl-dev retrurned an error" "WARNING"
     fi
-
-    process="ConsolePi-Upgrade-Prep (create consolepi group)"
-    for user in pi; do  # placeholder for additional non-pi users
-        if [[ ! $(groups $user) == *"consolepi"* ]]; then
-            if ! $(grep -q consolepi /etc/group); then
-                sudo groupadd consolepi &&
-                logit "Added consolepi group" ||
-                logit "Error adding consolepi group" "WARNING"
-            else
-                logit "consolepi group already exists"
-            fi
-            sudo usermod -a -G consolepi $user &&
-                logit "Added ${user} user to consolepi group" ||
-                    logit "Error adding ${user} user to consolepi group" "WARNING"
-        else
-            logit "all good ${user} user already belongs to consolepi group"
-        fi
-    done
-    unset process
 
     if [ -f $cloud_cache ]; then
         process="ConsolePi-Upgrade-Prep (check cache owned by consolepi group)"
@@ -165,8 +233,8 @@ pre_git_prep() {
             [ $(stat -c '%G' $d) == "consolepi" ] && grpok=true || grpok=false
             stat -c %A $d |grep -q "^....rw....$" && modok=true || modok=false
             if ! $grpok || ! $modok; then
-                sudo chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?
-                sudo chmod g+w -R ${d} 2>> $log_file ; ((rc+=$?))
+                chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?
+                chmod g+w -R ${d} 2>> $log_file ; ((rc+=$?))
                 [[ $rc > 0 ]] && logit "Error Returned while setting perms for $d" "WARNING" ||
                     logit "Success ~ Update Permissions for $d"
             else
@@ -178,28 +246,39 @@ pre_git_prep() {
 }
 
 git_ConsolePi() {
-    process="git Clone/Update ConsolePi"
+    $upgrade && process="Update ConsolePi (git pull)" || process="Clone ConsolePi (git clone)"
 
     # -- exit if python3 ver < 3.6
     [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && (
         echo "ConsolePi Requires Python3 ver >= 3.6, aborting install."
-        echo "Reccomend using ConsolePi_image_creator to create a fresh image on a new sd-card" &&
+        echo "Reccomend using ConsolePi_image_creator to create a fresh image on a new sd-card while retaining existing for backup." &&
         exit 1
     )
 
-    cd "/etc"
     if [ ! -d $consolepi_dir ]; then
+        # -- ConsolePi dir does not exist clone from repo --
         logit "Clean Install git clone ConsolePi"
+        pushd $home_dir >/dev/null
         git clone "${consolepi_source}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
+        popd >/dev/null
+
+        # -- change group ownership to consolepi --
+        chgrp -R consolepi $home_dir/ConsolePi || logit "Failed to chgrp for ConsolePi dir to consolepi group" "WARNING"
+        chmod g+w -R $home_dir/ConsolePi 2>> $log_file || logit "Failed to make ConsolePi dir group wrteable" "WARNING"
+
+        mv $home_dir/ConsolePi /etc || logit "Failed to mv ConsolePi dir to /etc"
     else
-        cd $consolepi_dir
+        # -- ConsolePi already exists update from repo --
+        pushd $consolepi_dir >/dev/null
         logit "Directory exists Updating ConsolePi via git"
         git pull 1>/dev/null 2>> $log_file &&
             logit "ConsolePi update/pull Success" || logit "Failed to update/pull ConsolePi" "ERROR"
+        popd >/dev/null
     fi
+
+    # create bak dir if it doesn't exist
+    # TODO should be able to ensure empty dir exists via .gitignore
     [[ ! -d $bak_dir ]] && sudo mkdir $bak_dir
-    # -- change group ownership to consolepi --
-    sudo chgrp -R consolepi /etc/ConsolePi || logit "Failed to chgrp for ConsolePi dir to consolepi group" "WARNING"
     unset process
 }
 
@@ -209,7 +288,7 @@ post_git() {
         files=($(ls ${src_dir}override | grep -v README 2>/dev/null))
         if [[ ${#files[@]} > 0 ]]; then
             cp ${src_dir}override/* $override_dir && error=false &&
-                logit "overrides directory has re-located to $override_dir contents of old override dir moved" ||
+                logit "overrides directory has re-located to $override_dir contents of old override dir coppied" ||
                     ( error=true ; logit "Failure moving existing overrides to relocated ($override_dir)" )
             mv ${src_dir}override $bak_dir && logit "existing override dir moved to bak" ||
                 logit "Failure moving existing override dir to bak dir" "WARNING"
@@ -323,22 +402,6 @@ do_logging() {
     unset process
 }
 
-# Early versions of ConsolePi placed consolepi-commands in /usr/local/bin natively in the users path.
-# ConsolePi now adds a script in profile.d to display the login banner and update path to include the
-# consolepi-commands dir.  This function ensures the old stuff in /usr/local/bin are removed
-do_remove_old_consolepi_commands() {
-    process="Remove old consolepi-commands from /usr/local/bin"
-    if [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -ne 0 ]; then
-        sudo cp /usr/local/bin/consolepi-* $bak_dir 2>>$log_file || logit "Failed to Backup potentially custom consolepi-commands in /usr/local/bin" "WARNING"
-        sudo rm /usr/local/bin/consolepi-* > /dev/null 2>&1
-        sudo unlink /usr/local/bin/consolepi-* > /dev/null 2>&1
-        [ $(ls -l /usr/local/bin/consolepi* 2>/dev/null | wc -l) -eq 0 ] &&
-            logit "Success - Removing convenience command links created by older version" ||
-            logit "Failure - Verify old consolepi-command scripts/symlinks were removed from /usr/local/bin after the install" "WARNING"
-    fi
-    unset process
-}
-
 # Update ConsolePi Banner to display ConsolePi ascii logo at login
 update_banner() {
     process="update motd & profile"
@@ -364,14 +427,12 @@ update_banner() {
     unset process
 }
 
-get_config() {
-    local process="import config.sh"
+do_imports() {
+    process="import config.sh"
     . "${consolepi_dir}installer/config.sh" 2>>$log_file || logit "Error Occured importing config.sh" "Error"
-}
-
-get_update() {
-    local process="import update.sh"
+    process="import update.sh"
     . "${consolepi_dir}installer/update.sh" 2>>$log_file || logit "Error Occured importing update.sh" "Error"
+    unset process
 }
 
 show_help() {
@@ -423,22 +484,17 @@ main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
         get_common                          # get and import common functions script
-        # the following captures the date string for the start of this run used to parse file for WARNINGS
-        # after the install
-        process="Script Starting"; logit -start "Install/Ugrade Scipt Starting"; unset process
         get_pi_info                         # (common.sh func) Collect some version info for logging
-        remove_first_boot                   # if autolaunch install is configured remove
+        remove_first_boot                   # if auto-launch install on first login is configured remove
         do_apt_update                       # apt-get update the pi
         pre_git_prep                        # process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes
         do_pyvenv                           # build upgrade python3 venv for ConsolePi
         do_logging                          # Configure logging and rotation
-        $upgrade && do_remove_old_consolepi_commands    # Remove consolepi-commands from old version of ConsolePi
         update_banner                       # ConsolePi login banner update
-        get_config                          # import config.sh functions
+        do_imports                          # import config.sh functions and update.sh functions
         config_main                         # Kick off config.sh functions (Collect Config details from user)
-        get_update                          # import update.sh functions
         update_main                         # Kick off update.sh functions
     else
       echo 'Script should be ran as root. exiting.'

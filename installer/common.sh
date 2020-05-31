@@ -7,18 +7,13 @@
 INSTALLER_VER=46
 CFG_FILE_VER=8
 cur_dir=$(pwd)
-iam=$(who -m |  awk '{print $1}')
-[ -z $iam ] && iam=$SUDO_USER # cockpit shell
+iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"
 bak_dir="${consolepi_dir}bak/"
-if [ "$iam" = "root" ]; then
-    home_dir="/${iam}/"
-else
-    home_dir="/home/${iam}/"
-fi
-stage_dir="${home_dir}ConsolePi_stage/"
+home_dir=$(grep "^${iam}:" /etc/passwd | cut -d: -f6)  # TODO NO TRAILING / make others that way
+stage_dir="${home_dir}/ConsolePi_stage/"
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
@@ -148,11 +143,11 @@ menu_print() {
 logit() {
     # Logging Function: logit <message|string> [<status|string>]
     # usage:
-    #   process="Install ConsolePi"  # Define prior to calling or UNDEFINED or last used will be displayed in the log
-    #   logit "building package" <"WARNING">
+    #   process="Install ConsolePi"  # Define prior to calling this func otherwise it will display UNDEFINED
+    #   logit "building package" "WARNING"
+    #
     # NOTE: Sending a status of "ERROR" results in the script exiting
     #       default status is INFO if none provided.
-    [[ "${1}" == '-start' ]] && start=true && shift || start=false
     [ -z "$process" ] && process="UNDEFINED"
     message="${1}"                                      # 1st arg = the log message
     [ -z "${2}" ] && status="INFO" || status=${2^^} # to upper
@@ -166,14 +161,10 @@ logit() {
     fi
 
     log_msg="$(date +"%b %d %T") [${status}][${process}] ${message}"
-    if ! $start; then
-        # Log to stdout and log-file
-        echo -e "$log_msg" | tee -a $log_file
-    else
-        # log_start is used to parse log file and display warnings after the matching start-line
-        echo -e "$log_msg" >> $log_file
-        log_start=$(echo "$log_msg" | cut -d'[' -f1)
-    fi
+    echo -e "$log_msg" | tee -a $log_file
+    # This grabs the formatted date of the first log created during this run
+    # used to parse log and re-display warnings after the install
+    [ -z "$log_start" ] && log_start=$(echo "$log_msg" | cut -d'[' -f1)
 
     # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
@@ -494,10 +485,10 @@ do_systemd_enable_load_start() {
 # -- Find path for any files pre-staged in user home or ConsolePi_stage subdir --
 get_staged_file_path() {
     [[ -z $1 ]] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
-    if [[ -f "${home_dir}${1}" ]]; then
-        found_path="${home_dir}${1}"
+    if [[ -f "${home_dir}/${1}" ]]; then
+        found_path="${home_dir}/${1}"
     elif [[ -f ${stage_dir}$1 ]]; then
-        found_path="${home_dir}ConsolePi_stage/${1}"
+        found_path="${home_dir}/ConsolePi_stage/${1}"
     else
         found_path=
     fi

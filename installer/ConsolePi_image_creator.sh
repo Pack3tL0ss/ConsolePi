@@ -55,6 +55,20 @@
 # via cmd line argumetns in the form --variable=value
 # --------------------------------------------------------------------------------------
 
+
+# Terminal coloring
+_norm='\e[0m'
+_bold='\e[32;1m' #bold green
+_blink='\e[5m'
+_red='\e[31m'
+_blue='\e[34m'
+_lred='\e[91m'
+_yellow='\e[33;1m'
+_green='\e[32m'
+_cyan='\e[96m' # technically light cyan
+
+nodd=false
+
 do_defaults() {
     # ----------------------------------- // DEFAULTS \\ -----------------------------------
     # applied if no config file is found and value not set via cmd line arg
@@ -91,18 +105,6 @@ do_defaults() {
                 STAGE:/etc/openvpn/client/ovpn_credentials
     )
 }
-
-
-# Terminal coloring
-_norm='\e[0m'
-_bold='\e[32;1m' #bold green
-_blink='\e[5m'
-_red='\e[31m'
-_blue='\e[34m'
-_lred='\e[91m'
-_yellow='\e[33;1m'
-_green='\e[32m'
-_cyan='\e[96m' # technically light cyan
 
 header() {
     [ "$1" == '-c' ] && clear
@@ -476,7 +478,7 @@ main() {
     sync && sudo umount /mnt/usb1 ; do_error $?
 
     # EXIT IF img_only option = true
-    $IMG_ONLY && echo 'image only option configured.  No Pre-Staging will be done, now exiting' && exit 0
+    $IMG_ONLY && echo -e "\nimage only option configured.  No Pre-Staging will be done. \n$(green 'Consolepi image ready')\n" && exit 0
 
     # echo -e "\nMounting System partition to Configure ConsolePi auto-install and copy over any pre-config files found in script dir"
     dots "Mounting System partition to pre-configure ConsolePi image"
@@ -546,7 +548,6 @@ verify_local_dev() {
 
 parse_args() {
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
-    nodd=false
     while (( "$#" )); do
         # echo -e "DEBUG ~ Currently evaluating: '$1'"
         case "$1" in

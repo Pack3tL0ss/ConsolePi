@@ -11,7 +11,7 @@
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 chg_password() {
-    if [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
+    if grep -q "^pi:" /etc/passwd && [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
         header
         echo "You are logged in as pi, and the default password has not been changed"
         prompt="Do You want to change the password for user pi"
@@ -120,8 +120,8 @@ misc_imports(){
         [[ $found_path ]] && logit "pre-staged ssh authorized keys found - importing"
         if [[ $found_path ]]; then
             file_diff_update $found_path /root/.ssh/authorized_keys
-            file_diff_update $found_path ${home_dir}.ssh/authorized_keys
-                chown $iam:$iam ${home_dir}.ssh/authorized_keys
+            file_diff_update $found_path ${home_dir}/.ssh/authorized_keys
+                chown $iam:$iam ${home_dir}/.ssh/authorized_keys
         fi
 
         # -- ssh known hosts --
@@ -129,8 +129,8 @@ misc_imports(){
         [[ $found_path ]] && logit "pre-staged ssh known_hosts file found - importing"
         if [[ $found_path ]]; then
             file_diff_update $found_path /root/.ssh/known_hosts
-            file_diff_update $found_path ${home_dir}.ssh/knwon_hosts
-                chown $iam:$iam ${home_dir}.ssh/known_hosts
+            file_diff_update $found_path ${home_dir}/.ssh/knwon_hosts
+                chown $iam:$iam ${home_dir}/.ssh/known_hosts
         fi
 
         # -- pre staged cloud creds --
@@ -526,12 +526,20 @@ do_blue_config() {
         fi
     done
 
-    # Give Blue user limited sudo rights to consolepi-commands
-    if [ ! -f /etc/sudoers.d/010_blue-consolepi ]; then
-        echo 'blue ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*' > /etc/sudoers.d/010_blue-consolepi &&
-        logit "BlueTooth User given sudo rights for consolepi-commands" ||
-        logit "FAILED to give Bluetooth user limited sudo rights" "WARNING"
-    fi
+    # # Give Blue user limited sudo rights to consolepi-commands
+    # if [ ! -f /etc/sudoers.d/010_blue-consolepi ]; then
+    #     echo 'blue ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*' > /etc/sudoers.d/010_blue-consolepi &&
+    #     logit "BlueTooth User given sudo rights for consolepi-commands" ||
+    #     logit "FAILED to give Bluetooth user limited sudo rights" "WARNING"
+    # fi
+
+    # TODO this is a duplicate of func in install.sh move blue setup to install.sh
+    # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
+    # if [ ! -f /etc/sudoers.d/010_consolepi ]; then
+    #     echo '%consolepi ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*, /etc/ConsolePi/src/consolepi-commands/*, /etc/ConsolePi/venv/bin/python3 *' > /etc/sudoers.d/010_consolepi &&
+    #     logit "consolepi group given sudo rights for consolepi-commands" ||
+    #     logit "FAILED to give consolepi group sudo rights for ConsolePi functions" "WARNING"
+    # fi
 
     # Remove old blue user default tty cols/rows
     grep -q stty /home/blue/.bashrc &&
@@ -586,7 +594,7 @@ do_resize () {
     process="xterm ~ resize"
     if [ ! -f ${src_dir}consolepi-commands/resize ]; then
         # util_main xterm -I -p "xterm | resize"
-        cmd_list=("-apt-install" "xterm" "--pretty=${process}" \
+        cmd_list=("-apt-install" "xterm" "--pretty=${process}" "--exclude=x11-utils" \
                   '-s' "export rsz_loc=\$(which resize)" \
                   "-stop" "-nostart" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
                       "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
@@ -765,20 +773,17 @@ get_serial_udev() {
     echo "- Defining the ports with this utility is also how device specific serial settings are configured.  Otherwise       -"
     echo "-   they will use the default which is 96008N1                                                                      -"
     echo "-                                                                                                                   -"
-    echo "- As of Dec 2019 This uses a new mechanism with added support for more challengine adapters:                        -"
+    echo "- This utility includes support for more challenging adapters:                                                      -"
     echo "-   * Multi-Port Serial Adapters, where the adpater presents a single serial # for all ports                        -"
-    echo "-   * Super Lame cheap crappy adapters that don't burn a serial# to the adapter at all:  (CODED NOT TESTED YET)     -"
+    echo "-   * Super Lame cheap crappy adapters that don't burn a serial# to the adapter at all.                             -"
     echo "-     If you have one of these.  First Check online with the manufacturer of the chip used in the adapter to see    -"
     echo "-     if they have a utility to flash the EEPROM, some manufacturers do which would allow you to write a serial #   -"
     echo "-     For example if the adapter uses an FTDI chip (which I reccomend) they have a utility called FT_PROG           -"
     echo "-     Most FTDI based adapters have serial #s, I've only seen the lack of serial # on dev boards.                   -"
     echo "-     ---- If you're interested I reccomend adapters that use FTDI chips. ----                                      -"
     echo "-                                                                                                                   -"
-    echo '-  !! suppport for adapters that lack serial ports is not tested at all, so I probably goofed someplace.            -'
-    echo "-     I need to find a lame adapter to test                                                                         -"
-    echo "-                                                                                                                   -"
     echo '-  This function can be called anytime from the shell via `consolepi-addconsole` and is available from              -'
-    echo '-    `consolepi-menu` as the `rn` (rename) option.                                                                  -'
+    echo '-    `consolepi-menu` via the `rn` (rename) option.                                                                 -'
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
@@ -912,10 +917,10 @@ post_install_msg() {
         )
     menu_print "${_msg[@]}"
 
-    # Display any warnings
+    # Display any warnings if they exist
     if [ $warn_cnt -gt 0 ]; then
         echo -e "\n${_red}---- warnings exist ----${_norm}"
-        sed -n "/${log_start}/,/*/p" $log_file | grep WARNING
+        sed -n "/${log_start}/,/*/p" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep WARNING
         echo
     fi
     # Script Complete Prompt for reboot if first install
@@ -933,7 +938,7 @@ update_main() {
     # -- install.sh does --
     # get_common                          # get and import common functions script
     # get_pi_info                         # (common.sh func) Collect some version info for logging
-    # remove_first_boot                   # if autolaunch install is configured remove
+    # remove_first_boot                   # if auto-launch install on first login is configured remove
     # do_apt_update                       # apt-get update the pi
     # pre_git_prep                        # process upgrade tasks required prior to git pull
     # git_ConsolePi                       # git clone or git pull ConsolePi

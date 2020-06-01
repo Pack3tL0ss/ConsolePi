@@ -134,8 +134,8 @@ misc_imports(){
         fi
 
         # -- pre staged cloud creds --
-        if $cloud && [[ -d ${stage_dir}.credentials ]]; then
-            found_path=${stage_dir}.credentials
+        if $cloud && [[ -d ${stage_dir}/.credentials ]]; then
+            found_path=${stage_dir}/.credentials
             mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
             logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
             logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
@@ -161,25 +161,25 @@ misc_imports(){
 
         # TODO may need to adjust once fully automated
         # -- wired-dhcp configurations --
-        if [[ -d ${stage_dir}wired-dhcp ]]; then
+        if [[ -d ${stage_dir}/wired-dhcp ]]; then
             logit "Staged wired-dhcp directory found copying contents to ConsolePi wired-dchp dir"
-            cp ${stage_dir}wired-dhcp/* /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
+            cp ${stage_dir}/wired-dhcp/* /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
             logit "Success - copying staged wired-dchp configs" ||
                 logit "Failure - copying staged wired-dchp configs" "WARNING"
         fi
 
         # -- ztp configurations --
-        if [[ -d ${stage_dir}ztp ]]; then
+        if [[ -d ${stage_dir}/ztp ]]; then
             logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
-            cp ${stage_dir}ztp/* /etc/ConsolePi/ztp/ &&
+            cp ${stage_dir}/ztp/* /etc/ConsolePi/ztp/ &&
             logit "Success - copying staged ztp configs" ||
                 logit "Failure - copying staged ztp configs" "WARNING"
         fi
 
         # -- autohotspot dhcp configurations --
-        if [[ -d ${stage_dir}autohotspot-dhcp ]]; then
+        if [[ -d ${stage_dir}/autohotspot-dhcp ]]; then
             logit "Staged autohotspot-dhcp directory found copying contents to ConsolePi autohotspot dchp dir"
-            cp ${stage_dir}autohotspot-dhcp/* /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
+            cp ${stage_dir}/autohotspot-dhcp/* /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
             logit "Success - copying staged autohotspot-dchp configs" ||
                 logit "Failure - copying staged autohotspot-dchp configs" "WARNING"
         fi
@@ -653,7 +653,7 @@ get_known_ssids() {
     else
         # if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.
         # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
-        #   certs should be in user home dir, 'cert' subdir, 'ConsolePi_stage/cert, subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
+        #   certs should be in 'consolepi-stage/cert, subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
         found_path=$(get_staged_file_path "wpa_supplicant.conf")
         if [[ -f $found_path ]]; then
             logit "Found stage file ${found_path} Applying"
@@ -665,17 +665,14 @@ get_known_ssids() {
                 cert_path=${client_cert%/*}
                 ca_cert=$(grep ca_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
                 private_key=$(grep private_key= $found_path | cut -d'"' -f2| cut -d'"' -f1)
-                if [[ -d /home/${iam}/cert ]]; then
-                    cd /home/$iam/cert     # if user home contains cert subdir look there for certs - otherwise look in stage subdir
-                elif [[ -d ${stage_dir}cert ]]; then
-                    cd ${stage_dir}cert
+                if [[ -d ${stage_dir}/cert ]]; then
+                    pushd ${stage_dir}/cert >/dev/null
+                    [[ ! -d $cert_path ]] && sudo mkdir -p "${cert_path}"
+                    [[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
+                    [[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
+                    [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
+                    popd >/dev/null
                 fi
-
-                [[ ! -d $cert_path ]] && sudo mkdir -p "${cert_path}"
-                [[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
-                [[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
-                [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
-                cd "${cur_dir}"
             fi
 
             if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then

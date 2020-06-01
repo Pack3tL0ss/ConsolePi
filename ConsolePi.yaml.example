@@ -23,17 +23,12 @@ CONFIG:
   power: false # Enable Power Outlet Control
   debug: false # Turns on additional debugging
 
-# --- The Remaining Sections Are not Required ---
-# The HOST section below should be editted to fit your needs or removed, otherwise they
-# will show in the menu
-
-
-# OVERRIDES optional items allowing you to override configured defaults
+# --- // The Remaining Sections Are optional \\ ---
+# OVERRIDES optional items allowing you to override default beahvior
 OVERRIDES:
-  skip_utils: false # if true the installer script will skip the launch of the consolepi-extras menu
-  default_baud: 9600 # also default_dbits, default_parity, default_sbits.
-  cloud_pull_only: false # Retrieve data from cloud, but don't update cloud with your data
-  compact_mode: false # All Remotes collapsed into a single section in menu
+  skip_utils: false       # if true the install/update script will skip the launch of the consolepi-extras menu
+  cloud_pull_only: false  # Retrieve data from cloud, but don't update cloud with your data
+  compact_mode: false     # All Remotes collapsed into a single section in menu
 
 # The POWER section allows you to configure controlled power outlets, which can optionally be linked
 # to serial adapters or hosts.  When linked, ConsolePi will ensure the outlet is powered ON when you
@@ -48,10 +43,10 @@ POWER:
     address: labpower1.example.com
     username: admin
     password: dlipassword
-    linked_devs: 
+    linked_devs:
       5900T(ssh): 6
       5900T(Console): [1, 6]
-      5900B(Console): [1, 6]      
+      5900B(Console): [1, 6]
       8320T(Console): [1, 2]
       8320B(Console): [1, 2]
       6300M(oobm): 8
@@ -62,7 +57,7 @@ POWER:
     address: 10.0.30.72
     username: admin
     password: FakeP@ssword
-    linked_devs: 
+    linked_devs:
       FTNew01: [4, 5]
       5900T(Console): 6
   stagepower:

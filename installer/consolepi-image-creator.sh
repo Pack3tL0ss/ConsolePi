@@ -3,10 +3,10 @@
 # --                                               ConsolePi Image Creation Script - Use at own Risk
 # --
 # --  Author: Pack3tL0ss ~ Wade Wells
-# --    !!! USE @ own risk - This could bork your system !!!
+# --    !!! USE @ own risk - This is an imaging script as with any imaging script if you select the wrong image... not so good !!!
 # --
 # --  This is a script I used to expedite testing.  It looks for a raspios-lite image file in whatever directory you run the script from, if it doesn't find one
-# --  it downloads the latest image.  It will guesses what drive is the micro-sd card (looks for usb to micro-sd adapter then sd to micro-sd) then flashes
+# --  it downloads the latest image.  It will attempt to determine which drive is the micro-sd card (looks for usb to micro-sd adapter then sd to micro-sd) then flashes
 # --  the raspios-lite image to the micro-sd.
 # --
 # --  This script is an optional tool, provided just because I had it/used it for testing.  It simply automates the burning of the image to the sd-card and provides
@@ -417,7 +417,7 @@ main() {
             get_input
             $input || do_select_image "${found_img_files[@]}"  # Selecting No currently broken # $img_file set in do_select_image
         else
-            echo "Using image $(cyan ${cur_rel%.img}), found in $(pwd). It is the current release"
+            echo "Using image $(cyan ${cur_rel%.img}) found in $(pwd). It is the current release"
             img_file=${cur_rel}.img
         fi
     elif [[ $found_img_zip ]]; then

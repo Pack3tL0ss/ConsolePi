@@ -486,7 +486,7 @@ gen_dnsmasq_conf () {
     unset process
 }
 
-dhcpcd_conf () {
+gen_dhcpcd_conf () {
     process="dhcpcd.conf"
     logit "configure dhcp client and static fallback"
     convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip}
@@ -973,10 +973,10 @@ update_main() {
     if $hotspot ; then
         install_autohotspotn
         gen_dnsmasq_conf
+        gen_dhcpcd_conf
     else
         disable_autohotspot
     fi
-    dhcpcd_conf
     do_blue_config
     do_consolepi_api
     do_consolepi_mdns

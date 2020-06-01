@@ -182,6 +182,20 @@ pre_git_prep() {
             fi
         done
 
+        # if they are installing using pi user ensure pi user also has correct group memberships
+        if [[ "$iam" == "pi" ]]; then
+            _groups=('consolepi' 'dialout')
+            for grp in "${_groups[@]}"; do
+                if [[ ! $(groups pi) == *"${grp}"* ]]; then
+                    sudo usermod -a -G $grp pi &&
+                        logit "Added pi user to $grp group" ||
+                            logit "Error adding pi user to $grp group" "WARNING"
+                else
+                    logit "pi already belongs to $grp group"
+                fi
+            done
+        fi
+
         rm /tmp/adduser.conf
 
         # Provide option to remove default pi user

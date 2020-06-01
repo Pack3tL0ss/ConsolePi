@@ -282,7 +282,11 @@ do_import_configs() {
                 fi
 
                 if [ -f "$src" ] && [ ! -f "$dst" ]; then
-                    if res=$(sudo -u $SUDO_USER cp "$src" "$dst" 2>&1); then
+                    if res=$(
+                        sudo -u $SUDO_USER mkdir -p $(dirname "$dst") &&
+                        ( [[ $(stat -c %u "$src") == 0 ]] && cp "$src" "$dst" 2>&1 ||
+                          sudo -u $SUDO_USER cp "$src" "$dst" 2>&1 )
+                        ); then
                         echo "Imported"
                     else
                         echo ERROR

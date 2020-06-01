@@ -13,7 +13,7 @@ consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"
 bak_dir="${consolepi_dir}bak/"
 home_dir=$(grep "^${iam}:" /etc/passwd | cut -d: -f6)  # TODO NO TRAILING / make others that way
-stage_dir="${home_dir}/ConsolePi_stage/"
+stage_dir="${home_dir}/consolepi-stage"                # TODO NO TRAILING / make others that way
 default_config="/etc/ConsolePi/ConsolePi.conf"
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
@@ -482,13 +482,13 @@ do_systemd_enable_load_start() {
     fi
 }
 
-# -- Find path for any files pre-staged in user home or ConsolePi_stage subdir --
+# -- Find path for any files pre-staged in user home or consolepi-stage subdir --
 get_staged_file_path() {
     [[ -z $1 ]] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
     if [[ -f "${home_dir}/${1}" ]]; then
         found_path="${home_dir}/${1}"
-    elif [[ -f ${stage_dir}$1 ]]; then
-        found_path="${home_dir}/ConsolePi_stage/${1}"
+    elif [[ -f ${stage_dir}/$1 ]]; then
+        found_path="${stage_dir}/${1}"
     else
         found_path=
     fi

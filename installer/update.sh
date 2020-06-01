@@ -830,7 +830,7 @@ do_wifi_country() {
 # -- run custom post install script --
 custom_post_install_script() {
     if ! $upgrade; then
-        found_path=$(get_staged_file_path "ConsolePi_init.sh")
+        found_path=$(get_staged_file_path "consolepi-post.sh")
         if [[ $found_path ]]; then
             process="Run Custom Post-install script"
             logit "Post Install Script ${found_path} Found. Executing"

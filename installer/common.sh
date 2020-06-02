@@ -432,7 +432,7 @@ get_pi_info() {
     ver=$(echo $ver_full | cut -d. -f1)
 
     if [ $ver -eq 10 ]; then
-        version="Raspbian $ver_full (Buster)"
+        version="RaspiOS $ver_full (Buster)"
     elif [ $ver -eq 9 ]; then
         version="Raspbian $ver_full (Stretch)"
     elif [ $ver -eq 8 ]; then
@@ -448,10 +448,10 @@ get_pi_info() {
     logit "$model_pretty"
     logit "$version running on $cpu Revision: $rev"
     logit "$(uname -a)"
-    dpkg -l | grep -q raspberrypi-ui && logit "Raspbian with Desktop" || logit "Raspbian Lite"
+    dpkg -l | grep -q raspberrypi-ui && logit "RaspiOS with Desktop" || logit "RaspiOS Lite"
     logit "Python 3 Version $(python3 -V)"
     [ $py3ver -lt 6 ] && logit "${_red}DEPRICATION WARNING:${_norm} Python 3.5 will no longer be supported by ConsolePi in a future release." "warning" &&
-        logit "You should re-image ConsolePi using the current Raspbian release" "warning"
+        logit "You should re-image ConsolePi using the current RaspiOS release" "warning"
     unset process
 }
 

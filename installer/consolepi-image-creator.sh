@@ -455,8 +455,7 @@ main() {
 
     # ----------------------------------- // Burn raspios image to device (micro-sd) \\ -----------------------------------
     echo -e "\n\n${_red}!!! Last chance to abort !!!${_norm}"
-    prompt="About to burn $(cyan ${img_file}) to $(green ${my_usb}), Continue?"
-    get_input
+    get_input "About to burn $(cyan ${img_file}) to $(green ${my_usb}), Continue?"
     ! $input && echo 'Exiting Script based on user input' && exit 1
     header -c
     echo -e "\nNow Burning image $(cyan ${img_file}) to $(green ${my_usb}) standby...\n this takes a few minutes\n"

@@ -567,39 +567,39 @@ parse_args() {
                 shift
                 ;;
             --branch=*) # install from a branch other than master
-                branch=$(echo "$1"| cut -d= -f1)
+                branch=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             --ssid=*) # install from a branch other than master
-                ssid=$(echo "$1"| cut -d= -f1)
+                ssid=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             --psk=*) # install from a branch other than master
-                psk=$(echo "$1"| cut -d= -f1)
+                psk=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             --wlan_country=*) # install from a branch other than master
-                wlan_country=$(echo "$1"| cut -d= -f1)
+                wlan_country=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             --priority=*) # install from a branch other than master
-                priority=$(echo "$1"| cut -d= -f1)
+                priority=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             --img_type=*) # install from a branch other than master
-                img_type=$(echo "$1"| cut -d= -f1)
+                img_type=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             --img_only=*) # install from a branch other than master
-                img_only=$(echo "$1"| cut -d= -f1)
+                img_only=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             --auto_install=*) # install from a branch other than master
-                auto_install=$(echo "$1"| cut -d= -f1)
+                auto_install=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             --skip_mass_import=*) # install from a branch other than master
-                skip_mass_import=$(echo "$1"| cut -d= -f1)
+                skip_mass_import=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             *) ## -*|--*=) # unsupported flags

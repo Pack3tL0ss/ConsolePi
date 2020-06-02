@@ -503,9 +503,17 @@ process_args() {
                 shift
                 ;;
             # -- silent install options --
+            -C|-config)
+                if [ -f "$2" ]; then
+                   . "$2"
+                else
+                    echo "Specified Config $2 not found"
+                    exit 1
+                fi
+                shift 2
+                ;;
             --hostname=*) # set hostname
                 hostname=$(echo "$1"| cut -d= -f2)
-                echo "hostname: $hostname newhost: $newhost"
                 shift
                 ;;
             -noipv6) # disable ipv6
@@ -546,7 +554,6 @@ main() {
     if [ "${script_iam}" = "root" ]; then
         set +H                              # Turn off ! history expansion
         process_args "$@"
-        echo "SILENT: $silent"
         get_common                          # get and import common functions script
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if auto-launch install on first login is configured remove

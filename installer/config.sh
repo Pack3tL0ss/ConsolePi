@@ -355,7 +355,6 @@ verify() {
 
 config_main() {
     get_static
-    ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line
     get_config
     if ! $silent; then
         ! $bypass_verify && verify

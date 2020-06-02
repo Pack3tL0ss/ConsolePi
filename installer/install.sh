@@ -76,7 +76,8 @@ do_apt_update() {
         apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
 
         logit "Install/update git (apt)"
-        apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
+        # apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
+        process_cmds -stop -e -pf "install/update git" -apt-install "git"
         logit "Process Complete"
     else
         logit "apt updates skipped based on -noapt argument" "WARNING"
@@ -142,11 +143,12 @@ pre_git_prep() {
 
     else  # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
         # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
-        process="ConsolePi-Upgrade-Prep (install libffi-dev)"
+        process="ConsolePi-Upgrade-Prep"
         if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
-            apt install -y libffi-dev >/dev/null 2>>${log_file} &&
-                logit "Success Installing development files for libffi" ||
-                    logit "ERROR apt install libffi-dev retrurned an error" "WARNING"
+            process_cmds -apt-install "libffi-dev"
+            # apt install -y libffi-dev >/dev/null 2>>${log_file} &&
+            #     logit "Success Installing development files for libffi" ||
+            #         logit "ERROR apt install libffi-dev retrurned an error" "WARNING"
         fi
 
         process="Create consolepi user/group"
@@ -219,9 +221,11 @@ pre_git_prep() {
     # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
     process="install libssl-dev"
     if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
-        apt install -y libssl-dev >/dev/null 2>>${log_file} &&
-            logit "Success Installing development files for libssl" ||
-                logit "ERROR apt install libssl-dev retrurned an error" "WARNING"
+        process_cmds -apt-install "libssl-dev"
+        # logit "Install development files for libssl"
+        # apt install -y libssl-dev >/dev/null 2>>${log_file} &&
+        #     logit "Success Installing development files for libssl" ||
+        #         logit "ERROR apt install libssl-dev retrurned an error" "WARNING"
     fi
 
     if [ -f $cloud_cache ]; then
@@ -323,9 +327,11 @@ do_pyvenv() {
 
     # -- Ensure python3-pip is installed --
     if [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]]; then
-        sudo apt-get install -y python3-pip 1>/dev/null 2>> $log_file &&
-            logit "Success - Install python3-pip" ||
-            logit "Error - installing Python3-pip" "ERROR"
+        process_cmds -stop -e -pf "install python3-pip" -apt-install "python3-pip"
+        # logit "Install python3-pip"
+        # sudo apt-get install -y python3-pip 1>/dev/null 2>> $log_file &&
+        #     logit "Success - Install python3-pip" ||
+        #     logit "Error - installing Python3-pip" "ERROR"
     fi
 
     if [ ! -d ${consolepi_dir}venv ]; then
@@ -487,7 +493,7 @@ process_args() {
                 exit 0
                 ;;
             -*|--*=) # unsupported flags
-                echo "Error: Unsupported flag passed to process_cmds $1" >&2
+                echo "Error: Unsupported flag passed to process_args $1" >&2
                 exit 1
                 ;;
         esac

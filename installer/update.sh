@@ -194,9 +194,10 @@ install_ser2net () {
     logit "${process} - Starting"
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
     if [[ -z $ser2net_ver ]]; then
-        apt-get -y install ser2net 1>/dev/null 2>> $log_file &&
-            logit "ser2net install Success" ||
-            logit "ser2net install Failed." "WARNING"
+        process_cmds -apt-install "ser2net"
+        # apt-get -y install ser2net 1>/dev/null 2>> $log_file &&
+        #     logit "ser2net install Success" ||
+        #     logit "ser2net install Failed." "WARNING"
     else
         logit "Ser2Net ${ser2net_ver} already installed. No Action Taken re ser2net"
     fi
@@ -283,16 +284,17 @@ sub_check_vpn_config(){
 
 install_ovpn() {
     process="OpenVPN"
-    ! $upgrade && logit "Install OpenVPN" || logit "Verify OpenVPN is installed"
+    # ! $upgrade && logit "Install OpenVPN" || logit "Verify OpenVPN is installed"
     ovpn_ver=$(openvpn --version 2>/dev/null| head -1 | awk '{print $2}')
     if [[ -z $ovpn_ver ]]; then
-        sudo apt-get -y install openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN installed Successfully" || logit "FAILED to install OpenVPN" "WARNING"
-        if ! $ovpn_enable; then
-            logit "You've chosen not to use the OpenVPN function.  Disabling OpenVPN. Package will remain installed. '/lib/systemd/systemd-sysv-install enable openvpn' to enable"
-            /lib/systemd/systemd-sysv-install disable openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN Disabled" || logit "FAILED to disable OpenVPN" "WARNING"
-        else
-            /lib/systemd/systemd-sysv-install enable openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN Enabled" || logit "FAILED to enable OpenVPN" "WARNING"
-        fi
+        # sudo apt-get -y install openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN installed Successfully" || logit "FAILED to install OpenVPN" "WARNING"
+        process_cmds -stop -apt-install "openvpn" -nostart -pf "Enable OpenVPN" '/lib/systemd/systemd-sysv-install enable openvpn'
+        # if ! $ovpn_enable; then
+        #     logit "You've chosen not to use the OpenVPN function.  Disabling OpenVPN. Package will remain installed. '/lib/systemd/systemd-sysv-install enable openvpn' to enable"
+        #     /lib/systemd/systemd-sysv-install disable openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN Disabled" || logit "FAILED to disable OpenVPN" "WARNING"
+        # else
+        #     /lib/systemd/systemd-sysv-install enable openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN Enabled" || logit "FAILED to enable OpenVPN" "WARNING"
+        # fi
     else
         logit "OpenVPN ${ovpn_ver} Already Installed/Current"
     fi
@@ -358,22 +360,24 @@ install_autohotspotn () {
         logit "Using old autohotspot system default dnsmasq instance"
     fi
 
-    logit "Installing hostapd via apt."
+    # logit "Installing hostapd via apt."
     if ! $(which hostapd >/dev/null); then
-        apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
-            logit "hostapd install Success" ||
-            logit "hostapd install Failed" "WARNING"
+        process_cmds -apt-install hostapd
+        # apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
+        #     logit "hostapd install Success" ||
+        #     logit "hostapd install Failed" "WARNING"
     else
         hostapd_ver=$(hostapd -v 2>&1| head -1| awk '{print $2}')
         logit "hostapd ${hostapd_ver} already installed"
     fi
 
-    logit "Installing dnsmasq via apt."
+    # logit "Installing dnsmasq via apt."
     dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
     if [[ -z $dnsmasq_ver ]]; then
-        apt-get -y install dnsmasq 1>/dev/null 2>> $log_file &&
-            logit "dnsmasq install Success" ||
-            logit "dnsmasq install Failed" "WARNING"
+        process_cmds -apt-install dnsmasq
+        # apt-get -y install dnsmasq 1>/dev/null 2>> $log_file &&
+        #     logit "dnsmasq install Success" ||
+        #     logit "dnsmasq install Failed" "WARNING"
     else
         logit "dnsmasq v${dnsmasq_ver} already installed"
     fi
@@ -414,12 +418,13 @@ install_autohotspotn () {
         convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
     fi
 
-    logit "Verify iw is installed on system."
+    # logit "Verify iw is installed on system."
     which iw >/dev/null 2>&1 && iw_ver=$(iw --version 2>/dev/null | awk '{print $3}') || iw_ver=0
     if [ $iw_ver == 0 ]; then
-        logit "iw not found, Installing iw via apt."
-        ( sudo apt-get -y install iw 1>/dev/null 2>> $log_file && logit "iw installed Successfully" ) ||
-            logit "FAILED to install iw" "WARNING"
+        # logit "iw not found, Installing iw via apt."
+        process_cmds -apt-install iw
+        # ( sudo apt-get -y install iw 1>/dev/null 2>> $log_file && logit "iw installed Successfully" ) ||
+        #     logit "FAILED to install iw" "WARNING"
     else
         logit "iw $iw_ver already installed/current."
     fi
@@ -571,9 +576,10 @@ do_blue_config() {
     if [[ $(picocom --help 2>/dev/null | head -1) ]]; then
         logit "$(picocom --help 2>/dev/null | head -1) is already installed"
     else
-        logit "Installing picocom"
-        sudo apt-get -y install picocom 1>/dev/null 2>> $log_file && logit "Install picocom Success" ||
-                logit "FAILED to Install picocom" "WARNING"
+        # logit "Installing picocom"
+        # sudo apt-get -y install picocom 1>/dev/null 2>> $log_file && logit "Install picocom Success" ||
+        #         logit "FAILED to Install picocom" "WARNING"
+        process_cmds -apt-install picocom
     fi
 
     logit "${process} Complete"

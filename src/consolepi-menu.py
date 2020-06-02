@@ -814,7 +814,7 @@ class ConsolePiMenu(Rename):
             if rem[host].get('rem_ip') and len(rem[host]['adapters']) > 0:
                 remotes.connected = True
                 rem_mlines, rem_menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item, remote=True,
-                                                                            rem_user=rem[host].get('rem_user'), host=host)
+                                                                            rem_user=rem[host].get('user'), host=host)
                 if rem_menu_actions:
                     menu_actions = {**menu_actions, **rem_menu_actions}
 

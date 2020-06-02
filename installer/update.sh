@@ -11,7 +11,7 @@
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 chg_password() {
-    if [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
+    if grep -q "^pi:" /etc/passwd && [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
         header
         echo "You are logged in as pi, and the default password has not been changed"
         prompt="Do You want to change the password for user pi"
@@ -120,8 +120,8 @@ misc_imports(){
         [[ $found_path ]] && logit "pre-staged ssh authorized keys found - importing"
         if [[ $found_path ]]; then
             file_diff_update $found_path /root/.ssh/authorized_keys
-            file_diff_update $found_path ${home_dir}.ssh/authorized_keys
-                chown $iam:$iam ${home_dir}.ssh/authorized_keys
+            file_diff_update $found_path ${home_dir}/.ssh/authorized_keys
+                chown $iam:$iam ${home_dir}/.ssh/authorized_keys
         fi
 
         # -- ssh known hosts --
@@ -129,13 +129,13 @@ misc_imports(){
         [[ $found_path ]] && logit "pre-staged ssh known_hosts file found - importing"
         if [[ $found_path ]]; then
             file_diff_update $found_path /root/.ssh/known_hosts
-            file_diff_update $found_path ${home_dir}.ssh/knwon_hosts
-                chown $iam:$iam ${home_dir}.ssh/known_hosts
+            file_diff_update $found_path ${home_dir}/.ssh/knwon_hosts
+                chown $iam:$iam ${home_dir}/.ssh/known_hosts
         fi
 
         # -- pre staged cloud creds --
-        if $cloud && [[ -d ${stage_dir}.credentials ]]; then
-            found_path=${stage_dir}.credentials
+        if $cloud && [[ -d ${stage_dir}/.credentials ]]; then
+            found_path=${stage_dir}/.credentials
             mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
             logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
             logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
@@ -161,25 +161,25 @@ misc_imports(){
 
         # TODO may need to adjust once fully automated
         # -- wired-dhcp configurations --
-        if [[ -d ${stage_dir}wired-dhcp ]]; then
+        if [[ -d ${stage_dir}/wired-dhcp ]]; then
             logit "Staged wired-dhcp directory found copying contents to ConsolePi wired-dchp dir"
-            cp ${stage_dir}wired-dhcp/* /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
+            cp ${stage_dir}/wired-dhcp/* /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
             logit "Success - copying staged wired-dchp configs" ||
                 logit "Failure - copying staged wired-dchp configs" "WARNING"
         fi
 
         # -- ztp configurations --
-        if [[ -d ${stage_dir}ztp ]]; then
+        if [[ -d ${stage_dir}/ztp ]]; then
             logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
-            cp ${stage_dir}ztp/* /etc/ConsolePi/ztp/ &&
+            cp ${stage_dir}/ztp/* /etc/ConsolePi/ztp/ &&
             logit "Success - copying staged ztp configs" ||
                 logit "Failure - copying staged ztp configs" "WARNING"
         fi
 
         # -- autohotspot dhcp configurations --
-        if [[ -d ${stage_dir}autohotspot-dhcp ]]; then
+        if [[ -d ${stage_dir}/autohotspot-dhcp ]]; then
             logit "Staged autohotspot-dhcp directory found copying contents to ConsolePi autohotspot dchp dir"
-            cp ${stage_dir}autohotspot-dhcp/* /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
+            cp ${stage_dir}/autohotspot-dhcp/* /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
             logit "Success - copying staged autohotspot-dchp configs" ||
                 logit "Failure - copying staged autohotspot-dchp configs" "WARNING"
         fi
@@ -194,9 +194,10 @@ install_ser2net () {
     logit "${process} - Starting"
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
     if [[ -z $ser2net_ver ]]; then
-        apt-get -y install ser2net 1>/dev/null 2>> $log_file &&
-            logit "ser2net install Success" ||
-            logit "ser2net install Failed." "WARNING"
+        process_cmds -apt-install "ser2net"
+        # apt-get -y install ser2net 1>/dev/null 2>> $log_file &&
+        #     logit "ser2net install Success" ||
+        #     logit "ser2net install Failed." "WARNING"
     else
         logit "Ser2Net ${ser2net_ver} already installed. No Action Taken re ser2net"
     fi
@@ -283,16 +284,17 @@ sub_check_vpn_config(){
 
 install_ovpn() {
     process="OpenVPN"
-    ! $upgrade && logit "Install OpenVPN" || logit "Verify OpenVPN is installed"
+    # ! $upgrade && logit "Install OpenVPN" || logit "Verify OpenVPN is installed"
     ovpn_ver=$(openvpn --version 2>/dev/null| head -1 | awk '{print $2}')
     if [[ -z $ovpn_ver ]]; then
-        sudo apt-get -y install openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN installed Successfully" || logit "FAILED to install OpenVPN" "WARNING"
-        if ! $ovpn_enable; then
-            logit "You've chosen not to use the OpenVPN function.  Disabling OpenVPN. Package will remain installed. '/lib/systemd/systemd-sysv-install enable openvpn' to enable"
-            /lib/systemd/systemd-sysv-install disable openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN Disabled" || logit "FAILED to disable OpenVPN" "WARNING"
-        else
-            /lib/systemd/systemd-sysv-install enable openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN Enabled" || logit "FAILED to enable OpenVPN" "WARNING"
-        fi
+        # sudo apt-get -y install openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN installed Successfully" || logit "FAILED to install OpenVPN" "WARNING"
+        process_cmds -stop -apt-install "openvpn" -nostart -pf "Enable OpenVPN" '/lib/systemd/systemd-sysv-install enable openvpn'
+        # if ! $ovpn_enable; then
+        #     logit "You've chosen not to use the OpenVPN function.  Disabling OpenVPN. Package will remain installed. '/lib/systemd/systemd-sysv-install enable openvpn' to enable"
+        #     /lib/systemd/systemd-sysv-install disable openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN Disabled" || logit "FAILED to disable OpenVPN" "WARNING"
+        # else
+        #     /lib/systemd/systemd-sysv-install enable openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN Enabled" || logit "FAILED to enable OpenVPN" "WARNING"
+        # fi
     else
         logit "OpenVPN ${ovpn_ver} Already Installed/Current"
     fi
@@ -358,22 +360,24 @@ install_autohotspotn () {
         logit "Using old autohotspot system default dnsmasq instance"
     fi
 
-    logit "Installing hostapd via apt."
+    # logit "Installing hostapd via apt."
     if ! $(which hostapd >/dev/null); then
-        apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
-            logit "hostapd install Success" ||
-            logit "hostapd install Failed" "WARNING"
+        process_cmds -apt-install hostapd
+        # apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
+        #     logit "hostapd install Success" ||
+        #     logit "hostapd install Failed" "WARNING"
     else
         hostapd_ver=$(hostapd -v 2>&1| head -1| awk '{print $2}')
         logit "hostapd ${hostapd_ver} already installed"
     fi
 
-    logit "Installing dnsmasq via apt."
+    # logit "Installing dnsmasq via apt."
     dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
     if [[ -z $dnsmasq_ver ]]; then
-        apt-get -y install dnsmasq 1>/dev/null 2>> $log_file &&
-            logit "dnsmasq install Success" ||
-            logit "dnsmasq install Failed" "WARNING"
+        process_cmds -apt-install dnsmasq
+        # apt-get -y install dnsmasq 1>/dev/null 2>> $log_file &&
+        #     logit "dnsmasq install Success" ||
+        #     logit "dnsmasq install Failed" "WARNING"
     else
         logit "dnsmasq v${dnsmasq_ver} already installed"
     fi
@@ -414,12 +418,13 @@ install_autohotspotn () {
         convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
     fi
 
-    logit "Verify iw is installed on system."
+    # logit "Verify iw is installed on system."
     which iw >/dev/null 2>&1 && iw_ver=$(iw --version 2>/dev/null | awk '{print $3}') || iw_ver=0
     if [ $iw_ver == 0 ]; then
-        logit "iw not found, Installing iw via apt."
-        ( sudo apt-get -y install iw 1>/dev/null 2>> $log_file && logit "iw installed Successfully" ) ||
-            logit "FAILED to install iw" "WARNING"
+        # logit "iw not found, Installing iw via apt."
+        process_cmds -apt-install iw
+        # ( sudo apt-get -y install iw 1>/dev/null 2>> $log_file && logit "iw installed Successfully" ) ||
+        #     logit "FAILED to install iw" "WARNING"
     else
         logit "iw $iw_ver already installed/current."
     fi
@@ -486,7 +491,7 @@ gen_dnsmasq_conf () {
     unset process
 }
 
-dhcpcd_conf () {
+gen_dhcpcd_conf () {
     process="dhcpcd.conf"
     logit "configure dhcp client and static fallback"
     convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip}
@@ -526,12 +531,20 @@ do_blue_config() {
         fi
     done
 
-    # Give Blue user limited sudo rights to consolepi-commands
-    if [ ! -f /etc/sudoers.d/010_blue-consolepi ]; then
-        echo 'blue ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*' > /etc/sudoers.d/010_blue-consolepi &&
-        logit "BlueTooth User given sudo rights for consolepi-commands" ||
-        logit "FAILED to give Bluetooth user limited sudo rights" "WARNING"
-    fi
+    # # Give Blue user limited sudo rights to consolepi-commands
+    # if [ ! -f /etc/sudoers.d/010_blue-consolepi ]; then
+    #     echo 'blue ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*' > /etc/sudoers.d/010_blue-consolepi &&
+    #     logit "BlueTooth User given sudo rights for consolepi-commands" ||
+    #     logit "FAILED to give Bluetooth user limited sudo rights" "WARNING"
+    # fi
+
+    # TODO this is a duplicate of func in install.sh move blue setup to install.sh
+    # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
+    # if [ ! -f /etc/sudoers.d/010_consolepi ]; then
+    #     echo '%consolepi ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*, /etc/ConsolePi/src/consolepi-commands/*, /etc/ConsolePi/venv/bin/python3 *' > /etc/sudoers.d/010_consolepi &&
+    #     logit "consolepi group given sudo rights for consolepi-commands" ||
+    #     logit "FAILED to give consolepi group sudo rights for ConsolePi functions" "WARNING"
+    # fi
 
     # Remove old blue user default tty cols/rows
     grep -q stty /home/blue/.bashrc &&
@@ -563,9 +576,10 @@ do_blue_config() {
     if [[ $(picocom --help 2>/dev/null | head -1) ]]; then
         logit "$(picocom --help 2>/dev/null | head -1) is already installed"
     else
-        logit "Installing picocom"
-        sudo apt-get -y install picocom 1>/dev/null 2>> $log_file && logit "Install picocom Success" ||
-                logit "FAILED to Install picocom" "WARNING"
+        # logit "Installing picocom"
+        # sudo apt-get -y install picocom 1>/dev/null 2>> $log_file && logit "Install picocom Success" ||
+        #         logit "FAILED to Install picocom" "WARNING"
+        process_cmds -apt-install picocom
     fi
 
     logit "${process} Complete"
@@ -586,7 +600,7 @@ do_resize () {
     process="xterm ~ resize"
     if [ ! -f ${src_dir}consolepi-commands/resize ]; then
         # util_main xterm -I -p "xterm | resize"
-        cmd_list=("-apt-install" "xterm" "--pretty=${process}" \
+        cmd_list=("-apt-install" "xterm" "--pretty=${process}" "--exclude=x11-utils" \
                   '-s' "export rsz_loc=\$(which resize)" \
                   "-stop" "-nostart" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
                       "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
@@ -645,7 +659,7 @@ get_known_ssids() {
     else
         # if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.
         # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
-        #   certs should be in user home dir, 'cert' subdir, 'ConsolePi_stage/cert, subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
+        #   certs should be in 'consolepi-stage/cert, subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
         found_path=$(get_staged_file_path "wpa_supplicant.conf")
         if [[ -f $found_path ]]; then
             logit "Found stage file ${found_path} Applying"
@@ -657,17 +671,14 @@ get_known_ssids() {
                 cert_path=${client_cert%/*}
                 ca_cert=$(grep ca_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
                 private_key=$(grep private_key= $found_path | cut -d'"' -f2| cut -d'"' -f1)
-                if [[ -d /home/${iam}/cert ]]; then
-                    cd /home/$iam/cert     # if user home contains cert subdir look there for certs - otherwise look in stage subdir
-                elif [[ -d ${stage_dir}cert ]]; then
-                    cd ${stage_dir}cert
+                if [[ -d ${stage_dir}/cert ]]; then
+                    pushd ${stage_dir}/cert >/dev/null
+                    [[ ! -d $cert_path ]] && sudo mkdir -p "${cert_path}"
+                    [[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
+                    [[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
+                    [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
+                    popd >/dev/null
                 fi
-
-                [[ ! -d $cert_path ]] && sudo mkdir -p "${cert_path}"
-                [[ -f ${client_cert##*/} ]] && sudo cp ${client_cert##*/} "${cert_path}/${client_cert##*/}"
-                [[ -f ${ca_cert##*/} ]] && sudo cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}"
-                [[ -f ${private_key##*/} ]] && sudo cp ${private_key##*/} "${cert_path}/${private_key##*/}"
-                cd "${cur_dir}"
             fi
 
             if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
@@ -765,20 +776,17 @@ get_serial_udev() {
     echo "- Defining the ports with this utility is also how device specific serial settings are configured.  Otherwise       -"
     echo "-   they will use the default which is 96008N1                                                                      -"
     echo "-                                                                                                                   -"
-    echo "- As of Dec 2019 This uses a new mechanism with added support for more challengine adapters:                        -"
+    echo "- This utility includes support for more challenging adapters:                                                      -"
     echo "-   * Multi-Port Serial Adapters, where the adpater presents a single serial # for all ports                        -"
-    echo "-   * Super Lame cheap crappy adapters that don't burn a serial# to the adapter at all:  (CODED NOT TESTED YET)     -"
+    echo "-   * Super Lame cheap crappy adapters that don't burn a serial# to the adapter at all.                             -"
     echo "-     If you have one of these.  First Check online with the manufacturer of the chip used in the adapter to see    -"
     echo "-     if they have a utility to flash the EEPROM, some manufacturers do which would allow you to write a serial #   -"
     echo "-     For example if the adapter uses an FTDI chip (which I reccomend) they have a utility called FT_PROG           -"
     echo "-     Most FTDI based adapters have serial #s, I've only seen the lack of serial # on dev boards.                   -"
     echo "-     ---- If you're interested I reccomend adapters that use FTDI chips. ----                                      -"
     echo "-                                                                                                                   -"
-    echo '-  !! suppport for adapters that lack serial ports is not tested at all, so I probably goofed someplace.            -'
-    echo "-     I need to find a lame adapter to test                                                                         -"
-    echo "-                                                                                                                   -"
     echo '-  This function can be called anytime from the shell via `consolepi-addconsole` and is available from              -'
-    echo '-    `consolepi-menu` as the `rn` (rename) option.                                                                  -'
+    echo '-    `consolepi-menu` via the `rn` (rename) option.                                                                 -'
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
@@ -828,7 +836,7 @@ do_wifi_country() {
 # -- run custom post install script --
 custom_post_install_script() {
     if ! $upgrade; then
-        found_path=$(get_staged_file_path "ConsolePi_init.sh")
+        found_path=$(get_staged_file_path "consolepi-post.sh")
         if [[ $found_path ]]; then
             process="Run Custom Post-install script"
             logit "Post Install Script ${found_path} Found. Executing"
@@ -912,10 +920,10 @@ post_install_msg() {
         )
     menu_print "${_msg[@]}"
 
-    # Display any warnings
+    # Display any warnings if they exist
     if [ $warn_cnt -gt 0 ]; then
         echo -e "\n${_red}---- warnings exist ----${_norm}"
-        sed -n "/${log_start}/,/*/p" $log_file | grep WARNING
+        sed -n "/${log_start}/,/*/p" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep WARNING
         echo
     fi
     # Script Complete Prompt for reboot if first install
@@ -933,7 +941,7 @@ update_main() {
     # -- install.sh does --
     # get_common                          # get and import common functions script
     # get_pi_info                         # (common.sh func) Collect some version info for logging
-    # remove_first_boot                   # if autolaunch install is configured remove
+    # remove_first_boot                   # if auto-launch install on first login is configured remove
     # do_apt_update                       # apt-get update the pi
     # pre_git_prep                        # process upgrade tasks required prior to git pull
     # git_ConsolePi                       # git clone or git pull ConsolePi
@@ -971,10 +979,10 @@ update_main() {
     if $hotspot ; then
         install_autohotspotn
         gen_dnsmasq_conf
+        gen_dhcpcd_conf
     else
         disable_autohotspot
     fi
-    dhcpcd_conf
     do_blue_config
     do_consolepi_api
     do_consolepi_mdns

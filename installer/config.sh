@@ -354,10 +354,12 @@ verify() {
 config_main() {
     get_static
     get_config
-    ! $bypass_verify && verify
-    while ! $input; do
-        collect
-        verify
-    done
+    if ! $silent; then
+        ! $bypass_verify && verify
+        while ! $input; do
+            collect
+            verify
+        done
+    fi
     update_config
 }

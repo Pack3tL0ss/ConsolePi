@@ -99,7 +99,7 @@ set_hostname() {
 set_timezone() {
     process="Configure ConsolePi TimeZone"
     cur_tz=$(date +"%Z")
-    if [ ! -z "$tz"]; then
+    if [ ! -z "$tz" ]; then
         # -- // SILENT timezone passed in via config or cmd line arg \\ --
         if [ ! -f "/usr/share/zoneinfo/$tz" ]; then
             logit "Unable to Change TimeZone Silently. Invalid TimeZone ($tz) Provided" "WARNING"
@@ -173,8 +173,10 @@ misc_imports(){
             logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
             logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
         elif $cloud ; then
-            logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
-            logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
+            if [ ! -f "$CLOUD_CREDS_FILE" ]; then
+                logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
+                logit "RaspiOS-lite users refer to the GitHub for instructions on how to generate credential files off box"
+            fi
         fi
 
         # -- custom overlay file for PoE hat (fan control) --
@@ -1045,4 +1047,4 @@ update_main() {
     fi
 }
 
-# ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line
+( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line

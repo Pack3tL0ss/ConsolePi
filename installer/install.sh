@@ -505,7 +505,7 @@ process_args() {
             # -- silent install options --
             --hostname=*) # set hostname
                 hostname=$(echo "$1"| cut -d= -f2)
-                echo "hostname: $hostnme newhost: $newhost"
+                echo "hostname: $hostname newhost: $newhost"
                 shift
                 ;;
             -noipv6) # disable ipv6

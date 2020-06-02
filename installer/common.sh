@@ -4,8 +4,6 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-INSTALLER_VER=47
-CFG_FILE_VER=8
 cur_dir=$(pwd)
 iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')

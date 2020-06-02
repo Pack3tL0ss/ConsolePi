@@ -988,7 +988,7 @@ update_main() {
     do_consolepi_mdns
     ! $upgrade && misc_stuff
     do_resize
-    if [ ! -z $skip_utils ] && $skip_utils ; then
+    if ( [ ! -z $skip_utils ] && $skip_utils ) || $silent; then
         process="optional utilities installer"
         logit "utilities menu bypassed by config variable"
         unset process

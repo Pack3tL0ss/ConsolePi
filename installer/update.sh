@@ -99,18 +99,20 @@ set_hostname() {
 set_timezone() {
     process="Configure ConsolePi TimeZone"
     cur_tz=$(date +"%Z")
-    if [ $cur_tz == "GMT" ] || [ $cur_tz == "BST" ]; then
-        if [ ! -z "$tz"]; then
-            # -- // SILENT timezone passed in via config or cmd line arg \\ --
-            if [ ! -f "/usr/share/zoneinfo/$tz" ]; then
-                logit "Unable to Change TimeZone Silently. Invalid TimeZone ($tz) Provided" "WARNING"
-            else
-                rm /etc/localtime
-                echo "$TIMEZONE" > /etc/timezone
-                dpkg-reconfigure -f noninteractive tzdata
-                unset tz
-            fi
+    if [ ! -z "$tz"]; then
+        # -- // SILENT timezone passed in via config or cmd line arg \\ --
+        if [ ! -f "/usr/share/zoneinfo/$tz" ]; then
+            logit "Unable to Change TimeZone Silently. Invalid TimeZone ($tz) Provided" "WARNING"
+        elif [[ "$tz" == "$(head -1 /etc/timezone)" ]]; then
+            logit "Timezone Already Configured ($tz)"
         else
+            rm /etc/localtime
+            echo "$TIMEZONE" > /etc/timezone
+            dpkg-reconfigure -f noninteractive tzdata
+        fi
+        unset tz
+    else
+        if [ $cur_tz == "GMT" ] || [ $cur_tz == "BST" ]; then
             # -- // INTERACTIVE PROMPT  \\ --
             header
 
@@ -121,9 +123,9 @@ set_timezone() {
                 echo "Launching, standby..." && dpkg-reconfigure tzdata 2>> $log_file && header && logit "Set new TimeZone to $(date +"%Z") Success" ||
                     logit "FAILED to set new TimeZone" "WARNING"
             fi
+        else
+            logit "TimeZone ${cur_tz} not default (GMT) assuming set as desired."
         fi
-    else
-        logit "TimeZone ${cur_tz} not default (GMT) assuming set as desired."
     fi
     unset process
 }

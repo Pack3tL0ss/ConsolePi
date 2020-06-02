@@ -996,10 +996,16 @@ update_main() {
         get_utils
         util_main
     fi
-    get_known_ssids
-    get_serial_udev
+    if ! $silent; then
+        get_known_ssids
+        get_serial_udev
+    else
+        logit "SSID and Predictable Console Port Prompts bypassed due to -silent flag"
+    fi
     custom_post_install_script
-    post_install_msg
+    if ! $silent; then
+        post_install_msg
+    fi
 }
 
 # ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line

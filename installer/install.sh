@@ -160,32 +160,38 @@ pre_git_prep() {
         echo "EXTRA_GROUPS=\"$extra_groups\"" >> /tmp/adduser.conf
         echo 'ADD_EXTRA_GROUPS=1' >> /tmp/adduser.conf
 
-        if ! grep "^consolepi:" /etc/group; then
-            echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
-            if adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null; then
-                user_input true "Make consolepi user auto-launch menu on login"
-                $result && echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
+        if ! grep -q "^consolepi:" /etc/group; then
+            if [ ! -z consolepi_pass ]; then
+                echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file
             else
-                logit "Error adding consolepi user check $log_file" "ERROR"
+                echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
+                if adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file; then
+                    user_input true "Make consolepi user auto-launch menu on login"
+                    $result && echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
+                else
+                    logit "Error adding consolepi user check $log_file" "ERROR"
+                fi
             fi
         fi
 
         # Create additional Users (with appropriate rights for ConsolePi)
-        sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups2\"/" /tmp/adduser.conf
-        _res=true; while $_res; do
-            echo
-            user_input false "Would you like to create additional users"
-            _res=$result
-            if $result; then
-                user_input "" "Username for new user"
-                adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null &&
-                    logit "Successfully added new user $result" ||
-                    logit "Error adding new user $result" "WARNING"
-            fi
-        done
+        if ! $silent; then
+            sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups2\"/" /tmp/adduser.conf
+            _res=true; while $_res; do
+                echo
+                user_input false "Would you like to create additional users"
+                _res=$result
+                if $result; then
+                    user_input "" "Username for new user"
+                    adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null &&
+                        logit "Successfully added new user $result" ||
+                        logit "Error adding new user $result" "WARNING"
+                fi
+            done
+        fi
 
-        # if they are installing using pi user ensure pi user also has correct group memberships
-        if [[ "$iam" == "pi" ]]; then
+        # if pi user exists ensure it has correct group memberships for ConsolePi
+        if grep -q "^pi:" /etc/passwd; then
             _groups=('consolepi' 'dialout')
             for grp in "${_groups[@]}"; do
                 if [[ ! $(groups pi) == *"${grp}"* ]]; then
@@ -391,7 +397,7 @@ do_logging() {
     # Create Log Files
     touch /var/log/ConsolePi/ovpn.log || logit "Failed to create OpenVPN log file" "WARNING"
     touch /var/log/ConsolePi/push_response.log || logit "Failed to create PushBullet log file" "WARNING"
-    touch /var/log/ConsolePi/cloud.log || logit "Failed to create consolepi log file" "WARNING"
+    # touch /var/log/ConsolePi/cloud.log || logit "Failed to create consolepi log file" "WARNING"
     touch /var/log/ConsolePi/install.log || logit "Failed to create install log file" "WARNING"
     touch /var/log/ConsolePi/consolepi.log || logit "Failed to create install log file" "WARNING"
 
@@ -406,8 +412,10 @@ do_logging() {
     # move installer log from temp to it's final location
     if ! $upgrade; then
         log_file=$final_log
-        cat $tmp_log >> $log_file
-        rm $tmp_log
+        if [ -f $tmp_log ]; then
+            cat $tmp_log >> $log_file 2>&1
+            rm $tmp_log
+        fi
     else
         if [ -f $tmp_log ]; then
             echo "ERROR: tmp log found when it should not have existed" | tee -a $final_log
@@ -466,10 +474,12 @@ show_help() {
 process_args() {
     # All currently supported arguments are for dev/testing use
     branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
+    silent=false
     local_dev=false
     dopip=true
     doapt=true
     while (( "$#" )); do
+        # echo "$1" # -- DEBUG --
         case "$1" in
             -dev)
                 branch=dev
@@ -488,11 +498,33 @@ process_args() {
                 silent=true
                 shift
                 ;;
+            -install)  # dev flag run as if initial install
+                upgrade=false
+                shift
+                ;;
+            # -- silent install options --
+            --hostn=*) # set hostname
+                hostn=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            -noipv6) # disable ipv6
+                dis_ipv6=true
+                shift
+                ;;
+            --tz=*) # set timezone
+                tz=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            --consolepi_pass=*) # consolepi user's password
+                consolepi_pass=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            # -- \silent install options --
             help|-help|--help)
                 show_help
                 exit 0
                 ;;
-            -*|--*=) # unsupported flags
+            *) # -*|--*=) # unsupported flags
                 echo "Error: Unsupported flag passed to process_args $1" >&2
                 exit 1
                 ;;
@@ -503,6 +535,9 @@ process_args() {
 main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
+        set +H                              # Turn off ! history expansion
+        process_args "$@"
+        echo "SILENT: $silent"
         get_common                          # get and import common functions script
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if auto-launch install on first login is configured remove
@@ -521,5 +556,5 @@ main() {
     fi
 }
 
-process_args "$@"
-main
+# process_args "$@"
+main "$@"

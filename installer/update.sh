@@ -751,7 +751,7 @@ get_serial_udev() {
         if [[ $found_path ]]; then
             logit "udev rules file found ${found_path} enabling provided udev rules"
             if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
-                file_diff_update $found_path /etc/udev/rules.d
+                file_diff_update $found_path /etc/udev/rules.d/10-ConsolePi.rules
             else
                 sudo cp $found_path /etc/udev/rules.d
                 sudo udevadm control --reload-rules && sudo udevadm trigger
@@ -760,7 +760,7 @@ get_serial_udev() {
     fi
 
     echo
-    echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
+    echo -e "--------------------------------------------- ${_green}Predictable Console ports${_norm} ---------------------------------------------"
     echo "-                                                                                                                   -"
     echo "- Predictable Console ports allow you to configure ConsolePi so that each time you plug-in a specific adapter it    -"
     echo "- will have the same name in consolepi-menu and will be reachable via the same TELNET port.                         -"
@@ -785,8 +785,8 @@ get_serial_udev() {
     echo "-     Most FTDI based adapters have serial #s, I've only seen the lack of serial # on dev boards.                   -"
     echo "-     ---- If you're interested I reccomend adapters that use FTDI chips. ----                                      -"
     echo "-                                                                                                                   -"
-    echo '-  This function can be called anytime from the shell via `consolepi-addconsole` and is available from              -'
-    echo '-    `consolepi-menu` via the `rn` (rename) option.                                                                 -'
+    echo -e "-  This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from              -"
+    echo -e "-    ${_cyan}consolepi-menu${_norm} via the `rn` (rename) option.                                                                 -"
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
@@ -961,7 +961,7 @@ update_main() {
     # done
     # update_config
 
-    if ! $upgrade; then
+    if ! $upgrade && ! $silent; then
         chg_password
         set_hostname
         set_timezone
@@ -1001,3 +1001,5 @@ update_main() {
     custom_post_install_script
     post_install_msg
 }
+
+( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS

@@ -39,7 +39,7 @@ _cyan='\e[96m' # technically light cyan
 # vpn_dest=$(sudo grep -G "^remote\s.*" /etc/openvpn/client/ConsolePi.ovpn | awk '{print $2}')
 
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
-[[ -f $final_log ]] && upgrade=true || upgrade=false
+( [[ -f $final_log ]] && [ -z $upgrade ] ) && upgrade=true || upgrade=false
 
 # log file is referenced thoughout the script.  During install changes from tmp to final after final log
 # location is configured in install.sh do_logging
@@ -48,8 +48,8 @@ $upgrade && log_file=$final_log || log_file=$tmp_log
 
 # -- External Sources --
 # ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download" ## now points to gensio not ser2net
-ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-3.5.1.tar.gz/download"
-ser2net_source_version="3.5.1"
+# ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-3.5.1.tar.gz/download"
+# ser2net_source_version="3.5.1"
 # ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-4.0.tar.gz/download"
 consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 

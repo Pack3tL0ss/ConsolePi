@@ -504,7 +504,7 @@ process_args() {
                 ;;
             # -- silent install options --
             --hostname=*) # set hostname
-                newhost=$(echo "$1"| cut -d= -f2)
+                hostname=$(echo "$1"| cut -d= -f2)
                 echo "hostname: $hostnme newhost: $newhost"
                 shift
                 ;;
@@ -517,7 +517,7 @@ process_args() {
                 shift
                 ;;
             --wlan_country=*) # set timezone
-                wlan_country=$(echo "$1"| cut -d= -f2)
+                wlan_country=$(echo "${1^^}"| cut -d= -f2)
                 shift
                 ;;
             --consolepi_pass=*) # consolepi user's password

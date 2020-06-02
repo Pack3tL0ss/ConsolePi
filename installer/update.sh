@@ -43,6 +43,7 @@ set_hostname() {
     if [[ "${hostn}" == "raspberrypi" ]]; then
 
         # -- collect desired hostname from user - bypass collection if set via cmd line or config --
+        [ ! -z "$hostname" ] && newhost=$hostname && unset hostname
         if [ ! -z "$newhost" ]; then # hostname passed into installer as param
             header
 

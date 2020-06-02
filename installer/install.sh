@@ -503,8 +503,9 @@ process_args() {
                 shift
                 ;;
             # -- silent install options --
-            --hostn=*) # set hostname
-                hostn=$(echo "$1"| cut -d= -f2)
+            --hostname=*) # set hostname
+                newhost=$(echo "$1"| cut -d= -f2)
+                echo "hostname: $hostnme newhost: $newhost"
                 shift
                 ;;
             -noipv6) # disable ipv6
@@ -515,8 +516,16 @@ process_args() {
                 tz=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
+            --wlan_country=*) # set timezone
+                wlan_country=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
             --consolepi_pass=*) # consolepi user's password
                 consolepi_pass=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            --pi_pass=*) # consolepi user's password
+                pi_pass=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             # -- \silent install options --

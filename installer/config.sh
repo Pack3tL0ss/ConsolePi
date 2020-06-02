@@ -257,13 +257,15 @@ collect() {
             prompt="Enter the psk used for the HotSpot SSID"
             user_input $wlan_psk "${prompt}"
             wlan_psk=$result
-
-            # -- HotSpot country --
-            header
-            prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
-            user_input "US" "${prompt}"
-            wlan_country=$result
         fi
+    fi
+
+    # -- wifi/hotspot country --
+    if ! $selected_prompts || [ -z $wlan_country ]; then
+        header
+        prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
+        user_input "US" "${prompt}"
+        wlan_country=$result
     fi
 
     # -- cloud --
@@ -336,8 +338,8 @@ verify() {
         dots " *hotspot DHCP Range" "${wlan_dhcp_start} to ${wlan_dhcp_end}"
         dots "ConsolePi HotSpot SSID" "$wlan_ssid"
         dots "ConsolePi HotSpot psk" "$wlan_psk"
-        dots "ConsolePi HotSpot regulatory domain" "$wlan_country"
     fi
+    dots "ConsolePi WLAN regulatory domain" "$wlan_country"
     dots "ConsolePi Cloud Support" "$cloud"
     $cloud && dots "ConsolePi Cloud Service" "$cloud_svc"
     dots "User used by Remotes to connect to this ConsolePi" "$rem_user"

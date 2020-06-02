@@ -12,23 +12,27 @@
 
 chg_password() {
     if grep -q "^pi:" /etc/passwd && [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
-        header
-        echo "You are logged in as pi, and the default password has not been changed"
-        prompt="Do You want to change the password for user pi"
-        response=$(user_input_bool)
-        if $response; then
-            match=false
-            while ! $match; do
-                read -sep "Enter new password for user pi: " pass && echo
-                read -sep "Re-Enter new password for user pi: " pass2 && echo
-                [[ "${pass}" == "${pass2}" ]] && match=true || match=false
-                ! $match && echo -e "ERROR: Passwords Do Not Match\n"
-            done
-            process="pi user password change"
-            echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
-            ( logit "Failed to Change Password for pi user" "WARNING" &&
-            echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
-            unset pass && unset pass2 && unset process
+        if [ ! -z "$pi_pass" ]; then
+            echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password"
+        else
+            header
+            echo "You are logged in as pi, and the default password has not been changed"
+            prompt="Do You want to change the password for user pi"
+            response=$(user_input_bool)
+            if $response; then
+                match=false
+                while ! $match; do
+                    read -sep "Enter new password for user pi: " pass && echo
+                    read -sep "Re-Enter new password for user pi: " pass2 && echo
+                    [[ "${pass}" == "${pass2}" ]] && match=true || match=false
+                    ! $match && echo -e "ERROR: Passwords Do Not Match\n"
+                done
+                process="pi user password change"
+                echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
+                ( logit "Failed to Change Password for pi user" "WARNING" &&
+                echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
+                unset pass && unset pass2 && unset process
+            fi
         fi
     fi
 }
@@ -37,36 +41,45 @@ set_hostname() {
     process="Change Hostname"
     hostn=$(cat /etc/hostname)
     if [[ "${hostn}" == "raspberrypi" ]]; then
-        header
-        valid_response=false
 
-        while ! $valid_response; do
-            # Display existing hostname
-            read -ep "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
-            response=${response,,}    # tolower
-            ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
-        done
+        # -- collect desired hostname from user - bypass collection if set via cmd line or config --
+        if [ ! -z "$newhost" ]; then # hostname passed into installer as param
+            header
 
-        if [[ "$response" =~ ^(yes|y)$ ]]; then
-            # Ask for new hostname $newhost
-            ok_do_hostname=false
-            while ! $ok_do_hostname; do
-                read -ep "Enter new hostname: " newhost
-                valid_response=false
-                while ! $valid_response; do
-                    printf "New hostname: ${_green}$newhost${_norm} Is this correect (y/n)?: " ; read -e response
-                    response=${response,,}    # tolower
-                    ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
-                done
-                [[ "$response" =~ ^(yes|y)$ ]] && ok_do_hostname=true || ok_do_hostname=false
+            valid_response=false
+            while ! $valid_response; do
+                # Display existing hostname
+                read -ep "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
+                response=${response,,}    # tolower
+                ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
             done
 
+            if [[ "$response" =~ ^(yes|y)$ ]]; then
+                # Ask for new hostname $newhost
+                ok_do_hostname=false
+                while ! $ok_do_hostname; do
+                    read -ep "Enter new hostname: " newhost
+                    valid_response=false
+                    while ! $valid_response; do
+                        printf "New hostname: ${_green}$newhost${_norm} Is this correect (y/n)?: " ; read -e response
+                        response=${response,,}    # tolower
+                        ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
+                    done
+                    [[ "$response" =~ ^(yes|y)$ ]] && ok_do_hostname=true || ok_do_hostname=false
+                done
+            fi
+        fi
+
+        # -- apply new hostname --
+        if [ ! -z "$newhost" ]; then
             # change hostname in /etc/hosts & /etc/hostname
             sed -i "s/$hostn/$newhost/g" /etc/hosts
             sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
+
             # change hostname via command
             hostname "$newhost" 1>&2 2>>/dev/null
             [ $? -gt 0 ] && logit "Error returned from hostname command" "WARNING"
+
             # add wlan hotspot IP to hostfile for DHCP connected clients to resolve this host
             wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)
             [ $wlan_hostname_exists == 0 ] && echo "$wlan_ip       $newhost" >> /etc/hosts
@@ -74,6 +87,7 @@ set_hostname() {
 
             logit "New hostname set $newhost"
         fi
+
     else
         logit "Hostname ${hostn} is not default, assuming it is desired hostname"
     fi
@@ -85,14 +99,27 @@ set_timezone() {
     process="Configure ConsolePi TimeZone"
     cur_tz=$(date +"%Z")
     if [ $cur_tz == "GMT" ] || [ $cur_tz == "BST" ]; then
-        header
+        if [ ! -z "$tz"]; then
+            # -- // SILENT timezone passed in via config or cmd line arg \\ --
+            if [ ! -f "/usr/share/zoneinfo/$tz" ]; then
+                logit "Unable to Change TimeZone Silently. Invalid TimeZone ($tz) Provided" "WARNING"
+            else
+                rm /etc/localtime
+                echo "$TIMEZONE" > /etc/timezone
+                dpkg-reconfigure -f noninteractive tzdata
+                unset tz
+            fi
+        else
+            # -- // INTERACTIVE PROMPT  \\ --
+            header
 
-        prompt="Current TimeZone $cur_tz. Do you want to configure the timezone"
-        set_tz=$(user_input_bool)
+            prompt="Current TimeZone $cur_tz. Do you want to configure the timezone"
+            set_tz=$(user_input_bool)
 
-        if $set_tz; then
-            echo "Launching, standby..." && sudo dpkg-reconfigure tzdata 2>> $log_file && header && logit "Set new TimeZone to $(date +"%Z") Success" ||
-                logit "FAILED to set new TimeZone" "WARNING"
+            if $set_tz; then
+                echo "Launching, standby..." && dpkg-reconfigure tzdata 2>> $log_file && header && logit "Set new TimeZone to $(date +"%Z") Success" ||
+                    logit "FAILED to set new TimeZone" "WARNING"
+            fi
         fi
     else
         logit "TimeZone ${cur_tz} not default (GMT) assuming set as desired."
@@ -103,8 +130,11 @@ set_timezone() {
 # -- if ipv6 is enabled present option to disable it --
 disable_ipv6()  {
     process="Disable ipv6"
-    prompt="Do you want to disable ipv6"
-    dis_ipv6=$(user_input_bool)
+    if [ -z "$dis_ipv6" ]; then
+        prompt="Do you want to disable ipv6"
+        dis_ipv6=$(user_input_bool)
+    fi
+
     if $dis_ipv6; then
         file_diff_update "${src_dir}99-noipv6.conf" /etc/sysctl.d/99-noipv6.conf
     fi
@@ -822,13 +852,17 @@ do_wifi_country() {
         # return 1
     fi
 
-    wpa_cli -i "$IFACE" set country "$wlan_country" > /dev/null 2>&1
-    wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
-    iw reg set "$wlan_country" > /dev/null 2>>$log_file &&
-        logit "Wi-fi country set to $wlan_country" ||
-        logit "Error Code returned when setting WLAN country" "WARNING"
-    if hash rfkill 2> /dev/null; then
-        rfkill unblock wifi
+    if [[ $(wpa_cli -i $IFACE get country) == "$wlan_country" ]]; then
+        logit "$IFACE country already set to $wlan_country"
+    else
+        wpa_cli -i "$IFACE" set country "$wlan_country" > /dev/null 2>&1
+        wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
+        iw reg set "$wlan_country" > /dev/null 2>>$log_file &&
+            logit "Wi-fi country set to $wlan_country" ||
+            logit "Error Code returned when setting WLAN country" "WARNING"
+        if hash rfkill 2> /dev/null; then
+            rfkill unblock wifi
+        fi
     fi
     unset process
 }
@@ -961,7 +995,7 @@ update_main() {
     # done
     # update_config
 
-    if ! $upgrade && ! $silent; then
+    if ! $upgrade; then
         chg_password
         set_hostname
         set_timezone

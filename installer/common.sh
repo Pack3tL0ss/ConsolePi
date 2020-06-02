@@ -424,6 +424,10 @@ get_pi_info() {
     git_rem=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git remote -v | head -1 | cut -d '(' -f-1 ; popd >/dev/null 2>&1)
     [[ ! -z $git_rem ]] && [[ $(echo $git_rem | awk '{print $2}') != $consolepi_source ]] && logit "Using alternative repo: ${_green}$git_rem${_norm}"
     # cat /etc/os-release
+    # alternative method to get memory
+    # echo $(($(free -h |grep "^Mem:" | awk '{print $2}' | cut -d. -f1) + 1))
+    # alternative method to get model string
+    # grep '^Model' /proc/cpuinfo | cut -d: -f2 |cut -d' ' -f2-
     ver_full=$(head -1 /etc/debian_version)
     ver=$(echo $ver_full | cut -d. -f1)
 

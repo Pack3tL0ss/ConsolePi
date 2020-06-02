@@ -1047,4 +1047,4 @@ update_main() {
     fi
 }
 
-( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line
+# ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line

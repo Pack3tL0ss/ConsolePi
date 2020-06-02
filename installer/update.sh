@@ -1002,4 +1002,4 @@ update_main() {
     post_install_msg
 }
 
-( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS
+# ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line

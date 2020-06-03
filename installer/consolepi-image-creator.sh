@@ -538,7 +538,7 @@ main() {
 
         # make install command/script executable
         sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install &&
-            echo OK ||
+            echo OK && echo -e "\tConfigured the following arguments $(cyan ${cmd_line})" ||
             ( echo "ERROR"; echo -e "\tERROR making consolepi-install command executable" )
     fi
 

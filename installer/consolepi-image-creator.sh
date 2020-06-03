@@ -515,7 +515,7 @@ main() {
     sync && umount /mnt/usb1 ; do_error $?
 
     # EXIT IF img_only option = true
-    $IMG_ONLY && echo -e "\nimage only option configured.  No Pre-Staging will be done. \n$(green 'Consolepi image ready')\n" && exit 0
+    $IMG_ONLY && echo -e "\nimage only option configured.  No Pre-Staging will be done. \n$(green 'Consolepi image ready')\n\a" && exit 0
 
     # echo -e "\nMounting System partition to Configure ConsolePi auto-install and copy over any pre-config files found in script dir"
     dots "Mounting System partition to pre-configure ConsolePi image"
@@ -571,7 +571,7 @@ main() {
     ! $usb1_existed && rmdir /mnt/usb1
     ! $usb2_existed && rmdir /mnt/usb2
 
-    green "\nConsolepi image ready\n"
+    green "\nConsolepi image ready\n\a"
     ! $AUTO_INSTALL && echo "Boot RaspberryPi with this image use $(cyan 'consolepi-install') to deploy ConsolePi"
 }
 

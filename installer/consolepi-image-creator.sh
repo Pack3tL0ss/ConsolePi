@@ -80,9 +80,12 @@ do_defaults() {
     IMG_TYPE=${img_type:-'lite'}
     IMG_ONLY=${img_only:-false}
     AUTO_INSTALL=${auto_install:-true}
+    # -- these skip prompts and perform the actions based on the value provided
+    # if not set user is prompted (Default is Not set)
     MASS_IMPORT=${mass_import}
+    EDIT=${edit}
+    HOTSPOT_HOSTNAME=${hotspot_hostname}
     # ---------------------------------------------------------------------------------------
-
     STAGE_DIR='consolepi-stage'
     IMG_HOME="/mnt/usb2/home/pi"
     IMG_STAGE="$IMG_HOME/$STAGE_DIR"
@@ -266,7 +269,7 @@ do_import_configs() {
     # -- If image being created from a ConsolePi offer to import settings --
     if $ISCPI; then
         # header -c
-        if [ -z $MASS_IMPORT ]; then
+        if [ -z "$MASS_IMPORT" ]; then
             echo -e "\n-----------------------  $(green 'This is a ConsolePi') -----------------------\n"
             echo -e "You can mass import settings from this ConsolePi onto the new image."
             echo -e "The following files will be evaluated:\n"
@@ -319,14 +322,20 @@ do_import_configs() {
 
     # prompt to modify staged config
     if [ -f $IMG_HOME/$STAGE_DIR/ConsolePi.yaml ]; then
-        echo
-        get_input "Do you want to edit the pre-staged ConsolePi.yaml to change details"
-        $input && nano -ET2 $IMG_HOME/$STAGE_DIR/ConsolePi.yaml
+        if [ -z "$EDIT" ]; then
+            echo
+            get_input "Do you want to edit the pre-staged ConsolePi.yaml to change details"
+        fi
+        EDIT=$input
+        $EDIT && nano -ET2 $IMG_HOME/$STAGE_DIR/ConsolePi.yaml
 
         # -- offer to pre-configure hostname based on hotspot SSID in config
         cfg_ssid=$(grep '  wlan_ssid: ' $IMG_STAGE/ConsolePi.yaml | awk '{print $2}')
-        [[ ! -z $cfg_ssid ]] && prompt="Do you want to pre-stage the hostname as $cfg_ssid" && get_input
-        $input && echo $cfg_ssid > /mnt/usb2/etc/hostname
+        if [ -z "$HOTSPOT_HOSTNAME" ]; then
+            [[ ! -z $cfg_ssid ]] && prompt="Do you want to pre-stage the hostname as $cfg_ssid" && get_input
+            [[ ! -z $cfg_ssid ]] && HOTSPOT_HOSTNAME=$input || HOTSPOT_HOSTNAME=false
+        fi
+        $HOTSPOT_HOSTNAME && echo $cfg_ssid > /mnt/usb2/etc/hostname
     fi
 }
 
@@ -592,7 +601,9 @@ show_usage() {
     _help "--img_only=<true|false>" "If set to true no pre-staging will be done other than enabling SSH (Default: false)"
     _help "--auto_install=<true|false>" "If set to false image will not be configured to auto launch to installer on first login (Default true)"
     _help "--cmd_line='<cmd_line arguments>'" "*Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image"
-    _help "--mass_import=<true|false>" "Bypass mass_import prompt presented when the system creating the image is a ConsolePi. perform mass_import based on this value <true|false>"
+    _help "--mass_import=<true|false>" "Bypass mass_import prompt presented when the system creating the image is a ConsolePi. Do it or not based on this value <true|false>"
+    _help "--edit=<true|false>" "Bypass prompt asking if you want to edit (nano) the imported ConsolePi.yaml. Do it or not based on this value <true|false>"
+    _help "--hotspot_hostname=<true|false>" "Bypass prompt asking to pre-configure hostname based on HotSpot SSID in imported ConsolePi.yaml.  Do it or not based on this value <true|false>"
     echo
     echo -e "The consolepi-image-creator will also look for consolepi-image-creator.conf in the same directory for the above settings"
     echo
@@ -663,6 +674,14 @@ parse_args() {
                 ;;
             --mass_import=*) # skip mass import prompt that appears if script is ran from a ConsolePi
                 mass_import=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            --edit=*) # skip do you want to edit prompt that appears if script imports a ConsolePi.yaml
+                edit=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            --hotspot_hostname=*) # skip do you want to pre-configure hostname as <HotSpot SSID> presented if script imports a ConsolePi.yaml
+                edit=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             *) ## -*|--*=) # unsupported flags

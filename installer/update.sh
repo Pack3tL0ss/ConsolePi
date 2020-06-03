@@ -1049,8 +1049,8 @@ update_main() {
         post_install_msg
     else
         process=Complete
-        _msg="Success Silent Install Complete"
-        [[ "$warn_cnt" > 0 ]] && _msg="$msg Warnings Exist ($warn_cnt)"
+        _msg="Success Silent Install Complete a reboot is required"
+        [[ "$warn_cnt" > 0 ]] && _msg="$_msg Warnings Exist ($warn_cnt)"
         logit "${_msg}"; printf '\a'
     fi
 }

@@ -18,8 +18,12 @@ do_multitail() {
 run() {
     if [ ! -z "$1" ]; then
         case "$1" in
-            all)
+            all|-all)
                 cat /var/log/ConsolePi/${log_file}
+                ;;
+            -install)
+                log_file="$2"
+                shift
                 ;;
             -*)
                 tail "$1" /var/log/ConsolePi/${log_file}

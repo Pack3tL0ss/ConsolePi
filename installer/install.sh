@@ -469,11 +469,26 @@ do_imports() {
     unset process
 }
 
-show_help() {
-    echo
-    echo " All Available Command Line arguments are intended primarily for dev/testing use."
-    echo
-    echo " Valid Arguments include '-dev, -nopip, -noapt, -silent (silent is not implemented yet)'"
+_help() {
+    local pad=$(printf "%0.1s" " "{1..40})
+    printf " %s%*.*s%s.\n" "$1" 0 $((40-${#1})) "$pad" "$2"
+}
+
+show_usage() {
+    echo -e "\n$(green USAGE:) sudo $(echo $SUDO_COMMAND | cut -d' ' -f1) [OPTIONS]\n"
+    echo -e "$(cyan Available Options)"
+    _help "--help | -help | help" "Display this help text"
+    _help "-silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
+    _help "-noapt" "Skip the apt update/upgrade portion of the Upgrade, this should not be used on initial installs, and is more of a dev tool to expedite testing"
+    _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see install.conf in /etc/ConsolePi/installer dir)"
+    _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"
+    _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables"
+    _help "--hostname=<Desired hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
+    _help "--tz=<valid tz string: ie. 'America/Chicago'>" "If set will bypass tz prompt on install and configure based on this value"
+    _help "--consolepi_pass='<pass for consolepi user>'" "Use single quotes: Bypass prompt on install set consolepi user pass to this value"
+    _help "--pi_pass=<'pass for pi user'>" "Use single quotes: Bypass prompt on install set pi user pass to this value"
+    echo "  pi user can be deleted after initial install if desired, A non silent install will prompt for additional users and set appropriate group perms"
+    echo "  Any manually added users should be members of dialout and consolepi groups for ConsolePi to function properly"
     echo
 }
 
@@ -544,7 +559,7 @@ process_args() {
                 ;;
             # -- \silent install options --
             help|-help|--help)
-                show_help
+                show_usage
                 exit 0
                 ;;
             *) # -*|--*=) # unsupported flags

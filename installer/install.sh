@@ -61,24 +61,27 @@ do_apt_update() {
         logit "Update Sources"
         # Only update if initial install (no install.log) or if last update was not today
         if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
-            sudo apt-get update 1>/dev/null 2>> $log_file && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+            res=$(apt update 2>>$log_file) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+            [[ "$res" =~ "--upgradable" ]] && res=$(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         else
             logit "Skipping Source Update - Already Updated today"
+            res=$(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         fi
 
-        logit "Upgrading ConsolePi via apt. This may take a while"
-        sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
+        if [ -z "$res" ]; then
+            logit "Upgrading the following packages\n\n$res\n"
+            logit "Upgrading ConsolePi via apt. This may take a while"
+            sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
 
-        logit "Performing dist-upgrade"
-        sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
+            logit "Performing dist-upgrade"
+            sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
 
-        logit "Tidying up (autoremove)"
-        apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
+            logit "Tidying up (autoremove)"
+            apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
+        fi
 
-        logit "Install/update git (apt)"
-        # apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
         process_cmds -stop -e -pf "install/update git" -apt-install "git"
-        logit "Process Complete"
+        logit "Update/Upgrade ConsolePi (apt) - Complete"
     else
         logit "apt updates skipped based on -noapt argument" "WARNING"
     fi
@@ -329,7 +332,7 @@ do_pyvenv() {
 
     # -- Check that git pull didn't bork venv ~ I don't think I handled the removal of venv from git properly seems to break things if it was already installed --
     if [ -d ${consolepi_dir}venv ] && [ ! -x ${consolepi_dir}venv/bin/python3 ]; then
-        sudo mv ${consolepi_dir}venv $bak_dir && logit "existing venv found, moved to bak, new venv will be created (it is OK to delete anything in bak)"
+        mv ${consolepi_dir}venv $bak_dir && logit "existing venv found, moved to bak, new venv will be created (it is OK to delete anything in bak)"
     fi
 
     # -- Ensure python3-pip is installed --
@@ -495,7 +498,7 @@ process_args() {
                 doapt=false
                 shift
                 ;;
-            -silent)  # Not implemented yet
+            -silent)  # silent install
                 silent=true
                 shift
                 ;;

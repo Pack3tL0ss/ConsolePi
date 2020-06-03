@@ -170,7 +170,7 @@ misc_imports(){
         fi
 
         # -- pre staged cloud creds --
-        if $cloud && [[ -d ${stage_dir}/.credentials ]]; then
+        if $cloud && [[ -f ${stage_dir}/.credentials/credentials.json ]]; then
             found_path=${stage_dir}/.credentials
             mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
             logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||

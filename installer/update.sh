@@ -47,7 +47,7 @@ set_hostname() {
         [ ! -z "$hostname" ] && newhost=$hostname && unset hostname
         if [ -z "$newhost" ]; then
             if $silent; then
-                logit "silent install with no hostname provided... Skipping set hotname"
+                logit "Set hostname bypassed silent install with no desired hostname provided"
             else
                 header
                 valid_response=false
@@ -133,7 +133,7 @@ set_timezone() {
             logit "TimeZone ${cur_tz} not default (GMT) assuming set as desired."
         fi
     else
-        logit "TimeZone bypassed silent install with no desired tz provided"
+        logit "Set TimeZone bypassed silent install with no desired tz provided"
     fi
     unset process
 }
@@ -149,7 +149,7 @@ disable_ipv6()  {
         fi
     else
         dis_ipv6=false
-        logit "Disable IPv6 option bypassed due to silent option without ipv6 argument"
+        logit "Disable IPv6 bypassed silent install with no desired state provided"
     fi
 
     if $dis_ipv6; then

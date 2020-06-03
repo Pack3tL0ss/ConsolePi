@@ -1,5 +1,6 @@
 #
 # example silent intall configuration use with installer and the -C flag
+# Note: Silent install also reqs pre-configured ConsolePi.yaml in /home/<user>/consolepi-stage
 #
 
 # required minimum for silent install

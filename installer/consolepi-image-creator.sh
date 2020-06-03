@@ -141,6 +141,10 @@ green() {
     echo -e "${_green}${*}${_norm}"
 }
 
+bold() { # bold green
+    echo -e "${_bold}${*}${_norm}"
+}
+
 cyan() {
     echo -e "${_cyan}${*}${_norm}"
 }
@@ -262,7 +266,7 @@ do_import_configs() {
     # -- If image being created from a ConsolePi offer to import settings --
     if $ISCPI; then
         # header -c
-        if [ ! -z $MASS_IMPORT ]; then
+        if [ -z $MASS_IMPORT ]; then
             echo -e "\n-----------------------  $(green 'This is a ConsolePi') -----------------------\n"
             echo -e "You can mass import settings from this ConsolePi onto the new image."
             echo -e "The following files will be evaluated:\n"
@@ -472,16 +476,16 @@ main() {
     done
 
     # ----------------------------------- // Burn raspios image to device (micro-sd) \\ -----------------------------------
-    echo -e "\n\n${_red}!!! Last chance to abort !!!${_norm}"
-    get_input "About to burn $(cyan ${img_file}) to $(green ${my_usb}), Continue?"
+    echo -e "\n\n${_red}${_blink}!!! Last chance to abort !!!${_norm}"
+    get_input "About to write image $(cyan ${img_file}) to $(green ${my_usb}), Continue?"
     ! $input && echo 'Exiting Script based on user input' && exit 1
     header -c
-    echo -e "\nNow Burning image $(cyan ${img_file}) to $(green ${my_usb}) standby...\n this takes a few minutes\n"
+    echo -e "\nNow Writing image $(cyan ${img_file}) to $(green ${my_usb}) standby...\n This takes a few minutes\n"
 
     if ! $nodd; then  # nodd is dev/testing flag to expedite testing of the script (doesn't write image to sd-card)
         dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress &&
-            echo -e "\n\n\033[1;32mImage written to flash - no Errors\033[m\n\n" ||
-            ( echo -e "\n\n\033[1;32mError occurred burning image\033[m\n\n" && exit 1 )
+            echo -e "\n\n$(bold Image written to flash - no Errors)\n\n" ||
+            ( echo -e "\n\n$(red Error writing image to falsh)\n\n" && exit 1 )
     fi
 
     # Create some mount-points if they don't exist already.  Script will remove them if it has to create them, they will remain if they were already there

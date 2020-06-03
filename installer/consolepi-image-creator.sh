@@ -283,7 +283,7 @@ do_import_configs() {
 
         if $MASS_IMPORT; then
             sudo -u $SUDO_USER mkdir -p $IMG_STAGE
-            echo
+            cyan "\n   -- Performing Imports from This ConsolePi --"
             for f in "${STAGE_FILES[@]}"; do
                 dots $(echo $f| cut -d: -f2)
                 if [[ "$f" =~ ^"STAGE:" ]]; then
@@ -325,8 +325,8 @@ do_import_configs() {
         if [ -z "$EDIT" ]; then
             echo
             get_input "Do you want to edit the pre-staged ConsolePi.yaml to change details"
+            EDIT=$input
         fi
-        EDIT=$input
         $EDIT && nano -ET2 $IMG_HOME/$STAGE_DIR/ConsolePi.yaml
 
         # -- offer to pre-configure hostname based on hotspot SSID in config
@@ -533,7 +533,7 @@ main() {
         sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         [ -f /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ] && echo OK ||echo ERROR
     else
-        dots "Script Option to pre-config psk ssid not enabled"; echo "Skipped"
+        dots "Script Option to pre-config psk ssid"; echo "Skipped - Not Configured"
     fi
 
     # Configure pi user to auto-launch ConsolePi installer on first-login
@@ -571,7 +571,7 @@ main() {
     ! $usb1_existed && rmdir /mnt/usb1
     ! $usb2_existed && rmdir /mnt/usb2
 
-    green "Consolepi image ready"
+    green "\nConsolepi image ready\n"
     ! $AUTO_INSTALL && echo "Boot RaspberryPi with this image use $(cyan 'consolepi-install') to deploy ConsolePi"
 }
 

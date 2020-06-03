@@ -302,6 +302,10 @@ do_import_configs() {
                     fi
                 fi
             done
+            [ -f $IMG_HOME/$STAGE_DIR/credentials.json ] && ( mkdir -p $IMG_HOME/$STAGE_DIR/.credentials >/dev/null ; rc=$? ) || rc=0
+            [ -f $IMG_HOME/$STAGE_DIR/credentials.json ] && mv $IMG_HOME/$STAGE_DIR/credentials.json $IMG_HOME/$STAGE_DIR/.credentials ; ((rc+=$?))
+            [ -f $IMG_HOME/$STAGE_DIR/token.pickle ] && mv $IMG_HOME/$STAGE_DIR/token.pickle $IMG_HOME/$STAGE_DIR/.credentials ; ((rc+=$?))
+            [[ "$rc" > 0 ]] && logit "Error Returned moving cloud creds into $STAGE_DIR/.credentials directory"
         fi
     fi
 

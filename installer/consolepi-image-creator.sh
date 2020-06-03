@@ -66,6 +66,7 @@ _lred='\e[91m'
 _yellow='\e[33;1m'
 _green='\e[32m'
 _cyan='\e[96m' # technically light cyan
+_excl="${_red}${_blink}"'!!!!'"${_norm}"
 
 nodd=false
 
@@ -79,13 +80,17 @@ do_defaults() {
     IMG_TYPE=${img_type:-'lite'}
     IMG_ONLY=${img_only:-false}
     AUTO_INSTALL=${auto_install:-true}
-    SKIP_MASS_IMPORT=${skip_mass_import:-false}
+    # -- these skip prompts and perform the actions based on the value provided
+    # if not set user is prompted (Default is Not set)
+    MASS_IMPORT=${mass_import}
+    EDIT=${edit}
+    HOTSPOT_HOSTNAME=${hotspot_hostname}
     # ---------------------------------------------------------------------------------------
-
     STAGE_DIR='consolepi-stage'
     IMG_HOME="/mnt/usb2/home/pi"
     IMG_STAGE="$IMG_HOME/$STAGE_DIR"
     LOCAL_DEV=${local_dev:-false} # dev use only
+    DEBUG=${debug:-false} # dev use only
     ( [ ! -z "$SSID" ] && [ ! -z "$PSK" ] ) &&
         CONFIGURE_WPA_SUPPLICANT=true ||
         CONFIGURE_WPA_SUPPLICANT=false
@@ -120,7 +125,7 @@ header() {
 
 dots() {
     local pad=$(printf "%0.1s" "."{1..70})
-    printf " + %s%*.*s" "$1" 0 $((70-${#1})) "$pad"
+    printf " ~ %s%*.*s" "$1" 0 $((70-${#1})) "$pad"
     return 0
 }
 
@@ -137,6 +142,10 @@ do_error() {
 
 green() {
     echo -e "${_green}${*}${_norm}"
+}
+
+bold() { # bold green
+    echo -e "${_bold}${*}${_norm}"
 }
 
 cyan() {
@@ -258,19 +267,23 @@ do_import_configs() {
     fi
 
     # -- If image being created from a ConsolePi offer to import settings --
-    if $ISCPI && ! $SKIP_MASS_IMPORT; then
-        header -c
-        echo -e "\n-----------------------  $(green 'This is a ConsolePi') -----------------------\n"
-        echo -e "You can mass import settings from this ConsolePi onto the new image."
-        echo -e "The following files will be evaluated:\n"
-        for f in "${STAGE_FILES[@]}"; do echo -e "\t${f//STAGE:/}" ; done
-        echo -e "\nAny files already staged via $STAGE_DIR will be skipped"
-        echo -e "Any files not found on this ConsolePi will by skipped\n"
-        echo '--------------------------------------------------------------------'
-        get_input "Perform mass import"
-        if $input; then
+    if $ISCPI; then
+        # header -c
+        if [ -z "$MASS_IMPORT" ]; then
+            echo -e "\n-----------------------  $(green 'This is a ConsolePi') -----------------------\n"
+            echo -e "You can mass import settings from this ConsolePi onto the new image."
+            echo -e "The following files will be evaluated:\n"
+            for f in "${STAGE_FILES[@]}"; do echo -e "\t${f//STAGE:/}" ; done
+            echo -e "\nAny files already staged via $STAGE_DIR will be skipped"
+            echo -e "Any files not found on this ConsolePi will by skipped\n"
+            echo '--------------------------------------------------------------------'
+            get_input "Perform mass import"
+            MASS_IMPORT=$input
+        fi
+
+        if $MASS_IMPORT; then
             sudo -u $SUDO_USER mkdir -p $IMG_STAGE
-            echo
+            cyan "\n   -- Performing Imports from This ConsolePi --"
             for f in "${STAGE_FILES[@]}"; do
                 dots $(echo $f| cut -d: -f2)
                 if [[ "$f" =~ ^"STAGE:" ]]; then
@@ -296,23 +309,33 @@ do_import_configs() {
                     if [ ! -f "$src" ]; then
                         echo "Skipped - File Not Found"
                     elif [ -f "$dst" ]; then
-                        echo "Skipped - Already Pre-Staged"
+                        echo "Skipped - Already Staged"
                     fi
                 fi
             done
+            [ -f $IMG_HOME/$STAGE_DIR/credentials.json ] && ( mkdir -p $IMG_HOME/$STAGE_DIR/.credentials >/dev/null ; rc=$? ) || rc=0
+            [ -f $IMG_HOME/$STAGE_DIR/credentials.json ] && mv $IMG_HOME/$STAGE_DIR/credentials.json $IMG_HOME/$STAGE_DIR/.credentials ; ((rc+=$?))
+            [ -f $IMG_HOME/$STAGE_DIR/token.pickle ] && mv $IMG_HOME/$STAGE_DIR/token.pickle $IMG_HOME/$STAGE_DIR/.credentials ; ((rc+=$?))
+            [[ "$rc" > 0 ]] && logit "Error Returned moving cloud creds into $STAGE_DIR/.credentials directory"
         fi
     fi
 
     # prompt to modify staged config
     if [ -f $IMG_HOME/$STAGE_DIR/ConsolePi.yaml ]; then
-        echo
-        get_input "Do you want to edit the pre-staged ConsolePi.yaml to change details"
-        $input && nano -ET2 $IMG_HOME/$STAGE_DIR/ConsolePi.yaml
+        if [ -z "$EDIT" ]; then
+            echo
+            get_input "Do you want to edit the pre-staged ConsolePi.yaml to change details"
+            EDIT=$input
+        fi
+        $EDIT && nano -ET2 $IMG_HOME/$STAGE_DIR/ConsolePi.yaml
 
         # -- offer to pre-configure hostname based on hotspot SSID in config
         cfg_ssid=$(grep '  wlan_ssid: ' $IMG_STAGE/ConsolePi.yaml | awk '{print $2}')
-        [[ ! -z $cfg_ssid ]] && prompt="Do you want to pre-stage the hostname as $cfg_ssid" && get_input
-        $input && echo $cfg_ssid > /mnt/usb2/etc/hostname
+        if [ -z "$HOTSPOT_HOSTNAME" ]; then
+            [[ ! -z $cfg_ssid ]] && prompt="Do you want to pre-stage the hostname as $cfg_ssid" && get_input
+            [[ ! -z $cfg_ssid ]] && HOTSPOT_HOSTNAME=$input || HOTSPOT_HOSTNAME=false
+        fi
+        $HOTSPOT_HOSTNAME && echo $cfg_ssid > /mnt/usb2/etc/hostname
     fi
 }
 
@@ -365,6 +388,14 @@ main() {
         echo -e "Script failed to detect removable flash device, you will need to specify the device"
 
     show_disk_details ${my_usb}
+
+    # -- check if detected media is mounted to / or /boot and exit if so This is a fail-safe Should not happen --
+    if mount | grep "^.* on /\s.*\|^.* on /boot\s.*" | grep -q "/dev/${my_usb}[p]\{0,1\}1\|/dev/${my_usb}[p]\{0,1\}2"; then
+        oh_shit=$(mount | grep "^.* on /\s.*\|^.* on /boot\s.*" | grep "/dev/${my_usb}[p]\{0,1\}1\|/dev/${my_usb}[p]\{0,1\}2")
+        echo -e "${_excl}\t$(green ${my_usb}) $(red "Appears to be mounted as a critical system directory if this is a script flaw please report it.")\t${_excl}"
+        echo -e "\t$(green ${my_usb}) mount: $oh_shit\n\tScript will now exit to prevent borking the running image."
+        exit 1
+    fi
 
     # Give user chance to change target drive
     echo -e "\n\nPress enter to accept $(green "${my_usb}") as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
@@ -454,17 +485,16 @@ main() {
     done
 
     # ----------------------------------- // Burn raspios image to device (micro-sd) \\ -----------------------------------
-    echo -e "\n\n${_red}!!! Last chance to abort !!!${_norm}"
-    prompt="About to burn $(cyan ${img_file}) to $(green ${my_usb}), Continue?"
-    get_input
+    echo -e "\n\n${_red}${_blink}!!! Last chance to abort !!!${_norm}"
+    get_input "About to write image $(cyan ${img_file}) to $(green ${my_usb}), Continue?"
     ! $input && echo 'Exiting Script based on user input' && exit 1
     header -c
-    echo -e "\nNow Burning image $(cyan ${img_file}) to $(green ${my_usb}) standby...\n this takes a few minutes\n"
+    echo -e "\nNow Writing image $(cyan ${img_file}) to $(green ${my_usb}) standby...\n This takes a few minutes\n"
 
-    if ! $nodd; then
+    if ! $nodd; then  # nodd is dev/testing flag to expedite testing of the script (doesn't write image to sd-card)
         dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress &&
-            echo -e "\n\n\033[1;32mImage written to flash - no Errors\033[m\n\n" ||
-            ( echo -e "\n\n\033[1;32mError occurred burning image\033[m\n\n" && exit 1 )
+            echo -e "\n\n$(bold Image written to flash - no Errors)\n\n" ||
+            ( echo -e "\n\n$(red Error writing image to falsh)\n\n" && exit 1 )
     fi
 
     # Create some mount-points if they don't exist already.  Script will remove them if it has to create them, they will remain if they were already there
@@ -478,14 +508,14 @@ main() {
 
     # Create empty file ssh in boot partition
     dots "Enabling ssh on image"
-    sudo touch /mnt/usb1/ssh ; do_error $? # && echo -e " + SSH is now enabled" || echo ' - Error enabling SSH... script will continue anyway'
+    touch /mnt/usb1/ssh ; do_error $? # && echo -e " + SSH is now enabled" || echo ' - Error enabling SSH... script will continue anyway'
 
     # Done with boot partition unmount
     dots "unmount boot partition"
-    sync && sudo umount /mnt/usb1 ; do_error $?
+    sync && umount /mnt/usb1 ; do_error $?
 
     # EXIT IF img_only option = true
-    $IMG_ONLY && echo -e "\nimage only option configured.  No Pre-Staging will be done. \n$(green 'Consolepi image ready')\n" && exit 0
+    $IMG_ONLY && echo -e "\nimage only option configured.  No Pre-Staging will be done. \n$(green 'Consolepi image ready')\n\a" && exit 0
 
     # echo -e "\nMounting System partition to Configure ConsolePi auto-install and copy over any pre-config files found in script dir"
     dots "Mounting System partition to pre-configure ConsolePi image"
@@ -503,28 +533,28 @@ main() {
         sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
         [ -f /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ] && echo OK ||echo ERROR
     else
-        dots "Script Option to pre-config psk ssid not enabled"; echo "Skipped"
+        dots "Script Option to pre-config psk ssid"; echo "Skipped - Not Configured"
     fi
 
     # Configure pi user to auto-launch ConsolePi installer on first-login
     if $AUTO_INSTALL; then
-        # echo -e "\nauto-install enabled, configuring pi user to auto-launch ConsolePi installer on first-login\n"
         dots "Configure Auto-Install on first login"
         echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install
 
         if $LOCAL_DEV || ( [ ! -z "$1" ] && [[ "$1" =~ "dev" ]] ) ; then
             echo '[ ! -f /home/pi/.ssh/id_rsa.pub ] && ssh-keygen && ssh-copy-id pi@consolepi-dev' >> /mnt/usb2/usr/local/bin/consolepi-install
             echo 'sudo ls /root/.ssh | grep -q id_rsa.pub || ( sudo ssh-keygen && sudo ssh-copy-id pi@consolepi-dev )' >> /mnt/usb2/usr/local/bin/consolepi-install
-            echo 'sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi -dev && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
+            echo 'sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${@}" && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
         else
-            echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
+            echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${@}" && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
         fi
 
-        sudo echo "consolepi-install" >> $IMG_HOME/.bashrc
+        $LOCAL_DEV && cmd_line="-dev $cmd_line"
+        echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.bashrc
 
         # make install command/script executable
         sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install &&
-            echo OK ||
+            echo OK && echo "     Configured with the following args $(cyan ${cmd_line})" ||
             ( echo "ERROR"; echo -e "\tERROR making consolepi-install command executable" )
     fi
 
@@ -535,13 +565,13 @@ main() {
     [ ! -f /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ] && echo -e "\nwarning ~ WLAN configuration not provided, WLAN has *not* been pre-configured"
 
     # Done prepping system partition un-mount
-    sudo umount /mnt/usb2
+    sync && umount /mnt/usb2
 
     # Remove our mount_points if they didn't happen to already exist when the script started
     ! $usb1_existed && rmdir /mnt/usb1
     ! $usb2_existed && rmdir /mnt/usb2
 
-    green "Consolepi image ready"
+    green "\nConsolepi image ready\n\a"
     ! $AUTO_INSTALL && echo "Boot RaspberryPi with this image use $(cyan 'consolepi-install') to deploy ConsolePi"
 }
 
@@ -553,6 +583,38 @@ verify_local_dev() {
     fi
 }
 
+_help() {
+    local pad=$(printf "%0.1s" " "{1..40})
+    printf " %s%*.*s%s.\n" "$1" 0 $((40-${#1})) "$pad" "$2"
+}
+
+show_usage() {
+    echo -e "\n$(green USAGE:) sudo $(echo $SUDO_COMMAND | cut -d' ' -f1) [OPTIONS]\n"
+    echo -e "$(cyan Available Options)"
+    _help "--help | -help | help" "Display this help text"
+    _help "--branch=<branch>" "Configure image to install from designated branch (Default: master)"
+    _help "--ssid=<ssid>" "Configure SSID on image (configure wpa_supplicant.conf)"
+    _help "--psk=<psk>" "pre-shared key for SSID (must be provided if ssid is provided)"
+    _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"
+    _help "--priority=<priority>" "wlan priority (Default 0)"
+    _help "--img_type=<lite|desktop|full>" "Type of RaspiOS image to write to media (Default: lite)"
+    _help "--img_only=<true|false>" "If set to true no pre-staging will be done other than enabling SSH (Default: false)"
+    _help "--auto_install=<true|false>" "If set to false image will not be configured to auto launch to installer on first login (Default true)"
+    _help "--cmd_line='<cmd_line arguments>'" "*Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image"
+    _help "--mass_import=<true|false>" "Bypass mass_import prompt presented when the system creating the image is a ConsolePi. Do it or not based on this value <true|false>"
+    _help "--edit=<true|false>" "Bypass prompt asking if you want to edit (nano) the imported ConsolePi.yaml. Do it or not based on this value <true|false>"
+    _help "--hotspot_hostname=<true|false>" "Bypass prompt asking to pre-configure hostname based on HotSpot SSID in imported ConsolePi.yaml.  Do it or not based on this value <true|false>"
+    echo
+    echo -e "The consolepi-image-creator will also look for consolepi-image-creator.conf in the same directory for the above settings"
+    echo
+    echo -e "$(cyan Examples:)"
+    echo "  This example overrides the default RaspiOS image type (lite) in favor of the desktop image and configures a psk SSID (use single quotes if special characters exist)"
+    echo -e "\tsudo ./consolepi-image-creator.sh --img_type=desktop --ssid=MySSID --psk='ConsolePi!!!'"
+    echo "  This example passes the -C option to the installer (telling it to get some info from the specified config) as well as the silent install option (no prompts)"
+    echo -e "\tsudo ./consolepi-image-creator.sh --cmd_line='-C /home/pi/consolepi-stage/installer.conf -silent'"
+    echo
+}
+
 parse_args() {
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
@@ -562,44 +624,64 @@ parse_args() {
                 local_dev=true
                 shift
                 ;;
+            -debug) # used for development/testing
+                debug=true
+                shift
+                ;;
             -nodd) # used for development/testing
                 nodd=true
                 shift
                 ;;
+            *help)
+                show_usage
+                exit 0
+                ;;
             --branch=*) # install from a branch other than master
-                branch=$(echo "$1"| cut -d= -f1)
+                branch=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --ssid=*) # install from a branch other than master
-                ssid=$(echo "$1"| cut -d= -f1)
+            --ssid=*) # psk ssid to pre-configure on img
+                ssid=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --psk=*) # install from a branch other than master
-                psk=$(echo "$1"| cut -d= -f1)
+            --psk=*) # psk of ssid (both must be specified)
+                psk=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --wlan_country=*) # install from a branch other than master
-                wlan_country=$(echo "$1"| cut -d= -f1)
+            --wlan_country=*) # for pre-configured ssid defaults to US
+                wlan_country=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --priority=*) # install from a branch other than master
-                priority=$(echo "$1"| cut -d= -f1)
+            --priority=*) # for pre-configured ssid defaults to 0
+                priority=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --img_type=*) # install from a branch other than master
-                img_type=$(echo "$1"| cut -d= -f1)
+            --img_type=*) # Type of raspiOS to write to img, defaults to lite
+                img_type=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --img_only=*) # install from a branch other than master
-                img_only=$(echo "$1"| cut -d= -f1)
+            --img_only=*) # Only deploy img (and enable SSH) no further pre-config beyond that
+                img_only=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --auto_install=*) # install from a branch other than master
-                auto_install=$(echo "$1"| cut -d= -f1)
+            --auto_install=*) # configure image to launch installer on first login
+                auto_install=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --skip_mass_import=*) # install from a branch other than master
-                skip_mass_import=$(echo "$1"| cut -d= -f1)
+            --cmd_line=*) # arguments passed on to install script
+                cmd_line=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            --mass_import=*) # skip mass import prompt that appears if script is ran from a ConsolePi
+                mass_import=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            --edit=*) # skip do you want to edit prompt that appears if script imports a ConsolePi.yaml
+                edit=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            --hotspot_hostname=*) # skip do you want to pre-configure hostname as <HotSpot SSID> presented if script imports a ConsolePi.yaml
+                edit=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             *) ## -*|--*=) # unsupported flags
@@ -615,6 +697,7 @@ if [ "${iam}" = "root" ]; then
     [ -f consolepi-image-creator.conf ] && . consolepi-image-creator.conf
     (( "$#" )) && parse_args "$@"
     do_defaults
+    $DEBUG && ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS  | less +G
     verify_local_dev
     main
 else

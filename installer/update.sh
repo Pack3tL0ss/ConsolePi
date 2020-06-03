@@ -12,23 +12,28 @@
 
 chg_password() {
     if grep -q "^pi:" /etc/passwd && [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
-        header
-        echo "You are logged in as pi, and the default password has not been changed"
-        prompt="Do You want to change the password for user pi"
-        response=$(user_input_bool)
-        if $response; then
-            match=false
-            while ! $match; do
-                read -sep "Enter new password for user pi: " pass && echo
-                read -sep "Re-Enter new password for user pi: " pass2 && echo
-                [[ "${pass}" == "${pass2}" ]] && match=true || match=false
-                ! $match && echo -e "ERROR: Passwords Do Not Match\n"
-            done
-            process="pi user password change"
-            echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
-            ( logit "Failed to Change Password for pi user" "WARNING" &&
-            echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
-            unset pass && unset pass2 && unset process
+        if [ ! -z "$pi_pass" ]; then
+            echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
+                logit "Error occured changing pi password using conf/cmd_line arg" "WARNING"
+        else
+            header
+            echo "You are logged in as pi, and the default password has not been changed"
+            prompt="Do You want to change the password for user pi"
+            response=$(user_input_bool)
+            if $response; then
+                match=false
+                while ! $match; do
+                    read -sep "Enter new password for user pi: " pass && echo
+                    read -sep "Re-Enter new password for user pi: " pass2 && echo
+                    [[ "${pass}" == "${pass2}" ]] && match=true || match=false
+                    ! $match && echo -e "ERROR: Passwords Do Not Match\n"
+                done
+                process="pi user password change"
+                echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
+                ( logit "Failed to Change Password for pi user" "WARNING" &&
+                echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
+                unset pass && unset pass2 && unset process
+            fi
         fi
     fi
 }
@@ -37,36 +42,46 @@ set_hostname() {
     process="Change Hostname"
     hostn=$(cat /etc/hostname)
     if [[ "${hostn}" == "raspberrypi" ]]; then
-        header
-        valid_response=false
 
-        while ! $valid_response; do
-            # Display existing hostname
-            read -ep "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
-            response=${response,,}    # tolower
-            ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
-        done
+        # -- collect desired hostname from user - bypass collection if set via cmd line or config --
+        [ ! -z "$hostname" ] && newhost=$hostname && unset hostname
+        if [ -z "$newhost" ]; then
+            header
 
-        if [[ "$response" =~ ^(yes|y)$ ]]; then
-            # Ask for new hostname $newhost
-            ok_do_hostname=false
-            while ! $ok_do_hostname; do
-                read -ep "Enter new hostname: " newhost
-                valid_response=false
-                while ! $valid_response; do
-                    printf "New hostname: ${_green}$newhost${_norm} Is this correect (y/n)?: " ; read -e response
-                    response=${response,,}    # tolower
-                    ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
-                done
-                [[ "$response" =~ ^(yes|y)$ ]] && ok_do_hostname=true || ok_do_hostname=false
+            valid_response=false
+            while ! $valid_response; do
+                # Display existing hostname
+                read -ep "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
+                response=${response,,}    # tolower
+                ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
             done
 
+            if [[ "$response" =~ ^(yes|y)$ ]]; then
+                # Ask for new hostname $newhost
+                ok_do_hostname=false
+                while ! $ok_do_hostname; do
+                    read -ep "Enter new hostname: " newhost
+                    valid_response=false
+                    while ! $valid_response; do
+                        printf "New hostname: ${_green}$newhost${_norm} Is this correect (y/n)?: " ; read -e response
+                        response=${response,,}    # tolower
+                        ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
+                    done
+                    [[ "$response" =~ ^(yes|y)$ ]] && ok_do_hostname=true || ok_do_hostname=false
+                done
+            fi
+        fi
+
+        # -- apply new hostname --
+        if [ ! -z "$newhost" ]; then
             # change hostname in /etc/hosts & /etc/hostname
             sed -i "s/$hostn/$newhost/g" /etc/hosts
             sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
+
             # change hostname via command
             hostname "$newhost" 1>&2 2>>/dev/null
             [ $? -gt 0 ] && logit "Error returned from hostname command" "WARNING"
+
             # add wlan hotspot IP to hostfile for DHCP connected clients to resolve this host
             wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)
             [ $wlan_hostname_exists == 0 ] && echo "$wlan_ip       $newhost" >> /etc/hosts
@@ -74,6 +89,7 @@ set_hostname() {
 
             logit "New hostname set $newhost"
         fi
+
     else
         logit "Hostname ${hostn} is not default, assuming it is desired hostname"
     fi
@@ -84,18 +100,35 @@ set_hostname() {
 set_timezone() {
     process="Configure ConsolePi TimeZone"
     cur_tz=$(date +"%Z")
-    if [ $cur_tz == "GMT" ] || [ $cur_tz == "BST" ]; then
-        header
-
-        prompt="Current TimeZone $cur_tz. Do you want to configure the timezone"
-        set_tz=$(user_input_bool)
-
-        if $set_tz; then
-            echo "Launching, standby..." && sudo dpkg-reconfigure tzdata 2>> $log_file && header && logit "Set new TimeZone to $(date +"%Z") Success" ||
-                logit "FAILED to set new TimeZone" "WARNING"
+    if [ ! -z "$tz" ]; then
+        # -- // SILENT timezone passed in via config or cmd line arg \\ --
+        if [ ! -f "/usr/share/zoneinfo/$tz" ]; then
+            logit "Unable to Change TimeZone Silently. Invalid TimeZone ($tz) Provided" "WARNING"
+        elif [[ "$tz" == "$(head -1 /etc/timezone)" ]]; then
+            logit "Timezone Already Configured ($tz)"
+        else
+            rm /etc/localtime
+            echo "$tz" > /etc/timezone
+            dpkg-reconfigure -f noninteractive tzdata 2>>$log_file &&
+                logit "Set new TimeZone to $(date +"%Z") based on tz arg/config option Success" ||
+                    logit "FAILED to set new TimeZone based on tz arg/config option" "WARNING"
         fi
+        unset tz
     else
-        logit "TimeZone ${cur_tz} not default (GMT) assuming set as desired."
+        if [ $cur_tz == "GMT" ] || [ $cur_tz == "BST" ]; then
+            # -- // INTERACTIVE PROMPT  \\ --
+            header
+
+            prompt="Current TimeZone $cur_tz. Do you want to configure the timezone"
+            set_tz=$(user_input_bool)
+
+            if $set_tz; then
+                echo "Launching, standby..." && dpkg-reconfigure tzdata 2>> $log_file && header && logit "Set new TimeZone to $(date +"%Z") Success" ||
+                    logit "FAILED to set new TimeZone" "WARNING"
+            fi
+        else
+            logit "TimeZone ${cur_tz} not default (GMT) assuming set as desired."
+        fi
     fi
     unset process
 }
@@ -103,8 +136,11 @@ set_timezone() {
 # -- if ipv6 is enabled present option to disable it --
 disable_ipv6()  {
     process="Disable ipv6"
-    prompt="Do you want to disable ipv6"
-    dis_ipv6=$(user_input_bool)
+    if [ -z "$dis_ipv6" ]; then
+        prompt="Do you want to disable ipv6"
+        dis_ipv6=$(user_input_bool)
+    fi
+
     if $dis_ipv6; then
         file_diff_update "${src_dir}99-noipv6.conf" /etc/sysctl.d/99-noipv6.conf
     fi
@@ -140,8 +176,10 @@ misc_imports(){
             logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
             logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
         elif $cloud ; then
-            logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
-            logit "raspbian-lite users refer to the GitHub for instructions on how to generate credential files off box"
+            if [ ! -f "$CLOUD_CREDS_FILE" ]; then
+                logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
+                logit "RaspiOS-lite users refer to the GitHub for instructions on how to generate credential files off box"
+            fi
         fi
 
         # -- custom overlay file for PoE hat (fan control) --
@@ -751,7 +789,7 @@ get_serial_udev() {
         if [[ $found_path ]]; then
             logit "udev rules file found ${found_path} enabling provided udev rules"
             if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
-                file_diff_update $found_path /etc/udev/rules.d
+                file_diff_update $found_path /etc/udev/rules.d/10-ConsolePi.rules
             else
                 sudo cp $found_path /etc/udev/rules.d
                 sudo udevadm control --reload-rules && sudo udevadm trigger
@@ -760,7 +798,7 @@ get_serial_udev() {
     fi
 
     echo
-    echo -e "--------------------------------------------- \033[1;32mPredictable Console ports$*\033[m ---------------------------------------------"
+    echo -e "--------------------------------------------- ${_green}Predictable Console ports${_norm} ---------------------------------------------"
     echo "-                                                                                                                   -"
     echo "- Predictable Console ports allow you to configure ConsolePi so that each time you plug-in a specific adapter it    -"
     echo "- will have the same name in consolepi-menu and will be reachable via the same TELNET port.                         -"
@@ -785,8 +823,8 @@ get_serial_udev() {
     echo "-     Most FTDI based adapters have serial #s, I've only seen the lack of serial # on dev boards.                   -"
     echo "-     ---- If you're interested I reccomend adapters that use FTDI chips. ----                                      -"
     echo "-                                                                                                                   -"
-    echo '-  This function can be called anytime from the shell via `consolepi-addconsole` and is available from              -'
-    echo '-    `consolepi-menu` via the `rn` (rename) option.                                                                 -'
+    echo -e "-  This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from              -"
+    echo -e "-    ${_cyan}consolepi-menu${_norm} via the `rn` (rename) option.                                                                 -"
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
@@ -822,13 +860,17 @@ do_wifi_country() {
         # return 1
     fi
 
-    wpa_cli -i "$IFACE" set country "$wlan_country" > /dev/null 2>&1
-    wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
-    iw reg set "$wlan_country" > /dev/null 2>>$log_file &&
-        logit "Wi-fi country set to $wlan_country" ||
-        logit "Error Code returned when setting WLAN country" "WARNING"
-    if hash rfkill 2> /dev/null; then
-        rfkill unblock wifi
+    if [[ $(wpa_cli -i $IFACE get country) == "$wlan_country" ]]; then
+        logit "$IFACE country already set to $wlan_country"
+    else
+        wpa_cli -i "$IFACE" set country "$wlan_country" > /dev/null 2>&1
+        wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
+        iw reg set "$wlan_country" > /dev/null 2>>$log_file &&
+            logit "Wi-fi country set to $wlan_country" ||
+            logit "Error Code returned when setting WLAN country" "WARNING"
+        if hash rfkill 2> /dev/null; then
+            rfkill unblock wifi
+        fi
     fi
     unset process
 }
@@ -840,7 +882,7 @@ custom_post_install_script() {
         if [[ $found_path ]]; then
             process="Run Custom Post-install script"
             logit "Post Install Script ${found_path} Found. Executing"
-            sudo $found_path && logit "Post Install Script Complete No Errors" ||
+            $found_path && logit "Post Install Script Complete No Errors" ||
                 logit "Error Code returned by Post Install Script" "WARNING"
             unset process
         fi
@@ -988,7 +1030,7 @@ update_main() {
     do_consolepi_mdns
     ! $upgrade && misc_stuff
     do_resize
-    if [ ! -z $skip_utils ] && $skip_utils ; then
+    if ( [ ! -z $skip_utils ] && $skip_utils ) || $silent; then
         process="optional utilities installer"
         logit "utilities menu bypassed by config variable"
         unset process
@@ -996,8 +1038,21 @@ update_main() {
         get_utils
         util_main
     fi
-    get_known_ssids
-    get_serial_udev
+    if ! $silent; then
+        get_known_ssids
+        get_serial_udev
+    else
+        logit "SSID and Predictable Console Port Prompts bypassed due to -silent flag"
+    fi
     custom_post_install_script
-    post_install_msg
+    if ! $silent; then
+        post_install_msg
+    else
+        process=Complete
+        _msg="Success Silent Install Complete a reboot is required"
+        [[ "$warn_cnt" > 0 ]] && _msg="$_msg Warnings Exist ($warn_cnt)"
+        logit "${_msg}"; printf '\a'
+    fi
 }
+
+# ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line

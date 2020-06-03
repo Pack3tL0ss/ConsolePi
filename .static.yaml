@@ -3,6 +3,8 @@
 # Versioning = YYYY.Major.Patch/Minor
 ---
 CONSOLEPI_VER: 2020-2.4
+INSTALLER_VER: 48
+CFG_FILE_VER: 8
 CONFIG_FILE_YAML: /etc/ConsolePi/ConsolePi.yaml
 CONFIG_FILE: /etc/ConsolePi/ConsolePi.conf # For backward compat, use yaml config going forward
 POWER_FILE: /etc/ConsolePi/power.json # For backward compat, use yaml config going forward

@@ -4,8 +4,6 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-INSTALLER_VER=47
-CFG_FILE_VER=8
 cur_dir=$(pwd)
 iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
@@ -39,7 +37,7 @@ _cyan='\e[96m' # technically light cyan
 # vpn_dest=$(sudo grep -G "^remote\s.*" /etc/openvpn/client/ConsolePi.ovpn | awk '{print $2}')
 
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
-[[ -f $final_log ]] && upgrade=true || upgrade=false
+( [[ -f $final_log ]] && [ -z $upgrade ] ) && upgrade=true || upgrade=false
 
 # log file is referenced thoughout the script.  During install changes from tmp to final after final log
 # location is configured in install.sh do_logging
@@ -48,13 +46,14 @@ $upgrade && log_file=$final_log || log_file=$tmp_log
 
 # -- External Sources --
 # ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download" ## now points to gensio not ser2net
-ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-3.5.1.tar.gz/download"
-ser2net_source_version="3.5.1"
+# ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-3.5.1.tar.gz/download"
+# ser2net_source_version="3.5.1"
 # ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-4.0.tar.gz/download"
 consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 # header reqs 144 cols to display properly
 header() {
+    $silent && return 0 # No Header for silent install
     [ -z $1 ] && clear # pass anything as an argument to prevent screen clear
     if [ $tty_cols -gt 144 ]; then
         echo "                                                                                                                                                ";
@@ -423,30 +422,15 @@ get_pi_info() {
     [ ! -z $branch ] && [ $branch != "master" ] && logit "Running alternate branch: ${_green}$branch${_norm}"
     git_rem=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git remote -v | head -1 | cut -d '(' -f-1 ; popd >/dev/null 2>&1)
     [[ ! -z $git_rem ]] && [[ $(echo $git_rem | awk '{print $2}') != $consolepi_source ]] && logit "Using alternative repo: ${_green}$git_rem${_norm}"
-    # cat /etc/os-release
-    # alternative method to get memory
-    # echo $(($(free -h |grep "^Mem:" | awk '{print $2}' | cut -d. -f1) + 1))
-    # alternative method to get model string
-    # grep '^Model' /proc/cpuinfo | cut -d: -f2 |cut -d' ' -f2-
-    ver_full=$(head -1 /etc/debian_version)
-    ver=$(echo $ver_full | cut -d. -f1)
-
-    if [ $ver -eq 10 ]; then
-        version="RaspiOS $ver_full (Buster)"
-    elif [ $ver -eq 9 ]; then
-        version="Raspbian $ver_full (Stretch)"
-    elif [ $ver -eq 8 ]; then
-        version="Raspbian $ver_full (Jessie)"
-    else
-        version="Raspbian $ver_full (Wheezy)"
-    fi
-
     cpu=$(cat /proc/cpuinfo | grep 'Hardware' | awk '{print $3}')
-    rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}' | sed 's/^1000//')
+    rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}') # | sed 's/^1000//')
     model_pretty=$(get_pi_info_pretty $rev)
     # echo -e "$version running on $cpu Revision: $rev\n    $model_pretty"
     logit "$model_pretty"
-    logit "$version running on $cpu Revision: $rev"
+    # logit "$version running on $cpu Revision: $rev"
+    [ -f /etc/os-release ] && . /etc/os-release && logit "$NAME $(head -1 /etc/debian_version) ($VERSION_CODENAME) running on $cpu Revision: $rev"
+    # _mem=$(free -h |grep "^Mem:" | awk '{print $2}');_mem=$(echo "$((${_mem:0:1}+1))${_mem:3:1}")
+    # logit "$(grep '^Model' /proc/cpuinfo | cut -d: -f2 |cut -d' ' -f2-) $_mem"
     logit "$(uname -a)"
     dpkg -l | grep -q raspberrypi-ui && logit "RaspiOS with Desktop" || logit "RaspiOS Lite"
     logit "Python 3 Version $(python3 -V)"
@@ -462,8 +446,9 @@ convert_template() {
 }
 
 process_yaml() {
-    $yml_script "${@}" > $tmp_src 2>>$log_file && . $tmp_src && rm $tmp_src ||
+    $yml_script "${@}" > $tmp_src 2>>$log_file && . $tmp_src ||
         logit "Error returned from yaml config import ($yml_script ${@}), check $log_file" "ERROR"
+    [ -f $tmp_src ] && rm $tmp_src
 }
 
 do_systemd_enable_load_start() {

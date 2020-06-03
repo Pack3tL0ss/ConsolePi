@@ -684,7 +684,7 @@ do_consolepi_mdns() {
 
 # Configure ConsolePi with the SSIDs it will attempt to connect to as client prior to falling back to hotspot
 get_known_ssids() {
-    process="Get Known SSIDs"
+    process="Configure WLAN"
     logit "${process} Started"
     header
     if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
@@ -825,7 +825,7 @@ get_serial_udev() {
     echo "-     ---- If you're interested I reccomend adapters that use FTDI chips. ----                                      -"
     echo "-                                                                                                                   -"
     echo -e "-  This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from              -"
-    echo -e "-    ${_cyan}consolepi-menu${_norm} via the `rn` (rename) option.                                                                 -"
+    echo -e "-    ${_cyan}consolepi-menu${_norm} via the 'rn' (rename) option.                                                                 -"
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
@@ -1044,7 +1044,8 @@ update_main() {
         get_known_ssids
         get_serial_udev
     else
-        logit "SSID and Predictable Console Port Prompts bypassed due to -silent flag"
+        process="Configure WLAN - Predictable Console Ports"
+        logit "WLAN and Predictable Console Port Prompts bypassed due to -silent flag"
     fi
     custom_post_install_script
     if ! $silent; then

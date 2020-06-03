@@ -50,7 +50,7 @@ get_common() {
 remove_first_boot() {
     # SD-Card created using Image Creator Script launches installer automatically - remove first-boot launch
     process="Remove exec on first-boot"
-    sudo sed -i "s#consolepi-install##g" /home/pi/.bashrc
+    sudo sed -i "s#consolepi-install.*##g" /home/pi/.bashrc
     grep -q consolepi-install /home/pi/.bashrc &&
         logit "Failed to remove first-boot verify /etc/rc.local" "WARNING"
 }

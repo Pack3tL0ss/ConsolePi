@@ -524,12 +524,13 @@ main() {
         if $LOCAL_DEV || ( [ ! -z "$1" ] && [[ "$1" =~ "dev" ]] ) ; then
             echo '[ ! -f /home/pi/.ssh/id_rsa.pub ] && ssh-keygen && ssh-copy-id pi@consolepi-dev' >> /mnt/usb2/usr/local/bin/consolepi-install
             echo 'sudo ls /root/.ssh | grep -q id_rsa.pub || ( sudo ssh-keygen && sudo ssh-copy-id pi@consolepi-dev )' >> /mnt/usb2/usr/local/bin/consolepi-install
-            echo 'sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi -dev "${cmd_line}" && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
+            echo 'sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${@}" && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
         else
-            echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${cmd_line}" && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
+            echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${@}" && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
         fi
 
-        sudo echo "consolepi-install" >> $IMG_HOME/.bashrc
+        $LOCAL_DEV && cmd_line="-dev $cmd_line"
+        echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.bashrc
 
         # make install command/script executable
         sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install &&

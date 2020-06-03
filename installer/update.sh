@@ -46,29 +46,32 @@ set_hostname() {
         # -- collect desired hostname from user - bypass collection if set via cmd line or config --
         [ ! -z "$hostname" ] && newhost=$hostname && unset hostname
         if [ -z "$newhost" ]; then
-            header
-
-            valid_response=false
-            while ! $valid_response; do
-                # Display existing hostname
-                read -ep "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
-                response=${response,,}    # tolower
-                ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
-            done
-
-            if [[ "$response" =~ ^(yes|y)$ ]]; then
-                # Ask for new hostname $newhost
-                ok_do_hostname=false
-                while ! $ok_do_hostname; do
-                    read -ep "Enter new hostname: " newhost
-                    valid_response=false
-                    while ! $valid_response; do
-                        printf "New hostname: ${_green}$newhost${_norm} Is this correect (y/n)?: " ; read -e response
-                        response=${response,,}    # tolower
-                        ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
-                    done
-                    [[ "$response" =~ ^(yes|y)$ ]] && ok_do_hostname=true || ok_do_hostname=false
+            if $silent; then
+                logit "silent install with no hostname provided... Skipping set hotname"
+            else
+                header
+                valid_response=false
+                while ! $valid_response; do
+                    # Display existing hostname
+                    read -ep "Current hostname $hostn. Do you want to configure a new hostname (y/n)?: " response
+                    response=${response,,}    # tolower
+                    ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
                 done
+
+                if [[ "$response" =~ ^(yes|y)$ ]]; then
+                    # Ask for new hostname $newhost
+                    ok_do_hostname=false
+                    while ! $ok_do_hostname; do
+                        read -ep "Enter new hostname: " newhost
+                        valid_response=false
+                        while ! $valid_response; do
+                            printf "New hostname: ${_green}$newhost${_norm} Is this correect (y/n)?: " ; read -e response
+                            response=${response,,}    # tolower
+                            ( [[ "$response" =~ ^(yes|y)$ ]] || [[ "$response" =~ ^(no|n)$ ]] ) && valid_response=true || valid_response=false
+                        done
+                        [[ "$response" =~ ^(yes|y)$ ]] && ok_do_hostname=true || ok_do_hostname=false
+                    done
+                fi
             fi
         fi
 
@@ -114,7 +117,7 @@ set_timezone() {
                     logit "FAILED to set new TimeZone based on tz arg/config option" "WARNING"
         fi
         unset tz
-    else
+    elif ! $silent; then
         if [ $cur_tz == "GMT" ] || [ $cur_tz == "BST" ]; then
             # -- // INTERACTIVE PROMPT  \\ --
             header
@@ -129,6 +132,8 @@ set_timezone() {
         else
             logit "TimeZone ${cur_tz} not default (GMT) assuming set as desired."
         fi
+    else
+        logit "TimeZone bypassed silent install with no desired tz provided"
     fi
     unset process
 }
@@ -137,9 +142,14 @@ set_timezone() {
 disable_ipv6()  {
     process="Disable ipv6"
     [ -f /etc/sysctl.d/99-noipv6.conf ] && dis_ipv6=true # just bypases prompt when testing using -install flag
-    if [ -z "$dis_ipv6" ]; then
-        prompt="Do you want to disable ipv6"
-        dis_ipv6=$(user_input_bool)
+    if ! $silent; then
+        if [ -z "$dis_ipv6" ]; then
+            prompt="Do you want to disable ipv6"
+            dis_ipv6=$(user_input_bool)
+        fi
+    else
+        dis_ipv6=false
+        logit "Disable IPv6 option bypassed due to silent option without ipv6 argument"
     fi
 
     if $dis_ipv6; then

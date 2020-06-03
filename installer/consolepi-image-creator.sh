@@ -87,6 +87,7 @@ do_defaults() {
     IMG_HOME="/mnt/usb2/home/pi"
     IMG_STAGE="$IMG_HOME/$STAGE_DIR"
     LOCAL_DEV=${local_dev:-false} # dev use only
+    DEBUG=${debug:-false} # dev use only
     ( [ ! -z "$SSID" ] && [ ! -z "$PSK" ] ) &&
         CONFIGURE_WPA_SUPPLICANT=true ||
         CONFIGURE_WPA_SUPPLICANT=false
@@ -561,6 +562,36 @@ verify_local_dev() {
     fi
 }
 
+_help() {
+    local pad=$(printf "%0.1s" " "{1..40})
+    printf " %s%*.*s%s.\n" "$1" 0 $((40-${#1})) "$pad" "$2"
+}
+
+show_usage() {
+    echo -e "\n$(green USAGE:) sudo $(echo $SUDO_COMMAND | cut -d' ' -f1) [OPTIONS]\n"
+    echo -e "$(cyan Available Options)"
+    _help "--help | -help | help" "Display this help text"
+    _help "--branch=<branch>" "Configure image to install from designated branch (Default: master)"
+    _help "--ssid=<ssid>" "Configure SSID on image (configure wpa_supplicant.conf)"
+    _help "--psk=<psk>" "pre-shared key for SSID (must be provided if ssid is provided)"
+    _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"
+    _help "--priority=<priority>" "wlan priority (Default 0)"
+    _help "--img_type=<lite|desktop|full>" "Type of RaspiOS image to write to media (Default: lite)"
+    _help "--img_only=<true|false>" "If set to true no pre-staging will be done other than enabling SSH (Default: false)"
+    _help "--auto_install=<true|false>" "If set to false image will not be configured to auto launch to installer on first login (Default true)"
+    _help "--cmd_line='<cmd_line arguments>'" "*Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image"
+    _help "--skip_mass_import=<true|false>" "Bypass mass_import prompt presented when the system creating the image is a ConsolePi"
+    echo
+    echo -e "The consolepi-image-creator will also look for consolepi-image-creator.conf in the same directory for the above settings"
+    echo
+    echo -e "$(cyan Examples:)"
+    echo "  This example overrides the default RaspiOS image type (lite) in favor of the desktop image and configures a psk SSID (use single quotes if special characters exist)"
+    echo -e "\tsudo ./consolepi-image-creator.sh --img_type=desktop --ssid=MySSID --psk='ConsolePi!!!'"
+    echo "  This example passes the -C option to the installer (telling it to get some info from the specified config) as well as the silent install option (no prompts)"
+    echo -e "\tsudo ./consolepi-image-creator.sh --cmd_line='-C /home/pi/consolepi-stage/installer.conf -silent'"
+    echo
+}
+
 parse_args() {
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
@@ -570,47 +601,55 @@ parse_args() {
                 local_dev=true
                 shift
                 ;;
+            -debug) # used for development/testing
+                debug=true
+                shift
+                ;;
             -nodd) # used for development/testing
                 nodd=true
                 shift
+                ;;
+            *help)
+                show_usage
+                exit 0
                 ;;
             --branch=*) # install from a branch other than master
                 branch=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --ssid=*) # install from a branch other than master
+            --ssid=*) # psk ssid to pre-configure on img
                 ssid=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --psk=*) # install from a branch other than master
+            --psk=*) # psk of ssid (both must be specified)
                 psk=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --wlan_country=*) # install from a branch other than master
+            --wlan_country=*) # for pre-configured ssid defaults to US
                 wlan_country=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --priority=*) # install from a branch other than master
+            --priority=*) # for pre-configured ssid defaults to 0
                 priority=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --img_type=*) # install from a branch other than master
+            --img_type=*) # Type of raspiOS to write to img, defaults to lite
                 img_type=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --img_only=*) # install from a branch other than master
+            --img_only=*) # Only deploy img (and enable SSH) no further pre-config beyond that
                 img_only=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --auto_install=*) # install from a branch other than master
+            --auto_install=*) # configure image to launch installer on first login
                 auto_install=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --cmd_line=*) # install from a branch other than master
+            --cmd_line=*) # arguments passed on to install script
                 cmd_line=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --skip_mass_import=*) # install from a branch other than master
+            --skip_mass_import=*) # skip mass import prompt that appears if script is ran from a ConsolePi
                 skip_mass_import=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
@@ -627,6 +666,7 @@ if [ "${iam}" = "root" ]; then
     [ -f consolepi-image-creator.conf ] && . consolepi-image-creator.conf
     (( "$#" )) && parse_args "$@"
     do_defaults
+    $DEBUG && ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS  | less +G
     verify_local_dev
     main
 else

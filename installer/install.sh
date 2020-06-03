@@ -475,20 +475,44 @@ _help() {
 }
 
 show_usage() {
-    echo -e "\n$(green USAGE:) sudo $(echo $SUDO_COMMAND | cut -d' ' -f1) [OPTIONS]\n"
-    echo -e "$(cyan Available Options)"
+    # common is not imported here can't use common funcs
+    _green='\e[32;1m' # bold green
+    _cyan='\e[96m'
+    _norm='\e[0m'
+    if [ -f /etc/ConsolePi/src/consolepi-commands/consolepi-upgrade ]; then
+        local _cmd=consolepi-upgrade
+    elif [ -f /usr/local/bin/consolepi-install ]; then
+        local _cmd=consolepi-install
+    else
+        local _cmd="sudo $(echo $SUDO_COMMAND | cut -d' ' -f1)"
+    fi
+    echo -e "\n${_green}USAGE:${_norm} $_cmd [OPTIONS]\n"
+    echo -e "${_cyan}Available Options${_norm}"
     _help "--help | -help | help" "Display this help text"
     _help "-silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
     _help "-noapt" "Skip the apt update/upgrade portion of the Upgrade, this should not be used on initial installs, and is more of a dev tool to expedite testing"
-    _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see install.conf in /etc/ConsolePi/installer dir)"
+    _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
+    echo "  Copy the example file to your home dir and make edits to use"
     _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"
     _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables"
     _help "--hostname=<hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
     _help "--tz=<i.e. 'America/Chicago'>" "If set will bypass tz prompt on install and configure based on this value"
     _help "--consolepi_pass='<password>'" "Use single quotes: Bypass prompt on install set consolepi user pass to this value"
     _help "--pi_pass=<'password>" "Use single quotes: Bypass prompt on install set pi user pass to this value"
-    echo "  pi user can be deleted after initial install if desired, A non silent install will prompt for additional users and set appropriate group perms"
-    echo "  Any manually added users should be members of dialout and consolepi groups for ConsolePi to function properly"
+    echo "   pi user can be deleted after initial install if desired, A non silent install will prompt for additional users and set appropriate group perms"
+    echo -e "   ${_cyan}Any manually added users should be members of 'dialout' and 'consolepi' groups for ConsolePi to function properly${_norm}"
+    echo
+    echo -e "${_cyan}Examples:${_norm}"
+    echo "  This example specifies a config file with -C (telling it to get some info from the specified config) as well as the silent install option (no prompts)"
+    if [[ ! "$_cmd" =~ "upgrade" ]]; then
+        echo -e "  ${_cyan}NOTE:${_norm} In order to perform a silent install ConsolePi.yaml needs to be pre-staged/pre-configured in /home/<user>/consolepi-stage directory"
+    fi
+    echo -e "\t> $_cmd -C /home/pi/consolepi-stage/installer.conf -silent"
+    echo
+    echo "  Alternatively the necessary arguments can be passed in via cmd line arguments"
+    echo -e "  ${_cyan}NOTE:${_norm} Showing minimum required options for a silent install.  ConsolePi.yaml has to exist"
+    echo -e "        wlan_country will default to US, No changes will be made re timezone, ipv6 & hostname"
+    echo -e "\t> $_cmd -C /home/pi/consolepi-stage/installer.conf -silent --consolepi-pass='c0nS0lePi!' --pi-pass='c0nS0lePi!'"
     echo
 }
 

@@ -22,7 +22,7 @@ run() {
                 cat /var/log/ConsolePi/${log_file}
                 ;;
             -install)
-                log_file="installer.log"
+                log_file="install.log"
                 [ -z "$2" ] && cat /var/log/ConsolePi/${log_file} ||
                     tail -${2//-/} /var/log/ConsolePi/$log_file
                 shift 2

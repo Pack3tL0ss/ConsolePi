@@ -171,14 +171,22 @@ pre_git_prep() {
                     logit "consolepi user created silently with config/cmd-line argument" || logit "Error silently creating consolepi user" "ERROR"
             else
                 echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
-                if adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file; then
-                    user_input true "Make consolepi user auto-launch menu on login"
-                    $result && echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
-                else
+                adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file ||
                     logit "Error adding consolepi user check $log_file" "ERROR"
-                fi
             fi
         fi
+
+        if [ ! -z auto_launch ]; then
+            echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
+        else
+            if ! $silent; then
+                user_input true "Make consolepi user auto-launch menu on login"
+                $result && echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
+            else
+                logit "consolepi user auto-launch menu bypassed -silent install lacking --auto_launch flag="
+            fi
+        fi
+
 
         # Create additional Users (with appropriate rights for ConsolePi)
         if ! $silent; then
@@ -496,6 +504,7 @@ show_usage() {
     _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables"
     _help "--hostname=<hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
     _help "--tz=<i.e. 'America/Chicago'>" "If set will bypass tz prompt on install and configure based on this value"
+    _help "--auto_launch='<true|false>'" "Bypass prompt 'Auto Launch menu when consolepi user logs in' - set based on this value"
     _help "--consolepi_pass='<password>'" "Use single quotes: Bypass prompt on install set consolepi user pass to this value"
     _help "--pi_pass=<'password>" "Use single quotes: Bypass prompt on install set pi user pass to this value"
     echo "    pi user can be deleted after initial install if desired, A non silent install will prompt for additional users and set appropriate group perms"
@@ -564,15 +573,15 @@ process_args() {
                 dis_ipv6=true
                 shift
                 ;;
-            --hostname=*) # set hostname
+            --hostname=*)
                 hostname=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --tz=*) # set timezone
+            --tz=*) # timezone
                 tz=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --wlan_country=*) # set timezone
+            --wlan_country=*)
                 wlan_country=$(echo "${1^^}"| cut -d= -f2)
                 shift
                 ;;
@@ -580,7 +589,11 @@ process_args() {
                 consolepi_pass=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --pi_pass=*) # consolepi user's password
+            --auto_launch=*)
+                auto_launch=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            --pi_pass=*) # pi user's password
                 pi_pass=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;

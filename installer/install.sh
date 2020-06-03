@@ -10,7 +10,7 @@
 # --                                                                                                                                             -- #
 # --  This is the main installer file it imports and calls the other 2 files after prepping /etc/ConsolePi                                       -- #
 # --    All files source common functions from common.sh pulled directly from git repo                                                           -- #
-# --    Sequence: install.sh (prep, common imports) --> config.sh (get configuration/user input) --> update.sh (perform install/updates)         -- #
+# --    Sequence: install.sh (prep, common imports, git) --> config.sh (get configuration/user input) --> update.sh (perform install/updates)    -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 get_common() {
@@ -28,7 +28,9 @@ get_common() {
         fi
     else
         if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
-            sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
+            local iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
+            sudo -u $iam sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
+            echo "ERROR: -dev sftp get failed"
         else
             [[ -f /etc/ConsolePi/installer/common.sh ]] && cp /etc/ConsolePi/installer/common.sh /tmp ||
             echo "ERROR: This is the dev ConsolePi, script called with -dev flag, but common.sh not found in installer dir"
@@ -81,7 +83,7 @@ do_apt_update() {
         fi
 
         process_cmds -stop -e -pf "install/update git" -apt-install "git"
-        logit "Update/Upgrade ConsolePi (apt) - Complete"
+        logit "$process - Complete"
     else
         logit "apt updates skipped based on -noapt argument" "WARNING"
     fi
@@ -516,12 +518,12 @@ process_args() {
                 fi
                 shift 2
                 ;;
-            --hostname=*) # set hostname
-                hostname=$(echo "$1"| cut -d= -f2)
-                shift
-                ;;
             -noipv6) # disable ipv6
                 dis_ipv6=true
+                shift
+                ;;
+            --hostname=*) # set hostname
+                hostname=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             --tz=*) # set timezone

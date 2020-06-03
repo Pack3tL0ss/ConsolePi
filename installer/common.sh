@@ -34,21 +34,6 @@ _yellow='\e[33;1m'
 _green='\e[32m'
 _cyan='\e[96m' # technically light cyan
 
-green() {
-    echo -e "${_green}${*}${_norm}"
-}
-
-bold() { # bold green
-    echo -e "${_bold}${*}${_norm}"
-}
-
-cyan() {
-    echo -e "${_cyan}${*}${_norm}"
-}
-
-red() {
-    echo -e "${_red}${*}${_norm}"
-}
 # vpn_dest=$(sudo grep -G "^remote\s.*" /etc/openvpn/client/ConsolePi.ovpn | awk '{print $2}')
 
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false

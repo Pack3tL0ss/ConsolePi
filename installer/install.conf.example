@@ -1,0 +1,22 @@
+#
+# example silent intall configuration use with installer and the -C flag
+#
+
+# required minimum for silent install
+
+silent=true
+consolepi_pass='Cons0LePi!' # consolepi users password
+pi_pass='R3d@cted'          # pi users password
+# us is the default if not provided
+wlan_country=us             # wifi reg domain
+
+
+# The following are skipped during silent install if not provided
+
+dis_ipv6=true               # disable IPv6
+tz=America/Chicago          # Set TimeZone
+hostname=ConsolePi3         # Set Hostname
+auto_launch=true            # auto launch consolepi menu when logging in with consolepi user
+
+
+

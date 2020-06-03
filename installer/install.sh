@@ -171,14 +171,22 @@ pre_git_prep() {
                     logit "consolepi user created silently with config/cmd-line argument" || logit "Error silently creating consolepi user" "ERROR"
             else
                 echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
-                if adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file; then
-                    user_input true "Make consolepi user auto-launch menu on login"
-                    $result && echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
-                else
+                adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file ||
                     logit "Error adding consolepi user check $log_file" "ERROR"
-                fi
             fi
         fi
+
+        if [ ! -z auto_launch ]; then
+            echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
+        else
+            if ! $silent; then
+                user_input true "Make consolepi user auto-launch menu on login"
+                $result && echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
+            else
+                logit "consolepi user auto-launch menu bypassed -silent install lacking --auto_launch flag="
+            fi
+        fi
+
 
         # Create additional Users (with appropriate rights for ConsolePi)
         if ! $silent; then
@@ -469,11 +477,54 @@ do_imports() {
     unset process
 }
 
-show_help() {
+_help() {
+    local pad=$(printf "%0.1s" " "{1..40})
+    printf " %s%*.*s%s.\n" "$1" 0 $((40-${#1})) "$pad" "$2"
+}
+
+show_usage() {
+    # common is not imported here can't use common funcs
+    _green='\e[32;1m' # bold green
+    _cyan='\e[96m'
+    _norm='\e[0m'
+    if [ -f /etc/ConsolePi/src/consolepi-commands/consolepi-upgrade ]; then
+        local _cmd=consolepi-upgrade
+    elif [ -f /usr/local/bin/consolepi-install ]; then
+        local _cmd=consolepi-install
+    else
+        local _cmd="sudo $(echo $SUDO_COMMAND | cut -d' ' -f1)"
+    fi
+    echo -e "\n${_green}USAGE:${_norm} $_cmd [OPTIONS]\n"
+    echo -e "${_cyan}Available Options${_norm}"
+    _help "--help | -help | help" "Display this help text"
+    _help "-silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
+    _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
+    echo "    Copy the example file to your home dir and make edits to use"
+    _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"
+    _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables"
+    _help "--hostname=<hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
+    _help "--tz=<i.e. 'America/Chicago'>" "If set will bypass tz prompt on install and configure based on this value"
+    _help "--auto_launch='<true|false>'" "Bypass prompt 'Auto Launch menu when consolepi user logs in' - set based on this value"
+    _help "--consolepi_pass='<password>'" "Use single quotes: Bypass prompt on install set consolepi user pass to this value"
+    _help "--pi_pass=<'password>" "Use single quotes: Bypass prompt on install set pi user pass to this value"
+    echo "    pi user can be deleted after initial install if desired, A non silent install will prompt for additional users and set appropriate group perms"
+    echo -e "    ${_cyan}Any manually added users should be members of 'dialout' and 'consolepi' groups for ConsolePi to function properly${_norm}"
     echo
-    echo " All Available Command Line arguments are intended primarily for dev/testing use."
+    echo "The Following optional arguments are more for dev, but can be useful in some other scenarios"
+    _help "-noapt" "Skip the apt update/upgrade portion of the Upgrade.  Should not be used on initial installs."
+    _help "-nopip" "Skip pip install -r requirements.txt.  Should not be used on initial installs."
     echo
-    echo " Valid Arguments include '-dev, -nopip, -noapt, -silent (silent is not implemented yet)'"
+    echo -e "${_cyan}Examples:${_norm}"
+    echo "  This example specifies a config file with -C (telling it to get some info from the specified config) as well as the silent install option (no prompts)"
+    if [[ ! "$_cmd" =~ "upgrade" ]]; then
+        echo -e "  ${_cyan}NOTE:${_norm} In order to perform a silent install ConsolePi.yaml needs to be pre-staged/pre-configured in /home/<user>/consolepi-stage directory"
+    fi
+    echo -e "\t> $_cmd -C /home/pi/consolepi-stage/installer.conf -silent"
+    echo
+    echo "  Alternatively the necessary arguments can be passed in via cmd line arguments"
+    echo -e "  ${_cyan}NOTE:${_norm} Showing minimum required options for a silent install.  ConsolePi.yaml has to exist"
+    echo -e "        wlan_country will default to US, No changes will be made re timezone, ipv6 & hostname"
+    echo -e "\t> $_cmd -silent --consolepi-pass='c0nS0lePi!' --pi-pass='c0nS0lePi!'"
     echo
 }
 
@@ -522,15 +573,15 @@ process_args() {
                 dis_ipv6=true
                 shift
                 ;;
-            --hostname=*) # set hostname
+            --hostname=*)
                 hostname=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --tz=*) # set timezone
+            --tz=*) # timezone
                 tz=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --wlan_country=*) # set timezone
+            --wlan_country=*)
                 wlan_country=$(echo "${1^^}"| cut -d= -f2)
                 shift
                 ;;
@@ -538,13 +589,17 @@ process_args() {
                 consolepi_pass=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --pi_pass=*) # consolepi user's password
+            --auto_launch=*)
+                auto_launch=$(echo "$1"| cut -d= -f2)
+                shift
+                ;;
+            --pi_pass=*) # pi user's password
                 pi_pass=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             # -- \silent install options --
             help|-help|--help)
-                show_help
+                show_usage
                 exit 0
                 ;;
             *) # -*|--*=) # unsupported flags

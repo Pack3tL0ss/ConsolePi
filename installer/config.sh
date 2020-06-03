@@ -354,7 +354,6 @@ verify() {
 }
 
 config_main() {
-    echo "silent (config start): $silent"
     get_static
     get_config
     if ! $silent; then
@@ -364,7 +363,5 @@ config_main() {
             verify
         done
     fi
-    echo "silent (b4 update config): $silent"
     update_config
-    echo "silent (end config): $silent"
 }

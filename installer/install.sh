@@ -512,7 +512,7 @@ show_usage() {
     echo "  Alternatively the necessary arguments can be passed in via cmd line arguments"
     echo -e "  ${_cyan}NOTE:${_norm} Showing minimum required options for a silent install.  ConsolePi.yaml has to exist"
     echo -e "        wlan_country will default to US, No changes will be made re timezone, ipv6 & hostname"
-    echo -e "\t> $_cmd -C /home/pi/consolepi-stage/installer.conf -silent --consolepi-pass='c0nS0lePi!' --pi-pass='c0nS0lePi!'"
+    echo -e "\t> $_cmd -silent --consolepi-pass='c0nS0lePi!' --pi-pass='c0nS0lePi!'"
     echo
 }
 

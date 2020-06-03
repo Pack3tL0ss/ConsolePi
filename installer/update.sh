@@ -1050,7 +1050,7 @@ update_main() {
     else
         _msg="Success Silent Install Complete"
         [[ "$warn_cnt" > 0 ]] && _msg="$msg Warnings Exist ($warn_cnt)"
-        logit "$_msg"
+        logit "${_msg}"; printf '\a'
     fi
 }
 

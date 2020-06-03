@@ -1049,13 +1049,13 @@ update_main() {
         get_utils
         util_main
     fi
-    echo "silent: $silent"
+
     if ! $silent; then
         get_known_ssids
         get_serial_udev
     else
         process="Configure WLAN - Predictable Console Ports"
-        logit "WLAN and Predictable Console Port Prompts bypassed due to -silent flag"
+        logit "Prompts bypassed due to -silent flag"
     fi
     custom_post_install_script
     if ! $silent; then

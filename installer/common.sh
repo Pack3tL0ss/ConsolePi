@@ -422,30 +422,15 @@ get_pi_info() {
     [ ! -z $branch ] && [ $branch != "master" ] && logit "Running alternate branch: ${_green}$branch${_norm}"
     git_rem=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git remote -v | head -1 | cut -d '(' -f-1 ; popd >/dev/null 2>&1)
     [[ ! -z $git_rem ]] && [[ $(echo $git_rem | awk '{print $2}') != $consolepi_source ]] && logit "Using alternative repo: ${_green}$git_rem${_norm}"
-    # cat /etc/os-release
-    # alternative method to get memory
-    # echo $(($(free -h |grep "^Mem:" | awk '{print $2}' | cut -d. -f1) + 1))
-    # alternative method to get model string
-    # grep '^Model' /proc/cpuinfo | cut -d: -f2 |cut -d' ' -f2-
-    ver_full=$(head -1 /etc/debian_version)
-    ver=$(echo $ver_full | cut -d. -f1)
-
-    if [ $ver -eq 10 ]; then
-        version="RaspiOS $ver_full (Buster)"
-    elif [ $ver -eq 9 ]; then
-        version="Raspbian $ver_full (Stretch)"
-    elif [ $ver -eq 8 ]; then
-        version="Raspbian $ver_full (Jessie)"
-    else
-        version="Raspbian $ver_full (Wheezy)"
-    fi
-
     cpu=$(cat /proc/cpuinfo | grep 'Hardware' | awk '{print $3}')
-    rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}' | sed 's/^1000//')
+    rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}') # | sed 's/^1000//')
     model_pretty=$(get_pi_info_pretty $rev)
     # echo -e "$version running on $cpu Revision: $rev\n    $model_pretty"
     logit "$model_pretty"
-    logit "$version running on $cpu Revision: $rev"
+    # logit "$version running on $cpu Revision: $rev"
+    [ -f /etc/os-release ] && . /etc/os-release && logit "$NAME $(head -1 /etc/debian_version) ($VERSION_CODENAME) running on $cpu Revision: $rev"
+    # _mem=$(free -h |grep "^Mem:" | awk '{print $2}');_mem=$(echo "$((${_mem:0:1}+1))${_mem:3:1}")
+    # logit "$(grep '^Model' /proc/cpuinfo | cut -d: -f2 |cut -d' ' -f2-) $_mem"
     logit "$(uname -a)"
     dpkg -l | grep -q raspberrypi-ui && logit "RaspiOS with Desktop" || logit "RaspiOS Lite"
     logit "Python 3 Version $(python3 -V)"

@@ -880,7 +880,7 @@ custom_post_install_script() {
         if [[ $found_path ]]; then
             process="Run Custom Post-install script"
             logit "Post Install Script ${found_path} Found. Executing"
-            sudo $found_path && logit "Post Install Script Complete No Errors" ||
+            $found_path && logit "Post Install Script Complete No Errors" ||
                 logit "Error Code returned by Post Install Script" "WARNING"
             unset process
         fi

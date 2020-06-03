@@ -1047,6 +1047,10 @@ update_main() {
     custom_post_install_script
     if ! $silent; then
         post_install_msg
+    else
+        _msg="Success Silent Install Complete"
+        [[ "$warn_cnt" > 0 ]] && _msg="$msg Warnings Exist ($warn_cnt)"
+        logit "$_msg"
     fi
 }
 

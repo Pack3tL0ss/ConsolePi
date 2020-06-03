@@ -1038,6 +1038,7 @@ update_main() {
         get_utils
         util_main
     fi
+    echo "silent: $silent"
     if ! $silent; then
         get_known_ssids
         get_serial_udev

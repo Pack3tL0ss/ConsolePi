@@ -446,8 +446,9 @@ convert_template() {
 }
 
 process_yaml() {
-    $yml_script "${@}" > $tmp_src 2>>$log_file && . $tmp_src && rm $tmp_src ||
+    $yml_script "${@}" > $tmp_src 2>>$log_file && . $tmp_src ||
         logit "Error returned from yaml config import ($yml_script ${@}), check $log_file" "ERROR"
+    [ -f $tmp_src ] && rm $tmp_src
 }
 
 do_systemd_enable_load_start() {

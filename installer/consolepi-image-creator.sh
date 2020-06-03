@@ -80,7 +80,7 @@ do_defaults() {
     IMG_TYPE=${img_type:-'lite'}
     IMG_ONLY=${img_only:-false}
     AUTO_INSTALL=${auto_install:-true}
-    SKIP_MASS_IMPORT=${skip_mass_import:-false}
+    MASS_IMPORT=${mass_import}
     # ---------------------------------------------------------------------------------------
 
     STAGE_DIR='consolepi-stage'
@@ -260,17 +260,21 @@ do_import_configs() {
     fi
 
     # -- If image being created from a ConsolePi offer to import settings --
-    if $ISCPI && ! $SKIP_MASS_IMPORT; then
-        header -c
-        echo -e "\n-----------------------  $(green 'This is a ConsolePi') -----------------------\n"
-        echo -e "You can mass import settings from this ConsolePi onto the new image."
-        echo -e "The following files will be evaluated:\n"
-        for f in "${STAGE_FILES[@]}"; do echo -e "\t${f//STAGE:/}" ; done
-        echo -e "\nAny files already staged via $STAGE_DIR will be skipped"
-        echo -e "Any files not found on this ConsolePi will by skipped\n"
-        echo '--------------------------------------------------------------------'
-        get_input "Perform mass import"
-        if $input; then
+    if $ISCPI; then
+        # header -c
+        if [ ! -z $MASS_IMPORT ]; then
+            echo -e "\n-----------------------  $(green 'This is a ConsolePi') -----------------------\n"
+            echo -e "You can mass import settings from this ConsolePi onto the new image."
+            echo -e "The following files will be evaluated:\n"
+            for f in "${STAGE_FILES[@]}"; do echo -e "\t${f//STAGE:/}" ; done
+            echo -e "\nAny files already staged via $STAGE_DIR will be skipped"
+            echo -e "Any files not found on this ConsolePi will by skipped\n"
+            echo '--------------------------------------------------------------------'
+            get_input "Perform mass import"
+            MASS_IMPORT=$input
+        fi
+
+        if $MASS_IMPORT; then
             sudo -u $SUDO_USER mkdir -p $IMG_STAGE
             echo
             for f in "${STAGE_FILES[@]}"; do
@@ -491,11 +495,11 @@ main() {
 
     # Create empty file ssh in boot partition
     dots "Enabling ssh on image"
-    sudo touch /mnt/usb1/ssh ; do_error $? # && echo -e " + SSH is now enabled" || echo ' - Error enabling SSH... script will continue anyway'
+    touch /mnt/usb1/ssh ; do_error $? # && echo -e " + SSH is now enabled" || echo ' - Error enabling SSH... script will continue anyway'
 
     # Done with boot partition unmount
     dots "unmount boot partition"
-    sync && sudo umount /mnt/usb1 ; do_error $?
+    sync && umount /mnt/usb1 ; do_error $?
 
     # EXIT IF img_only option = true
     $IMG_ONLY && echo -e "\nimage only option configured.  No Pre-Staging will be done. \n$(green 'Consolepi image ready')\n" && exit 0
@@ -521,7 +525,6 @@ main() {
 
     # Configure pi user to auto-launch ConsolePi installer on first-login
     if $AUTO_INSTALL; then
-        # echo -e "\nauto-install enabled, configuring pi user to auto-launch ConsolePi installer on first-login\n"
         dots "Configure Auto-Install on first login"
         echo '#!/usr/bin/env bash' > /mnt/usb2/usr/local/bin/consolepi-install
 
@@ -538,7 +541,7 @@ main() {
 
         # make install command/script executable
         sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install &&
-            echo OK && echo -e "\tConfigured the following arguments $(cyan ${cmd_line})" ||
+            echo OK && echo "     Configured with the following args $(cyan ${cmd_line})" ||
             ( echo "ERROR"; echo -e "\tERROR making consolepi-install command executable" )
     fi
 
@@ -549,7 +552,7 @@ main() {
     [ ! -f /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ] && echo -e "\nwarning ~ WLAN configuration not provided, WLAN has *not* been pre-configured"
 
     # Done prepping system partition un-mount
-    sudo umount /mnt/usb2
+    sync && umount /mnt/usb2
 
     # Remove our mount_points if they didn't happen to already exist when the script started
     ! $usb1_existed && rmdir /mnt/usb1
@@ -585,7 +588,7 @@ show_usage() {
     _help "--img_only=<true|false>" "If set to true no pre-staging will be done other than enabling SSH (Default: false)"
     _help "--auto_install=<true|false>" "If set to false image will not be configured to auto launch to installer on first login (Default true)"
     _help "--cmd_line='<cmd_line arguments>'" "*Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image"
-    _help "--skip_mass_import=<true|false>" "Bypass mass_import prompt presented when the system creating the image is a ConsolePi"
+    _help "--mass_import=<true|false>" "Bypass mass_import prompt presented when the system creating the image is a ConsolePi. perform mass_import based on this value <true|false>"
     echo
     echo -e "The consolepi-image-creator will also look for consolepi-image-creator.conf in the same directory for the above settings"
     echo
@@ -654,8 +657,8 @@ parse_args() {
                 cmd_line=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
-            --skip_mass_import=*) # skip mass import prompt that appears if script is ran from a ConsolePi
-                skip_mass_import=$(echo "$1"| cut -d= -f2)
+            --mass_import=*) # skip mass import prompt that appears if script is ran from a ConsolePi
+                mass_import=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             *) ## -*|--*=) # unsupported flags

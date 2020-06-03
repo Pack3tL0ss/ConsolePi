@@ -109,7 +109,9 @@ set_timezone() {
         else
             rm /etc/localtime
             echo "$tz" > /etc/timezone
-            dpkg-reconfigure -f noninteractive tzdata
+            dpkg-reconfigure -f noninteractive tzdata 2 >>$log_file &&
+                "Set new TimeZone to $(date +"%Z") based on tz arg/config option Success" ||
+                    logit "FAILED to set new TimeZone based on tz arg/config option" "WARNING"
         fi
         unset tz
     else

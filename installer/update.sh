@@ -13,7 +13,8 @@
 chg_password() {
     if grep -q "^pi:" /etc/passwd && [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
         if [ ! -z "$pi_pass" ]; then
-            echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password"
+            echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
+                logit "Error occured changing pi password using conf/cmd_line arg" "WARNING"
         else
             header
             echo "You are logged in as pi, and the default password has not been changed"
@@ -44,7 +45,7 @@ set_hostname() {
 
         # -- collect desired hostname from user - bypass collection if set via cmd line or config --
         [ ! -z "$hostname" ] && newhost=$hostname && unset hostname
-        if [ ! -z "$newhost" ]; then # hostname passed into installer as param
+        if [ -z "$newhost" ]; then
             header
 
             valid_response=false

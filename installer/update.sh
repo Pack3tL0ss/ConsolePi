@@ -136,6 +136,7 @@ set_timezone() {
 # -- if ipv6 is enabled present option to disable it --
 disable_ipv6()  {
     process="Disable ipv6"
+    [ -f /etc/sysctl.d/99-noipv6.conf ] && dis_ipv6=true # just bypases prompt when testing using -install flag
     if [ -z "$dis_ipv6" ]; then
         prompt="Do you want to disable ipv6"
         dis_ipv6=$(user_input_bool)

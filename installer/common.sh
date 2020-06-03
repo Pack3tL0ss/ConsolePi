@@ -505,23 +505,23 @@ process_cmds() {
         # echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
         case "$1" in
             -stop) # will stop function from exec remaining commands on failure (witout exit 1)
-                stop=true
+                local stop=true
                 shift
                 ;;
             -e) # will result in exit 1 if cmd fails
-                fail_lvl="ERROR"
+                local fail_lvl="ERROR"
                 shift
                 ;;
             -s) # only show msg if cmd fails
-                silent=true
+                local silent=true
                 shift
                 ;;
             -u) # Run Command as logged in User
-                cmd_pfx="sudo -u $iam"
+                local cmd_pfx="sudo -u $iam"
                 shift
                 ;;
             -nolog) # Don't log stderr anywhere default is to log_file
-                err="/dev/null"
+                local err="/dev/null"
                 shift
                 ;;
             -logit|-l) # Used to simply log a message
@@ -537,64 +537,63 @@ process_cmds() {
                 esac
                 ;;
             -nostart) # elliminates the process start msg
-                showstart=false
+                local showstart=false
                 shift
                 ;;
             -apt-install) # install pkg via apt
                 local do_apt_install=true
                 shift
-                go=true; while (( "$#" )) && $go ; do
+                local go=true; while (( "$#" )) && $go ; do
                     # echo -e "DEBUG apt-install ~ Currently evaluating: '$1'" # -- DEBUG LINE --
                     case "$1" in
                         --pretty=*)
-                            pname=${1/*=}
+                            local pname=${1/*=}
                             shift
                             ;;
                         --exclude=*)
-                            pexclude=${1/*=}
+                            local pexclude=${1/*=}
                             shift
                             ;;
                         *)
                             if [[ -z $pkg ]] ; then
-                                pkg=$1
-                                [[ -z $pname ]] && pname=$1
+                                local pkg=$1
+                                [[ -z $pname ]] && local pname=$1
                                 shift
                             else
-                                go=false
+                                local go=false
                             fi
                             ;;
                     esac
                 done
-                pmsg="Success - Install $pname (apt)"
-                fmsg="Error - Install $pname (apt)"
-                stop=true
-                [[ ! -z $pexclude ]] && cmd="sudo apt-get -y install $pkg ${pexclude}-" ||
-                    cmd="sudo apt-get -y install $pkg"
-                # shift $_shift
+                local pmsg="Success - Install $pname (apt)"
+                local fmsg="Error - Install $pname (apt)"
+                local stop=true
+                [[ ! -z $pexclude ]] && local cmd="sudo apt-get -y install $pkg ${pexclude}-" ||
+                    local cmd="sudo apt-get -y install $pkg"
                 ;;
             -apt-purge) # purge pkg followed by autoremove
                 case "$3" in
                     --pretty=*)
-                        pname=${3/*=}
+                        local pname=${3/*=}
                         _shift=3
                         ;;
                     *)
-                        pname=$2
+                        local pname=$2
                         _shift=2
                         ;;
                 esac
-                pmsg="Success - Remove $pname (apt)"
-                fmsg="Error - Remove $pname (apt)"
-                cmd="sudo apt-get -y purge $2"
+                local pmsg="Success - Remove $pname (apt)"
+                local fmsg="Error - Remove $pname (apt)"
+                local cmd="sudo apt-get -y purge $2"
                 shift $_shift
                 ;;
             -o) # redirect stdout default is /dev/null
-                out="$2"
+                local out="$2"
                 shift 2
                 ;;
             -pf|-fp) # msg template for both success and failure in 1
-                pmsg="Success - $2"
-                fmsg="Error - $2"
+                local pmsg="Success - $2"
+                local fmsg="Error - $2"
                 shift 2
                 ;;
             -p) # msg displayed if command successful
@@ -610,29 +609,30 @@ process_cmds() {
                 exit 1
                 ;;
             *) # The command to execute, all flags should precede the commands otherwise defaults for those items
-                cmd="$1"
+                local cmd="$1"
                 shift
                 ;;
         esac
         # if cmd is set process cmd
         # use defaults if flag not set
         if [[ ! -z $cmd ]]; then
-            [[ -z $pmsg ]] && pmsg="Success - $cmd"
-            [[ -z $fmsg ]] && fmsg="Error - $cmd  See details in $log_file"
-            [[ -z $fail_lvl ]] && fail_lvl="WARNING"
-            [[ -z $silent ]] && silent=false
-            [[ -z $stop ]] && stop=false
-            [[ -z $err ]] && err=$log_file
-            [[ ! -z $cmd_pfx ]] && cmd="$cmd_pfx $cmd"
-            [[ -z $out ]] && out='/dev/null'
-            [[ -z $showstart ]] && showstart=true
-            [[ -z $do_apt_install ]] && do_apt_install=false
+            # [[ -z $pmsg ]] && local pmsg="Success - $cmd"
+            local pmsg=${pmsg:-"Success - $cmd"}
+            [[ -z $fmsg ]] && local fmsg="Error - $cmd  See details in $log_file"
+            [[ -z $fail_lvl ]] && local fail_lvl="WARNING"
+            [[ -z $silent ]] && local silent=false
+            [[ -z $stop ]] && local stop=false
+            [[ -z $err ]] && local err=$log_file
+            [[ ! -z $cmd_pfx ]] && local cmd="$cmd_pfx $cmd"
+            [[ -z $out ]] && local out='/dev/null'
+            [[ -z $showstart ]] && local showstart=true
+            [[ -z $do_apt_install ]] && local do_apt_install=false
             # echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
             # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
             # -- // PROCESS THE CMD \\ --
             ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
             if eval "$cmd" >>"$out" 2>>"$err"; then
-                cmd_failed=false
+                local cmd_failed=false
                 ! $silent && logit "$pmsg"
                 # if cmd was an apt-get purge - automatically issue autoremove to clean unnecessary deps
                 # TODO re-factor to only do purge at the end of all other proccesses
@@ -643,15 +643,15 @@ process_cmds() {
                         logit "Error - apt autoremove returned error-code" "WARNING"
                 fi
             else
-                cmd_failed=true
+                local cmd_failed=true
                 if $do_apt_install ; then
-                    x=1
+                    local x=1
                     while [[ $(tail -2 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
                         logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
                         sleep 5
                         logit "Starting ${pmsg/Success - /} ~ retry $x"
                         if eval "$cmd" >>"$out" 2>>"$err"; then
-                            cmd_failed=false
+                            local cmd_failed=false
                             ! $silent && logit "$pmsg"
                         fi
                         ((x+=1))
@@ -665,9 +665,9 @@ process_cmds() {
             fi
             # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
             # -- // unset all flags \\ --
-            for c in "${reset_vars[@]}"; do
-                unset ${c}
-            done
+            # for c in "${reset_vars[@]}"; do
+            #     unset ${c}
+            # done
         fi
 
     done

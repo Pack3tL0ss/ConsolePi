@@ -108,7 +108,7 @@ set_timezone() {
             logit "Timezone Already Configured ($tz)"
         else
             rm /etc/localtime
-            echo "$TIMEZONE" > /etc/timezone
+            echo "$tz" > /etc/timezone
             dpkg-reconfigure -f noninteractive tzdata
         fi
         unset tz

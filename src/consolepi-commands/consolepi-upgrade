@@ -21,7 +21,8 @@ done
 if $local_dev; then
     echo "Local Pull"
     if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
-        sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${ARGS[@]}" && sudo rm /tmp/ConsolePi
+        iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
+        sudo -u $iam sftp pi@consolepi-dev:/etc/ConsolePi/installer/install.sh /tmp/ConsolePi >/dev/null && sudo bash /tmp/ConsolePi "${ARGS[@]}" && sudo rm /tmp/ConsolePi
     else
         if [[ -f /etc/ConsolePi/installer/install.sh ]]; then
             cp /etc/ConsolePi/installer/install.sh /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${ARGS[@]}" && rm /tmp/ConsolePi ||

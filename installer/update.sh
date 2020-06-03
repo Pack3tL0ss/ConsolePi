@@ -136,6 +136,7 @@ set_timezone() {
 # -- if ipv6 is enabled present option to disable it --
 disable_ipv6()  {
     process="Disable ipv6"
+    [ -f /etc/sysctl.d/99-noipv6.conf ] && dis_ipv6=true # just bypases prompt when testing using -install flag
     if [ -z "$dis_ipv6" ]; then
         prompt="Do you want to disable ipv6"
         dis_ipv6=$(user_input_bool)
@@ -170,7 +171,7 @@ misc_imports(){
         fi
 
         # -- pre staged cloud creds --
-        if $cloud && [[ -d ${stage_dir}/.credentials ]]; then
+        if $cloud && [[ -f ${stage_dir}/.credentials/credentials.json ]]; then
             found_path=${stage_dir}/.credentials
             mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
             logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
@@ -683,7 +684,7 @@ do_consolepi_mdns() {
 
 # Configure ConsolePi with the SSIDs it will attempt to connect to as client prior to falling back to hotspot
 get_known_ssids() {
-    process="Get Known SSIDs"
+    process="Configure WLAN"
     logit "${process} Started"
     header
     if [ -f $wpa_supplicant_file ] && [[ $(cat $wpa_supplicant_file|grep -c network=) > 0 ]] ; then
@@ -824,7 +825,7 @@ get_serial_udev() {
     echo "-     ---- If you're interested I reccomend adapters that use FTDI chips. ----                                      -"
     echo "-                                                                                                                   -"
     echo -e "-  This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from              -"
-    echo -e "-    ${_cyan}consolepi-menu${_norm} via the `rn` (rename) option.                                                                 -"
+    echo -e "-    ${_cyan}consolepi-menu${_norm} via the 'rn' (rename) option.                                                                 -"
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
@@ -1038,11 +1039,13 @@ update_main() {
         get_utils
         util_main
     fi
+    echo "silent: $silent"
     if ! $silent; then
         get_known_ssids
         get_serial_udev
     else
-        logit "SSID and Predictable Console Port Prompts bypassed due to -silent flag"
+        process="Configure WLAN - Predictable Console Ports"
+        logit "WLAN and Predictable Console Port Prompts bypassed due to -silent flag"
     fi
     custom_post_install_script
     if ! $silent; then

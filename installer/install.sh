@@ -10,7 +10,7 @@
 # --                                                                                                                                             -- #
 # --  This is the main installer file it imports and calls the other 2 files after prepping /etc/ConsolePi                                       -- #
 # --    All files source common functions from common.sh pulled directly from git repo                                                           -- #
-# --    Sequence: install.sh (prep, common imports) --> config.sh (get configuration/user input) --> update.sh (perform install/updates)         -- #
+# --    Sequence: install.sh (prep, common imports, git) --> config.sh (get configuration/user input) --> update.sh (perform install/updates)    -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 get_common() {
@@ -28,7 +28,9 @@ get_common() {
         fi
     else
         if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
-            sudo -u pi sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh
+            local iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
+            sudo -u $iam sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
+            echo "ERROR: -dev sftp get failed"
         else
             [[ -f /etc/ConsolePi/installer/common.sh ]] && cp /etc/ConsolePi/installer/common.sh /tmp ||
             echo "ERROR: This is the dev ConsolePi, script called with -dev flag, but common.sh not found in installer dir"
@@ -61,24 +63,27 @@ do_apt_update() {
         logit "Update Sources"
         # Only update if initial install (no install.log) or if last update was not today
         if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
-            sudo apt-get update 1>/dev/null 2>> $log_file && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+            res=$(apt update 2>>$log_file) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+            [[ "$res" =~ "--upgradable" ]] && res=$(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         else
             logit "Skipping Source Update - Already Updated today"
+            res=$(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         fi
 
-        logit "Upgrading ConsolePi via apt. This may take a while"
-        sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
+        if [ -z "$res" ]; then
+            logit "Upgrading the following packages\n\n$res\n"
+            logit "Upgrading ConsolePi via apt. This may take a while"
+            sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
 
-        logit "Performing dist-upgrade"
-        sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
+            logit "Performing dist-upgrade"
+            sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
 
-        logit "Tidying up (autoremove)"
-        apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
+            logit "Tidying up (autoremove)"
+            apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
+        fi
 
-        logit "Install/update git (apt)"
-        # apt-get -y install git 1>/dev/null 2>> $log_file && logit "git install/upgraded Successful" || logit "git install/upgrade FAILED to install" "ERROR"
         process_cmds -stop -e -pf "install/update git" -apt-install "git"
-        logit "Process Complete"
+        logit "$process - Complete"
     else
         logit "apt updates skipped based on -noapt argument" "WARNING"
     fi
@@ -329,7 +334,7 @@ do_pyvenv() {
 
     # -- Check that git pull didn't bork venv ~ I don't think I handled the removal of venv from git properly seems to break things if it was already installed --
     if [ -d ${consolepi_dir}venv ] && [ ! -x ${consolepi_dir}venv/bin/python3 ]; then
-        sudo mv ${consolepi_dir}venv $bak_dir && logit "existing venv found, moved to bak, new venv will be created (it is OK to delete anything in bak)"
+        mv ${consolepi_dir}venv $bak_dir && logit "existing venv found, moved to bak, new venv will be created (it is OK to delete anything in bak)"
     fi
 
     # -- Ensure python3-pip is installed --
@@ -495,7 +500,7 @@ process_args() {
                 doapt=false
                 shift
                 ;;
-            -silent)  # Not implemented yet
+            -silent)  # silent install
                 silent=true
                 shift
                 ;;
@@ -513,12 +518,12 @@ process_args() {
                 fi
                 shift 2
                 ;;
-            --hostname=*) # set hostname
-                hostname=$(echo "$1"| cut -d= -f2)
-                shift
-                ;;
             -noipv6) # disable ipv6
                 dis_ipv6=true
+                shift
+                ;;
+            --hostname=*) # set hostname
+                hostname=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             --tz=*) # set timezone

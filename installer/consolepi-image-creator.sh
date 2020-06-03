@@ -66,6 +66,7 @@ _lred='\e[91m'
 _yellow='\e[33;1m'
 _green='\e[32m'
 _cyan='\e[96m' # technically light cyan
+_excl="${_red}${_blink}"'!!!!'"${_norm}"
 
 nodd=false
 
@@ -120,7 +121,7 @@ header() {
 
 dots() {
     local pad=$(printf "%0.1s" "."{1..70})
-    printf " + %s%*.*s" "$1" 0 $((70-${#1})) "$pad"
+    printf " ~ %s%*.*s" "$1" 0 $((70-${#1})) "$pad"
     return 0
 }
 
@@ -296,7 +297,7 @@ do_import_configs() {
                     if [ ! -f "$src" ]; then
                         echo "Skipped - File Not Found"
                     elif [ -f "$dst" ]; then
-                        echo "Skipped - Already Pre-Staged"
+                        echo "Skipped - Already Staged"
                     fi
                 fi
             done
@@ -365,6 +366,14 @@ main() {
         echo -e "Script failed to detect removable flash device, you will need to specify the device"
 
     show_disk_details ${my_usb}
+
+    # -- check if detected media is mounted to / or /boot and exit if so This is a fail-safe Should not happen --
+    if mount | grep "^.* on /\s.*\|^.* on /boot\s.*" | grep -q "/dev/${my_usb}[p]\{0,1\}1\|/dev/${my_usb}[p]\{0,1\}2"; then
+        oh_shit=$(mount | grep "^.* on /\s.*\|^.* on /boot\s.*" | grep "/dev/${my_usb}[p]\{0,1\}1\|/dev/${my_usb}[p]\{0,1\}2")
+        echo -e "${_excl}\t$(green ${my_usb}) $(red "Appears to be mounted as a critical system directory if this is a script flaw please report it.")\t${_excl}"
+        echo -e "\t$(green ${my_usb}) mount: $oh_shit\n\tScript will now exit to prevent borking the running image."
+        exit 1
+    fi
 
     # Give user chance to change target drive
     echo -e "\n\nPress enter to accept $(green "${my_usb}") as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
@@ -460,7 +469,7 @@ main() {
     header -c
     echo -e "\nNow Burning image $(cyan ${img_file}) to $(green ${my_usb}) standby...\n this takes a few minutes\n"
 
-    if ! $nodd; then
+    if ! $nodd; then  # nodd is dev/testing flag to expedite testing of the script (doesn't write image to sd-card)
         dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress &&
             echo -e "\n\n\033[1;32mImage written to flash - no Errors\033[m\n\n" ||
             ( echo -e "\n\n\033[1;32mError occurred burning image\033[m\n\n" && exit 1 )

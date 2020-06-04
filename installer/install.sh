@@ -80,6 +80,8 @@ do_apt_update() {
 
             logit "Tidying up (autoremove)"
             apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
+        else
+            logit "Packages are up to date"
         fi
 
         # if [[ "${#_upgd[@]}" > 0 ]]; then

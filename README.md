@@ -5,7 +5,7 @@ Acts as a serial Console Server, allowing you to remotely connect to ConsolePi v
 *Check out the [ConsolePi Clustering Feature](#consolepi-cluster--cloud-sync)!!*
 
 ***TL;DR:***
-Single Command Install Script. Run from a RaspberryPi running raspbian (that has internet access):
+Single Command Install Script. Run from a RaspberryPi running RaspiOS (that has internet access):
 
 ```
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
@@ -35,6 +35,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
       - [ConsolePi Extras](#consolepi-extras)
  - [Installation](#installation)
      - [Automated Installation](#1-automated-installation)
+       - [Silent Install](#silent-install)
      - [Semi-Automatic Install](#2-semi-automatic-install)
      - [Automated Flash Card Imaging/prep](#3-automated-flash-card-imaging-with-auto-install-on-boot)
      - [Alternative Hardware Installs](#alternative-hardware-installs)
@@ -55,8 +56,8 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
 ------
 
 ## *!!!You Now Need Buster, buster!!!*
-Python 3.6 or greater is *now* required for the menu, mdns, and api to work properly.  This simply means if you have a ConsolePi running Raspbian prior to Buster you should build a new one using the Buster image.  The upgrade script will abort if it finds Python ver < 3.6.  Also note if you manually pull via git, it'll probably break.
-> TIP: I use the [ConsolePi_image_creator.sh](#3-automated-flash-card-imaging-with-auto-install-on-boot) script in the installer directory to repeatedly stage and test.  You can use the existing ConsolePi to build it's own upgrade image and stage your existing settings.  This way you'll have the existing sd-card in case you forget to move something.
+Python 3.6 or greater is *now* required for the menu, mdns, and api to work properly.  This simply means if you have a ConsolePi running RaspiOS prior to Buster you should build a new one using the Buster image.  The upgrade script will abort if it finds Python ver < 3.6.  Also note if you manually pull via git, it'll probably break.
+> TIP: I use the [consolepi-image-creator.sh](#3-automated-flash-card-imaging-with-auto-install-on-boot) script in the installer directory to repeatedly stage and test.  You can use the existing ConsolePi to build it's own upgrade image and stage your existing settings.  This way you'll have the existing sd-card in case you forget to move something.  It also allows for auto import of all settings if you use the script from a ConsolePi.
 
 # What's New
 
@@ -77,6 +78,12 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
   - Fix consolepi-details in some scnearios relaating to existence of outlets in config.
   - Fix configuration parsing of yaml for bools, and related nooff setting for outlets
   - Minor Formatting improvements to consolepi-showaliases
+
+### June 2020 v2020.2.4+ (current master ~ not pkgd into a release) significant installer improvements
+  - Support silent install facilitating automated deployment via Ansible
+  - installer creates consolepi user and offers to make it auto-launch menu on login (prev ver created a consolepi group)
+    - This is only for new installs Upgrades are not impacted.
+  - consolepi-image-creator supports mass import if ran from a ConsolePi
 
 # Features
 ## **Feature Summary Image**
@@ -441,11 +448,11 @@ Toward the end of the install, and via `consolepi-extras` anytime after the inst
 If you have a Linux system available you can use the [Flash-Card imaging script](#3.-automated-flash-card-imaging-with-auto-install-on-boot)  to burn the image to a micro-sd, enable SSH, pre-configure a WLAN (optional), and PreConfigure ConsolePi settings (optional).  This script is especially useful for doing headless installations.
 
 **The Following Applies to All Automated Installation methods**
-> Note Previous versions of ConsolePi supported import from either the users home-dir or from a `ConsolePi_stage` subdir in the users home-dir (i.e. `/home/pi/ConsolePi-stage`).  The import logic directly from the home-dir has not been removed, but going forward any new imports will only be tested using the `ConsolePi-Stage` directory for simplicity.
+> Note Previous versions of ConsolePi supported import from either the users home-dir or from a `consolepi-stage` subdir in the users home-dir (i.e. `/home/pi/ConsolePi-stage`).  The import logic directly from the home-dir has not been removed, but going forward any new imports will only be tested using the `ConsolePi-Stage` directory for simplicity.
 
-ConsolePi will **optionally** use pre-configured settings for the following if they are placed in the a `ConsolePi_stage` subdir in the users home folder (i.e. `/home/pi/ConsolePi_stage`).  This is optional, the installer will prompt for the information if not pre-configured.  It will prompt you to verify either way.  *Imports only occur during initial install not upgrades.*
+ConsolePi will **optionally** use pre-configured settings for the following if they are placed in the a `consolepi-stage` subdir in the users home folder (i.e. `/home/pi/consolepi-stage`).  This is optional, the installer will prompt for the information if not pre-configured.  It will prompt you to verify either way.  *Imports only occur during initial install not upgrades.*
 
-- ConsolePi.yaml: This is the main configuration file where all configurable settings are defined.  If provided in the `ConsolePi_stage` dir the installer will ask for verification then create the working config `/etc/ConsolePi/ConsolePi.yaml`
+- ConsolePi.yaml: This is the main configuration file where all configurable settings are defined.  If provided in the `consolepi-stage` dir the installer will ask for verification then create the working config `/etc/ConsolePi/ConsolePi.yaml`
 
 - ConsolePi.ovpn: If using the automatic OpenVPN feature this file is placed in the appropriate directory during the install. *Note: there are a few lines specific to ConsolePi functionality that should be at the end of the file, The installer will verify and add those lines if they don't exist*
 
@@ -457,8 +464,8 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
 
 - wpa_supplicant.conf:  If found during install this file will be copied to /etc/wpa_supplicant.  The file is parsed to determine if any EAP-TLS SSIDs are configured, and if so the associated certificate files are also copied to the directory specified in the wpa_supplicant.conf file.
 
-  certs should be pre-staged in `ConsolePi_stage/cert`
-    > WARNING EAP-TLS raspbian buster wpa_supplicant bug:  (*you can disregard if you are using psk, this only applies to certificate based authentication*) The version of wpa_supplicant of an associated dependency that buster *still* installs has a bug that will prevent EAP-TLS from working (wpa_supplicant v2.8-devel).  On my RPi 3 and 4 units I use the `ConsolePi_init.sh` (described below) file to update wpa_supplicant manually like so:
+  certs should be pre-staged in `consolepi-stage/cert`
+    > WARNING EAP-TLS RaspiOS buster wpa_supplicant bug:  (*you can disregard if you are using psk, this only applies to certificate based authentication*) The version of wpa_supplicant of an associated dependency that buster *still* installs has a bug that will prevent EAP-TLS from working (wpa_supplicant v2.8-devel).  On my RPi 3 and 4 units I use the `ConsolePi_init.sh` (described below) file to update wpa_supplicant manually like so:
     >
     > sudo apt install -y ./libreadline8_8.0-2_armhf.deb
     >
@@ -485,12 +492,55 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
 
 ## **1. Automated Installation**
 
-Install raspbian on a raspberryPi and connect it to the network.
+Install RaspiOS on a raspberryPi and connect it to the network.
 
 Use the command string below to kick-off the automated installer.  The install script is designed to be essentially turn-key.  It will prompt to change hostname, set timezone, and update the pi users password if you're logged in as pi.  Be sure to checkout the [image creator script](#3-automated-flash-card-imaging-with-auto-install-on-boot) if doing a headless install, or if you are creating multiple ConsolePis
 
 ```
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
+```
+
+### Silent Install
+A Silent install (Installation runs without prompts) is possible via cmd line arguments provided to the installer or a config file, where the path to the config is provided to the installer via the `-C </path/to/config/file.conf>` argument.
+
+Refer to [/etc/ConsolePi/installer/install.conf.example](installer/install.conf.example) for an example config.  This command string will download it to your home dir as install.conf and open it in nano for editting.
+```
+wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.conf.example -O ~/install.conf && nano ~/install.conf
+```
+
+> The output below shows `consolepi-upgrade` as the command to launch, the command will be `consolepi-install` on an image created using the [image creator script](#3-automated-flash-card-imaging-with-auto-install-on-boot).  If neither is the case you would call the installer directly (with sudo) and pass in the args (The TL;DR string at the top of this ReadMe can be modified to pass in the arguments)
+```
+pi@ConsolePi-dev:~$ consolepi-upgrade --help
+
+USAGE: consolepi-upgrade [OPTIONS]
+
+Available Options
+ --help | -help | help                   Display this help text.
+ -silent                                 Perform silent install no prompts, all variables reqd must be provided via pre-staged configs.
+ -C|-config <path/to/config>             Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example).
+    Copy the example file to your home dir and make edits to use
+ --wlan_country=<wlan_country>           wlan regulatory domain (Default: US).
+ -noipv6                                 bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables.
+ --hostname=<hostname>                   If set will bypass prompt for hostname and set based on this value (during initial install).
+ --tz=<i.e. 'America/Chicago'>           If set will bypass tz prompt on install and configure based on this value.
+ --auto_launch='<true|false>'            Bypass prompt 'Auto Launch menu when consolepi user logs in' - set based on this value.
+ --consolepi_pass='<password>'           Use single quotes: Bypass prompt on install set consolepi user pass to this value.
+ --pi_pass=<'password>                   Use single quotes: Bypass prompt on install set pi user pass to this value.
+    pi user can be deleted after initial install if desired, A non silent install will prompt for additional users and set appropriate group perms
+    Any manually added users should be members of 'dialout' and 'consolepi' groups for ConsolePi to function properly
+
+The Following optional arguments are more for dev, but can be useful in some other scenarios
+ -noapt                                  Skip the apt update/upgrade portion of the Upgrade.  Should not be used on initial installs..
+ -nopip                                  Skip pip install -r requirements.txt.  Should not be used on initial installs..
+
+Examples:
+  This example specifies a config file with -C (telling it to get some info from the specified config) as well as the silent install option (no prompts)
+        > consolepi-upgrade -C /home/pi/consolepi-stage/installer.conf -silent
+
+  Alternatively the necessary arguments can be passed in via cmd line arguments
+  NOTE: Showing minimum required options for a silent install.  ConsolePi.yaml has to exist
+        wlan_country will default to US, No changes will be made re timezone, ipv6 & hostname
+        > consolepi-upgrade -silent --consolepi-pass='c0nS0lePi!' --pi-pass='c0nS0lePi!'
 ```
 
 ## **2. Semi-Automatic Install**
@@ -508,13 +558,13 @@ git clone https://github.com/Pack3tL0ss/ConsolePi.git
 sudo mv /tmp/ConsolePi /etc
 ```
 
-Optionally Pre-Configure parameters, it will result in less time on data-collection/user-input during the install.  Just grab the ConsolePi.yaml.example file from the repo, edit it with your settings, and rename/place in  \<user-home-dir\>/ConsolePi_stage/ConsolePi.yaml
+Optionally Pre-Configure parameters, it will result in less time on data-collection/user-input during the install.  Just grab the ConsolePi.yaml.example file from the repo, edit it with your settings, and rename/place in  `~/consolepi-stage/ConsolePi.yaml`
 
 ```
 # example assuming logged in as pi
-cd ~/
-mkdir ConsolePi_stage
-sudo cp ConsolePi.yaml.example ~/ConsolePi_stage/ConsolePi.yaml
+cd ~
+mkdir consolepi-stage
+sudo cp ConsolePi.yaml.example ~/consolepi-stage/ConsolePi.yaml
 sudo nano ConsolePi.yaml
 ```
 
@@ -531,44 +581,187 @@ sudo /etc/ConsolePi/installer/install.sh
 
 **Script has been tested and works with USB to micro-sd adapter and sd to micro-sd adapters.**
 
-*This is a script I used during testing to expedite the process Use at your own risk it does flash a drive so it could do harm!*
+> !!WARNING!! This script writes RaspiOS to a connected micro-sd card.  This will overwrite everything on that card.  If something doesn't look right STOP.  With that said I've used it 100s of times by now, so image away.
 
-*NOTE: USB adapters seemed to have more consistency than sd/micro-sd adapters, the latter would occasionally not mount until after the adapter was removed and re-inserted*
-
-Using a Linux System (Most distros should work ... tested on Raspbian and Mint) enter the following command:
-- `curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/ConsolePi_image_creator.sh  && sudo chmod +x ConsolePi_image_creator.sh`
+Using a Linux System (Most distros should work ... tested on RaspiOS and Mint) enter the following command:
+- `curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/consolepi-image-creator.sh  && sudo chmod +x consolepi-image-creator.sh`
 - That will download the image creator and make it executable.
+- The image creator supports both command line arguments and a configuration file (where the same settings configureable as cmd line arguments can be configured in file... handy for re-use).
+- `curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/consolepi-image-creator.conf` To get the optional conf file for the image creator.  The config file will be automatically imported if it's in cwd (the directory you're in when you run the script).
 
 -- or --
 
-From an existing ConsolePi just copy the script to your home-dir for convenience and run from there:
-- `cp /etc/ConsolePi/installer/ConsolePi_image_creator.sh ~/`
-- Then once you have the micro-sd you want to flash in place
-- `sudo ./ConsolePi_image_creator.sh`
-> If copying don't forget to re-copy after doing upgrades to get any improvements made to the script.
+From an existing ConsolePi create a symlink to the script in your home dir:
+```
+cd ~
+ln -s /etc/ConsolePi/installer/consolepi-image-creator.sh
+cp /etc/ConsolePi/installer/consolepi-image-creator.conf ./
+```
+- Then edit consolepi-image-creator.conf as desired (`nano consolepi-image-creator`)
+- Insert the media to be imaged
+```
+sudo ./consolepi-image-creator.sh
+```
 
 #### **ConsolePi_image_creator brief summary:**
 
-*The "Stage dir" referenced below is a sub directory found in the script dir (the directory you run the script from).  The script looks for the Stage dir which needs to be named 'ConsolePi_stage' and moves the entire directory to the pi users home directory on the media being imaged.*
+> *The "Stage dir" referenced below is a sub directory found in the script dir (the directory you run the script from: i.e.).  The script looks for the Stage dir which needs to be named 'consolepi-stage' and moves the entire directory to the pi users home directory on the media being imaged.  When the installer runs it will automatically import config items from that staging directory.*
 
-The Pre-staging described below is optional, this script can be used without any pre-staging files, it will simply burn a Raspbian image to the micro-sd and set the installer to run automatically on boot (unless you set auto_install to false in the script.  It's true by default).
+The Pre-staging described below is optional, this script can be used without any pre-staging files, it will simply burn a RaspiOS image to the micro-sd and set the installer to run automatically on boot (unless you set auto_install to false via cmd line arg or config).
 
-> NOTE: The script will look for and pull down the most current Raspbian "lite" image, to use the desktop of full image change the img_type line in the script (comments within the script explain the options)
+```
+USAGE: sudo ./consolepi-image-creator.sh [OPTIONS]
 
+Available Options
+ --help | -help | help                   Display this help text.
+ --branch=<branch>                       Configure image to install from designated branch (Default: master).
+ --ssid=<ssid>                           Configure SSID on image (configure wpa_supplicant.conf).
+ --psk=<psk>                             pre-shared key for SSID (must be provided if ssid is provided).
+ --wlan_country=<wlan_country>           wlan regulatory domain (Default: US).
+ --priority=<priority>                   wlan priority (Default 0).
+ --img_type=<lite|desktop|full>          Type of RaspiOS image to write to media (Default: lite).
+ --img_only=<true|false>                 If set to true no pre-staging will be done other than enabling SSH (Default: false).
+ --auto_install=<true|false>             If set to false image will not be configured to auto launch to installer on first login (Default true).
+ --cmd_line='<cmd_line arguments>'       *Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image.
+ --mass_import=<true|false>              Bypass mass_import prompt presented when the system creating the image is a ConsolePi. Do it or not based on this value <true|false>.
+ --edit=<true|false>                     Bypass prompt asking if you want to edit (nano) the imported ConsolePi.yaml. Do it or not based on this value <true|false>.
+ --hotspot_hostname=<true|false>         Bypass prompt asking to pre-configure hostname based on HotSpot SSID in imported ConsolePi.yaml.  Do it or not based on this value <true|false>.
+
+The consolepi-image-creator will also look for consolepi-image-creator.conf in the same directory for the above settings
+
+Examples:
+  This example overrides the default RaspiOS image type (lite) in favor of the desktop image and configures a psk SSID (use single quotes if special characters exist)
+        sudo ./consolepi-image-creator.sh --img_type=desktop --ssid=MySSID --psk='ConsolePi!!!'
+  This example passes the -C option to the installer (telling it to get some info from the specified config) as well as the silent install option (no prompts)
+        sudo ./consolepi-image-creator.sh --cmd_line='-C /home/pi/consolepi-stage/installer.conf -silent'
+```
+```
+# ----------------------------------- // DEFAULTS \\ -----------------------------------
+# ssid: No Default ~ psk ssid not configured if ssid and psk is not provided
+# psk: No Default
+# wlan_country: "us"
+# priority: 0
+# img_type: "lite"
+# img_only: false
+# auto_install: true
+# mass_import: Not Set (Will Prompt User)
+#    mass_import=true will bypass the prompt and do the import
+#    mass_import=false will bypass not prompt and will not perform the import
+# edit: Not Set (Will Prompt User)
+#    edit=true will bypass the prompt and open the staged ConsolePi.yaml for editting
+#    edit=false will bypass, not prompt ConsolePi.yaml will remain as imported
+# hotspot_hostname: Not Set (Will Prompt User)
+#    edit=true will pre-configure the hostname on the image to match the HotSpot SSID
+#    edit=false will bypass prompt and leave hostname as default (raspberrypi)
+# --------------------------------------------------------------------------------------
+```
 **What the script does**
-- automatically pull the most recent raspbian image (lite by default) if one is not found in the script-dir (whatever dir you run it from)
+- automatically pull the most recent RaspiOS image (lite by default) if one is not found in the script-dir (whatever dir you run it from)
   - It will check to see if a more current image is available and prompt for image selection even if an image exists in the script dir.
-- Make an attempt to determine the correct drive to be flashed, and display details for confirmation.  User to verify/confirm before writing.
+- Make an attempt to determine the correct drive to be flashed, and display details ... User to verify/confirm before writing.
 - Flash image to micro-sd card
-- PreConfigure ConsolePi with parameters normally entered during the initial install.  So you bypass data entry and just get a verification screen.
-- The entire stage dir (ConsolePi_stage) is moved to the micro-sd if found in the script dir.  This can be used to pre-stage a number of config files the installer will detect and use, along with anything else you'd like on the ConsolePi image.
-- Pre-Configure a psk or open WLAN via parameters in script, and Enable SSH.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP if doing a headless install.
+- Enable SSH (handy for headless install) *if img_only=true the script stops here*
+- The entire stage dir (consolepi-stage) is moved to the micro-sd if found in the script dir.  This can be used to pre-stage a number of config files the installer will detect and use, along with anything else you'd like on the ConsolePi image.
+- Pre-Configure a psk or open WLAN via parameters in script.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP if doing a headless install.
 - You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the stage dir.  This method supports the typical methods along with EAP-TLS with certificates.  Just place the cert files referenced in the provided wpa_supplicant.conf file in a 'cert' folder inside the stage dir.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ).
 - PreStage all OpenVPN related files (ConsolePi.ovpn and ovpn_credentials) by placing them on the ConsolePi image.  The script will detect them if found in the stage dir.  The installer will then detect them and place them in the /etc/openvpn/client directory.  By default the installer places example files in for OpenVPN (as the specifics depend on your server config).
-- create a quick command 'consolepi-install' to simplify the command string to pull the installer from this repo and launch.
+- create a quick command 'consolepi-install' to simplify the command string to pull the installer from this repo and launch.  If cmd_line= argument is provided to consolepi-image-creator.sh those arguments are passed on to the auto-install.
 - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled by setting auto_install to false in this script.
+  > If auto_install=false cmd_line argumetns are essentially ignored.  If your calling it manually, you can specify those arguments then.
+- If the `consolepi-image-creator.sh` script is ran from a ConsolePi, the script will detect that it's a ConsolePi and offer to pre-staage it's existing settings.  If a file has alredy been pre-staged (via consolepi-stage dir) it will skip it.  It will give you the chance to edit ConsolePi.yaml if pre-staged, so you can deploy multiple ConsolePis and edit the specifics for each as you stage them.
 
-Once Complete you place the newly blessed micro-sd in your raspberryPi and boot.  The installer will automatically start unless you've disabled it.  In which case the `consolepi-install` will launch the installer.
+**This capture highlights what the script does and what it pulls via mass import if ran from an existing ConsolePi**
+```
+pi@ConsolePi-dev:~$ sudo ./consolepi-image-creator.sh
+   ______                       __     ____  _
+  / ____/___  ____  _________  / /__  / __ \(_)
+ / /   / __ \/ __ \/ ___/ __ \/ / _ \/ /_/ / /
+/ /___/ /_/ / / / (__  ) /_/ / /  __/ ____/ /
+\____/\____/_/ /_/____/\____/_/\___/_/   /_/
+  https://github.com/Pack3tL0ss/ConsolePi
+
+
+
+ConsolePi Image Creator
+'exit' (which will terminate the script) is valid at all prompts
+
+Script has discovered removable flash device @ sda with the following details
+
+------------------------------- // Device Details for sda \\ -----------------------------------
+
+Disk /dev/sda: 29.8 GiB, 32010928128 bytes, 62521344 sectors
+Disk model: Storage Device
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0xe34e0aca
+
+Device     Boot  Start      End  Sectors  Size Id Type
+/dev/sda1         8192   532479   524288  256M  c W95 FAT32 (LBA)
+/dev/sda2       532480 62521343 61988864 29.6G 83 Linux
+
+------------------------------------------------------------------------------------------------
+
+
+Press enter to accept sda as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')
+Device to flash with image [sda]:
+
+Getting latest raspios image (lite)
+Using image 2020-05-27-raspios-buster-lite-armhf found in /home/pi. It is the current release
+
+
+!!! Last chance to abort !!!
+About to write image 2020-05-27-raspios-buster-lite-armhf.img to sda, Continue? (y/n|exit): y
+   ______                       __     ____  _
+  / ____/___  ____  _________  / /__  / __ \(_)
+ / /   / __ \/ __ \/ ___/ __ \/ / _ \/ /_/ / /
+/ /___/ /_/ / / / (__  ) /_/ / /  __/ ____/ /
+\____/\____/_/ /_/____/\____/_/\___/_/   /_/
+  https://github.com/Pack3tL0ss/ConsolePi
+
+
+Now Writing image 2020-05-27-raspios-buster-lite-armhf.img to sda standby...
+ This takes a few minutes
+
+1849688064 bytes (1.8 GB, 1.7 GiB) copied, 221 s, 8.4 MB/s
+442+0 records in
+442+0 records out
+1853882368 bytes (1.9 GB, 1.7 GiB) copied, 233.167 s, 8.0 MB/s
+
+
+Image written to flash - no Errors
+
+
+ ~ Mounting boot partition to enable ssh.................................OK
+ ~ Enabling ssh on image.................................................OK
+ ~ unmount boot partition................................................OK
+ ~ Mounting System partition to pre-configure ConsolePi image............OK
+ ~ Script Option to pre-config psk ssid..................................Skipped - Not Configured
+ ~ Configure Auto-Install on first login.................................OK
+     Configured with the following args -C consolepi-stage/install.conf
+ ~ consolepi-stage dir found Pre-Staging all files.......................OK
+ ~ SSH authorized keys found pre-staging.................................OK
+ ~ SSH known_hosts found pre-staging.....................................OK
+ ~ wpa_supplicant.conf found pre-staging on image........................OK
+ ~ staged wpa_supplicant includes EAP-TLS SSID looking for certs.........OK
+
+   -- Performing Imports from This ConsolePi --
+ ~ /etc/ConsolePi/ConsolePi.yaml.........................................Skipped - Already Staged
+ ~ /etc/wpa_supplicant/wpa_supplicant.conf...............................Skipped - Already Staged
+ ~ /etc/udev/rules.d/10-ConsolePi.rules..................................Skipped - Already Staged
+ ~ /etc/ser2net.conf.....................................................Skipped - Already Staged
+ ~ /home/pi/.ssh/authorized_keys.........................................Skipped - Already Staged
+ ~ /home/pi/.ssh/known_hosts.............................................Skipped - Already Staged
+ ~ /etc/ConsolePi/cloud/gdrive/.credentials/credentials.json.............Imported
+ ~ /etc/ConsolePi/cloud/gdrive/.credentials/token.pickle.................Imported
+ ~ /etc/openvpn/client/ConsolePi.ovpn....................................Skipped - Already Staged
+ ~ /etc/openvpn/client/ovpn_credentials..................................Skipped - Already Staged
+
+Consolepi image ready
+```
+
+Once Complete you place the newly blessed micro-sd in your raspberryPi and boot.  The installer will automatically start unless you've disabled it.  In which case the `consolepi-install` will launch the installer *(unless img_only=true, if so consolepi-install command is not created)*.
 
 ## Alternative Hardware Installs
 
@@ -578,29 +771,32 @@ The Use Cases
   1. ConsolePi running on a Linux Mint LapTop
       - desire was to be able to load the menu, see the remotes, and use a locally connected adapter if I wanted, but to only sync one way (discover remote ConsolePis, but don't advertise to them).  This is because the laptop is used ad-hoc and if I'm using it I'm on it, not remote.
       - Install Process was simply (this is from memory so might be off a bit):
-          1. `cd /tmp`
-          2. `git clone https://github.com/Pack3tL0ss/ConsolePi.git`
-          3. `cd ConsolePi`
-          2. `sudo apt install python3-pip` (if required pip not installed for python3)
-          3. `python3 -m pip install virtualenv`
-          4. `cd /tmp/ConsolePi`
-          5. `python3 -m virtualenv venv`
-          6. `sudo mv /tmp/ConsolePi /etc`
-          7. `sudo cp /etc/ConsolePi/src/consolepi.sh /etc/profile.d && . /etc/profile.d/consolepi.sh` <-- this script adds the consolepi-commands to PATH
-          8. `consolepi-sync -pip`  <-- this updates the permissions on the directory if necessary and installs/updates all the requirements.
-          9. `cp /etc/ConsolePi/ConsolePi.yaml.example /etc/ConsolePi/ConsolePi.yaml`
-          10. `consolepi-config`  -- edit as necessary for this use case, I used `cloud_pull_only: true` option in the OVERRIDES: section.
-          11. `sudo cp /etc/ConsolePi/src/systemd/consolepi-mdnsbrowse.service /etc/systemd/system`
-          12. `sudo systemctl enable consolepi-mdnsbrowse`
-          13. `sudo systemctl start consolepi-mdnsbrowse`
-          14. `consolepi-menu` <-- test the menu (note if cloud sync enabled you still need to put the creds in the dir).
-            -  Select option `r` (refresh) if cloud enabled and creds in place.
-            > If you've completed [Google Drive Setup](readme_content/gdrive.md), and need to authorize ConsolePi for the first time launch the menu with the `cloud` argument (`consolepi-menu cloud`) (then select the `r` (refresh) option).  This is only required to create the credential files for the first time, you can use `consolepi-menu` without arguments to launch after the creds have been created.
+      ```
+      sudo apt install python3-pip virtualenv git
+      cd /tmp
+      git clone https://github.com/Pack3tL0ss/ConsolePi.git
+      cd consolepi
+      cd /tmp/ConsolePi
+      python3 -m virtualenv venv
+      sudo mv /tmp/ConsolePi /etc
+      sudo cp /etc/ConsolePi/src/consolepi.sh /etc/profile.d && . /etc/profile.d/consolepi.sh # <-- adds consolepi-commands to PATH
+      consolepi-sync -pip # <-- updates perms installs (pip) requirements
+      cp /etc/ConsolePi/ConsolePi.yaml.example /etc/ConsolePi/ConsolePi.yaml
+      consolepi-config # <-- edit as required ~ `cloud_pull_only: true` option in the OVERRIDES: section for this use case.
+      sudo cp /etc/ConsolePi/src/systemd/consolepi-mdnsbrowse.service /etc/systemd/system
+      sudo systemctl enable consolepi-mdnsbrowse
+      sudo systemctl start consolepi-mdnsbrowse
+      consolepi-menu # <-- See Note Below Regarding initial cloud AuthZ if using Gdrive Sync
+      ```
+      >test the menu (note if cloud sync enabled you still need to put the creds in the dir).
+      Select option `r` (refresh) if cloud enabled and creds in place.
+        If you've completed [Google Drive Setup](readme_content/gdrive.md), and need to authorize ConsolePi for the first time launch the menu with the `cloud` argument (`consolepi-menu cloud`) (then select the `r` (refresh) option).  This is only required to create the credential files for the first time, you can use `consolepi-menu` without arguments to launch after the creds have been created.
 
         *I think that's it.  So the above will allow use of the menu on the LapTop, will detect any local adapters if any are plugged in, will discover and allow connection to any remotes, manually defined hosts, power outlets, etc, but will not advertise itself to any other ConsolePis*
+
   2. ConsolePi running on wsl-ubuntu (Windows Subsystem for Linux)
       - Use Case... I just wanted to see if it would work.  I also have it open a lot so handy to be able to just run from there.
-      - Not using local-adapters wsl would be remote only.
+      - No local-adapters wsl would be remote only.
       - Install process: Same as above with the exception of leave out the consolpi-mdnsbrowse bit (no systemd on wsl)
       - Result is it works as expected, with the minor caveat that it's only source to get remote details is via cloud-sync.  Adapter data is still refreshed on menu-load by querying the remote directly.  You also can not create the cloud credentials files (do the initial Authorization) in wsl.  That needs to be done on another system and coppied over.
 

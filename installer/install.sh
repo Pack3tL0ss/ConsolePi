@@ -64,15 +64,15 @@ do_apt_update() {
         # Only update if initial install (no install.log) or if last update was not today
         if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
             res=$(apt update 2>>$log_file) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
-            [[ "$res" =~ "--upgradable" ]] && res=$(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
+            [[ "$res" =~ "--upgradable" ]] && mapfile -t _upgd < <(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         else
             logit "Skipping Source Update - Already Updated today"
-            res=$(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
+            mapfile -t _upgd < <(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         fi
 
-        if [ -z "$res" ]; then
-            logit "Upgrading the following packages\n\n$res\n"
-            logit "Upgrading ConsolePi via apt. This may take a while"
+        # # if [ ! -z "$res" ]; then
+        if [[ "${#_upgd[@]}" > 0 ]]; then
+            logit "Upgrading "${#_upgd[@]}" Packages... Can be a long wait here."
             sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
 
             logit "Performing dist-upgrade"
@@ -81,6 +81,20 @@ do_apt_update() {
             logit "Tidying up (autoremove)"
             apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
         fi
+
+        # if [[ "${#_upgd[@]}" > 0 ]]; then
+        #     logit "Upgrading "${#_upgd[@]}" Packages..."
+        #     for p in "${_upgd[@]}"; do
+        #         _pf=$(printf "%s: %s --> %s\n" $(echo "$p" | cut -d'/' -f1) $(echo "${p//*from: /}"|cut -d']' -f1) $(echo "$p" | awk '{print $2}'))
+        #         process_cmds -nostart -pf "$_pf" -apt-install "$(echo $p | cut -d'/' -f1)" #  >/dev/null 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>$log_file)
+        #     done
+
+        #     logit "Performing dist-upgrade"
+        #     sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
+
+        #     logit "Tidying up (autoremove)"
+        #     apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
+        # fi
 
         process_cmds -stop -e -pf "install/update git" -apt-install "git"
         logit "$process - Complete"

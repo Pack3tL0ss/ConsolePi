@@ -565,8 +565,8 @@ process_cmds() {
                             ;;
                     esac
                 done
-                local pmsg="Success - Install $pname (apt)"
-                local fmsg="Error - Install $pname (apt)"
+                [ -z pmsg ] && local pmsg="Success - Install $pname (apt)"
+                [ -z fmsg ] && local fmsg="Error - Install $pname (apt)"
                 local stop=true
                 [[ ! -z $pexclude ]] && local cmd="sudo apt-get -y install $pkg ${pexclude}-" ||
                     local cmd="sudo apt-get -y install $pkg"
@@ -582,8 +582,8 @@ process_cmds() {
                         _shift=2
                         ;;
                 esac
-                local pmsg="Success - Remove $pname (apt)"
-                local fmsg="Error - Remove $pname (apt)"
+                [ -z pmsg ] && local pmsg="Success - Remove $pname (apt)"
+                [ -z fmsg ] && local fmsg="Error - Remove $pname (apt)"
                 local cmd="sudo apt-get -y purge $2"
                 shift $_shift
                 ;;
@@ -618,7 +618,7 @@ process_cmds() {
         if [[ ! -z $cmd ]]; then
             # [[ -z $pmsg ]] && local pmsg="Success - $cmd"
             local pmsg=${pmsg:-"Success - $cmd"}
-            [[ -z $fmsg ]] && local fmsg="Error - $cmd  See details in $log_file"
+            local fmsg=${fmsg:-"Error - $cmd  See details in $log_file"}
             [[ -z $fail_lvl ]] && local fail_lvl="WARNING"
             [[ -z $silent ]] && local silent=false
             [[ -z $stop ]] && local stop=false

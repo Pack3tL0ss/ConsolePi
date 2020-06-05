@@ -662,7 +662,8 @@ process_cmds() {
             fi
             # -- // PROCESS THE CMD \\ --
             ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
-            if eval "$cmd" >>"$out" 2>>"$err"; then # <-- Do the command
+            # if eval "$cmd" >>"$out" 2>>"$err"; then # <-- Do the command
+            if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
                 local cmd_failed=false
                 ! $silent && logit "$pmsg"
             else
@@ -672,7 +673,8 @@ process_cmds() {
                         logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
                         sleep 5
                         logit "Starting ${pmsg/Success - /} ~ retry $x"
-                        if eval "$cmd" >>"$out" 2>>"$err"; then
+                        # if eval "$cmd" >>"$out" 2>>"$err"; then
+                        if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err"); then
                             local cmd_failed=false
                             ! $silent && logit "$pmsg"
                         fi

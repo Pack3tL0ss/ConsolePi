@@ -490,7 +490,7 @@ check_perms() {
     [[ "${check_list[@]}" =~ "-s" ]] && local silent=true || local silent=false
     for d in "${check_list[@]}"; do
         [[ "$d" == "-s" ]] && continue
-        [ $(stat -c '%G' $d) == "consolepi" ] && grpok=true || grpok=false
+        [ "$(stat -c '%G' $d)" == "consolepi" ] && grpok=true || grpok=false
         stat -c %A $d |grep -q "^....rw....$" && modok=true || modok=false
         if ! $grpok || ! $modok; then
             chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?

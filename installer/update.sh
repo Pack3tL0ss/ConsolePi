@@ -85,7 +85,7 @@ set_hostname() {
             hostname "$newhost" 1>&2 2>>/dev/null
             [ $? -gt 0 ] && logit "Error returned from hostname command" "WARNING"
 
-            # add wlan hotspot IP to hostfile for DHCP connected clients to resolve this host
+            # add hotspot IP to hostfile for DHCP connected clients to resolve this host
             wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)
             [ $wlan_hostname_exists == 0 ] && echo "$wlan_ip       $newhost" >> /etc/hosts
             sed -i "s/$hostn/$newhost/g" /etc/hostname
@@ -220,9 +220,12 @@ misc_imports(){
         # -- ztp configurations --
         if [[ -d ${stage_dir}/ztp ]]; then
             logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
-            cp ${stage_dir}/ztp/* /etc/ConsolePi/ztp/ &&
+            cp ${stage_dir}/ztp/* ${consolepi_dir}ztp/ 2>>$log_file &&
             logit "Success - copying staged ztp configs" ||
                 logit "Failure - copying staged ztp configs" "WARNING"
+            if [[ $(ls -1 | grep -vi "README" | wc -l ) > 0 ]]; then
+                check_perms ${consolepi_dir}ztp
+            fi
         fi
 
         # -- autohotspot dhcp configurations --
@@ -834,8 +837,8 @@ get_serial_udev() {
     echo "-     Most FTDI based adapters have serial #s, I've only seen the lack of serial # on dev boards.                   -"
     echo "-     ---- If you're interested I reccomend adapters that use FTDI chips. ----                                      -"
     echo "-                                                                                                                   -"
-    echo -e "-  This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from              -"
-    echo -e "-    ${_cyan}consolepi-menu${_norm} via the 'rn' (rename) option.                                                                 -"
+    echo -e "-  This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from                -"
+    echo -e "-    ${_cyan}consolepi-menu${_norm} via the 'rn' (rename) option.                                                                   -"
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
@@ -879,9 +882,11 @@ do_wifi_country() {
         iw reg set "$wlan_country" > /dev/null 2>>$log_file &&
             logit "Wi-fi country set to $wlan_country" ||
             logit "Error Code returned when setting WLAN country" "WARNING"
-        if hash rfkill 2> /dev/null; then
-            rfkill unblock wifi
-        fi
+    fi
+
+    # -- always check to see if rfkill is blocking wifi --
+    if hash rfkill 2> /dev/null; then
+        rfkill unblock wifi
     fi
     unset process
 }

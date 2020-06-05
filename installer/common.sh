@@ -695,7 +695,7 @@ process_cmds() {
     # if apt purge was in cmd list -->apt autoremove
     if $do_autoremove; then
         logit "Tidying Up packages that are no longer in use (apt autoremove)"
-        sudo apt autoremove -y >/dev/null 2>>$log_file &&
+        sudo apt autoremove -y >/dev/null 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>$log_file) &&
             logit "Success - All Tidy Now" ||
             logit "Error - apt autoremove returned error-code" "WARNING"
     fi

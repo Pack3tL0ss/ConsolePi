@@ -11,6 +11,7 @@
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 chg_password() {
+    process="pi user password change"
     if grep -q "^pi:" /etc/passwd && [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
         if [ ! -z "$pi_pass" ]; then
             echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
@@ -28,7 +29,6 @@ chg_password() {
                     [[ "${pass}" == "${pass2}" ]] && match=true || match=false
                     ! $match && echo -e "ERROR: Passwords Do Not Match\n"
                 done
-                process="pi user password change"
                 echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
                 ( logit "Failed to Change Password for pi user" "WARNING" &&
                 echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
@@ -1001,6 +1001,7 @@ update_main() {
     # get_pi_info                         # (common.sh func) Collect some version info for logging
     # remove_first_boot                   # if auto-launch install on first login is configured remove
     # do_apt_update                       # apt-get update the pi
+    # do_apt_deps                         # install dependencies via apt
     # pre_git_prep                        # process upgrade tasks required prior to git pull
     # git_ConsolePi                       # git clone or git pull ConsolePi
     # $upgrade && post_git                # post git changes

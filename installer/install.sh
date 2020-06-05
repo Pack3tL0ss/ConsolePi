@@ -402,10 +402,10 @@ do_pyvenv() {
         fi
 
         # -- *Always* update venv packages based on requirements file --
-        [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"
+        # [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"
         logit "pip install/upgrade ConsolePi requirements - This can take some time."
-        echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/${req_file}\" --\n"
-        sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/${req_file} 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
+        echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
+        sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
 

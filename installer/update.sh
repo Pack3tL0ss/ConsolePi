@@ -12,7 +12,7 @@
 
 chg_password() {
     process="pi user password change"
-    if grep -q "^pi:" /etc/passwd && [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
+    if grep -q "^pi:" /etc/passwd && [[ "$iam" == "pi" ]] && [ -e /run/sshwarn ]; then
         if [ ! -z "$pi_pass" ]; then
             echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
                 logit "Error occured changing pi password using conf/cmd_line arg" "WARNING"

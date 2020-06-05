@@ -97,13 +97,23 @@ do_apt_update() {
         #     logit "Tidying up (autoremove)"
         #     apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
         # fi
-
-        process_cmds -stop -e -pf "install/update git" -apt-install "git"
-        logit "$process - Complete"
     else
         logit "apt updates skipped based on -noapt argument" "WARNING"
     fi
     unset process
+}
+
+do_apt_deps() {
+    process="Install Reqd Pkgs"
+    which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
+
+    # -- Ensure python3-pip is installed --
+    [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
+        process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
+
+    # TODO add picocom, maybe ser2net
+
+    logit "$process - Complete"
 }
 
 # Process Changes that are required prior to git pull when doing upgrade
@@ -164,12 +174,10 @@ pre_git_prep() {
 
     else  # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
         # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
+        # TODO Check if this is still required
         process="ConsolePi-Upgrade-Prep"
         if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
-            process_cmds -apt-install "libffi-dev"
-            # apt install -y libffi-dev >/dev/null 2>>${log_file} &&
-            #     logit "Success Installing development files for libffi" ||
-            #         logit "ERROR apt install libffi-dev retrurned an error" "WARNING"
+            process_cmds -nostart -apt-install "libffi-dev"
         fi
 
         process="Create consolepi user/group"
@@ -249,19 +257,21 @@ pre_git_prep() {
 
     # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
     if [ ! -f /etc/sudoers.d/010_consolepi ]; then
-        echo '%consolepi ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*, /etc/ConsolePi/src/consolepi-commands/*, /etc/ConsolePi/venv/bin/python3 *' > /etc/sudoers.d/010_consolepi &&
+        echo '%consolepi ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*, /etc/ConsolePi/src/consolepi-commands/*, /etc/ConsolePi/venv/bin/python3 *' > /etc/sudoers.d/010_consolepi 2>>$log_file &&
         logit "consolepi group given sudo rights for consolepi-commands" ||
         logit "FAILED to give consolepi group sudo rights for ConsolePi functions" "WARNING"
+        if [ -f /etc/sudoers.d/010_consolepi ]; then
+            chmod 0440 /etc/sudoers.d/010_consolepi 2>>$log_file &&
+            logit "Success chmod 0440 consolepi group sudoers.d file" ||
+            logit "FAILED chmod 0440 consolepi group sudoers.d file" "WARNING"
+        fi
     fi
 
     # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
+    # TODO check if this is required
     process="install libssl-dev"
     if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
-        process_cmds -apt-install "libssl-dev"
-        # logit "Install development files for libssl"
-        # apt install -y libssl-dev >/dev/null 2>>${log_file} &&
-        #     logit "Success Installing development files for libssl" ||
-        #         logit "ERROR apt install libssl-dev retrurned an error" "WARNING"
+        process_cmds -nostart -apt-install "libssl-dev"
     fi
 
     if [ -f $cloud_cache ]; then
@@ -361,15 +371,6 @@ do_pyvenv() {
         mv ${consolepi_dir}venv $bak_dir && logit "existing venv found, moved to bak, new venv will be created (it is OK to delete anything in bak)"
     fi
 
-    # -- Ensure python3-pip is installed --
-    if [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]]; then
-        process_cmds -stop -e -pf "install python3-pip" -apt-install "python3-pip"
-        # logit "Install python3-pip"
-        # sudo apt-get install -y python3-pip 1>/dev/null 2>> $log_file &&
-        #     logit "Success - Install python3-pip" ||
-        #     logit "Error - installing Python3-pip" "ERROR"
-    fi
-
     if [ ! -d ${consolepi_dir}venv ]; then
         # -- Ensure python3 virtualenv is installed --
         venv_ver=$(sudo python3 -m pip list --format columns | grep virtualenv | awk '{print $2}')
@@ -404,9 +405,12 @@ do_pyvenv() {
         [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"
         logit "pip install/upgrade ConsolePi requirements - This can take some time."
         echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/${req_file}\" --\n"
-        sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/${req_file} 2> >(tee -a $log_file >&2) &&
+        sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/${req_file} 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
+
+        # clean up the retry logs if pip install requirements was successful
+        # grep -q "^.*Success.*pip install.*requirements" $log_file && sed -i '/WARNING: Retrying (Retry.*/d' $log_file
     else
         logit "pip upgrade / requirements upgrade skipped based on -nopip argument" "WARNING"
     fi
@@ -635,6 +639,7 @@ main() {
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if auto-launch install on first login is configured remove
         do_apt_update                       # apt-get update the pi
+        do_apt_deps                         # install dependencies via apt
         pre_git_prep                        # process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes

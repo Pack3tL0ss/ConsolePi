@@ -1,0 +1,5 @@
+# ignore everything in ztp dir other than the readme
+*
+# Except this file and the readme
+!.gitignore
+!README

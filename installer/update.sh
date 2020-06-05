@@ -147,7 +147,7 @@ disable_ipv6()  {
             prompt="Do you want to disable ipv6"
             dis_ipv6=$(user_input_bool)
         fi
-    else
+    elif [ -z "$dis_ipv6" ]; then
         dis_ipv6=false
         logit "Disable IPv6 bypassed silent install with no desired state provided"
     fi

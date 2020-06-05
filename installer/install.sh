@@ -583,6 +583,7 @@ process_args() {
             -C|-config)
                 if [ -f "$2" ]; then
                    . "$2"
+                   [ ! -z "$noipv6" ] && dis_ipv6=$noipv6
                 else
                     echo "Specified Config $2 not found"
                     exit 1

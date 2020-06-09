@@ -210,8 +210,10 @@ class ConsolePiMenu(Rename):
                             _linked = [
                                         '{}'.format('{{red}}' + k + '{{norm}}'
                                                     if k not in cpi.local.adapters and '/host/' not in k else k)
-                                        for k in this_linked if str(_port) in this_linked[k]
+                                        for k in this_linked if _port in utils.listify(this_linked[k])
+                                        # for k in this_linked if str(_port) in this_linked[k]
                                       ]
+                            # _linked = ', '.join(_linked)
                             # _linked = ', '.join([k for k in this_linked if str(_port) in this_linked[k]])
                         _outlet = outlet['is_on'][_port]
                         _state = states[_outlet['state']]

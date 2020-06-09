@@ -204,7 +204,7 @@ class ConsolePiMenu(Rename):
                 # -- // Linked DLI OUTLET AND ESPHOME MENU LINE(s) \\ --
                 if (outlet['type'].lower() == 'dli' and outlet.get('linked_devs') and outlet.get('is_on')) or \
                    (outlet['type'].lower()) == 'esphome':
-                    for _port in outlet['is_on']:
+                    for _port in sorted(outlet['is_on']):
                         if show_linked:
                             this_linked = config.cfg_yml.get('POWER', {}).get(r, {}).get('linked_devs', {})
                             _linked = [

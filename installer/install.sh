@@ -184,8 +184,8 @@ pre_git_prep() {
         # add consolepi user
         header
         cp /etc/adduser.conf /tmp/adduser.conf
-        extra_groups="dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
-        extra_groups2="consolepi dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
+        extra_groups="adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
+        extra_groups2="consolepi adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
         echo "EXTRA_GROUPS=\"$extra_groups\"" >> /tmp/adduser.conf
         echo 'ADD_EXTRA_GROUPS=1' >> /tmp/adduser.conf
 

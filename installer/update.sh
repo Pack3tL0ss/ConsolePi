@@ -176,7 +176,7 @@ misc_imports(){
         [[ $found_path ]] && logit "pre-staged ssh known_hosts file found - importing"
         if [[ $found_path ]]; then
             file_diff_update $found_path /root/.ssh/known_hosts
-            file_diff_update $found_path ${home_dir}/.ssh/knwon_hosts
+            file_diff_update $found_path ${home_dir}/.ssh/known_hosts
                 chown $iam:$iam ${home_dir}/.ssh/known_hosts
         fi
 

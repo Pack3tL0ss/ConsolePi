@@ -1,5 +1,5 @@
 [Unit]
-Description=dnsmasq DHCP/DNS (ConsolePi eth0 speciffic instance)
+Description=dnsmasq DHCP/DNS (ConsolePi eth0 specific instance)
 Requires=network.target
 Wants=nss-lookup.target
 Before=nss-lookup.target

@@ -813,7 +813,8 @@ class ConsolePiMenu(Rename):
         rem_slines = []
         rem_outer_body = []
         for host in sorted(rem):
-            if rem[host].get('rem_ip') and len(rem[host]['adapters']) > 0:
+            # if rem[host].get('rem_ip') and len(rem[host]['adapters']) > 0:
+            if rem[host].get('rem_ip') and rem[host]['adapters']:
                 remotes.connected = True
                 rem_mlines, rem_menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item, remote=True,
                                                                             rem_user=rem[host].get('user'), host=host)

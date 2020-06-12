@@ -82,7 +82,6 @@ class MDNS_Browser:
 
                         # update from API only if no adapter data exists either in cache or from mdns that triggered this
                         # adapter data is updated on menu_launch either way
-                        print(self.no_adapters)
                         if (not mdns_data[hostname]['adapters'] and hostname not in self.no_adapters) or \
                                 hostname not in cpi.remotes.data:
                             log.info(f"[MDNS DSCVRY] {info.server.split('.')[0]} provided no adapter data Collecting via API")

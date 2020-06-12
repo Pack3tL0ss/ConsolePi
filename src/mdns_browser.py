@@ -29,6 +29,7 @@ class MDNS_Browser:
         self.stop = False
         self.discovered = []    # for display when running interactively, resets @ every restart
         self.d_discovered = []  # used when running as daemon (doesn't reset)
+        self.no_adapters = []  # If both mdns and API report no adapters for remote add to list to prevent subsequent API calls
         self.startup_logged = False
         self.zc = None
 
@@ -80,18 +81,24 @@ class MDNS_Browser:
                         mdns_data = {hostname: mdns_data}
 
                         # update from API only if no adapter data exists either in cache or from mdns that triggered this
-                        # adapter data is updated on menu_launch
-                        if not mdns_data[hostname]['adapters'] or hostname not in cpi.remotes.data:
-                            log.info('[MDNS DSCVRY] {} provided no adapter data Collecting via API'.format(
-                                    info.server.split('.')[0]))
+                        # adapter data is updated on menu_launch either way
+                        print(self.no_adapters)
+                        if (not mdns_data[hostname]['adapters'] and hostname not in self.no_adapters) or \
+                                hostname not in cpi.remotes.data:
+                            log.info(f"[MDNS DSCVRY] {info.server.split('.')[0]} provided no adapter data Collecting via API")
                             # TODO check this don't think needed had a hung process on one of my Pis added it to be safe
                             try:
+                                # TODO we are setting update time here so always result in a cache update with the restart timer
                                 res = cpi.remotes.api_reachable(hostname, mdns_data[hostname])
                                 update_cache = res.update
+                                if not res.data.get('adapters'):
+                                    self.no_adapters.append(hostname)
+                                elif hostname in self.no_adapters:
+                                    self.no_adapters.remove(hostname)
                                 mdns_data[hostname] = res.data
                                 # reachable = res.reachable
                             except Exception as e:
-                                log.error(f'Exception occured verifying reachability via API for {hostname}:\n{e}')
+                                log.error(f'Exception occurred verifying reachability via API for {hostname}:\n{e}')
 
                         if self.show:
                             if hostname in self.discovered:

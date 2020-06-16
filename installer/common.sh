@@ -4,6 +4,7 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
+wired_dhcp=false  # temp until a config option
 cur_dir=$(pwd)
 iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')

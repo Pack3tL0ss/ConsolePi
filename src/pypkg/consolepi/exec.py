@@ -76,7 +76,7 @@ class ConsolePiExec:
         # -- // Perform Auto Power On (if not already on) \\ --
         for o in outlets["linked"][pwr_key]:
             outlet = outlets["defined"].get(o.split(":")[0])
-            ports = [] if ":" not in o else json.loads(o.split(":")[1].replace('\'', '"'))
+            ports = [] if ":" not in o else json.loads(o.split(":")[1])  # NoQA .replace('\'', '"')) No longer necessary single port defs are listified in config.py
             _addr = outlet["address"]
 
             # -- // DLI web power switch Auto Power On \\ --
@@ -86,6 +86,8 @@ class ConsolePiExec:
                         f"[Auto PwrOn] Power ON {pwr_key} Linked Outlet {outlet['type']}:{_addr} p{p}"
                     )
                     # TODO have seen this, but unable to recreate.  may be transient failure???
+                    # NoQA This log occurs: [ERROR]: [DLI GET OUTLETS] dli @ labpower2.kabrew.com reachable, but failed to fetch statuslist (outlet_list)
+                    # is_on in pwr.data['labpower2']['defined'] is being flushed based on error above so empty dict resulting in key error
                     # Exception in thread auto_pwr_on_r1-8320T-sw:
                     # Traceback (most recent call last):
                     # File "/usr/lib/python3.7/threading.py", line 917, in _bootstrap_inner
@@ -95,9 +97,7 @@ class ConsolePiExec:
                     # File "/etc/ConsolePi/src/pypkg/consolepi/exec.py", line 88, in auto_pwron_thread
                     #     if not outlet["is_on"][p][
                     # KeyError: 2
-                    if not outlet["is_on"][p][
-                        "state"
-                    ]:  # This is just checking what's in the dict not querying the DLI
+                    if not outlet["is_on"][p]["state"]:  # This is just checking what's in the dict not querying the DLI
                         r = self.pwr.pwr_toggle(
                             outlet["type"], _addr, desired_state=True, port=p
                         )

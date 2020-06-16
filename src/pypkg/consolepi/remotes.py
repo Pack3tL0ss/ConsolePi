@@ -455,16 +455,20 @@ class Remotes:
 
         return response
 
-    def get_adapters_via_api(self, ip: str, rename: bool = False):
+    def get_adapters_via_api(self, ip: str, rename: bool = False, log_host: str = None):
         """Send RestFul GET request to Remote ConsolePi to collect adapter info
 
         params:
         ip(str): ip address or FQDN of remote ConsolePi
+        rename(bool): TODO
+        log_host(str): friendly string for logging purposes "hostname(ip)"
 
         returns:
         adapter dict for remote if successful and adapters exist
         status_code 200 if successful but no adapters or Falsey or response status_code if an error occurred.
         """
+        if not log_host:
+            log_host = ip
         url = f"http://{ip}:5000/api/v1.0/adapters"
         if rename:
             url = f"{url}?refresh=true"
@@ -483,13 +487,13 @@ class Remotes:
         try:
             response = requests.request("GET", url, headers=headers, timeout=config.remote_timeout)
         except (OSError, TimeoutError):
-            log.warning(f"[API RQST OUT] Remote ConsolePi @ {ip} TimeOut when querying via API - Unreachable.")
+            log.warning(f"[API RQST OUT] Remote ConsolePi: {log_host} TimeOut when querying via API - Unreachable.")
             return False
 
         if response.ok:
             ret = response.json()
             ret = ret["adapters"] if ret["adapters"] else response.status_code
-            _msg = f"Adapters Successfully retrieved via API for Remote ConsolePi @ {ip}"
+            _msg = f"Adapters Successfully retrieved via API for Remote ConsolePi: {log_host}"
             log.info("[API RQST OUT] {}".format(_msg))
             log.debugv(
                 "[API RQST OUT] Response: \n{}".format(
@@ -499,7 +503,7 @@ class Remotes:
         else:
             ret = response.status_code
             log.error(
-                f"[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi @ {ip}\n{ret}:{response.text}"
+                f"[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi: {log_host}\n{ret}:{response.text}"
             )
         return ret
 
@@ -545,7 +549,7 @@ class Remotes:
         rem_ip = None
         for _ip in rem_ip_list:
             log.debug(f"[API_REACHABLE] verifying {remote_host}")
-            _adapters = self.get_adapters_via_api(_ip, rename=rename)
+            _adapters = self.get_adapters_via_api(_ip, rename=rename, log_host=f"{remote_host}({_ip})")
             if _adapters:
                 rem_ip = _ip  # Remote is reachable
                 if not isinstance(_adapters, int):  # indicates status_code returned (error or no adapters found)

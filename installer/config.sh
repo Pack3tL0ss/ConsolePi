@@ -17,10 +17,10 @@ get_config() {
     bypass_verify=false
     selected_prompts=false
     logit "Starting get/build Configuration"
-    if [[ ! -f $CONFIG_FILE ]] && [[ ! -f $CONFIG_FILE_YAML ]]; then
+    if [ ! -f "$CONFIG_FILE" ] && [ ! -f "$CONFIG_FILE_YAML" ]; then
         found_path=$(get_staged_file_path "ConsolePi.yaml")
-        [[ -z $found_path ]] && found_path=$(get_staged_file_path "ConsolePi.conf")
-        if [[ ! -z $found_path ]] ; then
+        [ -z "$found_path" ] && found_path=$(get_staged_file_path "ConsolePi.conf")
+        if [ ! -z "$found_path" ] ; then
             logit "using provided config: ${found_path}"
             mv $found_path $consolepi_dir 2>>$log_file || logit "Error Moving staged config @ $found_path to $consolepi_dir" "WARNING"
         else
@@ -28,13 +28,14 @@ get_config() {
         fi
     fi
     process_yaml
-    if [ -z $cfg_file_ver ] || [ $cfg_file_ver -lt $CFG_FILE_VER ]; then
+    if [ -z "$cfg_file_ver" ] || [ "$cfg_file_ver" -lt "$CFG_FILE_VER" ]; then
         bypass_verify=true         # bypass verify function
         input=false                # so collect function will run (while loop in main)
         selected_prompts=true
         echo "-- NEW OPTIONS HAVE BEEN ADDED DATA COLLECTION PROMPTS WILL DISPLAY --"
     fi
     hotspot_dhcp_range
+    wired_dhcp_range
     unset process
 }
 
@@ -87,6 +88,8 @@ update_config() {
     spaces "wlan_ssid: ${wlan_ssid}" "# SSID used in hotspot mode" >> $yml_temp
     spaces "wlan_psk: ${wlan_psk}" "# psk used for hotspot SSID" >> $yml_temp
     spaces "wlan_country: ${wlan_country}" "# regulatory domain for hotspot SSID" >> $yml_temp
+    spaces "wired_dhcp: ${wired_dhcp}" "# Run dhcp on eth interface (after trying as client)" >> $yml_temp
+    spaces "wired_ip: ${wired_ip}" "# Fallback IP for eth interface" >> $yml_temp
     spaces "cloud: ${cloud}" "# enable ConsolePi cloud sync for Clustering (mdns enabled either way)" >> $yml_temp
     spaces "cloud_svc: ${cloud_svc}" "# must be gdrive (all that is supported now)" >> $yml_temp
     spaces "rem_user: ${rem_user}" "# The user account remotes should use to access this ConsolePi" >> $yml_temp
@@ -153,6 +156,13 @@ hotspot_dhcp_range() {
     baseip=`echo $wlan_ip | cut -d. -f1-3`   # get first 3 octets of wlan_ip
     wlan_dhcp_start=$baseip".101"
     wlan_dhcp_end=$baseip".150"
+}
+
+# -- Automatically set the DHCP range based on the eth IP provided --
+wired_dhcp_range() {
+    baseip=`echo $wired_ip | cut -d. -f1-3`   # get first 3 octets of wired_ip
+    wired_dhcp_start=$baseip".101"
+    wired_dhcp_end=$baseip".150"
 }
 
 collect() {
@@ -268,6 +278,21 @@ collect() {
         wlan_country=$result
     fi
 
+    # -- Enable DHCP on eth interface --
+    if ! $selected_prompts || [ -z $wired_ip ]; then
+        header
+        prompt="Do you want to run DHCP Server on eth0 (Fallback if no address as client)"
+        [[ -z $wired_dhcp ]] && wired_dhcp=false
+        user_input $wired_dhcp "${prompt}"
+        wired_dhcp=$result
+        if $wired_dhcp; then
+            prompt="What IP do you want to assign to eth0"
+            user_input ${wired_ip:-"10.12.0.1"} "${prompt}"
+            wired_ip=$result
+            wired_dhcp_range
+        fi
+    fi
+
     # -- cloud --
     if ! $selected_prompts || [ -z $cloud ]; then
         header
@@ -340,6 +365,11 @@ verify() {
         dots "ConsolePi HotSpot psk" "$wlan_psk"
     fi
     dots "ConsolePi WLAN regulatory domain" "$wlan_country"
+    dots "Wired ~ Fallback to DHCP Server" "$wired_dhcp"
+    if $wired_dhcp; then
+        dots "Wired Fallback IP" "$wired_ip"
+        dots " *Wired DHCP Range" "${wired_dhcp_start} to ${wired_dhcp_end}"
+    fi
     dots "ConsolePi Cloud Support" "$cloud"
     $cloud && dots "ConsolePi Cloud Service" "$cloud_svc"
     dots "User used by Remotes to connect to this ConsolePi" "$rem_user"

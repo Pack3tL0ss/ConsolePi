@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+# disable tftpd-hpa if enabled
+# systemctl is-active tftpd-hpa >/dev/null ; echo $?
+# create base wired-dhcp.conf if not exist
+# convert_template dnsmasq.eth0 /etc/ConsolePi/dnsmasq.d/wired-dhcp/wired-dhcp.conf dhcp_start="10.0.117.150" dhcp_end="10.0.177.199"
+# prompt / enable wired_dhcp and ztp if disabled
+consolepi-py /etc/ConsolePi/src/ztp.py ${@}
+. /etc/ConsolePi/installer/common.sh
+. /etc/ConsolePi/installer/config.sh
+. /etc/ConsolePi/installer/update.sh
+user_input true "Enable dhcp for ztp Now"
+if $result; then
+    if [[ "$(systemctl is-active tftpd-hpa)" == "active" ]]; then
+        echo "Shutting Down/Disabling tftpd-hpa ZTP utilizes dnsmasq tftpd"
+        sudo systemctl stop tftpd-hpa
+    fi
+
+    get_static
+    get_config
+
+    if ( [ -z "$wired_dhcp" ] || ! $wired_dhcp ); then
+        wired_dhcp=true
+    fi
+
+    if [ -z "$wired_ip" ]; then
+        prompt="What IP do you want to assign to eth0"
+        user_input ${wired_ip:-"10.12.0.1"} "${prompt}"
+        wired_ip=$result
+        wired_dhcp_range
+    fi
+    update_config
+    do_wired_dhcp
+    gen_dhcpcd_conf
+    echo 'Starting ZTP on eth0'
+    ssh_ip=$(echo "$SSH_CONNECTION" | awk '{print $3}')
+    eth_ip="$(ip -br a | grep eth0 | awk '{print $3}'| cut -d'/' -f1)"
+    if [[ "$eth_ip" != "$wired_ip" ]] && [[ "$ssh_ip" == "$eth_ip" ]]; then
+        echo "You appear to be accessing this ConsolePi via eth0"
+        user_input false "Continue (may lose the session)"
+    else
+        result=true
+    fi
+
+    if $result; then
+        if [[ "$eth_ip" != "$wired_ip" ]]; then
+            sudo dhcpcd -k eth0 >/dev/null && sudo dhcpcd -n eth0 >/dev/null
+            echo "Refreshing dhcp: dhcp will start when eth0 falls-back to static"
+        else
+            if [[ "$(systemctl is-active consolepi-wired-dhcp)" != "active" ]]; then
+                sudo systemctl daemon-reload && sudo systemctl start consolepi-wired-dhcp &&
+                echo -e "\ndhcp/ztp is now running waiting for devices to deploy"
+            fi
+        fi
+    echo "Use 'consolepi-logs -f' to monitor progress"
+    fi
+fi
+
+
+
+

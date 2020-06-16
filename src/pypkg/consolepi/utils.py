@@ -1,5 +1,6 @@
 #!/etc/ConsolePi/venv/bin/python3
 
+import string
 import subprocess
 import shlex
 import time
@@ -20,9 +21,30 @@ except Exception:
     loc_user = os.getenv("SUDO_USER", os.getenv("USER"))
 
 
+class Convert:
+    def __init__(self, mac):
+        self.orig = mac
+        if not mac:
+            mac = '0'
+        self.clean = ''.join([c for c in list(mac) if c in string.hexdigits])
+        self.ok = True if len(self.clean) == 12 else False
+        self.cols = ':'.join(self.clean[i:i+2] for i in range(0, 12, 2))
+        self.dashes = '-'.join(self.clean[i:i+2] for i in range(0, 12, 2))
+        self.dots = '.'.join(self.clean[i:i+4] for i in range(0, 12, 4))
+        self.tag = f"ztp-{self.clean[-4:]}"
+        self.dec = int(self.clean, 16) if self.ok else 0
+
+
+class Mac(Convert):
+    def __init__(self, mac):
+        super().__init__(mac)
+        oobm = hex(self.dec + 1).lstrip('0x')
+        self.oobm = Convert(oobm)
+
+
 class Utils:
     def __init__(self):
-        pass
+        self.Mac = Mac
 
     def user_input_bool(self, question):
         """Ask User Y/N Question require Y/N answer
@@ -366,12 +388,12 @@ class Utils:
                 if v:
                     for _m in list(v.lower()):
                         if not _m == 'x' and os.path.isdir(file):
-                            print(f"Add {k}: {_m}")
+                            # print(f"Add {k}: {_m}")
                             _perms += _modes[k][_m]
 
             # set x for all when dir (allow cd to the dir)
             if os.path.isdir(file):
-                print("add x for all")
+                # print("add x for all")
                 _perms += stat.S_IXUSR + stat.S_IXGRP + stat.S_IXOTH
 
             # if other and 'r' in other:
@@ -534,8 +556,8 @@ class Utils:
                 else {d.split("/")[-1]: dev[d] for d in dev}
             )
 
-    def valid_file(self, file):
-        return os.path.isfile(file) and os.stat(file).st_size > 0
+    def valid_file(self, filepath):
+        return os.path.isfile(filepath) and os.stat(filepath).st_size > 0
 
     def listify(self, var):
         return var if isinstance(var, list) or var is None else [var]

@@ -1,10 +1,9 @@
 %YAML 1.2
 # -- // Configuration File For ConsolePi \\ --
 # Create a Copy of this file with the name ConsolePi.yaml (remove ".example" extension).
-# This is the new format going forward, it replaces ConsolePi.conf, power.json, and hosts.json.
 ---
 CONFIG:
-  cfg_file_ver: 7 # ---- Do Not Delete or modify this line ---- #
+  cfg_file_ver: 9 # ---- Do Not Delete or modify this line ---- #
   push: true # PushBullet Notifications: true - enable, false - disable
   push_all: true # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden
   push_api_key: "PutYourPushBulletAPIKeyHere" # PushBullet API key
@@ -17,6 +16,8 @@ CONFIG:
   wlan_ssid: ConsolePi # SSID used in hotspot mode
   wlan_psk: ConsolePiR0cks!! # psk used for hotspot SSID
   wlan_country: US # regulatory domain for hotspot SSID
+  wired_dhcp: false # Run dhcp on eth interface (after trying as client)
+  wired_ip: 10.12.0.1 # Fallback IP for eth interface
   cloud: false # enable ConsolePi cloud sync for Clustering (mdns enabled either way)
   cloud_svc: gdrive # must be gdrive (all that is supported now)
   rem_user: pi # The user account remotes should use to access this ConsolePi
@@ -25,10 +26,36 @@ CONFIG:
 
 # --- // The Remaining Sections Are optional \\ ---
 # OVERRIDES optional items allowing you to override default beahvior
+# The values shown below are to highlight the options, all are set to the default
 OVERRIDES:
   skip_utils: false       # if true the install/update script will skip the launch of the consolepi-extras menu
   cloud_pull_only: false  # Retrieve data from cloud, but don't update cloud with your data
-  compact_mode: false     # All Remotes collapsed into a single section in menu
+  compact_mode: false     # Experimental - All Remotes collapsed into a single section in menu
+  disable_ztp: false      # If the ZTP section exists as it does below, and wired_dhcp: true, then ztp is enabled. Unless overriden with this option
+  ztp_lease_time: 2m      # When ztp in configured using consolepi-ztp the lease time is set to an aggressive 2min
+
+# ZTP (Zero Touch Provisioning) Allows you to leverage ConsolePi to automate the deployment of hardware from factory default.
+# Once the configuration and associated templates/variables are defined you must run `consolepi-ztp` to Generate the Configuration
+# Refer to the ztp section on the GitHub for more details
+ZTP:
+  883a30aabbcc:             # ztp entry by mac (format can be with no-delims as shown or any of [':', '.', '-'] note if using colons you need to use double-quotes around it to keep the yaml valid)
+    oobm: true              # If set to true, the host entry is made using the oobm MAC (The defined mac + 1).  Allows you to enter the MAC as it is on the barcode, but use oobm which is typically base-mac + 1
+    template: 6300M.j2
+    variables: variables.yaml
+    user: wade              # user/pass/post_cli not implemented yet, but intent is to login via ssh and issue the commands provided in post_cli
+    pass: Red@ct3d!
+    post_cli: ["start-shell", "vtysh -c \"led locator flash\"", "sleep 5m", "vtysh -c \"led locator off\""]
+  ordered:                  # Entries under the ordered key are deployed in order based on fuzzy match of the provided vendor_class(60) strings
+    6200:                   # vendor_class Fuzzy Match an entry will be created pointing switches with '6200' in the vendor_class to 6200_1.cfg
+      - template: 6200F.j2
+        variables: 6200F_1.yaml
+        user: wade
+        pass: Red@ct3d!
+        post_cli: ["start-shell", "vtysh -c \"led locator flash\"", "sleep 5m", "vtysh -c \"led locator off\""]
+      - template: 6200F.j2        # Once 6200_1 is deployed to a switch, the rule is updated and 6200_2.cfg will be sent to the next 6200
+        variables: 6200F_2.yaml
+    2530:
+      - template: 2530a.j2    # The first switch with 2530 in the vendor_class will be send 2530_1.cfg
 
 # The POWER section allows you to configure controlled power outlets, which can optionally be linked
 # to serial adapters or hosts.  When linked, ConsolePi will ensure the outlet is powered ON when you
@@ -69,7 +96,7 @@ POWER:
 # The HOSTS Section allows you to configure Manually defined hosts, which will show up in the menu
 # as available connection options.  This is for ssh or TELNET hosts.  This is handy for adding connection
 # options to devices that may be connected to an existing Terminal Server, or for virtual appliances with
-# serial consoles configured in the Hypervisor.  -OR- any other ssh/TELNET device you need.  Power Linkages
+# serial consoles configured in the Hypervisor. -OR- any other ssh/TELNET device you need.  Power Linkages
 # work with hosts the same way they do with adapters, just reference the Host i.e. "5900T(ssh)" in the
 # "linked_devs" key in the power section above.
 # TIP: configuring the ssh public key (of the user you launch the menu with), will allow you to login without

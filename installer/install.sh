@@ -257,6 +257,7 @@ pre_git_prep() {
 
     # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
     if [ ! -f /etc/sudoers.d/010_consolepi ]; then
+        process = "sudo rights consolepi group"
         echo '%consolepi ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*, /etc/ConsolePi/src/consolepi-commands/*, /etc/ConsolePi/venv/bin/python3 *' > /etc/sudoers.d/010_consolepi 2>>$log_file &&
         logit "consolepi group given sudo rights for consolepi-commands" ||
         logit "FAILED to give consolepi group sudo rights for ConsolePi functions" "WARNING"
@@ -265,6 +266,7 @@ pre_git_prep() {
             logit "Success chmod 0440 consolepi group sudoers.d file" ||
             logit "FAILED chmod 0440 consolepi group sudoers.d file" "WARNING"
         fi
+        unset process
     fi
 
     # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev

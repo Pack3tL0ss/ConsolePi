@@ -1,5 +1,6 @@
 #!/etc/ConsolePi/venv/bin/python3
 
+import string
 import subprocess
 import shlex
 import time
@@ -20,9 +21,30 @@ except Exception:
     loc_user = os.getenv("SUDO_USER", os.getenv("USER"))
 
 
+class Convert:
+    def __init__(self, mac):
+        self.orig = mac
+        if not mac:
+            mac = '0'
+        self.clean = ''.join([c for c in list(mac) if c in string.hexdigits])
+        self.ok = True if len(self.clean) == 12 else False
+        self.cols = ':'.join(self.clean[i:i+2] for i in range(0, 12, 2))
+        self.dashes = '-'.join(self.clean[i:i+2] for i in range(0, 12, 2))
+        self.dots = '.'.join(self.clean[i:i+4] for i in range(0, 12, 4))
+        self.tag = f"ztp-{self.clean[-4:]}"
+        self.dec = int(self.clean, 16) if self.ok else 0
+
+
+class Mac(Convert):
+    def __init__(self, mac):
+        super().__init__(mac)
+        oobm = hex(self.dec + 1).lstrip('0x')
+        self.oobm = Convert(oobm)
+
+
 class Utils:
     def __init__(self):
-        pass
+        self.Mac = Mac
 
     def user_input_bool(self, question):
         """Ask User Y/N Question require Y/N answer
@@ -339,11 +361,44 @@ class Utils:
             else resp.stderr.decode("UTF-8"),
         )
 
-    def set_perm(self, file):
+    def set_perm(self, file, user: str = None, group: str = None, other: str = None):
+        _modes = {
+            'user': {    # -- user and group set by default for our purposes --
+                'r': 0,  # stat.S_IRUSR,
+                'w': 0,  # stat.S_IWUSR,
+                'x': stat.S_IXUSR
+                },
+            'group': {
+                'r': 0,  # stat.S_IRGRP,
+                'w': 0,  # stat.S_IWGRP,
+                'x': stat.S_IXGRP
+                },
+            'other': {
+                'r': stat.S_IROTH,
+                'w': stat.S_IWOTH,
+                'x': stat.S_IXOTH
+                }
+            }
+        # -- by default set group ownership to consolepi and rw for user and group
         gid = grp.getgrnam("consolepi").gr_gid
         if os.geteuid() == 0:
             os.chown(file, 0, gid)
-            os.chmod(file, (stat.S_IWGRP + stat.S_IRGRP + stat.S_IWRITE + stat.S_IREAD))
+            _perms = stat.S_IWGRP + stat.S_IRGRP + stat.S_IWUSR + stat.S_IRUSR
+            for k, v in [('user', user), ('group', group), ('other', other)]:
+                if v:
+                    for _m in list(v.lower()):
+                        if not _m == 'x' and os.path.isdir(file):
+                            # print(f"Add {k}: {_m}")
+                            _perms += _modes[k][_m]
+
+            # set x for all when dir (allow cd to the dir)
+            if os.path.isdir(file):
+                # print("add x for all")
+                _perms += stat.S_IXUSR + stat.S_IXGRP + stat.S_IXOTH
+
+            # if other and 'r' in other:
+            #     _perms += stat.S_IROTH
+            os.chmod(file, (_perms))
 
     def json_print(self, obj):
         print(json.dumps(obj, indent=4, sort_keys=True))
@@ -501,8 +556,8 @@ class Utils:
                 else {d.split("/")[-1]: dev[d] for d in dev}
             )
 
-    def valid_file(self, file):
-        return os.path.isfile(file) and os.stat(file).st_size > 0
+    def valid_file(self, filepath):
+        return os.path.isfile(filepath) and os.stat(filepath).st_size > 0
 
     def listify(self, var):
         return var if isinstance(var, list) or var is None else [var]

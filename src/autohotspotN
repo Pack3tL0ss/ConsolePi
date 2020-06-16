@@ -136,7 +136,7 @@ ifaces=$(ip -br link show | grep -v lo | awk '{printf $1 " "}')
 [ ! -z "$interface" ] && wifidev=$interface || wifidev="wlan0"
 ethdev="eth0" #Ethernet port to use with IP tables
 # TODO test for adverse .. change iptables rules to -s $wifinet -d ! $wifinet
-# wifinet = printf "%s.0/24" $(echo $wlan_ip | cut -d. -f1-3)  # Not Used for now
+# wifinet= printf "%s.0/24" $(echo $wlan_ip | cut -d. -f1-3)  # Not Used for now
 
 IFSdef=$IFS
 cnt=0
@@ -214,27 +214,27 @@ KillHotspot() {
 }
 
 ChkWifiUp() {
-	logit "Checking WiFi connection ok"
-       logit "pausing $wlan_wait_time seconds to allow wpa_supplicant time to connect"
-       sleep $wlan_wait_time #give time for connection to be completed to router
-	if ! wpa_cli -i "$wifidev" status | grep 'ip_address' >/dev/null 2>&1
-        then #Failed to connect to wifi (check your wifi settings, password etc)
-	       logit 'Wifi failed to connect, falling back to Hotspot.' "WARNING"
-               wpa_cli terminate "$wifidev" >/dev/null 2>&1
-	       createAdHocNetwork
-       else
-              get_ssid_details Now
-	fi
+    logit "Checking WiFi connection ok"
+    logit "pausing $wlan_wait_time seconds to allow wpa_supplicant time to connect"
+    sleep $wlan_wait_time #give time for connection to be completed to router
+    if ! wpa_cli -i "$wifidev" status | grep 'ip_address' >/dev/null 2>&1; then
+        logit 'Wifi failed to connect, falling back to Hotspot.' "WARNING"
+        wpa_cli terminate "$wifidev" >/dev/null 2>&1
+        createAdHocNetwork
+    else
+        get_ssid_details Now
+    fi
 }
 
 ChkWiredState() {
     if [[ "$ifaces" =~ "$ethdev" ]]; then
-        eth0_ip=`ip addr show dev $ethdev | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
+        # eth0_ip=`ip addr show dev $ethdev | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
+        eth0_ip=$(ip -br a | grep "$ethdev" |awk '{ print $3}' | cut -d'/' -f1)
         eth0_state=`ip addr show dev $ethdev | head -1 | sed -n -e 's/^.*state //p' | cut -d ' ' -f1 |awk '{ print $1 }'`
         if [ ${eth0_state} == "UP" ] && [ ${#eth0_ip} -gt 6 ]; then
-                eth0_up=true
+            eth0_up=true
         else
-                eth0_up=false
+            eth0_up=false
         fi
     else
         eth0_up=false
@@ -251,7 +251,7 @@ ChkWiredState() {
                 # sed -i -e :a -e  '/^\\n*$/{$d;N;};/\\n$/ba' $dhcp_config # make sure EoF has \n
                 sed -i -e '$a\' $dhcp_config # make sure EoF has \n
                 echo "${eth0_dom}" >> $dhcp_config &&
-                    use_eth_dom=true || use_eth_dom=false
+                use_eth_dom=true || use_eth_dom=false
             else
                 sed -i "/domain=/s/.*/${eth0_dom}/" $dhcp_config &&
                 use_eth_dom=true || use_eth_dom=false
@@ -271,7 +271,7 @@ ChkWiredState() {
     fi
 
     if $eth0_up; then
-        sed -i '/^dhcp-option=wlan0,3/s/^/#/g' $dhcp_config  # comment out option 3 - default behavior assigns i/f address as def-gw
+        sed -i '/^dhcp-option=wlan0,3/s/^/#/g' $dhcp_config  # comment out option 3 - result is default behavior assign i/f address as def-gw
         logit "Bringing up hotspot with gateway as eth0 is up with IP $eth0_ip"
     else
         sed -i '/^#dhcp-option=wlan0,3/s/^#//g' $dhcp_config  # uncomment line defines option 3 with no value, over-riding default behavior no gw assigned

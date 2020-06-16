@@ -72,14 +72,24 @@ class ConsolePiMenu(Rename):
             else:
                 do_pprint = False
 
-            _class_str = '.'.join(ch.split('.')[0:-1])
-            _attr = ch.split('.')[-1].split('[')[0].split('(')[0]
-            if _class_str.split('.')[0] == 'this':
+            _key_str = _args_str = 'wtf?'
+            if '[' in ch:
+                _key_str = f"[{ch.split('[')[1]}"
+                _ch = ch.replace(_key_str, '{{KEY}}')
+            if '(' in ch:
+                _args_str = f"({ch.split('(')[1]}"
+                _ch = ch.replace(_args_str, '{{ARGS}}')
+            _class_str = '.'.join(_ch.split('.')[0:-1])
+            _attr = _ch.split('.')[-1].split('{{')[0]  # .split('[')[0].split('(')[0]
+            # if _class_str.split('.')[0] == 'this':
+            if _class_str.startswith('this'):
                 _var = f'self.var = locs.get("{_attr}", "Attribute/Variable Not Found")'
-                if '[' in ch:
-                    _var += f"[{ch.split('.')[-1].split('[')[1]}"
-                if '(' in ch:
-                    _var += f"({ch.split('.')[-1].split('(')[1]}"
+                _var += ch.lstrip(f"{_class_str}.").lstrip(_attr)
+                # _var = _var.replace('{{KEY}}', _key_str).replace('{{ARGS}}', _args_str)
+                # if '[' in ch:
+                #     _var += f"[{ch.split('.')[-1].split('[')[1]}"
+                # if '(' in ch:
+                #     _var += f"({ch.split('.')[-1].split('(')[1]}"
             else:
                 try:
                     exec(f"self._class = {_class_str}")
@@ -873,7 +883,14 @@ class ConsolePiMenu(Rename):
 
         choice_c = self.wait_for_input(locs=locals(), terminate=True)
         choice = choice_c.lower
-        cpi.cpiexec.menu_exec(choice_c, menu_actions)
+        # TODO Temporary local only refresh refactor to action object
+        if choice == 'rl':
+            cpi.local.adapters = cpi.local.build_adapter_dict(refresh=True)
+            remotes.data = remotes.get_remote(data=config.remote_update())
+            loc = cpi.local.adapters
+            rem = remotes.data
+        else:
+            cpi.cpiexec.menu_exec(choice_c, menu_actions)
         return
 
     # ------ // REMOTE SHELL MENU \\ ------ #

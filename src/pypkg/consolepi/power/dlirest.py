@@ -236,7 +236,7 @@ class DLI:
                 if not outlet_list:
                     log.error(f'[DLI GET OUTLETS] dli @ {self.fqdn} reachable, but failed to fetch statuslist (outlet_list)')
                     self.reachable = False
-                    self.dli = self.outlets = {}
+                    self.dli = self.outlets = {}  # TODO maybe update outlets in defined... see error in exec
             else:
                 self.reachable = False
                 self.dli = self.outlets = {}
@@ -292,6 +292,7 @@ class DLI:
                     if not r:  # dlipower.PowerSwitch returns False if operation Success
                         return toState
                     else:
+                        # TODO need to get_session and retry, or put logic in to verify prior to ops
                         return '{} Port {} dlipower library gave an unexpected response: {}'.format(
                             self.fqdn, port, r)
                 elif func == 'cycle':

@@ -11,7 +11,8 @@
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
 chg_password() {
-    if grep -q "^pi:" /etc/passwd && [[ $iam == "pi" ]] && [ -e /run/sshwarn ]; then
+    process="pi user password change"
+    if grep -q "^pi:" /etc/passwd && [[ "$iam" == "pi" ]] && [ -e /run/sshwarn ]; then
         if [ ! -z "$pi_pass" ]; then
             echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
                 logit "Error occured changing pi password using conf/cmd_line arg" "WARNING"
@@ -28,7 +29,6 @@ chg_password() {
                     [[ "${pass}" == "${pass2}" ]] && match=true || match=false
                     ! $match && echo -e "ERROR: Passwords Do Not Match\n"
                 done
-                process="pi user password change"
                 echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
                 ( logit "Failed to Change Password for pi user" "WARNING" &&
                 echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
@@ -85,7 +85,7 @@ set_hostname() {
             hostname "$newhost" 1>&2 2>>/dev/null
             [ $? -gt 0 ] && logit "Error returned from hostname command" "WARNING"
 
-            # add wlan hotspot IP to hostfile for DHCP connected clients to resolve this host
+            # add hotspot IP to hostfile for DHCP connected clients to resolve this host
             wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)
             [ $wlan_hostname_exists == 0 ] && echo "$wlan_ip       $newhost" >> /etc/hosts
             sed -i "s/$hostn/$newhost/g" /etc/hostname
@@ -147,7 +147,7 @@ disable_ipv6()  {
             prompt="Do you want to disable ipv6"
             dis_ipv6=$(user_input_bool)
         fi
-    else
+    elif [ -z "$dis_ipv6" ]; then
         dis_ipv6=false
         logit "Disable IPv6 bypassed silent install with no desired state provided"
     fi
@@ -176,7 +176,7 @@ misc_imports(){
         [[ $found_path ]] && logit "pre-staged ssh known_hosts file found - importing"
         if [[ $found_path ]]; then
             file_diff_update $found_path /root/.ssh/known_hosts
-            file_diff_update $found_path ${home_dir}/.ssh/knwon_hosts
+            file_diff_update $found_path ${home_dir}/.ssh/known_hosts
                 chown $iam:$iam ${home_dir}/.ssh/known_hosts
         fi
 
@@ -220,9 +220,12 @@ misc_imports(){
         # -- ztp configurations --
         if [[ -d ${stage_dir}/ztp ]]; then
             logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
-            cp ${stage_dir}/ztp/* /etc/ConsolePi/ztp/ &&
+            cp ${stage_dir}/ztp/* ${consolepi_dir}ztp/ 2>>$log_file &&
             logit "Success - copying staged ztp configs" ||
                 logit "Failure - copying staged ztp configs" "WARNING"
+            if [[ $(ls -1 | grep -vi "README" | wc -l ) > 0 ]]; then
+                check_perms ${consolepi_dir}ztp
+            fi
         fi
 
         # -- autohotspot dhcp configurations --
@@ -505,6 +508,13 @@ disable_autohotspot() {
     unset process
 }
 
+do_wired_dhcp() {
+    process="wired-dhcp"
+    convert_template dnsmasq.eth0 /etc/ConsolePi/dnsmasq.d/wired-dhcp/wired-dhcp.conf dhcp_start="${wired_dhcp_start}" dhcp_end="${wired_dhcp_end}"
+        # -- using this vs systemd_diff_update as we don't want the service enabled.  It's activated by exit-hook
+    file_diff_update ${src_dir}systemd/consolepi-wired-dhcp.service /etc/systemd/system/consolepi-wired-dhcp.service
+}
+
 gen_dnsmasq_conf () {
     process="Configure dnsmasq"
     logit "Generating Files for dnsmasq."
@@ -543,7 +553,7 @@ gen_dnsmasq_conf () {
 gen_dhcpcd_conf () {
     process="dhcpcd.conf"
     logit "configure dhcp client and static fallback"
-    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip}
+    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip} wired_ip=${wired_ip} wired_dhcp=${wired_dhcp}
     unset process
 }
 
@@ -834,8 +844,8 @@ get_serial_udev() {
     echo "-     Most FTDI based adapters have serial #s, I've only seen the lack of serial # on dev boards.                   -"
     echo "-     ---- If you're interested I reccomend adapters that use FTDI chips. ----                                      -"
     echo "-                                                                                                                   -"
-    echo -e "-  This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from              -"
-    echo -e "-    ${_cyan}consolepi-menu${_norm} via the 'rn' (rename) option.                                                                 -"
+    echo -e "-  This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from                -"
+    echo -e "-    ${_cyan}consolepi-menu${_norm} via the 'rn' (rename) option.                                                                   -"
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
@@ -879,9 +889,11 @@ do_wifi_country() {
         iw reg set "$wlan_country" > /dev/null 2>>$log_file &&
             logit "Wi-fi country set to $wlan_country" ||
             logit "Error Code returned when setting WLAN country" "WARNING"
-        if hash rfkill 2> /dev/null; then
-            rfkill unblock wifi
-        fi
+    fi
+
+    # -- always check to see if rfkill is blocking wifi --
+    if hash rfkill 2> /dev/null; then
+        rfkill unblock wifi
     fi
     unset process
 }
@@ -996,6 +1008,7 @@ update_main() {
     # get_pi_info                         # (common.sh func) Collect some version info for logging
     # remove_first_boot                   # if auto-launch install on first login is configured remove
     # do_apt_update                       # apt-get update the pi
+    # do_apt_deps                         # install dependencies via apt
     # pre_git_prep                        # process upgrade tasks required prior to git pull
     # git_ConsolePi                       # git clone or git pull ConsolePi
     # $upgrade && post_git                # post git changes
@@ -1036,6 +1049,7 @@ update_main() {
     else
         disable_autohotspot
     fi
+    $wired_dhcp && do_wired_dhcp
     do_blue_config
     do_consolepi_api
     do_consolepi_mdns

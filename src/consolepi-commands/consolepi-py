@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
-
 [[ -z "$1" ]] && echo 'Launching consolepi Python Virtual Environment'
-sudo /etc/ConsolePi/venv/bin/python3 "$@"
+if [[ "$1" =~ "-user" ]]; then
+    /etc/ConsolePi/venv/bin/python3 "${@:2}"
+else
+    sudo /etc/ConsolePi/venv/bin/python3 "$@"
+fi

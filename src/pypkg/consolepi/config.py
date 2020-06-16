@@ -104,12 +104,12 @@ class Config():
         self.cycle_time = int(ovrd.get('cycle_time', DEFAULT_CYCLE_TIME))
 
     def get_outlets_from_file(self):
-        '''Get outlets defined in power.json
+        '''Get outlets defined in config
 
         returns:
             dict: with following keys (all values are dicts)
-                linked: linked outlets from power.json (linked to serial adapters- auto pwr-on)
-                dli_power: dict any dlis in power.json have all ports represented here
+                linked: linked outlets from config (linked to serial adapters- auto pwr-on)
+                dli_power: dict any dlis in config have all ports represented here
                 failures: failure to connect to any outlets will result in an entry here
                     outlet_name: failure description
         '''

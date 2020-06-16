@@ -4,6 +4,7 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
+wired_dhcp=false  # temp until a config option
 cur_dir=$(pwd)
 iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
@@ -12,7 +13,7 @@ src_dir="${consolepi_dir}src/"
 bak_dir="${consolepi_dir}bak/"
 home_dir=$(grep "^${iam}:" /etc/passwd | cut -d: -f6)  # TODO NO TRAILING / make others that way
 stage_dir="${home_dir}/consolepi-stage"                # TODO NO TRAILING / make others that way
-default_config="/etc/ConsolePi/ConsolePi.conf"
+default_config="/etc/ConsolePi/ConsolePi.conf"      # TODO Double check, should be able to remove
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
 final_log="/var/log/ConsolePi/install.log"
@@ -23,6 +24,7 @@ yml_script="/etc/ConsolePi/src/yaml2bash.py"
 tmp_src="/tmp/consolepi-temp"
 warn_cnt=0
 
+_DEBUG_=${_DEBUG_:-false}
 # Terminal coloring
 _norm='\e[0m'
 _bold='\e[32;1m'
@@ -484,6 +486,24 @@ get_staged_file_path() {
     echo $found_path
 }
 
+check_perms() {
+    check_list=("$@")
+    [[ "${check_list[@]}" =~ "-s" ]] && local silent=true || local silent=false
+    for d in "${check_list[@]}"; do
+        [[ "$d" == "-s" ]] && continue
+        [ "$(stat -c '%G' $d)" == "consolepi" ] && grpok=true || grpok=false
+        stat -c %A $d |grep -q "^....rw....$" && modok=true || modok=false
+        if ! $grpok || ! $modok; then
+            chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?
+            chmod g+w -R ${d} 2>> $log_file ; ((rc+=$?))
+            [[ $rc > 0 ]] && logit "Error Returned while setting perms for $d" "WARNING" ||
+                logit "Success ~ Update Permissions for $d"
+        elif ! $silent; then
+            logit "Permissions for $d already OK"
+        fi
+    done
+}
+
 dots() {
     local pad=$(printf "%0.1s" "."{1..51})
     printf " %s%*.*s" "$1" 0 $((51-${#1})) "$pad" "$2"; echo
@@ -497,12 +517,14 @@ spaces() {
 }
 
 process_cmds() {
-    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
-    ret=0
-    # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
+    # reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
+    local do_autoremove=false  # TODO check if the return is necessary may be relic from early testing
+    $_DEBUG_ && echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
-        # echo -e "DEBUG:\n\tcmd=${cmd}\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
-        # echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
+        if $_DEBUG_; then
+            echo -e "DEBUG:\n\tcmd=${cmd}\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
+            echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
+        fi
         case "$1" in
             -stop) # will stop function from exec remaining commands on failure (witout exit 1)
                 local stop=true
@@ -585,6 +607,7 @@ process_cmds() {
                 [ -z pmsg ] && local pmsg="Success - Remove $pname (apt)"
                 [ -z fmsg ] && local fmsg="Error - Remove $pname (apt)"
                 local cmd="sudo apt-get -y purge $2"
+                local do_autoremove=true
                 shift $_shift
                 ;;
             -o) # redirect stdout default is /dev/null
@@ -617,45 +640,47 @@ process_cmds() {
         # use defaults if flag not set
         if [[ ! -z $cmd ]]; then
             # [[ -z $pmsg ]] && local pmsg="Success - $cmd"
+            # [[ -z $fail_lvl ]] && local fail_lvl="WARNING"
+            # [[ -z $silent ]] && local silent=false
+            # [[ -z $stop ]] && local stop=false
+            # [[ -z $err ]] && local err=$log_file
+            # [[ -z $out ]] && local out='/dev/null'
+            # [[ -z $showstart ]] && local showstart=true
+            # [[ -z $do_apt_install ]] && local do_apt_install=false
             local pmsg=${pmsg:-"Success - $cmd"}
             local fmsg=${fmsg:-"Error - $cmd  See details in $log_file"}
-            [[ -z $fail_lvl ]] && local fail_lvl="WARNING"
-            [[ -z $silent ]] && local silent=false
-            [[ -z $stop ]] && local stop=false
-            [[ -z $err ]] && local err=$log_file
+            local fail_lvl=${fail_lvl:-"WARNING"}
+            local silent=${silent:-false}
+            local stop=${stop:-false}
+            local err=${err:-$log_file}
+            local out=${out:-'/dev/null'}
+            local showstart=${showstart:-true}
+            local do_apt_install=${do_apt_install:-false}
             [[ ! -z $cmd_pfx ]] && local cmd="$cmd_pfx $cmd"
-            [[ -z $out ]] && local out='/dev/null'
-            [[ -z $showstart ]] && local showstart=true
-            [[ -z $do_apt_install ]] && local do_apt_install=false
-            # echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
-            # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
+            if $_DEBUG_; then
+                echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
+                echo "------------------------------------------------------------------------------------------"
+            fi
             # -- // PROCESS THE CMD \\ --
             ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
-            if eval "$cmd" >>"$out" 2>>"$err"; then
+            # if eval "$cmd" >>"$out" 2>>"$err"; then # <-- Do the command
+            if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
                 local cmd_failed=false
                 ! $silent && logit "$pmsg"
-                # if cmd was an apt-get purge - automatically issue autoremove to clean unnecessary deps
-                # TODO re-factor to only do purge at the end of all other proccesses
-                if [[ "$cmd" =~ "purge" ]]; then
-                    logit "Tidying Up packages that are no longer in use (apt autoremove)"
-                    sudo apt-get -y autoremove >/dev/null 2>>$log_file &&
-                        logit "Success - All Tidy Now" ||
-                        logit "Error - apt autoremove returned error-code" "WARNING"
-                fi
             else
                 local cmd_failed=true
                 if $do_apt_install ; then
-                    local x=1
-                    while [[ $(tail -2 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
+                    local x=1; while [[ $(tail -2 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
                         logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
                         sleep 5
                         logit "Starting ${pmsg/Success - /} ~ retry $x"
-                        if eval "$cmd" >>"$out" 2>>"$err"; then
+                        # if eval "$cmd" >>"$out" 2>>"$err"; then
+                        if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err"); then
                             local cmd_failed=false
                             ! $silent && logit "$pmsg"
                         fi
                         ((x+=1))
-                        done
+                    done
                 fi
             fi
 
@@ -663,13 +688,18 @@ process_cmds() {
                 logit "$fmsg" "$fail_lvl" && ((ret+=1))
                 $stop && logit "aborting remaining tasks due to previous failure" && cd $cur_dir && break
             fi
-            # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
-            # -- // unset all flags \\ --
-            # for c in "${reset_vars[@]}"; do
-            #     unset ${c}
-            # done
+            $_DEBUG_ && echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
         fi
 
     done
-    return $ret
+
+    # if apt purge was in cmd list -->apt autoremove
+    if $do_autoremove; then
+        logit "Tidying Up packages that are no longer in use (apt autoremove)"
+        sudo apt autoremove -y >/dev/null 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>$log_file) &&
+            logit "Success - All Tidy Now" ||
+            logit "Error - apt autoremove returned error-code" "WARNING"
+    fi
+
+    return 0
 }

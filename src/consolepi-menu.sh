@@ -26,7 +26,6 @@ get_tty_devices() {
 }
 
 # -- If ttyUSB device has defined alias, Display the alias in menu --
-# TODO when ttyUSB1 and ttyUSB10 11 12 13 all are present all names will be assigned to same root in menu
 get_tty_name() {
     tty_name=$(ls -l /dev |grep ^lrwx.*${this_tty##*/}$ |cut -d: -f2|awk '{print $2}')
     [[ -z $tty_name ]] && tty_name=${this_tty##*/} ||

@@ -341,8 +341,8 @@ do_import_configs() {
 
 do_select_image() {
     args=("${@}")
-    echo "@ ${@}"
-    echo "args2 ${args[2]}"
+    # echo "@ ${@}"
+    # echo "args2 ${args[2]}"
     idx=1; for i in "${args[@]}"; do
         echo ${idx}. ${i}
         ((idx+=1))
@@ -365,7 +365,7 @@ do_select_image() {
     if [[ "${args[${input}]}" =~ ".zip" ]]; then
         do_unzip "${args[((${input}-1))]}" # do_unzip sets img_file
     else
-        echo "$input ${args[0]} ${args[1]} ${args[2]} ${args[3]} ${args[${input}]}"
+        # echo "$input ${args[0]} ${args[1]} ${args[2]} ${args[3]} ${args[${input}]}"
         img_file="${args[((${input}-1))]}"
     fi
 }
@@ -494,7 +494,7 @@ main() {
     if ! $nodd; then  # nodd is dev/testing flag to expedite testing of the script (doesn't write image to sd-card)
         dd bs=4M if="${img_file}" of=/dev/${my_usb} conv=fsync status=progress &&
             echo -e "\n\n$(bold Image written to flash - no Errors)\n\n" ||
-            ( echo -e "\n\n$(red Error writing image to falsh)\n\n" && exit 1 )
+            ( echo -e "\n\n$(red Error writing image to falsh)\n\n" ; exit 1 )
     fi
 
     # Create some mount-points if they don't exist already.  Script will remove them if it has to create them, they will remain if they were already there
@@ -550,7 +550,7 @@ main() {
         fi
 
         $LOCAL_DEV && cmd_line="-dev $cmd_line"
-        echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.bashrc
+        grep -q "consolepi-install" $IMG_HOME/.bashrc || echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.bashrc
 
         # make install command/script executable
         sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install &&

@@ -15,12 +15,14 @@ interfaces = local.interfaces
 remotes = cpi.remotes.data
 details = local.data
 dump = {'local': details, 'remotes': config.remotes}
+jprint = utils.json_print
+
+
 # details['outlets'] = outlets
 if config.remotes:
     for r in config.remotes:
         if r not in cpi.remotes.data:
             dump['remotes'][r]['!! WARNING !!'] = 'This Device is Currently Unreachable'
-jprint = utils.json_print
 
 
 def get_outlets():
@@ -57,7 +59,8 @@ if len(sys.argv) > 1:
         jprint(details)
     else:
         try:
-            print('\nRemote Cache data for {}:\n{}'.format(sys.argv[1], jprint(details['remotes'][sys.argv[1]])))
+            print(f'\nRemote Cache data for {sys.argv[1]}:')
+            jprint(remotes[sys.argv[1]])
         except KeyError:
             dump['outlets'] = get_outlets()
             jprint(dump)

@@ -19,3 +19,10 @@ cloud.data
 # venv
 .venv
 venv/
+
+# -- // ztp dir \\ --
+# ignore everything in ztp dir other than the readme
+ztp/*
+# Except this file and the readme
+# !.gitignore
+ztp/*!README

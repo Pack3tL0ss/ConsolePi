@@ -105,6 +105,7 @@ GetCurrentIP() {
 Ping_Check() {
     $debug && logger -t puship-DEBUG Enter Ping_Check Function
     ping -c 1 $1 &> /dev/null && ping_ok=true || ping_ok=false
+    # ping -c 1 -I $interface $1 &> /dev/null && ping_ok=true || ping_ok=false  # verify impact
 }
 
 # >> Establish VPN Connection <<

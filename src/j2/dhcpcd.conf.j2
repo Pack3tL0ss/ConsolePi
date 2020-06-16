@@ -2,7 +2,7 @@
 # ** dynamically by install script.  For customization touch dhcpcd.conf in
 # ** in the overrides dir, then customize /etc/dhcpcd.conf as desired.
 # ** The existence of the file in the overrides dir causes the upgrade script
-# ** to bypass validation of the file ... consolepi-upgrade won't make any changes
+# ** to bypass validation of the file (consolepi-upgrade won't make any changes)
 #
 # A sample configuration for dhcpcd.
 # See dhcpcd.conf(5) for details.
@@ -63,9 +63,8 @@ static ip_address={{wlan_ip}}/24
 # wired static fallback profile
 # defined - currently commented out/disabled below
 profile static_eth0
-static ip_address=192.168.25.10/24
-static routers=192.168.25.1
-static domain_name_servers=1.0.0.1 8.8.8.8
+static ip_address={{ wired_ip|default("192.168.25.1") }}/24
+static domain_name_servers=1.0.0.1 8.8.8.8 9.9.9.9
 
 # Assign fallback to static profile on wlan0
 interface wlan0
@@ -73,7 +72,11 @@ fallback static_wlan0
 vendorclassid "dhcpcd:ConsolePi"
 
 interface eth0
+{% if wired_dhcp %}
+fallback static_eth0
+{% else %}
 # fallback static_eth0
+{% endif %}
 vendorclassid "dhcpcd:ConsolePi"
 
 # For AutoHotSpotN

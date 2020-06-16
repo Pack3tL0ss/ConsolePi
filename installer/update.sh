@@ -508,6 +508,13 @@ disable_autohotspot() {
     unset process
 }
 
+do_wired_dhcp() {
+    process="wired-dhcp"
+    convert_template dnsmasq.eth0 /etc/ConsolePi/dnsmasq.d/wired-dhcp/wired-dhcp.conf dhcp_start="${wired_dhcp_start}" dhcp_end="${wired_dhcp_end}"
+        # -- using this vs systemd_diff_update as we don't want the service enabled.  It's activated by exit-hook
+    file_diff_update ${src_dir}systemd/consolepi-wired-dhcp.service /etc/systemd/system/consolepi-wired-dhcp.service
+}
+
 gen_dnsmasq_conf () {
     process="Configure dnsmasq"
     logit "Generating Files for dnsmasq."
@@ -546,7 +553,7 @@ gen_dnsmasq_conf () {
 gen_dhcpcd_conf () {
     process="dhcpcd.conf"
     logit "configure dhcp client and static fallback"
-    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip}
+    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip} wired_ip=${wired_ip} wired_dhcp=${wired_dhcp}
     unset process
 }
 
@@ -1042,6 +1049,7 @@ update_main() {
     else
         disable_autohotspot
     fi
+    $wired_dhcp && do_wired_dhcp
     do_blue_config
     do_consolepi_api
     do_consolepi_mdns

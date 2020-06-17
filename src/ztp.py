@@ -66,6 +66,7 @@ class Ztp:
         self.conf = ztp_conf
         self.conf_pretty = ''.join([f"\t{k}: {v}\n" for k, v in self.conf.items()])
         self.vendor_class = ztp_conf.get('vendor_class')
+        self.image = ztp_conf.get('image')
         self.tmplt = self._get_template()
         self.var_file = self._get_var_file()
         self.vc_idx = vc_idx
@@ -141,16 +142,21 @@ class Ztp:
         mac = self.mac
         if mac:
             # ztp_hosts_lines.append(f"{mac.cols},{mac.tag},{_ip_pfx}.{_ip_sfx},{ztp_lease_time},set:{mac.tag}\n")
+            tag = mac.tag
             _mac = mac.cols if not self.conf.get('oobm') else mac.oobm.cols
-            self.host_lines.append(f"{_mac},{mac.tag},,{ztp_lease_time},set:{mac.tag}\n")
-            self.opt_lines.append(f'tag:{mac.tag},option:bootfile-name,"{self.cfg_file_name}"\n')
+            self.host_lines.append(f"{_mac},{tag},,{ztp_lease_time},set:{tag}\n")
+            self.opt_lines.append(f'tag:{tag},option:bootfile-name,"{self.cfg_file_name}"\n')
 
         elif self.vendor_class:
+            tag = self.vendor_class
             self.main_lines.append(f'dhcp-vendorclass=set:{self.vendor_class},{self.vendor_class}\n')
             if self.vc_idx == 1:
-                self.opt_lines.append(f"tag:{self.vendor_class},tag:!sent,option:bootfile-name,{self.cfg_file_name}\n")
+                self.opt_lines.append(f"tag:{tag},tag:!cfg_sent,option:bootfile-name,{self.cfg_file_name}\n")
             else:
-                self.opt_lines.append(f"# tag:{self.vendor_class},tag:!sent,option:bootfile-name,{self.cfg_file_name}\n")
+                self.opt_lines.append(f"# tag:{tag},tag:!cfg_sent,option:bootfile-name,{self.cfg_file_name}\n")
+
+        if self.image:
+            self.opt_lines.insert(0, f"tag:{tag},tag:!img_sent,vendor:,145,{self.image}\n")
 
     def generate_template(self):
         '''Generate configuration files based on j2 templates and provided variables
@@ -184,13 +190,13 @@ class ConsolePiZtp(Ztp):
                 if _line.strip().startswith('dhcp-range=')
                 ]
         if line and len(line) == 1:
-            ztp_main_lines.insert(0, line[0])
+            self.ztp_main_lines.insert(0, line[0])
         else:
             print("!! Error occured getting dhcp-range from wired-dhcp.conf lease-time will not be updated for ZTP")
 
         for _file, _lines in zip(
                 [ztp_main_conf, ztp_hosts_conf, ztp_opts_conf],
-                [self.ztp_main_lines, self.ztp_host_lines, self.ztp_opt_lines]
+                [self.ztp_main_lines, self.ztp_host_lines, utils.unique(self.ztp_opt_lines)]
                 ):
             with open(_file, "w") as f:
                 f.writelines(_lines)
@@ -203,6 +209,8 @@ class ConsolePiZtp(Ztp):
     def run(self):
         print(f"{'-' * 43}\nResetting ZTP Configuration Based On Config\n{'-' * 43}")
         for key in config.ztp:
+            # TODO image support
+            # tag:6200,tag:!sent,vendor:,145,ArubaOS-CX_6200_10_04_3000.swi
             if 'ordered' not in key:
                 # -- Generate Templates for defined MACs in ztp config --
                 mac = utils.Mac(key)
@@ -222,6 +230,9 @@ class ConsolePiZtp(Ztp):
                         self.dhcp_append(ztp)
                         idx += 1
 
+        # -- re-order ztp_opt_lines so all image file entries are at top --
+        self.ztp_opt_lines = [_line for _line in self.ztp_opt_lines if 'img_sent' in _line] + \
+            [_line for _line in self.ztp_opt_lines if 'img_sent' not in _line]
         print("+ Creating DHCP Configuration for ZTP\n")
         self.configure_dhcp_files()
 

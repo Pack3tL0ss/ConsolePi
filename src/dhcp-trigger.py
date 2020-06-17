@@ -50,42 +50,52 @@ vendor = os.environ.get('DNSMASQ_VENDOR_CLASS')
 
 def get_mac(ip):
     with open(lease_file) as f:
+        mac = None
         lines = f.readlines()
         for line in lines:
             if ip in line:
-                return line.split(' ')[1]
+                mac = line.split(' ')[1]
+        if not mac:
+            if len(sys.argv) > 5:
+                mac = sys.argv[5]  # debug option for testing add mac as 5th arg doesn't have to be in lease file
+        return mac
 
 
 def next_ztp(filename, mac):
     _from = os.path.basename(filename)
-    _to = f"{_from.split('_')[0]}_{int(_from.rstrip('.cfg').split('_')[-1]) + 1}.cfg"
+    if _from.endswith('.cfg'):
+        set_tag = "cfg_sent"
+        _to = f"{_from.split('_')[0]}_{int(_from.rstrip('.cfg').split('_')[-1]) + 1}.cfg"
+    else:
+        set_tag = "img_sent"
+        _to = None
+
     host_lines = []
 
     if not os.path.isfile(ztp_opts_conf):
         log.warning(f"{ztp_opts_conf} not found. Noting to do.")
     else:
-        if not os.path.isfile(f"{os.path.dirname(filename)}/{_to}"):
+        if _to and not os.path.isfile(f"{os.path.dirname(filename)}/{_to}"):
             log.info(f"No More Files for {_from.split('_')[0]}")
         with in_place.InPlace(ztp_opts_conf) as fp:
             line_num = 1
             for line in fp:
                 if _from in line:
-                    # TODO if not mac.ok don't write retry lines... print/log/warning
                     if mac.ok:
                         fp.write(
                                 f"# {mac.cols}|{ip} Sent {_from}"
                                 f"{' Success' if ztp_ok else 'WARN file size != xfer total check switch and logs'}\n"
                                 )
-                        fp.write(f"# -- Retry Lines for {_from.rstrip('.cfg')} Based On mac {mac.cols} --\n")
+                        fp.write(f"# -- Retry Line for {_from.rstrip('.cfg')} Based On mac {mac.cols} --\n")
                         fp.write(f'tag:{mac.tag},option:bootfile-name,"{_from}"\n')
-                        host_lines.append(f"{mac.cols},{mac.tag},,{ztp_lease_time},set:{mac.tag},set:sent\n")
+                        host_lines.append(f"{mac.cols},{mac.tag},,{ztp_lease_time},set:{mac.tag},set:{set_tag}\n")
                     else:
                         print(f'Unable to write Retry Lines for previously updated device.  Mac {mac.orig} appears invalid')
 
                     fp.write(f"# SENT # {line}")
                     log.info(f"Disabled {_from} on line {line_num} of {os.path.basename(ztp_opts_conf)}")
                     log.info(f"Retry Entries Created for {_from.rstrip('.cfg')} | {mac.cols} | {ip}")
-                elif _to in line:
+                elif _to and _to in line:
                     if not line.startswith('#'):
                         log.warning(f'Expected {_to} option line to be commented out @ this point.  It was not.')
                     fp.write(line.lstrip('#').lstrip())
@@ -93,10 +103,14 @@ def next_ztp(filename, mac):
                 else:
                     fp.write(line)
                 line_num += 1
+
         if host_lines:
             with open(ztp_hosts_conf, 'a') as fp:
                 fp.writelines(host_lines)
-                log.info(f"Retry Entries Written to file for {_from.rstrip('.cfg')} | {mac.cols} | {ip}")
+                if set_tag.startswith('cfg'):
+                    log.info(f"Retry Entries Written to file for {_from.rstrip('.cfg')} | {mac.cols} | {ip}")
+                else:
+                    log.info(f"{mac.cols} tagged as img_sent to prevent re-send of {_from}")
 
 
 if add_del != "tftp":
@@ -112,6 +126,10 @@ else:
                               f"{ip}|{mac.cols}{' Success' if ztp_ok else ' WARNING xfr != file size'}'")
     if not ztp_ok:
         log.warning(f"File Size {file_size} and Xfr Total ({mac_bytes}) don't match")
+
+    # If cfg file was sent transition to next (N/A for image file)
+    # TODO !img_sent tag to prevent second image xfer after reboot
+    # if cfg_file.endswith('.cfg'):
     next_ztp(cfg_file, mac)
 
     # -- Some old log only stuff, may use for post deployment actions --

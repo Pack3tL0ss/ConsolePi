@@ -646,10 +646,10 @@ Examples:
 # auto_install: true
 # mass_import: Not Set (Will Prompt User)
 #    mass_import=true will bypass the prompt and do the import
-#    mass_import=false will bypass not prompt and will not perform the import
+#    mass_import=false will bypass the prompt and will not perform the import
 # edit: Not Set (Will Prompt User)
 #    edit=true will bypass the prompt and open the staged ConsolePi.yaml for editting
-#    edit=false will bypass, not prompt ConsolePi.yaml will remain as imported
+#    edit=false will bypass, the prompt ConsolePi.yaml will remain as imported
 # hotspot_hostname: Not Set (Will Prompt User)
 #    edit=true will pre-configure the hostname on the image to match the HotSpot SSID
 #    edit=false will bypass prompt and leave hostname as default (raspberrypi)

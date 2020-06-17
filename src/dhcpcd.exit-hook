@@ -104,8 +104,11 @@ GetCurrentIP() {
 # >> Check Connectivity to net or VPN <<
 Ping_Check() {
     $debug && logger -t puship-DEBUG Enter Ping_Check Function
-    ping -c 1 $1 &> /dev/null && ping_ok=true || ping_ok=false
-    # ping -c 1 -I $interface $1 &> /dev/null && ping_ok=true || ping_ok=false  # verify impact
+    if [ -z "$2" ]; then
+        ping -c 1 $1 &> /dev/null && ping_ok=true || ping_ok=false
+    else
+        ping -c 1 -I $2 $1 &> /dev/null && ping_ok=true || ping_ok=false
+    fi
 }
 
 # >> Establish VPN Connection <<
@@ -128,7 +131,7 @@ Check_VPN() {
     $debug && logger -t puship-DEBUG Enter Check_VPN Function "${local_domain}"
     GetCurrentIP
     if [ -z ${interfaces[tun0]} ]; then
-      Ping_Check "$net_check_ip"
+      Ping_Check "$net_check_ip" "$interface"
       if $ping_ok; then
         [ "${new_domain_name}" = "${local_domain}" ] && remote=false || remote=true
         $remote && Connect_VPN || logger -t puship-ovpn Not starting VPN - device connected to home lab

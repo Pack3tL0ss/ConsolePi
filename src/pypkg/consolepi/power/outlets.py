@@ -3,6 +3,7 @@
 import json
 import threading
 import time
+from copy import copy  # , deepcopy
 
 try:
     import RPi.GPIO as GPIO
@@ -244,15 +245,16 @@ class Outlets:
             failures = {}
 
         # this shouldn't happen, but prevents spawning multiple updates for same outlet
-        if outlets is not None:
-            for k in outlets:
+        _outlets = copy(outlets)
+        if _outlets is not None:
+            for k in _outlets:
                 found = False
                 for t in threading.enumerate():
                     if t.name == f'{t_name}_pwr_{k}':
                         found = True
                         break
                 if not found:
-                    threading.Thread(target=self.pwr_get_outlets, args=[{k: outlets[k]}],
+                    threading.Thread(target=self.pwr_get_outlets, args=[{k: _outlets[k]}],
                                      kwargs=kwargs, name=t_name + '_pwr_' + k).start()
 
     def update_linked_devs(self, outlet):

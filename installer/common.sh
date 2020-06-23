@@ -24,6 +24,14 @@ yml_script="/etc/ConsolePi/src/yaml2bash.py"
 tmp_src="/tmp/consolepi-temp"
 warn_cnt=0
 
+# Unused for now interface logic
+# _gw=$(ip route get 8.8.8.8 | awk -- '{printf $5}')
+# all_ifaces=($(ls /sys/class/net | grep -v lo))
+# wlan_ifaces=($(cat /proc/net/wireless | tail +3 | cut -d':' -f1))
+# wired_ifaces=();for _iface in "${all_ifaces[@]}"; do
+#     [[ ! "${wlan_ifaces[@]}" =~ "${_iface}" ]] && [[ ! $_iface =~ "tun" ]] && wired_ifaces+=($_iface)
+# done
+
 _DEBUG_=${_DEBUG_:-false}
 # Terminal coloring
 _norm='\e[0m'
@@ -448,12 +456,12 @@ convert_template() {
 }
 
 process_yaml() {
-    $yml_script "${@}" > $tmp_src 2>>$log_file && . $tmp_src ||
+    . <($yml_script "${@}" 2>>$log_file) ||
         logit "Error returned from yaml config import ($yml_script ${@}), check $log_file" "ERROR"
-    [ -f $tmp_src ] && rm $tmp_src
 }
 
 do_systemd_enable_load_start() {
+    # provide a single argument the systemd service name without the .service extension
     if [[ ! -f "${override_dir}/${1}.service" ]] ; then
         status=$(systemctl is-enabled $1 2>&1)
         if [ "$status" == "disabled" ]; then

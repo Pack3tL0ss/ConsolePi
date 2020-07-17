@@ -1,21 +1,19 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 """
-    -- dev testing file currently --
-    This file currently only logs
-    Eventually this file may be used for ztp trigger or oobm switch discovery for the menu
+This script is called by consolepi-ztp.  It generates the configuration files based on
+ZTP configuration in ConsolePi.yaml and configures dnsmasq for ZTP.
 """
 
 import os
 import sys
 import yaml
-# import string
-# import json
+import json
 from jinja2 import Environment, FileSystemLoader
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
 from consolepi import utils, log, config, requests  # NoQA
 from consolepi.local import Local  # NoQA
-parser_dir = config.static.get('PARSER_DIR', '/etc/ConsolePi/ztp-custom-parsers')
+parser_dir = config.static.get('PARSER_DIR', '/etc/ConsolePi/ztp/custom-parsers')
 sys.path.insert(1, parser_dir)
 
 try:
@@ -27,18 +25,12 @@ except ImportError:
 local = Local()
 ztp_iface = 'eth0'
 ztp_lease_time = config.ovrd.get('ztp_lease_time', '2m')
-if config.cfg_yml.get('ZTP'):
-    config.do_ztp = True
-    config.ztp = config.cfg_yml['ZTP']
-else:
-    config.do_ztp = False
-    config.ztp = {}
-
 ztp_dir = config.static.get('ZTP_DIR', '/etc/ConsolePi/ztp')  # j2 tamplates and var files
 ztp_main_conf = "/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp.conf"
 eth_main_conf = "/etc/ConsolePi/dnsmasq.d/wired-dhcp/wired-dhcp.conf"
 ztp_opts_conf = '/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-opts/ztp-opts.conf'
 ztp_hosts_conf = '/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-hosts/ztp-hosts.conf'
+ZTP_CLI_FILE = config.static.get('ZTP_CLI_FILE', '/etc/ConsolePi/ztp/.ztpcli')
 
 ztp_main_lines = [
                     "enable-tftp\n",
@@ -88,6 +80,14 @@ class Ztp:
             self.generate_template()
 
     def _get_template(self):
+        '''Determine what jinja2 template to use to generate the config.
+
+        Template filename can be provided in config if not provided look for template
+        named <mac-address>.j2
+
+        Returns:
+            str: Full path to j2 template.
+        '''
         tmplt = self.conf.get('template', '').rstrip('.j2')
         mac = self.mac
         # template is defined in config
@@ -101,6 +101,22 @@ class Ztp:
             self.error += f"[ZTP Entry Skipped!!] No Template Found for:\n{self.conf_pretty}\n"
 
     def _get_var_file(self):
+        '''Determine variable file to use to generate the config.
+
+        Variables can be provided (in the order we look for them):
+            1. in the config for the device
+            2. via a file named <mac address>.yaml
+            3. in a common variables.yaml file
+                a. by mac-address
+                b. matching the template name with .yaml extension
+
+        when using ordered ztp variable file based on template name should have
+        _# appended where # corresponds to the order for that model.  i.e. 6200F_1.yaml, 6200F_2.yaml
+        given the template is 6200F.j2
+
+        Returns:
+            str: Full path to yaml variable file.
+        '''
         variables = self.conf.get('variables')
         mac = self.mac
         if variables and utils.valid_file(f"{ztp_dir}/{variables}"):
@@ -119,6 +135,9 @@ class Ztp:
                 self.error += f"[ZTP Entry Skipped!!] No Variables Found for:\n{self.conf_pretty}\n"
 
     def _get_config_data(self):
+        '''Generate/Return the dict (variable to value mappings) for jinja2 template conversion.
+
+        '''
         config_data = yaml.load(open(self.var_file), Loader=yaml.SafeLoader)
         mac = self.mac
         if 'variables.yaml' in self.var_file:
@@ -173,6 +192,7 @@ class ConsolePiZtp(Ztp):
         self.ztp_main_lines = ztp_main_lines
         self.ztp_host_lines = []
         self.ztp_opt_lines = []
+        self.ztp_clifile_data = {}
         self.run()
 
     def configure_dhcp_files(self):
@@ -201,16 +221,19 @@ class ConsolePiZtp(Ztp):
             with open(_file, "w") as f:
                 f.writelines(_lines)
 
+            # assign file to consolepi group and makes group writable.  Makes troubleshooting easier
+            utils.set_perm(_file, other='r')
+
     def dhcp_append(self, ztp: Ztp):
         self.ztp_main_lines = utils.unique(self.ztp_main_lines + ztp.main_lines)
         self.ztp_host_lines += ztp.host_lines
         self.ztp_opt_lines += ztp.opt_lines
+        if hasattr(ztp, 'cfg_file_name'):
+            self.ztp_clifile_data[ztp.cfg_file_name] = ztp.conf
 
     def run(self):
         print(f"{'-' * 43}\nResetting ZTP Configuration Based On Config\n{'-' * 43}")
         for key in config.ztp:
-            # TODO image support
-            # tag:6200,tag:!sent,vendor:,145,ArubaOS-CX_6200_10_04_3000.swi
             if 'ordered' not in key:
                 # -- Generate Templates for defined MACs in ztp config --
                 mac = utils.Mac(key)
@@ -233,17 +256,18 @@ class ConsolePiZtp(Ztp):
         # -- re-order ztp_opt_lines so all image file entries are at top --
         self.ztp_opt_lines = [_line for _line in self.ztp_opt_lines if 'img_sent' in _line] + \
             [_line for _line in self.ztp_opt_lines if 'img_sent' not in _line]
-        print("+ Creating DHCP Configuration for ZTP\n")
+        print("+ Creating DHCP Configuration for ZTP")
         self.configure_dhcp_files()
+
+        print("+ Stashing cfg_file to param mappings for cli operations\n")
+        with open(ZTP_CLI_FILE, "w") as fb:
+            fb.writelines(json.dumps(self.ztp_clifile_data))
 
 
 if __name__ == '__main__':
-    if not config.do_ztp:
-        print('ZTP is not Enabled in Config.')
+    if not config.ztp:
+        print('ZTP is not configured in ConsolePi.yaml')
         print('refer to GitHub for more details')
+        sys.exit(1)
     else:
-        # if not config.cfg.get('wired_dhcp', False):
-        #     pass  # TODO prompt to enable wired_dhcp
-        # if utils.do_shell_cmd('systemctl is_active tftpd-hpa'):
-        #     pass  # TODO diable tftpd-hpe
         ConsolePiZtp()

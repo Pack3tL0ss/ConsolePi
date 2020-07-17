@@ -28,6 +28,7 @@ class Config():
         self.cfg_yml = self.get_config_all(yaml_cfg=self.static.get('CONFIG_FILE_YAML'),
                                            legacy_cfg=self.static.get('CONFIG_FILE'))
         self.cfg = self.cfg_yml.get('CONFIG')
+        self.ztp = self.cfg_yml.get('ZTP', {})
         self.ovrd = self.cfg_yml.get('OVERRIDES', {})
         self.do_overrides()
         self.debug = self.cfg.get('debug', False)

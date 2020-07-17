@@ -386,8 +386,11 @@ class Utils:
             _perms = stat.S_IWGRP + stat.S_IRGRP + stat.S_IWUSR + stat.S_IRUSR
             for k, v in [('user', user), ('group', group), ('other', other)]:
                 if v:
+                    # remove _perms added by this helper func by default if provided
+                    if k and (k == 'user' or k == 'group'):
+                        v = v.replace('r', '').replace('w', '')
                     for _m in list(v.lower()):
-                        if not _m == 'x' and os.path.isdir(file):
+                        if not (_m == 'x' and os.path.isdir(file)):
                             # print(f"Add {k}: {_m}")
                             _perms += _modes[k][_m]
 

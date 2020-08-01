@@ -257,7 +257,7 @@ pre_git_prep() {
 
     # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
     if [ ! -f /etc/sudoers.d/010_consolepi ]; then
-        process = "sudo rights consolepi group"
+        process="sudo rights consolepi group"
         echo '%consolepi ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*, /etc/ConsolePi/src/consolepi-commands/*, /etc/ConsolePi/venv/bin/python3 *' > /etc/sudoers.d/010_consolepi 2>>$log_file &&
         logit "consolepi group given sudo rights for consolepi-commands" ||
         logit "FAILED to give consolepi group sudo rights for ConsolePi functions" "WARNING"

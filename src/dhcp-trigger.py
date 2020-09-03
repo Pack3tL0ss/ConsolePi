@@ -23,6 +23,7 @@ sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
 from consolepi import utils, log, config # NoQA
 
 ZTP_CLI_DEFAULT_TIMEOUT = config.static.get('ZTP_CLI_DEFAULT_TIMEOUT', 75)
+ZTP_CLI_LOGIN_MAX_WAIT = config.static.get('ZTP_CLI_LOGIN_MAX_WAIT', 60)
 lease_file = '/var/lib/misc/dnsmasq.leases'
 ztp_opts_conf = '/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-opts/ztp-opts.conf'
 ztp_hosts_conf = '/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-hosts/ztp-hosts.conf'
@@ -221,23 +222,31 @@ class Cli:
             cli_output=[],
             message=''
         )
-        try:
-            go = False
-            # Connect to Switch via SSH
-            self.ssh_client.connect(**connection_args)
-            self.prompt = ''
-            # SSH Command execution not allowed, therefore using the following paramiko functionality
-            self.shell_chanel = self.ssh_client.invoke_shell()
-            self.shell_chanel.settimeout(8)
-            # AOS-CX specific
-            self.get_prompt()
-            go = True
-        except socket.timeout:
-            log.error(f'ZTP CLI Operations Failed, TimeOut Connecting to {self.ip}')
-        except paramiko.ssh_exception.NoValidConnectionsError as e:
-            log.error(f'ZTP CLI Operations Failed, {e}')
-        except paramiko.ssh_exception.AuthenticationException:
-            log.error('ZTP CLI Operations Failed, CLI Authentication Failed verify creds in config')
+        _start_time = time.time()
+        while True:
+            try:
+                go = False
+                # Connect to Switch via SSH
+                self.ssh_client.connect(**connection_args)
+                self.prompt = ''
+                # SSH Command execution not allowed, therefore using the following paramiko functionality
+                self.shell_chanel = self.ssh_client.invoke_shell()
+                self.shell_chanel.settimeout(8)
+                # AOS-CX specific
+                self.get_prompt()
+                go = True
+                break
+            except socket.timeout:
+                log.error(f'ZTP CLI Operations Failed, TimeOut Connecting to {self.ip}')
+            except paramiko.ssh_exception.NoValidConnectionsError as e:
+                log.error(f'ZTP CLI Operations Failed, {e}')
+            except paramiko.ssh_exception.AuthenticationException:
+                log.error('ZTP CLI Operations Failed, CLI Authentication Failed verify creds in config')
+
+            if time.time() - _start_time >= ZTP_CLI_LOGIN_MAX_WAIT:
+                break  # Give Up
+            else:
+                time.sleep(10)
 
         if go:
             try:
@@ -248,8 +257,16 @@ class Cli:
             finally:
                 self.logout()
 
-            # Return/Exit
-            log.info(f"ZTP CLI Operational Result for {ip}:\n{utils.json_print(result)}")
+            # Format log entries and exit
+            _res = " -- // Command Results \\ -- \n"
+            _cmds = [c for c in self.cmd_list if 'SLEEP' not in c]
+            for cmd, out in zip(_cmds, result['cli_output']):
+                if "progress:" in out and f"progress: {out.count('progress:')}/{out.count('progress:')}" in out:
+                    out = out.split("progress:")[0] + f"progress: {out.count('progress:')}/{out.count('progress:')}"
+                _res += "{}:{} {}\n".format(cmd, '\n' if '\n' in out else '', out)
+            _res += " --------------------------- \n"
+            _res += ''.join([f"{k}: {v}\n" for k, v in result.items() if k != "cli_output" and v])
+            log.info(f"Post ZTP CLI Operational Result for {ip}:\n{_res}")
 
 
 def get_mac(ip):
@@ -274,11 +291,16 @@ def get_mac(ip):
 
 
 def _write_to_file(fp, current: list, new: list):
-    for line_num, line in enumerate(new):
-        if line not in current:
+    new = utils.unique(new)
+    if 'ztp-opts' in fp.name:   # Overwrite the existing file contents
+        for line_num, line in enumerate(new):
             fp.write(line)
-        else:
-            log.info(f"Skipping write for content on line {line_num} ({line[0:20]}...) as the line already exists")
+    else:                       # Append to existing file for ztp-hosts.conf
+        for line_num, line in enumerate(new):
+            if line not in current:
+                fp.write(line)
+            else:
+                log.info(f"Skipping write for content on line {line_num} ({line[0:20]}...) as the line already exists")
 
 
 def next_ztp(filename, mac):
@@ -289,12 +311,14 @@ def next_ztp(filename, mac):
         mac (Mac object): mac object with various attributes for the MAC address of the device that requested/rcvd the config.
     '''
     _from = os.path.basename(filename)
+    _to = None  # init
     if _from.endswith('.cfg'):
         set_tag = "cfg_sent"
-        _to = f"{_from.split('_')[0]}_{int(_from.rstrip('.cfg').split('_')[-1]) + 1}.cfg"
+        _cfg_mac = utils.Mac(_from.rstrip('.cfg'))
+        if _cfg_mac.ok and mac.clean not in [_cfg_mac.clean, _cfg_mac.oobm.clean]:
+            _to = f"{_from.split('_')[0]}_{int(_from.rstrip('.cfg').split('_')[-1]) + 1}.cfg"
     else:
         set_tag = "img_sent"
-        _to = None
 
     host_lines = []
     opts_lines = []
@@ -314,21 +338,24 @@ def next_ztp(filename, mac):
                             f"# {mac.cols}|{ip} Sent {_from}"
                             f"{' Success' if ztp_ok else 'WARN file size != xfer total check switch and logs'}\n"
                             )
-                        opts_lines.append(f"# -- Retry Line for {_from.rstrip('.cfg')} Based On mac {mac.cols} --\n")
-                        opts_lines.append(f'tag:{mac.tag},option:bootfile-name,"{_from}"\n')
+
+                        if set_tag == "cfg_sent" and not line.startswith("#"):
+                            opts_lines.append(f"# SENT # {line}")
+                            opts_lines.append(f"# -- Retry Line for {_from.rstrip('.cfg')} Based On mac {mac.cols} --\n")
+                            opts_lines.append(f'tag:{mac.tag},option:bootfile-name,"{_from}"\n')
+                            log.info(f"Disabled {_from} on line {line_num} of {os.path.basename(ztp_opts_conf)}")
+                            log.info(f"Retry Entry Created for {_from.rstrip('.cfg')} | {mac.cols} | {ip}")
+                        else:
+                            opts_lines.append(line)
+
                         host_lines.append(f"{mac.cols},{mac.tag},,{ztp_lease_time},set:{mac.tag},set:{set_tag}\n")
                     else:
                         print(f'Unable to write Retry Lines for previously updated device.  Mac {mac.orig} appears invalid')
-
-                    opts_lines.append(f"# SENT # {line}")
-                    log.info(f"Disabled {_from} on line {line_num} of {os.path.basename(ztp_opts_conf)}")
-                    if mac.ok:
-                        log.info(f"Retry Entries Created for {_from.rstrip('.cfg')} | {mac.cols} | {ip}")
-                    else:
                         log.warning(
                             f"Unable to Create Retry Entry for {_from.rstrip('.cfg')} @ {ip}, "
                             f"Invalid MAC address --> {mac.cols}"
                             )
+
                 elif _to and _to in line:
                     if not line.startswith('#'):
                         log.warning(f'Expected {_to} option line to be commented out @ this point.  It was not.')
@@ -342,6 +369,7 @@ def next_ztp(filename, mac):
 
         if host_lines:
             with open(ztp_hosts_conf, 'a+') as fp:
+                fp.seek(0)
                 cur_host_lines = fp.readlines()
                 _write_to_file(fp, cur_host_lines, host_lines)
 
@@ -389,8 +417,9 @@ if __name__ == "__main__":
                         cfg_dict[cfg_file_name]['cmd_list'] = cfg_dict[cfg_file_name]['cli_post']
                         del cfg_dict[cfg_file_name]['cli_post']
 
-                    print(cfg_dict[cfg_file_name])
+                    log.debug(f"Dict from .ztpcli: {cfg_dict[cfg_file_name]}")
 
                     # -- // PERFORM Post ZTP CLI Based Operations via SSH \\ --
                     if cli_ok:
+                        log.info(f"Start post ZTP CLI: {cfg_dict[cfg_file_name]['cmd_list']}")
                         cli = Cli(**cfg_dict[cfg_file_name])

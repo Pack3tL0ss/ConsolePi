@@ -19,5 +19,6 @@ VALID_BAUD: ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '
 ZTP_DIR: /etc/ConsolePi/ztp
 ZTP_CLI_FILE: /etc/ConsolePi/ztp/.ztpcli
 ZTP_CLI_DEFAULT_TIMEOUT: 20
+ZTP_CLI_LOGIN_MAX_WAIT: 60  # post ztp cli commands will be attempted right after cfg is sent and retry every 10 secs until this limit is reached
 PARSER_DIR: /etc/ConsolePi/ztp/custom-parsers
 FALLBACK_USER: pi # if rem_user is missing from config, or for a remote...

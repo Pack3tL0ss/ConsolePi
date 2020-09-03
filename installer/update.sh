@@ -188,8 +188,8 @@ misc_imports(){
             logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
         elif $cloud ; then
             if [ ! -f "$CLOUD_CREDS_FILE" ]; then
-                logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
-                logit "RaspiOS-lite users refer to the GitHub for instructions on how to generate credential files off box"
+                desktop_msg="Use 'consolepi-menu cloud' then select the 'r' (refresh) option to authorize ConsolePi in ${cloud_svc}"
+                lite_msg="RaspiOS-lite detected. Refer to the GitHub for instructions on how to generate credential files off box"
             fi
         fi
 

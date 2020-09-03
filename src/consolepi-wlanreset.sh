@@ -35,7 +35,8 @@ ip link set dev wlan0 down
 systemctl stop hostapd >/dev/null 2>&1
 start_stop_dnsmasq stop
 
-rm -r /var/run/wpa_supplicant 2>/dev/null
+[ -f /var/run/wpa_supplicant/$wifidev ] && rm /var/run/wpa_supplicant/$wifidev
+rmdir /var/run/wpa_supplicant 2>/dev/null
 rm -r /tmp/wlan0 2>/dev/null
 
 iptables -D FORWARD -i "$ethdev" -o "$wifidev" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null
@@ -44,4 +45,12 @@ echo 0 > /proc/sys/net/ipv4/ip_forward
 
 ip link set dev wlan0 up
 dhcpcd  -n "$wifidev" >/dev/null 2>&1
-wpa_supplicant -B -i "$wifidev" -c /etc/wpa_supplicant/wpa_supplicant.conf
+if [ -z "$1" ]; then  # Any arg will prevent wpa_from starting
+    wpa_supplicant -B -i "$wifidev" -c /etc/wpa_supplicant/wpa_supplicant.conf
+elif [[ "$1" =~ debug ]]; then
+    wpa_supplicant -dd -i "$wifidev" -c /etc/wpa_supplicant/wpa_supplicant.conf
+else
+    echo "wpa_supplicant not started based on "$1" arg"
+    echo "  -debug   Starts wpa_supplicant in terminal w/ debug"
+    echo "  Any Other Arg kills hotspot but does not restart wpa_supplicant"
+fi

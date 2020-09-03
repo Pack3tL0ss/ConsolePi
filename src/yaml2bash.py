@@ -43,6 +43,12 @@ if __name__ == '__main__':
         elif sys.argv[1] == 'static':
             get_config(config.static)
         else:
-            print(f'Invalid Argument {sys.argv[1]}')
+            print(
+                f"\nInvalid Argument {sys.argv[1]}\n    "
+                "Valid Args:\n    "
+                "'bash': Get main Configuration (Default if no args)\n    "
+                "'static': Get static variables\n"
+                  )
+            sys.exit(1)
     else:
         get_config()

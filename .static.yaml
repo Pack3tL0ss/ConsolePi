@@ -2,8 +2,8 @@
 # This file should not be modified.  Static variables/paths used throughout ConsolePi
 # Versioning = YYYY.Major.Patch/Minor
 ---
-CONSOLEPI_VER: 2020-3.0
-INSTALLER_VER: 49
+CONSOLEPI_VER: 2020-4.0
+INSTALLER_VER: 50
 CFG_FILE_VER: 9
 CONFIG_FILE_YAML: /etc/ConsolePi/ConsolePi.yaml
 CONFIG_FILE: /etc/ConsolePi/ConsolePi.conf # For backward compat, use yaml config going forward
@@ -17,5 +17,8 @@ SER2NET_FILE: /etc/ser2net.conf # To Be Removed.  ser2net cfg will be determined
 REM_LAUNCH: /etc/ConsolePi/src/remote_launcher.py
 VALID_BAUD: ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']  # TODO Not sure if this is used anymore
 ZTP_DIR: /etc/ConsolePi/ztp
-PARSER_DIR: /etc/ConsolePi/ztp-custom-parsers
+ZTP_CLI_FILE: /etc/ConsolePi/ztp/.ztpcli
+ZTP_CLI_DEFAULT_TIMEOUT: 20
+ZTP_CLI_LOGIN_MAX_WAIT: 60  # post ztp cli commands will be attempted right after cfg is sent and retry every 10 secs until this limit is reached
+PARSER_DIR: /etc/ConsolePi/ztp/custom-parsers
 FALLBACK_USER: pi # if rem_user is missing from config, or for a remote...

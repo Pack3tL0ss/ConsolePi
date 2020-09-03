@@ -36,6 +36,10 @@ Before ConsolePi can leverage the Google APIs to update the spreadsheet, we will
 
   *Notice the dot prepending the credentials directory, it won't show up in directory listings unless you do an ```ls -a```, and won't appear in the GUI file browser unless the option to display hidden files and folders is enabled.*
 
+* Then launch `consolepi-menu` with the cloud argument `consolepi-menu cloud` and select the `r` (refresh) option from the menu.  Once the refresh is complete you can exit and re-launch without the cloud argument.  You should have a token.pickle file in the .credentials directory after the authorization flow has completed.
+
+> The `cloud` option launches the menu without elevated privs, which is required to spawn a browser process.
+
 ##### **If you have installed Raspbian with a full desktop:**
 
 - Login to a desktop (GUI) session on Raspbian and open a terminal window.
@@ -58,9 +62,9 @@ For ConsolePis using Raspbian-lite there is no desktop environment, so you can't
 
 To get around this I've provided a Windows compatible exe (created and tested on Win 10) that includes the get_credentials function from the gdrive.py script.  This was bundled for Windows using pyinstaller so no other software is required to run it.
 
-- download the exe from: https://github.com/Pack3tL0ss/ConsolePi/tree/Clustering/cloud/gdrive/headless-auth
+- download the exe from: https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/cloud/gdrive/headless-auth/gdrive-ConsolePi-headless-auth-win.exe
 
-  The file is the ```gdrive-ConsolePi-headless-auth-win.exe```  *Right Click and "save link as" or similar*
+  > The file is the ```gdrive-ConsolePi-headless-auth-win.exe```  *Right Click and "save link as" or similar if prompted*
 
 - Place the ```credentials.json``` file in the same directory as the executable on a Windows system and double click the ```gdrive-ConsolePi-headless-auth-win.exe```
 

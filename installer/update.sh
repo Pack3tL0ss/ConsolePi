@@ -988,7 +988,7 @@ post_install_msg() {
     # Display any warnings if they exist
     if [ $warn_cnt -gt 0 ]; then
         echo -e "\n${_red}---- warnings exist ----${_norm}"
-        sed -n "/${log_start}/,/*/p" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep WARNING
+        sed -n "/${log_start}/,/*/p" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "WARNING\|failed"
         echo
     fi
     # Script Complete Prompt for reboot if first install
@@ -1072,14 +1072,14 @@ update_main() {
         logit "Prompts bypassed due to -silent flag"
     fi
     custom_post_install_script
+    process=Complete
     if ! $silent; then
         post_install_msg
     else
-        process=Complete
-        _msg="Success Silent Install Complete a reboot is required"
-        [[ "$warn_cnt" > 0 ]] && _msg="$_msg Warnings Exist ($warn_cnt)"
-        logit "${_msg}"; printf '\a'
+        _msg="Success Silent Install Complete a reboot is required."
+        [[ "$warn_cnt" > 0 ]] && logit "$_msg\n ${_red}Warnings Occured During Install ($warn_cnt)${_norm}." | cut -d']' -f 3 || echo "$_msg"
     fi
+    $silent && $do_reboot && echo -e "\n${_green}Install Complete${_norm}\n  system will reboot in 10 seconds (CTRL+C to abort reboot)" && sleep 10 && $reboot
 }
 
 # ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line

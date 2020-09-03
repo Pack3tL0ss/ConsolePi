@@ -87,7 +87,7 @@ class ConsolePiExec:
                     )
                     # TODO have seen this, but unable to recreate.  may be transient failure???
                     # NoQA This log occurs: [ERROR]: [DLI GET OUTLETS] dli @ labpower2.kabrew.com reachable, but failed to fetch statuslist (outlet_list)
-                    # is_on in pwr.data['labpower2']['defined'] is being flushed based on error above so empty dict resulting in key error
+                    # NoQA is_on in pwr.data['labpower2']['defined'] is being flushed based on error above so empty dict resulting in key error
                     # Exception in thread auto_pwr_on_r1-8320T-sw:
                     # Traceback (most recent call last):
                     # File "/usr/lib/python3.7/threading.py", line 917, in _bootstrap_inner

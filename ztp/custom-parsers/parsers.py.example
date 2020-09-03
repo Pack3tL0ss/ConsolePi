@@ -13,9 +13,9 @@ class Parsers:
 
     def parse(self):
         self.out = self._in
-        if self._in.get('interfaces', {}).get('config'):
+        if self._in.get('interfaces', {}):
             self.out = self.do_interfaces()
-            if not self.out['interfaces']['config']:
+            if not self.out['interfaces']:
                 self.ok = False
                 self.error = "No Interface data found after parse"
         return self.out
@@ -23,8 +23,15 @@ class Parsers:
     def do_interfaces(self):
         config_data = self._in
         interfaces = {}
-        for cfg in config_data['interfaces']['config']:  # should be a list of dicts
-            ports = utils.listify(cfg.get('port', {}))
+        for cfg in config_data['interfaces']:  # should be a list of dicts
+            # TODO try except provide port that caused the issue
+            if ',' in cfg.get('port', ''):
+                ports = [x.rstrip(',') for x in cfg.get('port').replace(' - ', '-').replace(',', ', ').split()]
+                ports = utils.listify(ports)
+            else:
+                ports = utils.listify(cfg.get('port', {}))
+
+            # process range
             for p in ports:
                 if '-' in p:
                     if 'lag' not in p:
@@ -41,6 +48,7 @@ class Parsers:
                                 interfaces[f"{pfx}{_port}"] = [line]
                             else:
                                 interfaces[f"{pfx}{_port}"].append(line)
+                # process single port
                 else:
                     for line in cfg.get('lines', {}):
                         if p not in interfaces:
@@ -48,5 +56,12 @@ class Parsers:
                         else:
                             interfaces[p].append(line)
 
-        config_data['interfaces']['config'] = interfaces
+        # Separate lags from phy interfaces for sorting - not necessary but resulting config is in order
+        lags = {k: v for k, v in interfaces.items() if 'lag' in k}
+        for k in lags.keys():
+            del interfaces[k]
+        config_data['interfaces'] = {
+            **{i: lags[i] for i in sorted(lags, key=lambda k: int(k.split()[-1]))},
+            **{i: interfaces[i] for i in sorted(interfaces, key=lambda k: (tuple(int(_k) for _k in k.split('/'))))}
+            }
         return config_data

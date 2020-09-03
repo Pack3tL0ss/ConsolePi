@@ -73,6 +73,7 @@ class ConsolePiMenu(Rename):
                 do_pprint = False
 
             _key_str = _args_str = 'wtf?'
+            _ch = ch
             if '[' in ch:
                 _key_str = f"[{ch.split('[')[1]}"
                 _ch = ch.replace(_key_str, '{{KEY}}')

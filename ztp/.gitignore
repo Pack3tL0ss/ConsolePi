@@ -1,5 +1,6 @@
 # ignore everything in ztp dir other than the readme
 *
-# Except this file and the readme
+# Except this file the readme and the custom_parsers dir
 !.gitignore
 !README
+!/custom-parsers/

@@ -45,7 +45,7 @@ class DLI:
         self.base_url = self.scheme + str(self.ip)
         self.outlet_url = self.base_url + '/restapi/relay/outlets/'
         self.username = username
-        self.passwword = password
+        self.password = password
         self.rest = None
         if self.reachable:
             self.dli = self.get_session(username, password)
@@ -225,6 +225,9 @@ class DLI:
                 while retry <= 2:
                     try:
                         outlet_list = self.dli.statuslist()
+                        if outlet_list is None:  # indicates session has timed out.
+                            self.verify_legacy()
+                            outlet_list = self.dli.statuslist()
                     except AttributeError as e:
                         log.error(f'dlirest.py, get_dli_outlets exceptions occured attempting to get outlet_list: {e}')
                         continue
@@ -256,6 +259,9 @@ class DLI:
             'OFF': False
         }
 
+        if not self.rest:
+            self.verify_legacy()
+
         # --// SUB Toggle or Cycle Power On Specified Port \\--
         def toggle_sub(port, toState):
             '''Toggle or Cycle Power on Outlet.'''
@@ -283,6 +289,7 @@ class DLI:
                 else:
                     return r.json()  # rest api returns content false with status 200 if state was off when cycle was issued
             else:   # dlipower.PowerSwitch - screen scrape library
+                # self.verify_legacy()  # renews session if it expired
                 if func == 'toggle':
                     if toState:
                         r = self.dli.on(port)
@@ -399,10 +406,25 @@ class DLI:
         else:
             return 'An Error occured {}'.format(ret_val)
 
+    def verify_legacy(self):
+        '''Verify session is not expired for non-rest dli
+
+        For DLI lpc 7 and prior which uses the dlipower library (screen scrape), this will check if the original session
+        is expired and create a new one if it is.  It's called by the 2 methods that perform actions against the outlets
+        (operate_port, get_port_info)
+        '''
+        if not self.dli.statuslist():
+            self.dli = self.get_session(self.username,
+                                        self.password,
+                                        fqdn=self.fqdn)
+            self.log.info(f"Session with {self.fqdn} was expired. Renewed Session")
+            # TODO validate and log if still error
+
     def verify_session(self, url):
         '''perform http get operation against dli if the response indicates the session is expired get a new session and retry.
 
-        Used by new rest capable dli web power switches, for all operations, given no API method is available for all operations.
+        Used by new rest capable dli web power switches (only), for operations against "all" outlets, given no API method
+        is available for all operations.
         '''
         log = self.log
         retry = 0
@@ -450,6 +472,7 @@ class DLI:
                         log.error('[DLI] {} appears to be unreachable now'.format(_url))
                         _return = 'Error: [DLI] {} appears to be unreachable now'.format(_url)
                 else:
+                    self.verify_legacy()
                     if fetch == 'state':
                         _return = self.dli.status(port)
                         if _return.upper() == 'ON':

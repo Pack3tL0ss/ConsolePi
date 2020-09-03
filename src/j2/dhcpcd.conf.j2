@@ -61,10 +61,9 @@ profile static_wlan0
 static ip_address={{wlan_ip}}/24
 
 # wired static fallback profile
-# defined - currently commented out/disabled below
+# defined - will only apply if wired_dhcp enabled in config
 profile static_eth0
 static ip_address={{ wired_ip|default("192.168.25.1") }}/24
-static domain_name_servers=1.0.0.1 8.8.8.8 9.9.9.9
 
 # Assign fallback to static profile on wlan0
 interface wlan0

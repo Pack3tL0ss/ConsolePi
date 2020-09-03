@@ -465,10 +465,12 @@ install_autohotspotn () {
 
     # update hosts file based on supplied variables - this comes into play for devices connected to hotspot (dnsmasq will be able to resolve hostname to wlan IP)
     if [ -z $local_domain ]; then
-        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname)
+        convert_template hosts /tmp/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname)
     else
-        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
+        convert_template hosts /tmp/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
     fi
+    file_diff_update /tmp/hosts /etc/hosts
+    rm /tmp/hosts >/dev/null 2>&1
 
     # logit "Verify iw is installed on system."
     which iw >/dev/null 2>&1 && iw_ver=$(iw --version 2>/dev/null | awk '{print $3}') || iw_ver=0

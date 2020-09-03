@@ -1,5 +1,5 @@
 #
-# example silent intall configuration use with installer and the -C flag
+# example silent intall configuration use with installer and the -C flag `consolepi-install -C install.conf`
 # Note: Silent install also reqs pre-configured ConsolePi.yaml in /home/<user>/consolepi-stage
 #
 
@@ -8,9 +8,12 @@
 silent=true
 consolepi_pass='Cons0LePi!' # consolepi users password
 pi_pass='R3d@cted'          # pi users password
-# us is the default if not provided
-wlan_country=us             # wifi reg domain
 
+# Settings that assume a default if not provided
+
+wlan_country=us             # wifi reg domain (defaults to us if not provided)
+btmode=serial               # How to setup BlueTooth (serial or PAN)
+do_reboot=false             # weather or not to reboot automatically after silent install
 
 # The following are skipped during silent install if not provided
 

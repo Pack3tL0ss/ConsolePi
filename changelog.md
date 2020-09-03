@@ -71,3 +71,25 @@
 - Added support for more OVERRIDE options in ConsolePi.yaml.  These options change the default behavior of ConsolePi i.e. 'cloud_pull_only: true'.  Will retrieve from cloud but won't update the cloud with it's information... That one is useful for the feature below:
 - ConsolePi can now be deployed to non RaspberryPis with minimal effort, including Windows Subsystem for Linux (because why not).  See more detailed explanation and install options below.
 - There is more stuff but I can't recall all of it... the [picture](#feature-summary-image) below hightlights the bulk of the feature set.
+
+### APR 2020.2.1 minor release
+- Most Significant Change is addition of support for espHome flashed outlets
+- Added Support for local UARTs.  The Pi4 actually has 6 UARTs (5 are useable), ConsolePi now supports those onboard UARTS (they will show in the menu).  See the [Local UART support (GPIO)](#local-uart-support) section for details.
+- Fixed minor issue with keyboard update to US when regulatory domain for hotspot for WLAN is set to US, issue was if user opted to not enable AutoHotSpot (a new option in last release), reg domain wasn't used but was defaulted to US.
+- Fixed Show/Hide Linked devices toggle in Power Menu for dli and espHome.  Now correctly displays just what is linked to that specific port (was showing all linked to any port on that dli/espHome device).  Also fixed display of locally defined hosts (TELNET/SSH hosts defined in ConsolePi.yaml), so they appear if linked as well.
+- Enhanced the Show/Hide Linked devices toggle to show any adapters defined, vs. previously only showing if the adapter was actually connected. If your terminal client is configured to honor ASCII coloring linked adapters that are disconnected will appear in red (Only applies to adapters, connevtivity is not verified for TELNET/SSH hosts configured in ConsolePi.yaml).
+- Fixed issue with rename function for adapters that don't present a serial #
+
+### May 2020 v2020.2.2 minor release
+  - The feature was fixed for many use-cases in v2020.2.1, but I discovered issues in some scenarios when a hub was used.  That logic was improved so mapping "lame" adapters to a specific port should now work consistently regardless of the use of hub(s).
+
+### May 2020 v2020.2.3 minor release
+  - Fix consolepi-details in some scnearios relaating to existence of outlets in config.
+  - Fix configuration parsing of yaml for bools, and related nooff setting for outlets
+  - Minor Formatting improvements to consolepi-showaliases
+
+### June 2020 v2020.2.4+ (current master ~ not pkgd into a release) significant installer improvements
+  - Support silent install facilitating automated deployment via Ansible
+  - installer creates consolepi user and offers to make it auto-launch menu on login (prev ver created a consolepi group)
+    - This is only for new installs Upgrades are not impacted.
+  - consolepi-image-creator supports mass import if ran from a ConsolePi

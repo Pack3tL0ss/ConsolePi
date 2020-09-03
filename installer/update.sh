@@ -912,6 +912,14 @@ custom_post_install_script() {
     fi
 }
 
+# -- Show Warnings After Install --
+show_warnings(){
+    logit "Warnings Occured During the Install ($warn_cnt).  Review $log_file for complete details."
+    echo " -- WARNINGS -- "
+    sed -n "/$log_start/,//p" $log_file | grep "WARNING\|failed"
+    echo
+}
+
 # -- Display Post Install Message --
 post_install_msg() {
     clear;echo
@@ -1072,14 +1080,14 @@ update_main() {
         logit "Prompts bypassed due to -silent flag"
     fi
     custom_post_install_script
+    process=Complete
     if ! $silent; then
         post_install_msg
     else
-        process=Complete
-        _msg="Success Silent Install Complete a reboot is required"
+        logit "Success Silent Install Complete a reboot is required"
     fi
-    [[ "$warn_cnt" > 0 ]] && _msg="$_msg Warnings Exist ($warn_cnt)"
-    logit "${_msg}"; printf '\a'
+    [[ "$warn_cnt" > 0 ]] && show_warnings
+    printf '\a'  # bell
     $silent && $do_reboot && echo -e "\n${_green}Install Complete${_norm}\n  system will reboot in 10 seconds (CTRL+C to abort reboot)" && sleep 10 && $reboot
 }
 

@@ -5,7 +5,7 @@ Acts as a serial Console Server, allowing you to remotely connect to ConsolePi v
 *Check out the [ConsolePi Clustering Feature](#consolepi-cluster--cloud-sync)!!*
 
 ***TL;DR:***
-Single Command Install Script. Run from a RaspberryPi running RaspiOS (that has internet access):
+Single Command Install Script. Run from a RaspberryPi running RaspiOS Buster (that has internet access):
 
 ```
 sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
@@ -33,6 +33,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
               - [DLI Web/Ethernet Power Switch](#dli-webethernet-power-switch)
       - [Manual Host Entries](#manual-host-entries)
       - [ConsolePi Extras](#consolepi-extras)
+      - [ZTP Orchestration](#ztp-orchestration)
  - [Installation](#installation)
      - [Automated Installation](#1-automated-installation)
        - [Silent Install](#silent-install)
@@ -50,40 +51,22 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
       - [Convenience Commands](#convenience-commands)
       - [Upgrading ConsolePi](#upgrading-consolepi)
           - [Custom overrides](#custom-overrides)
+      - [ZTP Orchestration](readme_content/ztp.md)
  - [Tested Hardware/Software](#tested-hardware--software)
  - [ConsolePi @ Work! (Image Gallery)](#consolepi-@-work)
  - [Credits](#credits)
 ------
 
-## *!!!You Now Need Buster, buster!!!*
-Python 3.6 or greater is *now* required for the menu, mdns, and api to work properly.  This simply means if you have a ConsolePi running RaspiOS prior to Buster you should build a new one using the Buster image.  The upgrade script will abort if it finds Python ver < 3.6.  Also note if you manually pull via git, it'll probably break.
-> TIP: I use the [consolepi-image-creator.sh](#3-automated-flash-card-imaging-with-auto-install-on-boot) script in the installer directory to repeatedly stage and test.  You can use the existing ConsolePi to build it's own upgrade image and stage your existing settings.  This way you'll have the existing sd-card in case you forget to move something.  It also allows for auto import of all settings if you use the script from a ConsolePi.
 
 # What's New
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
 
-### APR 2020.2.1 minor release
-- Most Significant Change is addition of support for espHome flashed outlets
-- Added Support for local UARTs.  The Pi4 actually has 6 UARTs (5 are useable), ConsolePi now supports those onboard UARTS (they will show in the menu).  See the [Local UART support (GPIO)](#local-uart-support) section for details.
-- Fixed minor issue with keyboard update to US when regulatory domain for hotspot for WLAN is set to US, issue was if user opted to not enable AutoHotSpot (a new option in last release), reg domain wasn't used but was defaulted to US.
-- Fixed Show/Hide Linked devices toggle in Power Menu for dli and espHome.  Now correctly displays just what is linked to that specific port (was showing all linked to any port on that dli/espHome device).  Also fixed display of locally defined hosts (TELNET/SSH hosts defined in ConsolePi.yaml), so they appear if linked as well.
-- Enhanced the Show/Hide Linked devices toggle to show any adapters defined, vs. previously only showing if the adapter was actually connected. If your terminal client is configured to honor ASCII coloring linked adapters that are disconnected will appear in red (Only applies to adapters, connevtivity is not verified for TELNET/SSH hosts configured in ConsolePi.yaml).
-- Fixed issue with rename function for adapters that don't present a serial #
+### Sept 2020 (v2020-4.0) *Major Update*
+- Major Feature add is ZTP-Orchestration and wired DHCP (fallback if no address recieved from any DHCP servers)
+  - ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DHCP.  The feature uses DHCP to trigger ZTP, and supports config file generation using jinja2 templates.  For more details see [`ConsolePi ZTP Orchestration`](reademe_content/ztp.md).
+- Fix bug with legacy digital loggers power controllers, failures would occur after the session expired, session is now being renewed when necessary.  This did not impact newer dli power controllers that support REST API.
 
-### May 2020 v2020.2.2 minor release
-  - The feature was fixed for many use-cases in v2020.2.1, but I discovered issues in some scenarios when a hub was used.  That logic was improved so mapping "lame" adapters to a specific port should now work consistently regardless of the use of hub(s).
-
-### May 2020 v2020.2.3 minor release
-  - Fix consolepi-details in some scnearios relaating to existence of outlets in config.
-  - Fix configuration parsing of yaml for bools, and related nooff setting for outlets
-  - Minor Formatting improvements to consolepi-showaliases
-
-### June 2020 v2020.2.4+ (current master ~ not pkgd into a release) significant installer improvements
-  - Support silent install facilitating automated deployment via Ansible
-  - installer creates consolepi user and offers to make it auto-launch menu on login (prev ver created a consolepi group)
-    - This is only for new installs Upgrades are not impacted.
-  - consolepi-image-creator supports mass import if ran from a ConsolePi
 
 # Features
 ## **Feature Summary Image**
@@ -442,6 +425,10 @@ Toward the end of the install, and via `consolepi-extras` anytime after the inst
 ![`consolepi-extras`](readme_content/consolepi-extras.png)
 
 >Note: speed test (locally hosted browser based speed-test), is only presented as an option for Pi4.
+
+### ZTP Orchestration
+
+ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DHCP.  The feature uses DHCP to trigger ZTP, and supports config file generation using jinja2 templates.  For more details see [`ConsolePi ZTP Orchestration`](reademe_content/ztp.md).
 
 # Installation
 
@@ -875,13 +862,15 @@ The onboard UARTs will then showup in the consolepi-menu as ttyAMA#, you can the
 
 To Upgrade ConsolePi it's recommended to use the `consolepi-upgrade` command.  This runs the install/upgrade script which on upgrade will verify some of the system configuration related to ConsolePi functionality.  If you've made customizations to any of the system files ConsolePi initially configures, the upgrade script will backup the file (to /etc/ConsolePi/bak) and replace it.  This may be undesired if you've made customizations, to prevent this from occuring simply create an empty file (doesn't technically have to be empty) with the same name as the file you want to prevent being modified by ConsolePi in '/etc/ConsolePi/overrides' (i.e. `touch /etc/ConsolePi/overrides/dhcpcd.conf`)
 
+> `consolepi-upgrade` is the preferred method, but you can run `consolepi-sync` described in [Convenience Commands](#convenience-commands) or alternatively simply do a git pull from within /etc/ConsolePi to Upgrade.
+
 **List of files ConsolePi will verify and potentially update**
 - /etc/dhcpcd.conf
 - /etc/network/interfaces
 - /etc/default/hostapd
 - /etc/hostapd/hostapd.conf
 - /etc/profile.d/consolepi.sh  *This file adds the consolepi-commands directory to PATH, but also prints the ConsolePi ascii banner on login, to get rid of the banner, or create a custom banner you could modify the file and place an empty consolepi.sh in overrides dir, you do need the PATH update for any of the `consolepi-...` commands to work.*
-- /etc/hosts  *Hostname is added mapped to hotspot IP, needed for proper resolution if client where to connect to the hotspot and try to access by hostname)*
+- /etc/hosts  *Hostname is added mapped to hotspot IP, needed for proper resolution if client were to connect to the hotspot and try to access by hostname*
 
 
  *On ConsolePis Built prior to v2020.2 (merged in April 2020) the following may also apply (AutoHotSpot now uses it's own dnsmasq service separate from the default)*
@@ -895,8 +884,8 @@ Overriding Service files not only turns off validation of the contents of the sy
 - rfcomm.service *You can override rfcomm.service if running ConsolePi on older hardware lacking bluetooth (it'll fail given no hardware is present)*
 
 And for systems built prior to v2020.2:
-- dnsmasq.service *Script will ensure the servie is disabled as startup is handled by AutoHotSpot*
-- hostapd.service *Script will ensure the servie is disabled as startup is handled by AutoHotSpot*
+- dnsmasq.service *Script will modify for hotspot and ensure the servie is disabled as startup is handled by AutoHotSpot*
+- hostapd.service *Script will configure and ensure the servie is disabled as startup is handled by AutoHotSpot*
 
 **Optional override Variables in ConsolePi.yaml**
 
@@ -1002,7 +991,11 @@ Use ```consolepi-upgrade``` to upgrade ConsolePi.  Simply doing a git pull *may*
 ### Custom overrides
 ConsolePi configures a number of system files elsewhere on the system.  If there is a need to create a custom one-off it's possible to do so simply by creating a file with the same name in /etc/ConsolePi/overrides/ directory.  For example:  ConsolePi configures rfcomm.service to enable bluetooth connections.  During upgrade that file is compared to the src template/file, if there are differences the original is backed up to /etc/ConsolePi/bak and the src template/file is used.  If a file with the name rfcomm.service exists in the override directory (this can be an empty file, it just has to exist), the upgrade process will just skip it.  It's then up to the user to manage the contents of the overriden system file.
 
-> Note: The override process should have nearly 100% coverage, but that still needs to be verified.  It's best to backup any customizations to system files involved in ConsolePi functionality.
+> Note: The override process should have 100% coverage.  However It's still best to backup any customizations to system files involved in ConsolePi functionality prior to upgrade just to be safe.
+
+### ConsolePi ZTP Orchestration
+
+Refer to [ConsolePi ZTP Orchestration](readme_content/ztp.md)
 
 # Tested Hardware / Software
 

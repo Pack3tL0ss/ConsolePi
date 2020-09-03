@@ -224,7 +224,6 @@ start_wired_dhcp () {
     else
         do_wired_nat
     fi
-
 }
 
 do_wired_nat() {
@@ -257,6 +256,9 @@ do_wired_nat() {
 
 run() {
     $debug && logger -t puship-DEBUG Enter run Function
+
+    [[ $reason == 'STATIC' ]] && $wired_dhcp && start_wired_dhcp
+
     Check_is_new_ip
     if $is_new_ip; then
         BuildMsg "bound"
@@ -267,7 +269,6 @@ run() {
         $push && logger -t puship $interface IP is same as prior \($new_ip_address\) No Need for Push Notification.
         $cloud && logger -t puship-cloud $interface IP is same as prior \($new_ip_address\) No Need to update cloud.
     fi
-    [[ $reason == 'STATIC' ]] && $wired_dhcp && start_wired_dhcp
 }
 
 # __main__

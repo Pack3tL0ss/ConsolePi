@@ -70,33 +70,11 @@ do_apt_update() {
             mapfile -t _upgd < <(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         fi
 
-        # # if [ ! -z "$res" ]; then
         if [[ "${#_upgd[@]}" > 0 ]]; then
-            logit "Upgrading "${#_upgd[@]}" Packages... Can be a long wait here."
-            sudo apt-get -y upgrade 1>/dev/null 2>> $log_file && logit "Upgrade Successful" || logit "FAILED to Upgrade" "ERROR"
-
-            logit "Performing dist-upgrade"
-            sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
-
-            logit "Tidying up (autoremove)"
-            apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
-        else
-            logit "Packages are up to date"
+            logit "Your system has "${#_upgd[@]}" Packages that can be Upgraded"
+            logit "ConsolePi now *only* ensures packages it requires are current"
         fi
 
-        # if [[ "${#_upgd[@]}" > 0 ]]; then
-        #     logit "Upgrading "${#_upgd[@]}" Packages..."
-        #     for p in "${_upgd[@]}"; do
-        #         _pf=$(printf "%s: %s --> %s\n" $(echo "$p" | cut -d'/' -f1) $(echo "${p//*from: /}"|cut -d']' -f1) $(echo "$p" | awk '{print $2}'))
-        #         process_cmds -nostart -pf "$_pf" -apt-install "$(echo $p | cut -d'/' -f1)" #  >/dev/null 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>$log_file)
-        #     done
-
-        #     logit "Performing dist-upgrade"
-        #     sudo apt-get -y dist-upgrade 1>/dev/null 2>> $log_file && logit "dist-upgrade Successful" || logit "FAILED dist-upgrade" "WARNING"
-
-        #     logit "Tidying up (autoremove)"
-        #     apt-get -y autoremove 1>/dev/null 2>> $log_file && logit "Everything is tidy now" || logit "apt-get autoremove FAILED" "WARNING"
-        # fi
     else
         logit "apt updates skipped based on -noapt argument" "WARNING"
     fi
@@ -111,7 +89,7 @@ do_apt_deps() {
     [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
         process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
 
-    # TODO add picocom, maybe ser2net
+    # TODO add picocom, maybe ser2net, ensure process_cmds can accept multiple packages
 
     logit "$process - Complete"
 }
@@ -127,6 +105,7 @@ pre_git_prep() {
                 logit "Removed old menu script will be replaced during pull" ||
                     logit "ERROR Found old menu script but unable to remove (/etc/ConsolePi/src/bluemenu.sh)" "WARNING"
         fi
+
         # Remove old symlink if it exists
         process="ConsolePi-Upgrade-Prep (remove symlink consolepi-menu)"
         if [[ -L /usr/local/bin/consolepi-menu ]]; then
@@ -522,8 +501,10 @@ show_usage() {
     _help "-silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
     _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
     echo "    Copy the example file to your home dir and make edits to use"
-    _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"
     _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables"
+    _help "-btpan" "Configure Bluetooth with PAN service vs the default which configures bt-serial"
+    _help "-reboot" "reboot automatically after silent install (Only applies to silent install)"
+    _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"
     _help "--hostname=<hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
     _help "--tz=<i.e. 'America/Chicago'>" "If set will bypass tz prompt on install and configure based on this value"
     _help "--auto_launch='<true|false>'" "Bypass prompt 'Auto Launch menu when consolepi user logs in' - set based on this value"
@@ -557,6 +538,8 @@ process_args() {
     local_dev=false
     dopip=true
     doapt=true
+    btmode=serial
+    do_reboot=false
     while (( "$#" )); do
         # echo "$1" # -- DEBUG --
         case "$1" in
@@ -577,6 +560,10 @@ process_args() {
                 silent=true
                 shift
                 ;;
+            -reboot)  # reboot automatically after silent install
+                do_reboot=true
+                shift
+                ;;
             -install)  # dev flag run as if initial install
                 upgrade=false
                 shift
@@ -594,6 +581,10 @@ process_args() {
                 ;;
             -noipv6) # disable ipv6
                 dis_ipv6=true
+                shift
+                ;;
+            -btpan) # Setup bt to use PAN
+                btmode=pan
                 shift
                 ;;
             --hostname=*)

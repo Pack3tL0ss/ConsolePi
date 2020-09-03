@@ -912,14 +912,6 @@ custom_post_install_script() {
     fi
 }
 
-# -- Show Warnings After Install --
-show_warnings(){
-    logit "Warnings Occured During the Install ($warn_cnt).  Review $log_file for complete details."
-    echo " -- WARNINGS -- "
-    sed -n "/$log_start/,//p" $log_file | grep "WARNING\|failed"
-    echo
-}
-
 # -- Display Post Install Message --
 post_install_msg() {
     clear;echo
@@ -996,7 +988,7 @@ post_install_msg() {
     # Display any warnings if they exist
     if [ $warn_cnt -gt 0 ]; then
         echo -e "\n${_red}---- warnings exist ----${_norm}"
-        sed -n "/${log_start}/,/*/p" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep WARNING
+        sed -n "/${log_start}/,/*/p" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "WARNING\|failed"
         echo
     fi
     # Script Complete Prompt for reboot if first install
@@ -1084,10 +1076,9 @@ update_main() {
     if ! $silent; then
         post_install_msg
     else
-        logit "Success Silent Install Complete a reboot is required"
+        _msg="Success Silent Install Complete a reboot is required."
+        [[ "$warn_cnt" > 0 ]] && logit "$_msg\n ${_red}Warnings Occured During Install ($warn_cnt)${_norm}." | cut -d']' -f 3 || echo "$_msg"
     fi
-    [[ "$warn_cnt" > 0 ]] && show_warnings
-    printf '\a'  # bell
     $silent && $do_reboot && echo -e "\n${_green}Install Complete${_norm}\n  system will reboot in 10 seconds (CTRL+C to abort reboot)" && sleep 10 && $reboot
 }
 

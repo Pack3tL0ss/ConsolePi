@@ -71,8 +71,8 @@ do_apt_update() {
         fi
 
         if [[ "${#_upgd[@]}" > 0 ]]; then
-            logit "Your system has "${#_upgd[@]}" Packages that can be Upgraded"
-            logit "ConsolePi now *only* ensures packages it requires are current"
+            logit "${_cyan}Your system has "${#_upgd[@]}" Packages that can be Upgraded${_norm}"
+            logit "${_cyan}ConsolePi now *only* ensures packages it requires are current${_norm}"
         fi
 
     else
@@ -152,12 +152,6 @@ pre_git_prep() {
         unset process
 
     else  # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
-        # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
-        # TODO Check if this is still required
-        process="ConsolePi-Upgrade-Prep"
-        if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
-            process_cmds -nostart -apt-install "libffi-dev"
-        fi
 
         process="Create consolepi user/group"
         # add consolepi user
@@ -233,6 +227,13 @@ pre_git_prep() {
         # fi
     fi
     # -- // Operations performed on both installs and upgrades \\ --
+
+    # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
+    # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
+    process="Verify libffi-dev"
+    if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
+        process_cmds -nostart -apt-install "libffi-dev"
+    fi
 
     # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
     if [ ! -f /etc/sudoers.d/010_consolepi ]; then

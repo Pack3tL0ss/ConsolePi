@@ -102,6 +102,8 @@ menu_print() {
     # -- send array of strings to function and it will print a formatted menu
     # Args: -head: str that follows is header
     #       -foot: str that follows is footer
+    #       -li: list item 'str' becomes '  - str'
+    #       -nl: new line (echo a blank line)
     #
     # Used to print post-install message
     # NOTE: Line Length of 121 is currently hardcoded
@@ -131,7 +133,7 @@ menu_print() {
                 if [[ "$1" == "-nl" ]]; then
                     str=" "
                 elif [[ "$1" == "-li" ]]; then
-                    str="  -${2}"
+                    str="  - ${2}"
                     shift
                 else
                     str="$1"

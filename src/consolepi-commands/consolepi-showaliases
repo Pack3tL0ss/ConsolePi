@@ -12,7 +12,7 @@ ser2net=($(cat $ser2net_conf | grep -v "^ *#.*$\|/dev/ttyUSB\|/dev/ttyACM" | gre
 
 # Devices that appear in both
 clear; echo
-menu_print -L 132 -head "Properly Configured Aliases"
+menu_print -L 134 -head "Properly Configured Aliases"
 menu_print -nl
 menu_print "These Aliases are properly configured" -nl
 menu_print $(unset LC_ALL; LC_COLLATE=C ; comm -12 <(printf '%s\n' "${udev[@]}" | sort) <(printf '%s\n' "${ser2net[@]}" | sort))

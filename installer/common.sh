@@ -100,16 +100,21 @@ header() {
 
 menu_print() {
     # -- send array of strings to function and it will print a formatted menu
-    # Args: -head: str that follows is header
-    #       -foot: str that follows is footer
+    # Args: -L|-len: set line length, this needs to be the first Argument in the first call to this function default: 121
+    #            line_len is unset if you use -foot, needs to be handled by calling function if not using foot
+    #       -head: str that follows is header
+    #       -foot: str that follows is footer (Also unsets line_len)
     #       -li: list item 'str' becomes '  - str'
     #       -nl: new line (echo a blank line)
     #
     # Used to print post-install message
-    # NOTE: Line Length of 121 is currently hardcoded
-    line_len=121
+    line_len=${line_len:=121}
     while (( "$#" )); do
         case "$1" in
+            -L|-len)
+                line_len=$2
+                shift 2
+                ;;
             -head)
                 str=" $2 "
                 len=${#str}
@@ -128,6 +133,7 @@ menu_print() {
                 printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
                 printf "%s%s\n" "$str" "$pad_right"
                 shift 2
+                unset line_len
                 ;;
             -nl|-li|*)
                 if [[ "$1" == "-nl" ]]; then

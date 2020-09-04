@@ -3,7 +3,7 @@
 # ConsolePi ~ Get Configuration details from user (stage 2 of install)
 # Author: Wade Wells
 
-wired_dhcp=false  # Temp until this is added as config option
+# wired_dhcp=false  # Temp until this is added as config option
 
 get_static() {
     process="get static vars"
@@ -42,8 +42,9 @@ get_config() {
 do_default_config() {
     echo -e "%YAML 1.2\n---\nCONFIG:" > "$CONFIG_FILE_YAML"
     echo "  cfg_file_ver: ${CFG_FILE_VER} # ---- Do Not Delete or modify this line ---- #" >> "$CONFIG_FILE_YAML"
-    [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/cfg_file_ver/,/# --- The Remaining/p' $CONFIG_FILE_YAML.example | tail -n +2 | head -n -1 >> $CONFIG_FILE_YAML
-    [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/OVERRIDES:/,/^#.*$/p' $CONFIG_FILE_YAML.example | head -n -1 >> $CONFIG_FILE_YAML
+    # TODO remove the btmode exclusion after btmode implemented
+    [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/cfg_file_ver/,/^ *$/p' $CONFIG_FILE_YAML.example | tail -n +2 | grep -v btmode >> $CONFIG_FILE_YAML
+    [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/OVERRIDES:/,/^ *$/p' $CONFIG_FILE_YAML.example >> $CONFIG_FILE_YAML
     # -- // Prompt for interactive Mode \\ --
     header
     echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
@@ -90,6 +91,7 @@ update_config() {
     spaces "wlan_country: ${wlan_country}" "# regulatory domain for hotspot SSID" >> $yml_temp
     spaces "wired_dhcp: ${wired_dhcp}" "# Run dhcp on eth interface (after trying as client)" >> $yml_temp
     spaces "wired_ip: ${wired_ip}" "# Fallback IP for eth interface" >> $yml_temp
+    # spaces "btmode: ${btmode}" "# Bluetooth Mode: 'serial' or 'pan'" >> $yml_temp  # Not Implemented yet
     spaces "cloud: ${cloud}" "# enable ConsolePi cloud sync for Clustering (mdns enabled either way)" >> $yml_temp
     spaces "cloud_svc: ${cloud_svc}" "# must be gdrive (all that is supported now)" >> $yml_temp
     spaces "rem_user: ${rem_user}" "# The user account remotes should use to access this ConsolePi" >> $yml_temp
@@ -97,10 +99,12 @@ update_config() {
     spaces "debug: ${debug}" "# Turns on additional debugging" >> $yml_temp
     # echo "" >> $yml_temp
     if [[ -f $CONFIG_FILE_YAML ]] ; then
+
         # get all other optional config sections from existing config (POWER, HOSTS, TTYAMA)
         awk 'matched; /^  debug:/ { matched = 1 } ' $CONFIG_FILE_YAML | awk '/^[A-Z]*$/ { matched = 1 } matched' >> $yml_temp
         file_diff_update $yml_temp $CONFIG_FILE_YAML
         rm $yml_temp
+
         # TODO Move this to common as a function
         group=$(stat -c '%G' $CONFIG_FILE_YAML)
         if [ ! $group == "consolepi" ]; then
@@ -291,6 +295,23 @@ collect() {
             wired_ip=$result
             wired_dhcp_range
         fi
+    fi
+
+    # -- Bluetooth Mode --
+    if ! $selected_prompts || [ -z $btmode ]; then
+        header
+        echo -e "\nBluetooth Configuration Options:\n"
+        echo -e "  1. Serial: BT client would connect to ConsolePi via rfcomm/virtual com port"
+        echo -e "  2. PAN (personal area network): BT Client would connect to ConsolePi via SSH"
+        echo
+        [[ -z $btmode ]] && btmode=serial
+        while [ "$result" != "1" ] && [ "$result" != "2" ]; do
+            prompt="How do you want BlueTooth Configured (1/2)"
+            user_input "NUL" "${prompt}"
+            [ "$result" != "1" ] && [ "$result" != "2" ] &&
+                echo -e "\n${_lred}Invalid Response $result${_norm}: Enter 1 for Serial or 2 for PAN\n"
+        done
+        [ $result == "1" ] && btmode=serial || btmode=pan
     fi
 
     # -- cloud --

@@ -66,6 +66,12 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
 - Major Feature add is ZTP-Orchestration and wired DHCP (fallback if no address recieved from any DHCP servers)
   - ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DHCP.  The feature uses DHCP to trigger ZTP, and supports config file generation using jinja2 templates.  For more details see [`ConsolePi ZTP Orchestration`](reademe_content/ztp.md).
 - Fix bug with legacy digital loggers power controllers, failures would occur after the session expired, session is now being renewed when necessary.  This did not impact newer dli power controllers that support REST API.
+- Removed `apt upgrade` from `consolepi-upgrade`.  ConsolePi will only install/verify/upgrade packages related to it's operation.  Up to the user beyond that.
+
+### Sept 2020 (v2020-4.1) Bug Fix
+- Fixes a bug that would result in all the optional sections from the example config being populated in the resulting default config.  If You've done a recent install this is why there were some hosts in the menu that you didn't configure.
+
+> If you've installed in the last few months, you can clean out the results of the bug by checking your ConsolePi.yaml and deleting everything below the CONFIG: section (OVERRIDES, POWER, HOSTS... essentially anything past the 'debug:' line)
 
 
 # Features

@@ -951,7 +951,7 @@ post_install_msg() {
     # Display any warnings if they exist
     if [ $warn_cnt -gt 0 ]; then
         echo -e "\n${_red}---- warnings exist ----${_norm}"
-        sed -n "/${log_start}/,/*/p" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "WARNING\|failed"
+        sed -n "/${log_start}/,//p" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "WARNING\|failed"
         echo
     fi
 

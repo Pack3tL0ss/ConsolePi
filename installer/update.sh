@@ -188,8 +188,8 @@ misc_imports(){
             logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
         elif $cloud ; then
             if [ ! -f "$CLOUD_CREDS_FILE" ]; then
-                logit "ConsolePi will be Authorized for ${cloud_svc} when you launch consolepi-menu"
-                logit "RaspiOS-lite users refer to the GitHub for instructions on how to generate credential files off box"
+                desktop_msg="Use 'consolepi-menu cloud' then select the 'r' (refresh) option to authorize ConsolePi in ${cloud_svc}"
+                lite_msg="RaspiOS-lite detected. Refer to the GitHub for instructions on how to generate credential files off box"
             fi
         fi
 
@@ -247,11 +247,8 @@ install_ser2net () {
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
     if [[ -z $ser2net_ver ]]; then
         process_cmds -apt-install "ser2net"
-        # apt-get -y install ser2net 1>/dev/null 2>> $log_file &&
-        #     logit "ser2net install Success" ||
-        #     logit "ser2net install Failed." "WARNING"
     else
-        logit "Ser2Net ${ser2net_ver} already installed. No Action Taken re ser2net"
+        logit "Ser2Net ${ser2net_ver} is current"
     fi
 
     do_ser2net=true
@@ -307,6 +304,7 @@ dhcp_run_hook() {
     unset process
 }
 
+# TODO place ConsolePi_cleanup in src dir and change to systemd
 ConsolePi_cleanup() {
     # ConsolePi_cleanup is an init script that runs on startup / shutdown.  On startup it removes tmp files used by ConsolePi script to determine if the ip
     # address of an interface has changed (PB notifications only occur if there is a change). So notifications are always sent after a reboot.
@@ -336,17 +334,9 @@ sub_check_vpn_config(){
 
 install_ovpn() {
     process="OpenVPN"
-    # ! $upgrade && logit "Install OpenVPN" || logit "Verify OpenVPN is installed"
     ovpn_ver=$(openvpn --version 2>/dev/null| head -1 | awk '{print $2}')
     if [[ -z $ovpn_ver ]]; then
-        # sudo apt-get -y install openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN installed Successfully" || logit "FAILED to install OpenVPN" "WARNING"
         process_cmds -stop -apt-install "openvpn" -nostart -pf "Enable OpenVPN" '/lib/systemd/systemd-sysv-install enable openvpn'
-        # if ! $ovpn_enable; then
-        #     logit "You've chosen not to use the OpenVPN function.  Disabling OpenVPN. Package will remain installed. '/lib/systemd/systemd-sysv-install enable openvpn' to enable"
-        #     /lib/systemd/systemd-sysv-install disable openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN Disabled" || logit "FAILED to disable OpenVPN" "WARNING"
-        # else
-        #     /lib/systemd/systemd-sysv-install enable openvpn 1>/dev/null 2>> $log_file && logit "OpenVPN Enabled" || logit "FAILED to enable OpenVPN" "WARNING"
-        # fi
     else
         logit "OpenVPN ${ovpn_ver} Already Installed/Current"
     fi
@@ -412,24 +402,16 @@ install_autohotspotn () {
         logit "Using old autohotspot system default dnsmasq instance"
     fi
 
-    # logit "Installing hostapd via apt."
     if ! $(which hostapd >/dev/null); then
         process_cmds -apt-install hostapd
-        # apt-get -y install hostapd 1>/dev/null 2>> $log_file &&
-        #     logit "hostapd install Success" ||
-        #     logit "hostapd install Failed" "WARNING"
     else
         hostapd_ver=$(hostapd -v 2>&1| head -1| awk '{print $2}')
         logit "hostapd ${hostapd_ver} already installed"
     fi
 
-    # logit "Installing dnsmasq via apt."
     dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
     if [[ -z $dnsmasq_ver ]]; then
         process_cmds -apt-install dnsmasq
-        # apt-get -y install dnsmasq 1>/dev/null 2>> $log_file &&
-        #     logit "dnsmasq install Success" ||
-        #     logit "dnsmasq install Failed" "WARNING"
     else
         logit "dnsmasq v${dnsmasq_ver} already installed"
     fi
@@ -446,10 +428,10 @@ install_autohotspotn () {
             logit "hostapd autostart disabled Successfully" ||
                 logit "An error occurred disabling hostapd autostart - verify after install" "WARNING"
     else
-        logit "skipped hostapd disable - hostapd.service is overriden"
+        logit "${_cyan}skipped hostapd disable - hostapd.service is overriden${_norm}"
     fi
 
-    # disable dnsmasq if we just installed it, if it was already installed leave it alone.
+    # disable dnsmasq only if we just installed it (dnsmasq_ver won't be defined)
     if [[ -z $dnsmasq_ver ]]; then
         sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
             logit "dnsmasq autostart disabled Successfully" ||
@@ -465,18 +447,16 @@ install_autohotspotn () {
 
     # update hosts file based on supplied variables - this comes into play for devices connected to hotspot (dnsmasq will be able to resolve hostname to wlan IP)
     if [ -z $local_domain ]; then
-        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname)
+        convert_template hosts /tmp/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname)
     else
-        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
+        convert_template hosts /tmp/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
     fi
+    file_diff_update /tmp/hosts /etc/hosts
+    rm /tmp/hosts >/dev/null 2>&1
 
-    # logit "Verify iw is installed on system."
     which iw >/dev/null 2>&1 && iw_ver=$(iw --version 2>/dev/null | awk '{print $3}') || iw_ver=0
     if [ $iw_ver == 0 ]; then
-        # logit "iw not found, Installing iw via apt."
         process_cmds -apt-install iw
-        # ( sudo apt-get -y install iw 1>/dev/null 2>> $log_file && logit "iw installed Successfully" ) ||
-        #     logit "FAILED to install iw" "WARNING"
     else
         logit "iw $iw_ver already installed/current."
     fi
@@ -560,8 +540,10 @@ gen_dhcpcd_conf () {
 do_blue_config() {
     process="Bluetooth Console"
     logit "${process} Starting"
-    ## Some Sections of the bluetooth configuration from https://hacks.mozilla.org/2017/02/headless-raspberry-pi-configuration-over-bluetooth/
-    file_diff_update ${src_dir}systemd/bluetooth.service /lib/systemd/system/bluetooth.service
+
+    # [ "$btmode" == "serial" ] && local btsrc="${src_dir}systemd/bluetooth.service" || local btsrc="${src_dir}systemd/bluetooth_pan.service"
+    btsrc="${src_dir}systemd/bluetooth.service"  # Temp until btpan configuration vetted/implemented
+    file_diff_update $btsrc /lib/systemd/system/bluetooth.service
 
     # create /etc/systemd/system/rfcomm.service to enable
     # the Bluetooth serial port from systemctl
@@ -589,21 +571,6 @@ do_blue_config() {
             logit "BlueTooth User already in ${group} group"
         fi
     done
-
-    # # Give Blue user limited sudo rights to consolepi-commands
-    # if [ ! -f /etc/sudoers.d/010_blue-consolepi ]; then
-    #     echo 'blue ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*' > /etc/sudoers.d/010_blue-consolepi &&
-    #     logit "BlueTooth User given sudo rights for consolepi-commands" ||
-    #     logit "FAILED to give Bluetooth user limited sudo rights" "WARNING"
-    # fi
-
-    # TODO this is a duplicate of func in install.sh move blue setup to install.sh
-    # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
-    # if [ ! -f /etc/sudoers.d/010_consolepi ]; then
-    #     echo '%consolepi ALL=(ALL) NOPASSWD: /etc/ConsolePi/src/*, /etc/ConsolePi/src/consolepi-commands/*, /etc/ConsolePi/venv/bin/python3 *' > /etc/sudoers.d/010_consolepi &&
-    #     logit "consolepi group given sudo rights for consolepi-commands" ||
-    #     logit "FAILED to give consolepi group sudo rights for ConsolePi functions" "WARNING"
-    # fi
 
     # Remove old blue user default tty cols/rows
     grep -q stty /home/blue/.bashrc &&
@@ -635,9 +602,6 @@ do_blue_config() {
     if [[ $(picocom --help 2>/dev/null | head -1) ]]; then
         logit "$(picocom --help 2>/dev/null | head -1) is already installed"
     else
-        # logit "Installing picocom"
-        # sudo apt-get -y install picocom 1>/dev/null 2>> $log_file && logit "Install picocom Success" ||
-        #         logit "FAILED to Install picocom" "WARNING"
         process_cmds -apt-install picocom
     fi
 
@@ -658,7 +622,6 @@ do_resize () {
     # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
     process="xterm ~ resize"
     if [ ! -f ${src_dir}consolepi-commands/resize ]; then
-        # util_main xterm -I -p "xterm | resize"
         cmd_list=("-apt-install" "xterm" "--pretty=${process}" "--exclude=x11-utils" \
                   '-s' "export rsz_loc=\$(which resize)" \
                   "-stop" "-nostart" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
@@ -938,46 +901,46 @@ post_install_msg() {
             -nl
             " ${_bold}BlueTooth:${_norm}"
             "  ConsolePi should be discoverable (after reboot if this is the initial installation)."
-            -li " Configure Bluetooth serial on your device and pair with ConsolePi"
-            -li " On client device attach to the com port created after the step above was completed"
-            -li " Once Connected the Console Menu will automatically launch allowing you to connect to any serial devices found"
+            -li "Configure Bluetooth serial on your device and pair with ConsolePi"
+            -li "On client device attach to the com port created after the step above was completed"
+            -li "Once Connected the Console Menu will automatically launch allowing you to connect to any serial devices found"
             "  NOTE: The Console Menu is available from any shell session (Bluetooth or SSH) via the ${_cyan}consolepi-menu${_norm} command"
             -nl
             " ${_bold}Logging${_norm}"
             "  The bulk of logging for ConsolePi ends up in /var/log/ConsolePi/consolepi.log"
             "  The tags 'puship', 'puship-ovpn', 'autohotspotN' and 'dhcpcd' are of key interest in syslog"
-            -li " openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn"
-            -li " pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log"
-            -li " An install log can be found in ${consolepi_dir}installer/install.log"
+            -li "openvpn logs are sent to /var/log/ConsolePi/ovpn.log you can tail this log to troubleshoot any issues with ovpn"
+            -li "pushbullet responses (json responses to curl cmd) are sent to /var/log/ConsolePi/push_response.log"
+            -li "An install log can be found in ${consolepi_dir}installer/install.log"
             -nl
             " ${_bold}ConsolePi Commands:${_norm}"
             "  **Refer to the GitHub for the most recent & most complete list of convenience commands"
             -nl
-            -li " ${_cyan}consolepi-menu${_norm}: Launch Console Menu which will provide connection options for connected serial adapters."
+            -li "${_cyan}consolepi-menu${_norm}: Launch Console Menu which will provide connection options for connected serial adapters."
             "     Menu also displays connection options for discovered remote ConsolePis, as well as power control options, etc."
             -nl
-            -li " ${_cyan}consolepi-help${_norm}: Extract and display the ConsolePi Commands section of the ReadMe"
-            -li " ${_cyan}consolepi-version${_norm}: Display version information"
-            -li " ${_cyan}consolepi-config${_norm}: Opens ConsolePi.yaml with nano with -ET2 option (best for yaml)"
-            -li " ${_cyan}consolepi-status${_norm}: Display status of ConsolePi daemons, and system daemons related to ConsolePi"
-            -li " ${_cyan}consolepi-upgrade${_norm}: Upgrade ConsolePi. This is the supported update method"
-            -li " ${_cyan}consolepi-leases${_norm}: Shows dnsmasq (dhcp) leases.  Typically clients connected to HotSpot"
-            -li " ${_cyan}consolepi-extras${_norm}: Launch optional utilities installer (tftp, ansible, lldp, cockpit, speedtest...)"
-            -li " ${_cyan}consolepi-addssids${_norm}: Add additional known ssids. Alternatively you can add entries to wpa_supplicant manually"
-            -li " ${_cyan}consolepi-addconsole${_norm}: Configure serial adapter to telnet port rules"
-            -li " ${_cyan}consolepi-showaliases${_norm}: Shows Configured adapter aliases, helps identify any issues with aliases"
-            -li " ${_cyan}consolepi-logs${_norm}: Displays ConsolePi logs (Note this will install mutli-tail the first time it's ran)"
+            -li "${_cyan}consolepi-help${_norm}: Extract and display the ConsolePi Commands section of the ReadMe"
+            -li "${_cyan}consolepi-version${_norm}: Display version information"
+            -li "${_cyan}consolepi-config${_norm}: Opens ConsolePi.yaml with nano with -ET2 option (best for yaml)"
+            -li "${_cyan}consolepi-status${_norm}: Display status of ConsolePi daemons, and system daemons related to ConsolePi"
+            -li "${_cyan}consolepi-upgrade${_norm}: Upgrade ConsolePi. This is the supported update method"
+            -li "${_cyan}consolepi-leases${_norm}: Shows dnsmasq (dhcp) leases.  Typically clients connected to HotSpot"
+            -li "${_cyan}consolepi-extras${_norm}: Launch optional utilities installer (tftp, ansible, lldp, cockpit, speedtest...)"
+            -li "${_cyan}consolepi-addssids${_norm}: Add additional known ssids. Alternatively you can add entries to wpa_supplicant manually"
+            -li "${_cyan}consolepi-addconsole${_norm}: Configure serial adapter to telnet port rules"
+            -li "${_cyan}consolepi-showaliases${_norm}: Shows Configured adapter aliases, helps identify any issues with aliases"
+            -li "${_cyan}consolepi-logs${_norm}: Displays ConsolePi logs (Note this will install mutli-tail the first time it's ran)"
             "     valid args: all (will cat consolepi.log), any other argument is passed to tail as a flag."
             "                 If no arguments are specified, script will follow tail on consolepi-log, and syslog (with filters)"
             "     examples: \"consolepi-logs all\", \"consolepi-logs -f\", \"consolepi-logs -20\", \"consolepi-logs 20\""
-            -li " ${_cyan}consolepi-killvpn${_norm}: Gracefully terminate openvpn tunnel if one is established"
-            -li " ${_cyan}consolepi-autohotspot${_norm}: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found"
+            -li "${_cyan}consolepi-killvpn${_norm}: Gracefully terminate openvpn tunnel if one is established"
+            -li "${_cyan}consolepi-autohotspot${_norm}: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found"
             "     then fall-back to HotSpot mode if not found or unable to connect"
-            -li " ${_cyan}consolepi-testhotspot${_norm}: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot"
+            -li "${_cyan}consolepi-testhotspot${_norm}: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot"
             "     Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa"
-            -li " ${_cyan}consolepi-bton${_norm}: Make BlueTooth Discoverable and pairable - this is the default behavior on boot"
-            -li " ${_cyan}consolepi-btoff${_norm}: Disable BlueTooth Discoverability.  You can still connect if previously paired"
-            -li " ${_cyan}consolepi-details${_norm}: Refer to GitHub for usage, but in short dumps the data the ConsolePi would run with based"
+            -li "${_cyan}consolepi-bton${_norm}: Make BlueTooth Discoverable and pairable - this is the default behavior on boot"
+            -li "${_cyan}consolepi-btoff${_norm}: Disable BlueTooth Discoverability.  You can still connect if previously paired"
+            -li "${_cyan}consolepi-details${_norm}: Refer to GitHub for usage, but in short dumps the data the ConsolePi would run with based"
             "     on configuration, discovery, etc.  Dumps everything if no args"
             "     valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail"
             -nl
@@ -991,6 +954,7 @@ post_install_msg() {
         sed -n "/${log_start}/,/*/p" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "WARNING\|failed"
         echo
     fi
+
     # Script Complete Prompt for reboot if first install
     if $upgrade; then
         echo -e "\nConsolePi Upgrade Complete, a Reboot may be required if config options where changed during upgrade\n"

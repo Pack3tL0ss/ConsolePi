@@ -71,8 +71,8 @@ do_apt_update() {
         fi
 
         if [[ "${#_upgd[@]}" > 0 ]]; then
-            logit "Your system has "${#_upgd[@]}" Packages that can be Upgraded"
-            logit "ConsolePi now *only* ensures packages it requires are current"
+            logit "${_cyan}Your system has "${#_upgd[@]}" Packages that can be Upgraded${_norm}"
+            logit "${_cyan}ConsolePi now *only* ensures packages it requires are current${_norm}"
         fi
 
     else
@@ -152,12 +152,6 @@ pre_git_prep() {
         unset process
 
     else  # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
-        # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
-        # TODO Check if this is still required
-        process="ConsolePi-Upgrade-Prep"
-        if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
-            process_cmds -nostart -apt-install "libffi-dev"
-        fi
 
         process="Create consolepi user/group"
         # add consolepi user
@@ -233,6 +227,13 @@ pre_git_prep() {
         # fi
     fi
     # -- // Operations performed on both installs and upgrades \\ --
+
+    # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
+    # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
+    process="Verify libffi-dev"
+    if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
+        process_cmds -nostart -apt-install "libffi-dev"
+    fi
 
     # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
     if [ ! -f /etc/sudoers.d/010_consolepi ]; then
@@ -502,7 +503,7 @@ show_usage() {
     _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
     echo "    Copy the example file to your home dir and make edits to use"
     _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables"
-    _help "-btpan" "Configure Bluetooth with PAN service vs the default which configures bt-serial"
+    _help "-btpan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
     _help "-reboot" "reboot automatically after silent install (Only applies to silent install)"
     _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"
     _help "--hostname=<hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
@@ -538,7 +539,6 @@ process_args() {
     local_dev=false
     dopip=true
     doapt=true
-    btmode=serial
     do_reboot=false
     while (( "$#" )); do
         # echo "$1" # -- DEBUG --
@@ -622,6 +622,9 @@ process_args() {
                 ;;
         esac
     done
+
+    # -- Set defaults applied when using silent mode if not specified --
+    $silent && btmode=${btmode:-serial}
 }
 
 main() {

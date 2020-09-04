@@ -102,6 +102,8 @@ menu_print() {
     # -- send array of strings to function and it will print a formatted menu
     # Args: -head: str that follows is header
     #       -foot: str that follows is footer
+    #       -li: list item 'str' becomes '  - str'
+    #       -nl: new line (echo a blank line)
     #
     # Used to print post-install message
     # NOTE: Line Length of 121 is currently hardcoded
@@ -131,7 +133,7 @@ menu_print() {
                 if [[ "$1" == "-nl" ]]; then
                     str=" "
                 elif [[ "$1" == "-li" ]]; then
-                    str="  -${2}"
+                    str="  - ${2}"
                     shift
                 else
                     str="$1"
@@ -442,7 +444,7 @@ get_pi_info() {
     # _mem=$(free -h |grep "^Mem:" | awk '{print $2}');_mem=$(echo "$((${_mem:0:1}+1))${_mem:3:1}")
     # logit "$(grep '^Model' /proc/cpuinfo | cut -d: -f2 |cut -d' ' -f2-) $_mem"
     logit "$(uname -a)"
-    dpkg -l | grep -q raspberrypi-ui && logit "RaspiOS with Desktop" || logit "RaspiOS Lite"
+    dpkg -l | grep -q raspberrypi-ui && (desktop=true && logit "RaspiOS with Desktop") || (desktop=false && logit "RaspiOS Lite")
     logit "Python 3 Version $(python3 -V)"
     [ $py3ver -lt 6 ] && logit "${_red}DEPRICATION WARNING:${_norm} Python 3.5 will no longer be supported by ConsolePi in a future release." "warning" &&
         logit "You should re-image ConsolePi using the current RaspiOS release" "warning"

@@ -229,7 +229,7 @@ ChkWifiUp() {
 ChkWiredState() {
     if [[ "$ifaces" =~ "$ethdev" ]]; then
         # eth0_ip=`ip addr show dev $ethdev | grep 'inet '| cut -d: -f2 |cut -d/ -f1| awk '{ print $2}'`
-        eth0_ip=$(ip -br a | grep "$ethdev" |awk '{ print $3}' | cut -d'/' -f1)
+        eth0_ip=$(ip -br a | grep "^${ethdev} " |awk '{ print $3}' | cut -d'/' -f1)
         eth0_state=`ip addr show dev $ethdev | head -1 | sed -n -e 's/^.*state //p' | cut -d ' ' -f1 |awk '{ print $1 }'`
         if [ ${eth0_state} == "UP" ] && [ ${#eth0_ip} -gt 6 ]; then
             eth0_up=true

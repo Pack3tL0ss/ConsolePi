@@ -503,7 +503,7 @@ show_usage() {
     _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
     echo "    Copy the example file to your home dir and make edits to use"
     _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables"
-    _help "-btpan" "Configure Bluetooth with PAN service vs the default which configures bt-serial"
+    _help "-btpan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
     _help "-reboot" "reboot automatically after silent install (Only applies to silent install)"
     _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"
     _help "--hostname=<hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
@@ -539,7 +539,6 @@ process_args() {
     local_dev=false
     dopip=true
     doapt=true
-    btmode=serial
     do_reboot=false
     while (( "$#" )); do
         # echo "$1" # -- DEBUG --
@@ -623,6 +622,9 @@ process_args() {
                 ;;
         esac
     done
+
+    # -- Set defaults applied when using silent mode if not specified --
+    $silent && btmode=${btmode:-serial}
 }
 
 main() {

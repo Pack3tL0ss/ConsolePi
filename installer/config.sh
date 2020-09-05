@@ -300,6 +300,7 @@ collect() {
     fi
 
     # -- Bluetooth Mode --
+    btmode="NOTIMPLEMENTED"  # bypass prompt until implemented
     if ! $selected_prompts || [ -z "$btmode" ]; then
         header
         echo -e "\nBluetooth Configuration Options:\n"

@@ -630,6 +630,7 @@ show_usage() {
     echo -e "\n$(green USAGE:) sudo $(echo $SUDO_COMMAND | cut -d' ' -f1) [OPTIONS]\n"
     echo -e "$(cyan Available Options)"
     _help "--help | -help | help" "Display this help text"
+    _help "-C <location of config file>" "Look @ Specified config file loc to get command line values vs. the default consolepi-image-creator.conf (in cwd)"
     _help "--branch=<branch>" "Configure image to install from designated branch (Default: master)"
     _help "--ssid=<ssid>" "Configure SSID on image (configure wpa_supplicant.conf)"
     _help "--psk=<psk>" "pre-shared key for SSID (must be provided if ssid is provided)"
@@ -657,6 +658,7 @@ parse_args() {
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
         # echo -e "DEBUG ~ Currently evaluating: '$1'"
+        [[ ! "${@}" =~ "-C" ]] && [ -f consolepi-image-creator.conf ] && . consolepi-image-creator.conf
         case "$1" in
             -dev) # used for development/testing
                 local_dev=true
@@ -673,6 +675,10 @@ parse_args() {
             -nodd) # used for development/testing
                 nodd=true
                 shift
+                ;;
+            -C) # override the default location script looks for config file (consolepi-image-creator.conf)
+                [ -f "$2" ] && . "$2" || ( echo -e "Config File $2 not found" && exit 1 )
+                shift 2
                 ;;
             *help)
                 show_usage
@@ -723,7 +729,7 @@ parse_args() {
                 shift
                 ;;
             --hotspot_hostname=*) # skip do you want to pre-configure hostname as <HotSpot SSID> presented if script imports a ConsolePi.yaml
-                edit=$(echo "$1"| cut -d= -f2)
+                hotspot_hostname=$(echo "$1"| cut -d= -f2)
                 shift
                 ;;
             *) ## -*|--*=) # unsupported flags

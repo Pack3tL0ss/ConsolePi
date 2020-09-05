@@ -163,7 +163,7 @@ pre_git_prep() {
         echo 'ADD_EXTRA_GROUPS=1' >> /tmp/adduser.conf
 
         if ! grep -q "^consolepi:" /etc/group; then
-            if [ ! -z consolepi_pass ]; then
+            if [ ! -z "${consolepi_pass}" ]; then
                 echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
                     logit "consolepi user created silently with config/cmd-line argument" || logit "Error silently creating consolepi user" "ERROR"
             else

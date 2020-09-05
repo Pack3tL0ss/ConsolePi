@@ -166,11 +166,15 @@ pre_git_prep() {
             if [ ! -z "${consolepi_pass}" ]; then
                 echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
                     logit "consolepi user created silently with config/cmd-line argument" || logit "Error silently creating consolepi user" "ERROR"
+                unset consolepi_pass
             else
                 echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
-                adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file ||
-                    logit "Error adding consolepi user check $log_file" "ERROR"
+                ask_pass  # provides _pass in global context
+                echo -e "${_pass}\n${_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
+                    logit "consolepi user created." || logit "Error creating consolepi user" "ERROR"
+                unset _pass
             fi
+            echo
         fi
 
         if [ ! -z "${auto_launch}" ]; then
@@ -197,6 +201,8 @@ pre_git_prep() {
                     adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null &&
                         logit "Successfully added new user $result" ||
                         logit "Error adding new user $result" "WARNING"
+                else
+                    header
                 fi
             done
         fi

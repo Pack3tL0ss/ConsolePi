@@ -272,6 +272,16 @@ user_input_bool() {
     echo $response
 }
 
+ask_pass(){
+    match=false; while ! $match; do
+        read -sep "password: " _pass && echo "$_pass" | sed -r 's/./*/g'
+        read -sep "Retype password: " _pass2 && echo "$_pass2" | sed -r 's/./*/g'
+        [[ "${_pass}" == "${_pass2}" ]] && match=true || match=false
+        ! $match && echo -e "ERROR: Passwords Do Not Match\n"
+    done
+    unset _pass2
+}
+
 # arg1 = systemd file without the .service suffix
 systemd_diff_update() {
     # -- If both files exist check if they are different --
@@ -655,14 +665,6 @@ process_cmds() {
         # if cmd is set process cmd
         # use defaults if flag not set
         if [[ ! -z $cmd ]]; then
-            # [[ -z $pmsg ]] && local pmsg="Success - $cmd"
-            # [[ -z $fail_lvl ]] && local fail_lvl="WARNING"
-            # [[ -z $silent ]] && local silent=false
-            # [[ -z $stop ]] && local stop=false
-            # [[ -z $err ]] && local err=$log_file
-            # [[ -z $out ]] && local out='/dev/null'
-            # [[ -z $showstart ]] && local showstart=true
-            # [[ -z $do_apt_install ]] && local do_apt_install=false
             local pmsg=${pmsg:-"Success - $cmd"}
             local fmsg=${fmsg:-"Error - $cmd  See details in $log_file"}
             local fail_lvl=${fail_lvl:-"WARNING"}
@@ -683,6 +685,7 @@ process_cmds() {
             if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
                 local cmd_failed=false
                 ! $silent && logit "$pmsg"
+                unset cmd
             else
                 local cmd_failed=true
                 if $do_apt_install ; then

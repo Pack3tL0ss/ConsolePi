@@ -245,7 +245,7 @@ install_ser2net () {
     process="Install ser2net via apt"
     logit "${process} - Starting"
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
-    if [[ -z $ser2net_ver ]]; then
+    if [[ -z "$ser2net_ver" ]]; then
         process_cmds -apt-install "ser2net"
     else
         logit "Ser2Net ${ser2net_ver} is current"
@@ -335,7 +335,7 @@ sub_check_vpn_config(){
 install_ovpn() {
     process="OpenVPN"
     ovpn_ver=$(openvpn --version 2>/dev/null| head -1 | awk '{print $2}')
-    if [[ -z $ovpn_ver ]]; then
+    if [[ -z "$ovpn_ver" ]]; then
         process_cmds -stop -apt-install "openvpn" -nostart -pf "Enable OpenVPN" '/lib/systemd/systemd-sysv-install enable openvpn'
     else
         logit "OpenVPN ${ovpn_ver} Already Installed/Current"
@@ -411,7 +411,7 @@ install_autohotspotn () {
     fi
 
     dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
-    if [[ -z $dnsmasq_ver ]]; then
+    if [[ -z "$dnsmasq_ver" ]]; then
         process_cmds -apt-install dnsmasq
     else
         logit "dnsmasq v${dnsmasq_ver} already installed"
@@ -433,7 +433,7 @@ install_autohotspotn () {
     fi
 
     # disable dnsmasq only if we just installed it (dnsmasq_ver won't be defined)
-    if [[ -z $dnsmasq_ver ]]; then
+    if [[ -z "$dnsmasq_ver" ]]; then
         sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
             logit "dnsmasq autostart disabled Successfully" ||
                 logit "An error occurred disabling dnsmasq autostart - verify after install" "WARNING"
@@ -447,16 +447,16 @@ install_autohotspotn () {
     file_diff_update ${src_dir}interfaces /etc/network/interfaces
 
     # update hosts file based on supplied variables - this comes into play for devices connected to hotspot (dnsmasq will be able to resolve hostname to wlan IP)
-    if [ -z $local_domain ]; then
-        convert_template hosts /tmp/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname)
+    if [ -z "$local_domain" ]; then
+        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname)
     else
-        convert_template hosts /tmp/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
+        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
     fi
-    file_diff_update /tmp/hosts /etc/hosts
-    rm /tmp/hosts >/dev/null 2>&1
+    # file_diff_update /tmp/hosts /etc/hosts
+    # rm /tmp/hosts >/dev/null 2>&1
 
     which iw >/dev/null 2>&1 && iw_ver=$(iw --version 2>/dev/null | awk '{print $3}') || iw_ver=0
-    if [ $iw_ver == 0 ]; then
+    if [ "$iw_ver" == 0 ]; then
         process_cmds -apt-install iw
     else
         logit "iw $iw_ver already installed/current."
@@ -690,7 +690,7 @@ get_known_ssids() {
             [[ -f $wpa_supplicant_file ]] && sudo cp $wpa_supplicant_file $bak_dir
             sudo mv $found_path $wpa_supplicant_file
             client_cert=$(grep client_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
-            if [[ ! -z $client_cert ]]; then
+            if [[ ! -z "$client_cert" ]]; then
                 cert_path=${client_cert%/*}
                 ca_cert=$(grep ca_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
                 private_key=$(grep private_key= $found_path | cut -d'"' -f2| cut -d'"' -f1)
@@ -1020,7 +1020,7 @@ update_main() {
     do_consolepi_mdns
     ! $upgrade && misc_stuff
     do_resize
-    if ( [ ! -z $skip_utils ] && $skip_utils ) || $silent; then
+    if ( [ ! -z "$skip_utils" ] && $skip_utils ) || $silent; then
         process="optional utilities installer"
         logit "utilities menu bypassed by config variable"
         unset process

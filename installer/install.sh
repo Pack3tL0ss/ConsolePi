@@ -173,7 +173,7 @@ pre_git_prep() {
             fi
         fi
 
-        if [ ! -z auto_launch ]; then
+        if [ ! -z "${auto_launch}" ]; then
             echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
         else
             if ! $silent; then
@@ -295,7 +295,7 @@ git_ConsolePi() {
     $upgrade && process="Update ConsolePi (git pull)" || process="Clone ConsolePi (git clone)"
 
     # -- exit if python3 ver < 3.6
-    [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && (
+    [ ! -z "$py3ver" ] && [ "$py3ver" -lt 6 ] && (
         echo "ConsolePi Requires Python3 ver >= 3.6, aborting install."
         echo "Reccomend using ConsolePi_image_creator to create a fresh image on a new sd-card while retaining existing for backup." &&
         exit 1
@@ -356,7 +356,7 @@ do_pyvenv() {
     if [ ! -d ${consolepi_dir}venv ]; then
         # -- Ensure python3 virtualenv is installed --
         venv_ver=$(sudo python3 -m pip list --format columns | grep virtualenv | awk '{print $2}')
-        if [ -z $venv_ver ]; then
+        if [ -z "$venv_ver" ]; then
             logit "python virtualenv not installed... installing"
             sudo python3 -m pip install virtualenv 1>/dev/null 2>> $log_file &&
                 logit "Success - Install virtualenv" ||

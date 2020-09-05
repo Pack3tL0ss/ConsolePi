@@ -68,8 +68,6 @@ _green='\e[32m'
 _cyan='\e[96m' # technically light cyan
 _excl="${_red}${_blink}"'!!!!'"${_norm}"
 
-nodd=false
-
 do_defaults() {
     # ----------------------------------- // DEFAULTS \\ -----------------------------------
     # applied if no config file is found and value not set via cmd line arg
@@ -87,6 +85,7 @@ do_defaults() {
     EDIT=${edit}
     HOTSPOT_HOSTNAME=${hotspot_hostname}
     # ---------------------------------------------------------------------------------------
+    nodd=${nodd:-false}  # development option set by -nodd flag
     STAGE_DIR='consolepi-stage'
     IMG_HOME="/mnt/usb2/home/pi"
     IMG_STAGE="$IMG_HOME/$STAGE_DIR"
@@ -592,7 +591,7 @@ main() {
 
     # -- Custom Post Image Creation Script --
     if [ -f "$STAGE_DIR/consolepi-image-creator-post.sh" ]; then
-        echo -e "\n Custom Post image creation script ($STAGE_DIR/consolepi-image-creator-post.sh) found Executing...\n--"
+        echo -e "\nCustom Post image creation script ($STAGE_DIR/consolepi-image-creator-post.sh) found Executing...\n--"
         . $STAGE_DIR/consolepi-image-creator-post.sh && rc=$? ; echo -e "-- return code: $rc\n"
     fi
 
@@ -656,9 +655,9 @@ show_usage() {
 
 parse_args() {
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
+    [[ ! "${@}" =~ "-C" ]] && [ -f consolepi-image-creator.conf ] && . consolepi-image-creator.conf
     while (( "$#" )); do
         # echo -e "DEBUG ~ Currently evaluating: '$1'"
-        [[ ! "${@}" =~ "-C" ]] && [ -f consolepi-image-creator.conf ] && . consolepi-image-creator.conf
         case "$1" in
             -dev) # used for development/testing
                 local_dev=true
@@ -742,8 +741,7 @@ parse_args() {
 
 iam=`whoami`
 if [ "${iam}" = "root" ]; then
-    [ -f consolepi-image-creator.conf ] && . consolepi-image-creator.conf
-    (( "$#" )) && parse_args "$@"
+    parse_args "$@"
     do_defaults
     $DEBUG && ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS  | less +G
     verify_local_dev

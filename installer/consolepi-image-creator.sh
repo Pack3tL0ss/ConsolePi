@@ -80,6 +80,7 @@ do_defaults() {
     IMG_TYPE=${img_type:-'lite'}
     IMG_ONLY=${img_only:-false}
     AUTO_INSTALL=${auto_install:-true}
+    CP_ONLY=${cp_only:-false}
     # -- these skip prompts and perform the actions based on the value provided
     # if not set user is prompted (Default is Not set)
     MASS_IMPORT=${mass_import}
@@ -132,11 +133,12 @@ dots() {
 do_error() {
     local status=$1
     if [[ $status != 0 ]]; then
-        echo 'Failed!!' ; echo -e "\n"
-        echo "$2" # optional additional error details
+        red 'Failed!!'  # ; echo -e "\n"
+        # echo "$2" # optional additional error details
+        [ ! -z "$2" ] && echo -e "   --\n   $(red '!!') $2\n   --\n" # optional additional error details
         exit 1
     else
-        echo "OK"
+        green "OK"
     fi
 }
 
@@ -153,7 +155,7 @@ cyan() {
 }
 
 red() {
-    echo -e "${_red}${*}${_norm}"
+    echo -e "${_lred}${*}${_norm}"
 }
 
 # Function to collect user input
@@ -194,10 +196,14 @@ show_disk_details() {
 }
 
 do_unzip() {
-    dots "Extracting image from ${1}"
-    unzip $1
-    img_file=$(ls -lc "${1%zip}img" 2>>/dev/null | awk '{print $9}')
-    [[ -z $img_file ]] ; do_error $? 'Something went wrong img file not found after unzip... exiting'
+    if [ -f "$1" ]; then
+        dots "Extracting image from $1"
+        unzip $1 >/dev/null >/dev/null
+        img_file=$(ls -1 "${1%zip}img" 2>/dev/null)
+        [ ! -z "$img_file" ] ; do_error $? 'Something went wrong img file not found after unzip... exiting'
+    else
+        echo Error "$1" 'not found.  Bad File passed to do_unzip? Exiting.'
+    fi
 }
 
 # -- Check for ConsolePi.yaml collect info if not found --
@@ -207,6 +213,16 @@ do_import_configs() {
         dots "$STAGE_DIR dir found Pre-Staging all files"
         sudo -u pi mkdir -p $IMG_STAGE ; rc=$?
         cp -r $STAGE_DIR/* $IMG_STAGE/ ; do_error $((rc+=$?))
+
+        # -- rename consolepi-stage to __consolepi-stage on img if -cponly
+        if $CP_ONLY; then
+            # remove existing dir on img for re-test
+            [ -d "$IMG_HOME/__$STAGE_DIR" ] && rm -r "$IMG_HOME/__$STAGE_DIR"
+            dots "-cponly flag set rename stage dir on img"
+            res=$(mv $IMG_STAGE $IMG_HOME/__$STAGE_DIR 2>&1) ; do_error $? "$res"
+            IMG_STAGE="$IMG_HOME/__$STAGE_DIR"
+        fi
+        # DO NOT USE $IMG_HOME/$STAGE_DIR beyond this point, use $IMG_STAGE
 
         # -- import authorized keys for the pi and root users on image if found --
         if [[ -f $IMG_STAGE/authorized_keys ]]; then
@@ -257,15 +273,6 @@ do_import_configs() {
         fi
     fi
 
-    if [ ! -f $STAGE_DIR/ConsolePi.yaml ] && [ -f /etc/ConsolePi/ConsolePi.yaml ]; then
-        echo
-        get_input "Do you want to pre-stage configuration using the config from this ConsolePi (you will be given the chance to edit)"
-        if $input; then
-            sudo -u $SUDO_USER mkdir -p $IMG_HOME/$STAGE_DIR
-            sudo -u $SUDO_USER cp /etc/ConsolePi/ConsolePi.yaml $IMG_HOME/$STAGE_DIR/
-        fi
-    fi
-
     # -- If image being created from a ConsolePi offer to import settings --
     if $ISCPI; then
         # header -c
@@ -288,7 +295,7 @@ do_import_configs() {
                 dots $(echo $f| cut -d: -f2)
                 if [[ "$f" =~ ^"STAGE:" ]]; then
                     src="$(echo $f| cut -d: -f2)"
-                    dst="$IMG_HOME/$STAGE_DIR/$(basename $(echo $f| cut -d: -f2))"
+                    dst="$IMG_STAGE/$(basename $(echo $f| cut -d: -f2))"
                 else
                     src="$f"
                     dst="/mnt/usb2${f}"
@@ -313,21 +320,33 @@ do_import_configs() {
                     fi
                 fi
             done
-            [ -f $IMG_HOME/$STAGE_DIR/credentials.json ] && ( mkdir -p $IMG_HOME/$STAGE_DIR/.credentials >/dev/null ; rc=$? ) || rc=0
-            [ -f $IMG_HOME/$STAGE_DIR/credentials.json ] && mv $IMG_HOME/$STAGE_DIR/credentials.json $IMG_HOME/$STAGE_DIR/.credentials ; ((rc+=$?))
-            [ -f $IMG_HOME/$STAGE_DIR/token.pickle ] && mv $IMG_HOME/$STAGE_DIR/token.pickle $IMG_HOME/$STAGE_DIR/.credentials ; ((rc+=$?))
+            [ -f $IMG_STAGE/credentials.json ] && ( mkdir -p $IMG_STAGE/.credentials >/dev/null ; rc=$? ) || rc=0
+            [ -f $IMG_STAGE/credentials.json ] && mv $IMG_STAGE/credentials.json $IMG_STAGE/.credentials ; ((rc+=$?))
+            [ -f $IMG_STAGE/token.pickle ] && mv $IMG_STAGE/token.pickle $IMG_STAGE/.credentials ; ((rc+=$?))
             [[ "$rc" > 0 ]] && logit "Error Returned moving cloud creds into $STAGE_DIR/.credentials directory"
+
+        # We still prompt for ConsolePi.yaml even if not doing mass_import
+        elif [ ! -f $STAGE_DIR/ConsolePi.yaml ] && [ -f /etc/ConsolePi/ConsolePi.yaml ]; then
+            echo
+            get_input "Do you want to pre-stage configuration using the config from this ConsolePi (you will be given the chance to edit)"
+            if $input; then
+                sudo -u $SUDO_USER mkdir -p $IMG_STAGE/
+                sudo -u $SUDO_USER cp /etc/ConsolePi/ConsolePi.yaml $IMG_STAGE/
+            fi
         fi
+
     fi
 
+
+
     # prompt to modify staged config
-    if [ -f $IMG_HOME/$STAGE_DIR/ConsolePi.yaml ]; then
+    if [ -f $IMG_STAGE/ConsolePi.yaml ]; then
         if [ -z "$EDIT" ]; then
             echo
             get_input "Do you want to edit the pre-staged ConsolePi.yaml to change details"
             EDIT=$input
         fi
-        $EDIT && nano -ET2 $IMG_HOME/$STAGE_DIR/ConsolePi.yaml
+        $EDIT && nano -ET2 $IMG_STAGE/ConsolePi.yaml
 
         # -- offer to pre-configure hostname based on hotspot SSID in config
         cfg_ssid=$(grep '  wlan_ssid: ' $IMG_STAGE/ConsolePi.yaml | awk '{print $2}')
@@ -378,7 +397,14 @@ main() {
     #     echo "and configure via consolepi-stage.conf or import file or command line args"
     # fi
 
-    my_usb=$(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/')
+    my_usb=($(ls -l /dev/disk/by-path/*usb* 2>/dev/null |grep -v part | sed 's/.*\(...\)/\1/'))
+    # -- Exit now if more than 1 usb storage dev found
+    if [[ ${#my_usb[@]} > 1 ]]; then
+        echo -e "\nMore than 1 USB Storage Device Found, To use this script Only plug in the device you want to image.\n"
+        exit 1
+    else
+        my_usb=${my_usb[0]}
+    fi
     [[ $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
     [[ $boot_list =~ $my_usb ]] && my_usb=    # if usb device found make sure it's not marked as bootable if so reset my_usb so we can check for sd card adapter
     [[ -z $my_usb ]] && my_usb=$( sudo fdisk -l | grep 'Disk /dev/mmcblk' | awk '{print $2}' | cut -d: -f1 | cut -d'/' -f3)
@@ -435,8 +461,8 @@ main() {
     cur_rel_date=$(echo $cur_rel | cut -d'-' -f1-3)
 
     # Check to see if any images exist in script dir already
-    found_img_file=$(ls -lc | grep ".*[raspbian\|raspios].*\.img" | awk '{print $9}')
-    found_img_zip=$(ls -lc | grep ".*[raspbian\|raspios].*\.zip" | awk '{print $9}')
+    found_img_file=$(ls -lc | grep ".*rasp[bian\|ios].*\.img" | awk '{print $9}')
+    found_img_zip=$(ls -lc | grep ".*rasp[bian\|ios].*\.zip" | awk '{print $9}')
     readarray -t found_img_files <<<"$found_img_file"
     readarray -t found_img_zips <<<"$found_img_zip"
 
@@ -472,14 +498,14 @@ main() {
     else
         echo "no image found in $(pwd)"
     fi
-    [ -z "$img_file" ] && echo "Using $(cyan ${img_file}) $_msg"
+    [ ! -z "$img_file" ] && echo "Using $(cyan ${img_file}) $_msg"
 
     # img_file will only be assigned if an image was found in the script dir
     retry=1
     while [[ -z $img_file ]] ; do
         [[ $retry > 3 ]] && echo "Exceeded retries exiting " && exit 1
         echo "downloading image from raspberrypi.org.  Attempt: ${retry}"
-        wget -q $img_url -O ${cur_rel}.zip
+        wget -q --show-progress $img_url -O ${cur_rel}.zip
         do_unzip "${cur_rel}.zip"
         ((retry++))
     done
@@ -564,6 +590,12 @@ main() {
     # -- warn if no wlan config --
     [ ! -f /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ] && echo -e "\nwarning ~ WLAN configuration not provided, WLAN has *not* been pre-configured"
 
+    # -- Custom Post Image Creation Script --
+    if [ -f "$STAGE_DIR/consolepi-image-creator-post.sh" ]; then
+        echo -e "\n Custom Post image creation script ($STAGE_DIR/consolepi-image-creator-post.sh) found Executing...\n--"
+        . $STAGE_DIR/consolepi-image-creator-post.sh && rc=$? ; echo -e "-- return code: $rc\n"
+    fi
+
     # Done prepping system partition un-mount
     sync && umount /mnt/usb2
 
@@ -589,6 +621,12 @@ _help() {
 }
 
 show_usage() {
+    # -- hidden dev options --
+    # -debug: additional logging
+    # -dev: dev local mode, configures image to install from dev branch of local repo
+    # -nodd: run without actually burning the image (used to re-test on flash that has already been imaged)
+    # -cponly: consolepi-stage dir will be cp to image if found but as __consolepi-stage to prevent installer
+    #          from importing from the dir during install
     echo -e "\n$(green USAGE:) sudo $(echo $SUDO_COMMAND | cut -d' ' -f1) [OPTIONS]\n"
     echo -e "$(cyan Available Options)"
     _help "--help | -help | help" "Display this help text"
@@ -622,6 +660,10 @@ parse_args() {
         case "$1" in
             -dev) # used for development/testing
                 local_dev=true
+                shift
+                ;;
+            -cponly) # used for development/testing
+                cp_only=true
                 shift
                 ;;
             -debug) # used for development/testing
@@ -701,5 +743,6 @@ if [ "${iam}" = "root" ]; then
     verify_local_dev
     main
 else
-    echo 'Script should be ran as root. exiting.'
+    printf "\n${_lred}Script should be ran as root"
+    [[ "${@,,}" =~ "help" ]] && ( echo ".${_norm}"; show_usage ) || echo -e " exiting.${_norm}\n"
 fi

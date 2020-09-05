@@ -367,7 +367,7 @@ file_diff_update() {
                     logit "${2} Updated" ||
                     logit "FAILED to create/update ${2}" "WARNING"
             else
-                logit "${1} file not found in src directory.  git pull failed?" "WARNING"
+                logit "file_diff_update src file ${1} not found. You should verify contents of $2. (Please Report this eror on GitHub)" "WARNING"
             fi
         else
             logit "${2} is current"

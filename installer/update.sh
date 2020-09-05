@@ -385,6 +385,7 @@ install_autohotspotn () {
     process="AutoHotSpotN"
     logit "Install/Update AutoHotSpotN"
 
+    # TODO check logic here, double check consolepi-autohotspot-dhcp is being disabled after install
     systemd_diff_update autohotspot
     if ! head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
         logit "Using New autohotspot specific dnsmasq instance"

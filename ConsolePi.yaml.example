@@ -32,7 +32,7 @@ OVERRIDES:
   skip_utils: false       # if true the install/update script will skip the launch of the consolepi-extras menu
   cloud_pull_only: false  # Retrieve data from cloud, but don't update cloud with your data
   compact_mode: false     # Experimental - All Remotes collapsed into a single section in menu
-  disable_ztp: false      # If the ZTP section exists as it does below, and wired_dhcp: true, then ztp is enabled. Unless overriden with this option
+  disable_ztp: false      # If the ZTP section exists, and wired_dhcp: true, then ztp is enabled. Unless overriden with this option
   ztp_lease_time: 2m      # When ztp in configured using consolepi-ztp the lease time is set to an aggressive 2min
 
 # ZTP (Zero Touch Provisioning) Allows you to leverage ConsolePi to automate the deployment of hardware from factory default.

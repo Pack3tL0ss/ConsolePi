@@ -605,6 +605,7 @@ process_cmds() {
                 shift
                 ;;
             -u) # Run Command as logged in User
+                [ -z "$iam" ] && iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')} && logit "iam had no value" "DEBUG"
                 local cmd_pfx="sudo -u $iam"
                 shift
                 ;;

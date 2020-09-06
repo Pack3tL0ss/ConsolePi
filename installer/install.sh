@@ -28,8 +28,8 @@ get_common() {
         fi
     else
         if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
-            local iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
-            sudo -u $iam sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
+            local _iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
+            sudo -u $_iam sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
             echo "ERROR: -dev sftp get failed"
         else
             [[ -f /etc/ConsolePi/installer/common.sh ]] && cp /etc/ConsolePi/installer/common.sh /tmp ||
@@ -63,7 +63,8 @@ do_apt_update() {
         logit "Update Sources"
         # Only update if initial install (no install.log) or if last update was not today
         if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
-            res=$(apt update 2>>$log_file) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+            res=$(apt update 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$log_file")) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+            # res=$(apt update 2>>$log_file) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
             [[ "$res" =~ "--upgradable" ]] && mapfile -t _upgd < <(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         else
             logit "Skipping Source Update - Already Updated today"
@@ -83,6 +84,7 @@ do_apt_update() {
 
 do_apt_deps() {
     process="Install Reqd Pkgs"
+    logit -L "Debug Line --${iam}--$iam"
     which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
 
     # -- Ensure python3-pip is installed --
@@ -163,17 +165,21 @@ pre_git_prep() {
         echo 'ADD_EXTRA_GROUPS=1' >> /tmp/adduser.conf
 
         if ! grep -q "^consolepi:" /etc/group; then
-            if [ ! -z consolepi_pass ]; then
+            if [ ! -z "${consolepi_pass}" ]; then
                 echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
                     logit "consolepi user created silently with config/cmd-line argument" || logit "Error silently creating consolepi user" "ERROR"
+                unset consolepi_pass
             else
                 echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
-                adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file ||
-                    logit "Error adding consolepi user check $log_file" "ERROR"
+                ask_pass  # provides _pass in global context
+                echo -e "${_pass}\n${_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
+                    logit "consolepi user created." || logit "Error creating consolepi user" "ERROR"
+                unset _pass
             fi
+            echo
         fi
 
-        if [ ! -z auto_launch ]; then
+        if [ ! -z "${auto_launch}" ]; then
             echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
         else
             if ! $silent; then
@@ -197,6 +203,8 @@ pre_git_prep() {
                     adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null &&
                         logit "Successfully added new user $result" ||
                         logit "Error adding new user $result" "WARNING"
+                else
+                    header
                 fi
             done
         fi
@@ -295,7 +303,7 @@ git_ConsolePi() {
     $upgrade && process="Update ConsolePi (git pull)" || process="Clone ConsolePi (git clone)"
 
     # -- exit if python3 ver < 3.6
-    [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && (
+    [ ! -z "$py3ver" ] && [ "$py3ver" -lt 6 ] && (
         echo "ConsolePi Requires Python3 ver >= 3.6, aborting install."
         echo "Reccomend using ConsolePi_image_creator to create a fresh image on a new sd-card while retaining existing for backup." &&
         exit 1
@@ -356,7 +364,7 @@ do_pyvenv() {
     if [ ! -d ${consolepi_dir}venv ]; then
         # -- Ensure python3 virtualenv is installed --
         venv_ver=$(sudo python3 -m pip list --format columns | grep virtualenv | awk '{print $2}')
-        if [ -z $venv_ver ]; then
+        if [ -z "$venv_ver" ]; then
             logit "python virtualenv not installed... installing"
             sudo python3 -m pip install virtualenv 1>/dev/null 2>> $log_file &&
                 logit "Success - Install virtualenv" ||
@@ -502,7 +510,7 @@ show_usage() {
     _help "-silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
     _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
     echo "    Copy the example file to your home dir and make edits to use"
-    _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables"
+    _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  This flag disables it. If silent and not set, no action is taken"
     _help "-btpan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
     _help "-reboot" "reboot automatically after silent install (Only applies to silent install)"
     _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"

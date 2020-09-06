@@ -68,7 +68,7 @@ get_util_status () {
     # PKG_EXPLAIN['wireshark~tshark']="packet capture software"
     util_list_i=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort))
     util_list_f=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort -rn))
-    sudo rm /tmp/ansible_ver 2>/dev/null
+    # sudo rm /tmp/ansible_ver 2>/dev/null
 
 
 
@@ -402,7 +402,7 @@ util_main() {
 }
 
 # -- // SCRIPT ROOT \\ --
-if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"utilities.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then
+if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"utilities.sh"* ]] &&  [[ ! "$0" =~ "update.sh" ]]; then
     backtitle="ConsolePi Extras"
     util_main ${@}
 else

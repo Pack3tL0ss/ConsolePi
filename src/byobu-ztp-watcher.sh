@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 
 check_reqs(){
-    if ! which byobu >/dev/null || ! which tcpdump >/dev/null; then
+    if ! ( which byobu >/dev/null && which tcpdump >/dev/null ); then
         [ -f /etc/ConsolePi/installer/common.sh ] && . /etc/ConsolePi/installer/common.sh || (
             echo "Unable to load common functions."
             echo "You need byobu and tcpdump to run the ZTP Watcher 'sudo apt install byobu tcpdump"
-            exit 1
+            exit
             )
         prompt="byobu and tcpdump are required for ZTP watcher, OK to install"
         res=$(user_input_bool)
         if $res; then
-            sudo apt install byobu tcpdump >/dev/null 2>$log_file || (
+            echo "Installing byobu and tcpdump..."
+            sudo apt install byobu tcpdump -y >/dev/null 2>$log_file || (
                 echo "Something went wrong review $log_file for error"
                 exit 1
             )
@@ -20,6 +21,7 @@ check_reqs(){
     fi
 }
 
+check_reqs
 # set up tmux
 # tmux start-server
 

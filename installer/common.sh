@@ -4,7 +4,7 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-wired_dhcp=false  # temp until a config option
+# wired_dhcp=false  # temp until a config option
 cur_dir=$(pwd)
 iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
@@ -158,34 +158,74 @@ menu_print() {
 
 # -- Logging function prints to terminal and log file assign value of process prior to calling logit --
 logit() {
-    # Logging Function: logit <message|string> [<status|string>]
+    # Logging Function: logit <message|string> [<status|string>] [Flags (can be anywhere)]
     # usage:
     #   process="Install ConsolePi"  # Define prior to calling this func otherwise it will display UNDEFINED
     #   logit "building package" "WARNING"
     #
+    #   FLAGS:
+    #      -L    Log Only don't echo to stdoud
+    #      -E    Echo formatted log don't log
+    #      -t <process> set tag($cprocess) (does not change process in global scope)
+    #
     # NOTE: Sending a status of "ERROR" results in the script exiting
     #       default status is INFO if none provided.
-    [ -z "$process" ] && process="UNDEFINED"
+    [[ $(basename "$0") == 'dhcpcd.exit-hook' ]] && stop_on_error=false || stop_on_error=true
+    local args=()
+    while (( "$#" )); do
+        case "$1" in
+            -L)
+                local log_only=true
+                shift
+            ;;
+            -E)
+                local echo_only=true
+                shift
+            ;;
+            -t)
+                local process="$2"
+                shift 2
+            ;;
+            *)
+                local args+=("$1")
+                shift
+            ;;
+        esac
+    done
+    set -- "${args[@]}"
+
+    log_only=${log_only:-false}
+    echo_only=${echo_only:-false}
+    # [[ "${@}" =~ *'-L'* ]] && ${@}
+
+
+    local process=${process:-"UNDEFINED"}
     message="${1}"                                      # 1st arg = the log message
     [ -z "${2}" ] && status="INFO" || status=${2^^} # to upper
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
     if [[ "${status}" == "ERROR" ]]; then
-        fatal=true
+        $stop_on_error && fatal=true
         status="${_red}${status}${_norm}"
     elif [[ ! "${status}" == "INFO" ]]; then
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
         status="${_yellow}${status}${_norm}"
     fi
 
-    log_msg="$(date +"%b %d %T") [${status}][${process}] ${message}"
-    echo -e "$log_msg" | tee -a $log_file
+    log_msg="$(date +"%b %d %T") [$$][${status}][${process}] ${message}"
+    if $log_only; then
+        echo -e "$log_msg" >> $log_file
+    elif $echo_only; then
+        echo -e "$log_msg"
+    else
+        echo -e "$log_msg" | tee -a $log_file
+    fi
     # This grabs the formatted date of the first log created during this run
     # used to parse log and re-display warnings after the install
     [ -z "$log_start" ] && log_start=$(echo "$log_msg" | cut -d'[' -f1)
 
     # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
-        echo -e "$(date +'%b %d %T') [${status}][${process}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
+        echo -e "$(date +'%b %d %T') [$$][${status}][${process}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
     fi
 }
 
@@ -270,6 +310,16 @@ user_input_bool() {
     done
 
     echo $response
+}
+
+ask_pass(){
+    match=false; while ! $match; do
+        read -sep "password: " _pass && echo "$_pass" | sed -r 's/./*/g'
+        read -sep "Retype password: " _pass2 && echo "$_pass2" | sed -r 's/./*/g'
+        [[ "${_pass}" == "${_pass2}" ]] && match=true || match=false
+        ! $match && echo -e "ERROR: Passwords Do Not Match\n"
+    done
+    unset _pass2
 }
 
 # arg1 = systemd file without the .service suffix
@@ -367,7 +417,7 @@ file_diff_update() {
                     logit "${2} Updated" ||
                     logit "FAILED to create/update ${2}" "WARNING"
             else
-                logit "${1} file not found in src directory.  git pull failed?" "WARNING"
+                logit "file_diff_update src file ${1} not found. You should verify contents of $2. (Please Report this eror on GitHub)" "WARNING"
             fi
         else
             logit "${2} is current"
@@ -533,7 +583,7 @@ spaces() {
 }
 
 process_cmds() {
-    # reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
+    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
     local do_autoremove=false  # TODO check if the return is necessary may be relic from early testing
     $_DEBUG_ && echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
@@ -555,6 +605,7 @@ process_cmds() {
                 shift
                 ;;
             -u) # Run Command as logged in User
+                [ -z "$iam" ] && iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')} && logit "iam had no value" "DEV-WARNING"
                 local cmd_pfx="sudo -u $iam"
                 shift
                 ;;
@@ -655,14 +706,6 @@ process_cmds() {
         # if cmd is set process cmd
         # use defaults if flag not set
         if [[ ! -z $cmd ]]; then
-            # [[ -z $pmsg ]] && local pmsg="Success - $cmd"
-            # [[ -z $fail_lvl ]] && local fail_lvl="WARNING"
-            # [[ -z $silent ]] && local silent=false
-            # [[ -z $stop ]] && local stop=false
-            # [[ -z $err ]] && local err=$log_file
-            # [[ -z $out ]] && local out='/dev/null'
-            # [[ -z $showstart ]] && local showstart=true
-            # [[ -z $do_apt_install ]] && local do_apt_install=false
             local pmsg=${pmsg:-"Success - $cmd"}
             local fmsg=${fmsg:-"Error - $cmd  See details in $log_file"}
             local fail_lvl=${fail_lvl:-"WARNING"}
@@ -680,9 +723,11 @@ process_cmds() {
             # -- // PROCESS THE CMD \\ --
             ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
             # if eval "$cmd" >>"$out" 2>>"$err"; then # <-- Do the command
+            logit -L "process_cmds executing: $cmd"
             if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
                 local cmd_failed=false
                 ! $silent && logit "$pmsg"
+                unset cmd
             else
                 local cmd_failed=true
                 if $do_apt_install ; then
@@ -691,6 +736,7 @@ process_cmds() {
                         sleep 5
                         logit "Starting ${pmsg/Success - /} ~ retry $x"
                         # if eval "$cmd" >>"$out" 2>>"$err"; then
+                        logit -L "process_cmds executing: $cmd"
                         if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err"); then
                             local cmd_failed=false
                             ! $silent && logit "$pmsg"
@@ -705,6 +751,11 @@ process_cmds() {
                 $stop && logit "aborting remaining tasks due to previous failure" && cd $cur_dir && break
             fi
             $_DEBUG_ && echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
+
+            # -- // unset all flags so none are passed to next cmd if sent in one big array \\ --
+            for c in "${reset_vars[@]}"; do
+                unset ${c}
+            done
         fi
 
     done

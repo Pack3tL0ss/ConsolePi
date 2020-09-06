@@ -8,7 +8,7 @@
 get_static() {
     process="get static vars"
     process_yaml static
-    [[ -z $CONFIG_FILE_YAML ]] && logit "Unable to load static variables" "ERROR" ||
+    [ -z "$CONFIG_FILE_YAML" ] && logit "Unable to load static variables" "ERROR" ||
         logit "load static vars from .static.yaml Successful"
 }
 
@@ -171,7 +171,7 @@ wired_dhcp_range() {
 
 collect() {
     # -- PushBullet  --
-    if ! $selected_prompts || [ -z $push ]; then
+    if ! $selected_prompts || [ -z "$push" ]; then
         header
         prompt="Configure ConsolePi to send notifications via PushBullet"
         user_input $push "${prompt}"
@@ -208,7 +208,7 @@ collect() {
 
 
     # -- OpenVPN --
-    if ! $selected_prompts || [ -z $ovpn_enable ]; then
+    if ! $selected_prompts || [ -z "$ovpn_enable" ]; then
         header
         prompt="Enable Auto-Connect OpenVPN"
         user_input $ovpn_enable "${prompt}"
@@ -242,13 +242,14 @@ collect() {
     fi
 
     # -- HotSpot  --
-    if ! $selected_prompts || [ -z $hotspot ]; then
+    if ! $selected_prompts || [ -z "$hotspot" ]; then
         header
         echo -e "\nWith the Auto HotSpot Feature Enabled ConsolePi will do the following on boot:"
         echo "  - Scan for configured SSIDs and attempt to connect as a client."
         echo -e "  - If no configured SSIDs are found, it will Fallback to HotSpot Mode and act as an AP.\n"
         prompt="Enable Automatic Fallback to HotSpot on wlan0"
-        [[ -z $hotspot ]] && hotspot=true
+        # [[ -z "$hotspot" ]] && hotspot=true
+        hotspot=${hotspot:-true}
         user_input $hotspot "${prompt}"
         hotspot=$result
 
@@ -275,7 +276,7 @@ collect() {
     fi
 
     # -- wifi/hotspot country --
-    if ! $selected_prompts || [ -z $wlan_country ]; then
+    if ! $selected_prompts || [ -z "$wlan_country" ]; then
         header
         prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
         user_input "US" "${prompt}"
@@ -283,10 +284,23 @@ collect() {
     fi
 
     # -- Enable DHCP on eth interface --
-    if ! $selected_prompts || [ -z $wired_ip ]; then
+    if ! $selected_prompts || [ -z "$wired_ip" ]; then
         header
+        echo -e "\nWith the wired DHCP fallback Feature Enabled ConsolePi will do the following when the wired interface is connected (eth0):"
+        echo -e "  - Use native dhcpcd mechanism to fallback to Static IP if no address is recieved from a DHCP Server"
+        echo -e "  - Start a DHCP Server on the wired interface (ConsolePi will act as a DHCP server for other clients on the network)"
+        echo -e "  - If WLAN is connected and has internet access, wired traffic will NAT out the wlan interface.\n"
+        echo
+        echo -e "  This feature is intented to aid the configuration of Factory Default hardware or via oobm/isolated network."
+        echo -e "  *** Use with caution ***"
+        echo -e "  Running a DHCP server on a production network can lead to client connectivity issues."
+        echo -e "  This function relies on a fall-back mechanism, only enabling the DHCP server after failure to receive an address"
+        echo -e "  as a client.  However care should still be taken."
+        echo -e "  *The current behavior is once it has fallen back, and the DHCP Server is started, it stays that way until reboot"
+        echo -e "   or you disable it manually 'sudo systemctl stop consolepi-wired-dhcp'"
+        # echo -e "  - If an openvpn tunnel is established, The Tunnel network will be shared with wired clients."
         prompt="Do you want to run DHCP Server on eth0 (Fallback if no address as client)"
-        [[ -z $wired_dhcp ]] && wired_dhcp=false
+        wired_dhcp=${wired_dhcp:-false}
         user_input $wired_dhcp "${prompt}"
         wired_dhcp=$result
         if $wired_dhcp; then
@@ -298,35 +312,36 @@ collect() {
     fi
 
     # -- Bluetooth Mode --
-    if ! $selected_prompts || [ -z $btmode ]; then
-        header
-        echo -e "\nBluetooth Configuration Options:\n"
-        echo -e "  1. Serial: BT client would connect to ConsolePi via rfcomm/virtual com port"
-        echo -e "  2. PAN (personal area network): BT Client would connect to ConsolePi via SSH"
-        echo
-        [[ -z $btmode ]] && btmode=serial
-        while [ "$result" != "1" ] && [ "$result" != "2" ]; do
-            prompt="How do you want BlueTooth Configured (1/2)"
-            user_input "NUL" "${prompt}"
-            [ "$result" != "1" ] && [ "$result" != "2" ] &&
-                echo -e "\n${_lred}Invalid Response $result${_norm}: Enter 1 for Serial or 2 for PAN\n"
-        done
-        [ $result == "1" ] && btmode=serial || btmode=pan
-    fi
+    # if ! $selected_prompts || [ -z "$btmode" ]; then
+    #     header
+    #     echo -e "\nBluetooth Configuration Options:\n"
+    #     echo -e "  1. Serial: BT client would connect to ConsolePi via rfcomm/virtual com port"
+    #     echo -e "  2. PAN (personal area network): BT Client would connect to ConsolePi via SSH"
+    #     echo
+    #     [ -z "$btmode" ] && btmode=serial
+    #     while [ "$result" != "1" ] && [ "$result" != "2" ]; do
+    #         prompt="How do you want BlueTooth Configured (1/2)"
+    #         user_input "NUL" "${prompt}"
+    #         [ "$result" != "1" ] && [ "$result" != "2" ] &&
+    #             echo -e "\n${_lred}Invalid Response $result${_norm}: Enter 1 for Serial or 2 for PAN\n"
+    #     done
+    #     [ $result == "1" ] && btmode=serial || btmode=pan
+    # fi
 
     # -- cloud --
-    if ! $selected_prompts || [ -z $cloud ]; then
+    if ! $selected_prompts || [ -z "$cloud" ]; then
         header
-        [ -z $cloud ] && cloud=false
+        # [ -z "$cloud" ] && cloud=false
+        cloud=${cloud:-false}
         user_input $cloud "Do you want to enable ConsolePi Cloud Sync with Gdrive"
         cloud=$result
         cloud_svc="gdrive" # only supporting gdrive for cloud sync
     fi
 
     # -- rem_user --
-    if ! $selected_prompts || [ -z $rem_user ]; then
+    if ! $selected_prompts || [ -z "$rem_user" ]; then
         header
-        [ -z $rem_user ] && rem_user=$iam
+        [ -z "$rem_user" ] && rem_user=$iam
         echo
         echo "If you have multiple ConsolePis they can discover each other over the network via mdns"
         echo "and if enabled can sync via Google Drive."
@@ -342,10 +357,11 @@ collect() {
     fi
 
     # -- power Control --
-    if ! $selected_prompts || [ -z $power ]; then
+    if ! $selected_prompts || [ -z "$power" ]; then
         header
         prompt="Do you want to enable ConsolePi Power Outlet Control"
-        [ -z $power ] && power=false
+        # [ -z "$power" ] && power=false
+        power=${power:-false}
         user_input $power "${prompt}"
         power=$result
         if $power; then

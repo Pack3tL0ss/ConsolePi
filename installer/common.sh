@@ -4,7 +4,7 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-wired_dhcp=false  # temp until a config option
+# wired_dhcp=false  # temp until a config option
 cur_dir=$(pwd)
 iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
 tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
@@ -605,7 +605,7 @@ process_cmds() {
                 shift
                 ;;
             -u) # Run Command as logged in User
-                [ -z "$iam" ] && iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')} && logit "iam had no value" "DEBUG"
+                [ -z "$iam" ] && iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')} && logit "iam had no value" "DEV-WARNING"
                 local cmd_pfx="sudo -u $iam"
                 shift
                 ;;
@@ -723,7 +723,7 @@ process_cmds() {
             # -- // PROCESS THE CMD \\ --
             ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
             # if eval "$cmd" >>"$out" 2>>"$err"; then # <-- Do the command
-            logit -L "process_cmds executing: $cmd logged in as $iam"
+            logit -L "process_cmds executing: $cmd"
             if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
                 local cmd_failed=false
                 ! $silent && logit "$pmsg"

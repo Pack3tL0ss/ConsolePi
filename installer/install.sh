@@ -28,8 +28,8 @@ get_common() {
         fi
     else
         if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
-            local iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
-            sudo -u $iam sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
+            local _iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
+            sudo -u $_iam sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
             echo "ERROR: -dev sftp get failed"
         else
             [[ -f /etc/ConsolePi/installer/common.sh ]] && cp /etc/ConsolePi/installer/common.sh /tmp ||
@@ -84,6 +84,7 @@ do_apt_update() {
 
 do_apt_deps() {
     process="Install Reqd Pkgs"
+    logit -L "Debug Line --${iam}--$iam"
     which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
 
     # -- Ensure python3-pip is installed --

@@ -18,8 +18,9 @@ get_util_status () {
     UTIL_VER['lldpd']=$(lldpd -v 2>/dev/null)
     PKG_EXPLAIN['lldpd']="Enables lldp on wired ports, for discovery of ConsolePi info from lldp capable device it's connected to"
 
-    ansible --version > /tmp/ansible_ver 2>/dev/null
-    UTIL_VER['ansible']=$(head -1 /tmp/ansible_ver | awk '{print $2}')
+    # ansible --version > /tmp/ansible_ver 2>/dev/null
+    # UTIL_VER['ansible']=$(head -1 /tmp/ansible_ver | awk '{print $2}')
+    UTIL_VER['ansible']=$(ansible --version 2>/dev/null | head -1 | awk '{print $2}')
     PKG_EXPLAIN['ansible']="open source automation framework/engine."
 
     a_role="${home_dir}/.ansible/roles/arubanetworks.aoscx_role"
@@ -68,7 +69,7 @@ get_util_status () {
     # PKG_EXPLAIN['wireshark~tshark']="packet capture software"
     util_list_i=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort))
     util_list_f=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort -rn))
-    sudo rm /tmp/ansible_ver 2>/dev/null
+    # sudo rm /tmp/ansible_ver 2>/dev/null
 
 
 
@@ -402,7 +403,7 @@ util_main() {
 }
 
 # -- // SCRIPT ROOT \\ --
-if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"utilities.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then
+if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"utilities.sh"* ]] &&  [[ ! "$0" =~ "update.sh" ]]; then
     backtitle="ConsolePi Extras"
     util_main ${@}
 else

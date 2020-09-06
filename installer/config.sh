@@ -300,22 +300,21 @@ collect() {
     fi
 
     # -- Bluetooth Mode --
-    btmode="NOTIMPLEMENTED"  # bypass prompt until implemented
-    if ! $selected_prompts || [ -z "$btmode" ]; then
-        header
-        echo -e "\nBluetooth Configuration Options:\n"
-        echo -e "  1. Serial: BT client would connect to ConsolePi via rfcomm/virtual com port"
-        echo -e "  2. PAN (personal area network): BT Client would connect to ConsolePi via SSH"
-        echo
-        [ -z "$btmode" ] && btmode=serial
-        while [ "$result" != "1" ] && [ "$result" != "2" ]; do
-            prompt="How do you want BlueTooth Configured (1/2)"
-            user_input "NUL" "${prompt}"
-            [ "$result" != "1" ] && [ "$result" != "2" ] &&
-                echo -e "\n${_lred}Invalid Response $result${_norm}: Enter 1 for Serial or 2 for PAN\n"
-        done
-        [ $result == "1" ] && btmode=serial || btmode=pan
-    fi
+    # if ! $selected_prompts || [ -z "$btmode" ]; then
+    #     header
+    #     echo -e "\nBluetooth Configuration Options:\n"
+    #     echo -e "  1. Serial: BT client would connect to ConsolePi via rfcomm/virtual com port"
+    #     echo -e "  2. PAN (personal area network): BT Client would connect to ConsolePi via SSH"
+    #     echo
+    #     [ -z "$btmode" ] && btmode=serial
+    #     while [ "$result" != "1" ] && [ "$result" != "2" ]; do
+    #         prompt="How do you want BlueTooth Configured (1/2)"
+    #         user_input "NUL" "${prompt}"
+    #         [ "$result" != "1" ] && [ "$result" != "2" ] &&
+    #             echo -e "\n${_lred}Invalid Response $result${_norm}: Enter 1 for Serial or 2 for PAN\n"
+    #     done
+    #     [ $result == "1" ] && btmode=serial || btmode=pan
+    # fi
 
     # -- cloud --
     if ! $selected_prompts || [ -z "$cloud" ]; then

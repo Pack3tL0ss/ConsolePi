@@ -63,7 +63,8 @@ do_apt_update() {
         logit "Update Sources"
         # Only update if initial install (no install.log) or if last update was not today
         if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
-            res=$(apt update 2>>$log_file) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+            res=$(apt update 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$log_file")) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
+            # res=$(apt update 2>>$log_file) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
             [[ "$res" =~ "--upgradable" ]] && mapfile -t _upgd < <(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         else
             logit "Skipping Source Update - Already Updated today"
@@ -508,7 +509,7 @@ show_usage() {
     _help "-silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
     _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
     echo "    Copy the example file to your home dir and make edits to use"
-    _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables"
+    _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  This flag disables it. If silent and not set, no action is taken"
     _help "-btpan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
     _help "-reboot" "reboot automatically after silent install (Only applies to silent install)"
     _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"

@@ -18,6 +18,7 @@ sudo wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/insta
      - [AutoHotSpot](#autoHotSpot)
      - [Automatic VPN](#automatic-openvpn-tunnel)
      - [Automatic PushBullet Notifications](#automatic-pushbullet-notification)
+     - [Automatic Wired DHCP Fallback](#automatic-wired-dhcp-fallback)
      - [Clustering / Cloud Sync](#consolepi-cluster--cloud-sync)
          - [Supported Cluster Methods](#supported-cluster-sync-methods)
              - [Google Drive](#google-drive)
@@ -73,6 +74,13 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
 
 > If you've installed in the last few months, you can clean out the results of the bug by checking your ConsolePi.yaml and deleting everything below the CONFIG: section (OVERRIDES, POWER, HOSTS... essentially anything past the 'debug:' line)
 
+### Sept 2020 (v2020-4.2) Sept 2020 Bug Fix
+- Fixes issue introduced with changes made in v2020-2.4 (technically it was a merge after v2020-2.4)
+- That release introduced a change where a consolepi user is created vs. just a consolepi group. You were to be given the option to auto-launch menu for that user.
+  - Neither prompt was shown, but the user was created, and auto-launch enabled.  The bug resulted in no user input being requested.
+  - Additionally AutoHotSpot was added as a configurable option, but the prompt didn't display.  All of these worked via cmd-line option/silent install.
+  > If you did a fress install w/ any version fro v2020-2.4 - v2020-4.2 you are likely impacted.  Just use `sudo passwd consolepi` to set the password as desired.
+
 
 # Features
 ## **Feature Summary Image**
@@ -113,6 +121,18 @@ An additional message is sent once a tunnel is established if the Automatic Open
 ![Push Bullet Notification image](readme_content/ConsolePiPB2.png)
 
 Each Time a Notification is triggered **all** interface IPs are sent in the message along with the ConsolePi's default gateway(s).
+
+## **Automatic Wired DHCP Fallback**
+
+**Use with caution**
+
+The Wired DHCP Fallback function configures the wired interface of ConsolePi to fallback to static when it fails to get an address as a client via DHCP.  It will then enable a DHCP Server on the wired interface (with the ConsolePi as the gateway for the clients).
+
+This function also:
+- Configures traffic from the wired interface to NAT out of the WLAN interface if the WLAN has an internet connection. (The reverse of Auto-HotSpot)
+- Optionally Configure wired traffic to share access to the OpenVPN tunnel if established (via Auto-OpenVPN)
+
+This is useful when configuring factory-default devices, or on an isolated staging network.  *Caution should be taken on production networks*.
 
 ## ConsolePi Cluster / Cloud Sync
 

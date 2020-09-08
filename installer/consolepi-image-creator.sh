@@ -95,6 +95,7 @@ do_defaults() {
         CONFIGURE_WPA_SUPPLICANT=true ||
         CONFIGURE_WPA_SUPPLICANT=false
     CUR_DIR=$(pwd)
+    PI_UGID=  # set in main after mount of root partition
     [ -d $STAGE_DIR ] && STAGE=true || STAGE=false
     [ -d /etc/ConsolePi ] && ISCPI=true || ISCPI=false
     WPA_CONF=$STAGE_DIR/wpa_supplicant.conf

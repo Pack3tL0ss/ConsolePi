@@ -1,6 +1,6 @@
 # /readme_content/*.png
 # /readme_content/*.jpg
-/bak
+/bak/*
 ConsolePi.conf
 ConsolePi.yaml
 ConsolePi.cloud

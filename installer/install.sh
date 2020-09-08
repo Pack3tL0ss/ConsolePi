@@ -331,7 +331,7 @@ git_ConsolePi() {
     fi
 
     # create bak dir if it doesn't exist
-    # TODO should be able to ensure empty dir exists via .gitignore
+    # TODO should be able to ensure empty dir exists via .gitignore - DONE this can be removed once verified
     [[ ! -d $bak_dir ]] && sudo mkdir $bak_dir
     unset process
 }

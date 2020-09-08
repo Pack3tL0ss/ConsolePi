@@ -210,8 +210,9 @@ do_import_configs() {
     # -- pre-stage Staging Dir on image if found --
     if $STAGE; then
         dots "$STAGE_DIR dir found Pre-Staging all files"
-        sudo -u pi mkdir -p $IMG_STAGE ; rc=$?
-        cp -r $STAGE_DIR/* $IMG_STAGE/ ; do_error $((rc+=$?))
+        mkdir -p $IMG_STAGE ; rc=$?
+        cp -r $STAGE_DIR/* $IMG_STAGE/ ; ((rc+=$?))
+        chown -R $PI_UGID $IMG_STAGE/ ; do_error $((rc+=$?))
 
         # -- rename consolepi-stage to __consolepi-stage on img if -cponly
         if $CP_ONLY; then
@@ -226,18 +227,24 @@ do_import_configs() {
         # -- import authorized keys for the pi and root users on image if found --
         if [[ -f $IMG_STAGE/authorized_keys ]]; then
             dots "SSH authorized keys found pre-staging"
-            sudo -u pi mkdir -p $IMG_HOME/.ssh ; rc=$?
+            mkdir -p $IMG_HOME/.ssh ; rc=$?
             mkdir -p /mnt/usb2/root/.ssh ; ((rc+=$?))
-            sudo -u pi cp ${CUR_DIR}/$STAGE_DIR/authorized_keys $IMG_HOME/.ssh/ ; ((rc+=$?))
+            cp ${CUR_DIR}/$STAGE_DIR/authorized_keys $IMG_HOME/.ssh/ ; ((rc+=$?))
             cp ${CUR_DIR}/$STAGE_DIR/authorized_keys /mnt/usb2/root/.ssh/ ; do_error $((rc+=$?))
         fi
 
         # -- import SSH known hosts on image if found --
         if [[ -f $IMG_STAGE/known_hosts ]]; then
-            dots "SSH known_hosts found pre-staging" ; rc=$?
-            sudo -u pi cp ${CUR_DIR}/$STAGE_DIR/known_hosts $IMG_HOME/.ssh/ ; ((rc+=$?))
-            chown -R pi:pi $IMG_HOME/.ssh/ ; ((rc+=$?))
+            dots "SSH known_hosts found pre-staging" ; rc=0
+            cp ${CUR_DIR}/$STAGE_DIR/known_hosts $IMG_HOME/.ssh/ ; ((rc+=$?))
             cp ${CUR_DIR}/$STAGE_DIR/known_hosts /mnt/usb2/root/.ssh/ ; do_error $((rc+=$?))
+        fi
+
+        # -- adjust perms in .ssh directory if created imported --
+        if [[ -d $IMG_HOME/.ssh ]]; then
+            dots "Set Ownership of $IMG_HOME/.ssh"
+            uid_gid=$(grep "^pi:" /mnt/usb2/etc/passwd | cut -d':' -f3-4) ; ((rc+=$?))
+            chown -R $uid_gid $IMG_HOME/.ssh ; do_error $((rc+=$?))
         fi
     fi
 
@@ -441,7 +448,7 @@ main() {
     [[ -z $my_usb ]] && echo "Something went wrong no destination device selected... exiting" && exit 1
 
     # umount device if currently mounted
-    cur_mounts=($(mount | grep "/dev/${my_usb}*[1|2]\s" | awk '{print $3}'))
+    cur_mounts=($(mount | grep "/dev/${my_usb}p\?[1|2]\s" | awk '{print $3}'))
     for mnt in "${cur_mounts[@]}"; do
         echo "$mnt is mounted un-mounting"
         umount $mnt
@@ -477,7 +484,7 @@ main() {
             get_input
             $input || do_select_image "${found_img_files[@]}"  # Selecting No currently broken # $img_file set in do_select_image
         else
-            echo "Using image $(cyan ${cur_rel%.img}) found in $(pwd). It is the current release"
+            _msg="found in $(pwd). It is the current release"
             img_file=${cur_rel}.img
         fi
     elif [[ $found_img_zip ]]; then
@@ -528,7 +535,7 @@ main() {
 
     # Mount boot partition
     dots "Mounting boot partition to enable ssh"
-    [[ ${my_usb} =~ "mmcblk" ]] && res=$(sudo mount /dev/${my_usb}p1 /mnt/usb1 2>&1) || res=$(sudo mount /dev/${my_usb}1 /mnt/usb1  2>&1)
+    [[ $my_usb =~ "mmcblk" ]] && res=$(sudo mount /dev/${my_usb}p1 /mnt/usb1 2>&1) || res=$(sudo mount /dev/${my_usb}1 /mnt/usb1  2>&1)
     do_error $? "$res"
 
     # Create empty file ssh in boot partition
@@ -544,8 +551,12 @@ main() {
 
     # echo -e "\nMounting System partition to Configure ConsolePi auto-install and copy over any pre-config files found in script dir"
     dots "Mounting System partition to pre-configure ConsolePi image"
-    [[ ${my_usb} =~ "mmcblk" ]] && res=$(sudo mount /dev/${my_usb}p2 /mnt/usb2 2>&1) || res=$(sudo mount /dev/${my_usb}2 /mnt/usb2 2>&1)
+    [[ $my_usb =~ "mmcblk" ]] && res=$(sudo mount /dev/${my_usb}p2 /mnt/usb2 2>&1) || res=$(sudo mount /dev/${my_usb}2 /mnt/usb2 2>&1)
     do_error $? "$res"
+
+    # get pi users uid:gid from /etc/passwd on image file
+    PI_UGID=$(grep "^pi:" /mnt/usb2/etc/passwd | cut -d':' -f3-4)
+    PI_UGID=${PI_UGID:-'1000:1000'}
 
     # Configure simple psk SSID based args or config file
     if $CONFIGURE_WPA_SUPPLICANT; then
@@ -637,13 +648,13 @@ show_usage() {
     _help "--priority=<priority>" "wlan priority (Default 0)"
     _help "--img_type=<lite|desktop|full>" "Type of RaspiOS image to write to media (Default: lite)"
     _help "--img_only=<true|false>" "If set to true no pre-staging will be done other than enabling SSH (Default: false)"
-    _help "--auto_install=<true|false>" "If set to false image will not be configured to auto launch to installer on first login (Default true)"
+    _help "--auto_install=<true|false>" "If set to false image will not be configured to auto launch the installer on first login (Default true)"
     _help "--cmd_line='<cmd_line arguments>'" "*Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image"
     _help "--mass_import=<true|false>" "Bypass mass_import prompt presented when the system creating the image is a ConsolePi. Do it or not based on this value <true|false>"
     _help "--edit=<true|false>" "Bypass prompt asking if you want to edit (nano) the imported ConsolePi.yaml. Do it or not based on this value <true|false>"
     _help "--hotspot_hostname=<true|false>" "Bypass prompt asking to pre-configure hostname based on HotSpot SSID in imported ConsolePi.yaml.  Do it or not based on this value <true|false>"
     echo
-    echo -e "The consolepi-image-creator will also look for consolepi-image-creator.conf in the same directory for the above settings"
+    echo -e "The consolepi-image-creator will also look for consolepi-image-creator.conf in the current working directory for the above settings"
     echo
     echo -e "$(cyan Examples:)"
     echo "  This example overrides the default RaspiOS image type (lite) in favor of the desktop image and configures a psk SSID (use single quotes if special characters exist)"

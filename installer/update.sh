@@ -12,7 +12,6 @@
 
 chg_password() {
     process="pi user password change"
-    logit "logged in user $iam" "DEBUG"
     [ -e /run/sshwarn ] || logit "/run/sshwarn failed eval" "DEBUG"
     if grep -q "^pi:" /etc/passwd && [[ "$iam" == "pi" ]] && [ -e /run/sshwarn ]; then
         if [ ! -z "$pi_pass" ]; then

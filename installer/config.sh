@@ -286,18 +286,18 @@ collect() {
     # -- Enable DHCP on eth interface --
     if ! $selected_prompts || [ -z "$wired_ip" ]; then
         header
-        echo -e "\nWith the wired DHCP fallback Feature Enabled ConsolePi will do the following when the wired interface is connected (eth0):"
+        echo -e "\nWith the ${_green}Wired fallback to DHCP Server${_norm} Feature Enabled ConsolePi will do the following when the wired interface is connected (eth0):"
         echo -e "  - Use native dhcpcd mechanism to fallback to Static IP if no address is recieved from a DHCP Server"
         echo -e "  - Start a DHCP Server on the wired interface (ConsolePi will act as a DHCP server for other clients on the network)"
         echo -e "  - If WLAN is connected and has internet access, wired traffic will NAT out the wlan interface.\n"
         echo
         echo -e "  This feature is intented to aid the configuration of Factory Default hardware or via oobm/isolated network."
-        echo -e "  *** Use with caution ***"
+        echo -e "\n  *** ${_lred}${_blink}Use with caution${_norm} ***\n"
         echo -e "  Running a DHCP server on a production network can lead to client connectivity issues."
         echo -e "  This function relies on a fall-back mechanism, only enabling the DHCP server after failure to receive an address"
-        echo -e "  as a client.  However care should still be taken."
-        echo -e "  *The current behavior is once it has fallen back, and the DHCP Server is started, it stays that way until reboot"
-        echo -e "   or you disable it manually 'sudo systemctl stop consolepi-wired-dhcp'"
+        echo -e "  as a client.  However care should still be taken.\n"
+        echo -e "  * The current behavior is once it has fallen back, and the DHCP Server is started, it stays that way until reboot"
+        echo -e "    or you disable it manually ${_cyan}sudo systemctl stop consolepi-wired-dhcp${_norm}\n"
         # echo -e "  - If an openvpn tunnel is established, The Tunnel network will be shared with wired clients."
         prompt="Do you want to run DHCP Server on eth0 (Fallback if no address as client)"
         wired_dhcp=${wired_dhcp:-false}

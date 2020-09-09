@@ -347,7 +347,7 @@ collect() {
         echo "and if enabled can sync via Google Drive."
         echo
         echo "The Remote User is typically pi but can be any user given they are members of"
-        echo "the dialout and consolepi groups.  Remotes connect via ssh"
+        echo "the dialout and consolepi groups.  Remotes connect via ssh."
         echo
         user_input $rem_user "What user should remote ConsolePis use to connect to this ConsolePi"
         rem_user=$result
@@ -365,8 +365,8 @@ collect() {
         user_input $power "${prompt}"
         power=$result
         if $power; then
-            echo -e "\nTo Complete Power Control Setup you need to populate the power section of /etc/ConsolePi/ConsolePi.yaml"
-            echo -e "You can copy and edit ConsolePi.yaml.example.  Ensure you follow proper yaml format"
+            echo -e "\nTo Complete Power Control Setup you need to populate the ${_cyan}POWER:${_norm} section of /etc/ConsolePi/ConsolePi.yaml"
+            echo -e "Refer to GitHub or ConsolePi.yaml.example for examples.  Ensure you follow proper yaml format"
             echo -e "\nConsolePi currently supports Control of GPIO controlled Power Outlets (relays), IP connected"
             echo -e "outlets flashed with espHome or tasmota firmware, and digital-loggers web/ethernet Power Switches."
             echo -e "See GitHub for more details.\n"

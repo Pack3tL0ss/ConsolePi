@@ -95,6 +95,7 @@ do_defaults() {
         CONFIGURE_WPA_SUPPLICANT=true ||
         CONFIGURE_WPA_SUPPLICANT=false
     CUR_DIR=$(pwd)
+    PI_UGID=  # set in main after mount of root partition
     [ -d $STAGE_DIR ] && STAGE=true || STAGE=false
     [ -d /etc/ConsolePi ] && ISCPI=true || ISCPI=false
     WPA_CONF=$STAGE_DIR/wpa_supplicant.conf
@@ -183,6 +184,7 @@ get_input() {
         esac
     done
     unset prompt
+    # return input (input is set globally)
 }
 
 
@@ -209,20 +211,21 @@ do_unzip() {
 do_import_configs() {
     # -- pre-stage Staging Dir on image if found --
     if $STAGE; then
-        dots "$STAGE_DIR dir found Pre-Staging all files"
-        mkdir -p $IMG_STAGE ; rc=$?
-        cp -r $STAGE_DIR/* $IMG_STAGE/ ; ((rc+=$?))
-        chown -R $PI_UGID $IMG_STAGE/ ; do_error $((rc+=$?))
-
-        # -- rename consolepi-stage to __consolepi-stage on img if -cponly
+        # -- repoint dst staging dir to __consolepi-stage if -cponly in use dev option to prevent
+        #    installer import but still have the files pre-loaded on the image.
         if $CP_ONLY; then
-            # remove existing dir on img for re-test
+            # remove existing dir on img when do repeated testing of this script
             [ -d "$IMG_HOME/__$STAGE_DIR" ] && rm -r "$IMG_HOME/__$STAGE_DIR"
-            dots "-cponly flag set rename stage dir on img"
-            res=$(mv $IMG_STAGE $IMG_HOME/__$STAGE_DIR 2>&1) ; do_error $? "$res"
-            IMG_STAGE="$IMG_HOME/__$STAGE_DIR"
+            dots "-cponly flag set using __consolepi-stage as dest on image"
+            # res=$(mv $IMG_STAGE $IMG_HOME/__$STAGE_DIR 2>&1) ; do_error $? "$res"
+            IMG_STAGE="$IMG_HOME/__$STAGE_DIR" ; do_error $?
         fi
         # DO NOT USE $IMG_HOME/$STAGE_DIR beyond this point, use $IMG_STAGE
+
+        dots "$STAGE_DIR dir found Pre-Staging all files"
+        # mkdir -p $IMG_STAGE ; rc=$?
+        cp -r $STAGE_DIR/. $IMG_STAGE/ ; ((rc+=$?))
+        chown -R $PI_UGID $IMG_STAGE/ ; do_error $((rc+=$?))
 
         # -- import authorized keys for the pi and root users on image if found --
         if [[ -f $IMG_STAGE/authorized_keys ]]; then
@@ -295,28 +298,48 @@ do_import_configs() {
         fi
 
         if $MASS_IMPORT; then
-            sudo -u $SUDO_USER mkdir -p $IMG_STAGE
+            if [[ ! -d $IMG_STAGE ]]; then
+                dots "Create stage dir on image"
+                mkdir -p $IMG_STAGE ; rc=$?
+                chown -R $PI_UGID $IMG_STAGE/ ; do_error $((rc+=$?))
+                do_error $rc
+            fi
+
             cyan "\n   -- Performing Imports from This ConsolePi --"
             for f in "${STAGE_FILES[@]}"; do
-                dots $(echo $f| cut -d: -f2)
                 if [[ "$f" =~ ^"STAGE:" ]]; then
                     src="$(echo $f| cut -d: -f2)"
                     dst="$IMG_STAGE/$(basename $(echo $f| cut -d: -f2))"
+
+                # -- Accomodate Files imported from users home on a ConsolePi for non pi user --
+                elif [[ ! $f =~ "/home/pi" ]] && [[ $f =~ $MY_HOME ]]; then
+                    src="$f"
+                    # dst is in the stage dir for non pi/root users.  After user creation installer will look for files in the stage dir
+                    dst="${IMG_STAGE}${MY_HOME}"
                 else
                     src="$f"
                     dst="/mnt/usb2${f}"
                 fi
 
+                dots "$src"
                 if [ -f "$src" ] && [ ! -f "$dst" ]; then
                     if res=$(
-                        sudo -u $SUDO_USER mkdir -p $(dirname "$dst") &&
-                        ( [[ $(stat -c %u "$src") == 0 ]] && cp "$src" "$dst" 2>&1 ||
-                          sudo -u $SUDO_USER cp "$src" "$dst" 2>&1 )
+                        mkdir -p $(dirname "$dst") &&
+                        cp "$src" "$dst" 2>&1 &&
+                            (
+                                if [[ $(stat -c %u "$(dirname $src)") != 0 ]]; then
+                                    local this_ugid=$(grep "^$(stat -c %U $(dirname $src)):" /etc/passwd | cut -d: -f3-4) &&
+                                    [[ ! -z $this_ugid ]] && chown -R $this_ugid $(dirname $dst)
+                                elif [[ $(stat -c %u "$src") != 0 ]]; then
+                                    local this_ugid=$(grep "^$(stat -c %U $src):" /etc/passwd | cut -d: -f3-4) &&
+                                    [[ ! -z $this_ugid ]] && chown $this_ugid $dst
+                                fi
+                            )
                         ); then
                         echo "Imported"
                     else
                         echo ERROR
-                        echo -e "\t$res"
+                        echo -e "  --\n  $res\n  --"
                     fi
                 else
                     if [ ! -f "$src" ]; then
@@ -750,8 +773,22 @@ parse_args() {
     done
 }
 
+check_dir(){
+    if [[ $(basename $(pwd)) == "consolepi-stage" ]]; then
+        get_input "you are in the consolepi-stage directory, Do you want to chg the working directory to $(dirname $(pwd))"
+        if $input; then
+            cd $(dirname $(pwd)) &&
+            echo -e "\nNew Working Directory $CUR_DIR\n"
+        else
+            echo -e "\n${_lred}Failed to change Working Directory${_norm}"
+        fi
+        sleep 3
+    fi
+}
+
 iam=`whoami`
 if [ "${iam}" = "root" ]; then
+    check_dir
     parse_args "$@"
     do_defaults
     $DEBUG && ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS  | less +G

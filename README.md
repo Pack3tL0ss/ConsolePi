@@ -339,6 +339,8 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
 
 - 10-ConsolePi.rules: udev rules file used to automatically map specific adapters to user defined aliases, which map to specific TELNET ports.  This file is created automatically during the install if you don't skip the *predictable serial port/names* workflow toward the end.  It's also available after the install via the `rn` (rename) option in the menu, or via the `consolepi-addconsole` command.  This is **highly recommended** in most use cases, and is explained further [here](#telnet).
 
+- ser2net.conf: ser2net configuration will be cp to /etc/ser2net.conf if found in the stage-dir.
+
 - wpa_supplicant.conf:  If found during install this file will be copied to /etc/wpa_supplicant.  The file is parsed to determine if any EAP-TLS SSIDs are configured, and if so the associated certificate files are also copied to the directory specified in the wpa_supplicant.conf file.
 
   certs should be pre-staged in `consolepi-stage/cert`
@@ -350,11 +352,22 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
     >
     > There may be a better way, but this is working on all my Pi3/4s, on my Pi Zero Ws installing these packages breaks wpa_supplicant entirely.  For those I currently just use the psk SSID (which I expect most would do, but good tip anyway for the cool kids using certs)
 
+- authorized_keys/known_hosts: If either of these ssh related files are found they will be placed in both the /home/pi/.ssh and /root/.ssh directories (ownership is adjusted appropriately).
+
+- rpi-poe-overlay.dts: This is a custom overlay file for the official Rpi PoE hat.  If the dts is found in the stage dir, a dtbo (overlay binary) is created from it and placed in /boot/overlays.  A custom overlay for the PoE hat can be used to adjust what temp triggers the fan, and how fast the fan will run at each temp threshold.
+> Refer to google for more info, be aware some apt upgrades update the overlays overwriting your customization.  I use a separate script I run occasionally which creates a dtbo then compares it to the one in /boot/overlays, and updates if necessary (to revery back to my custom settings)
+
+- autohotspot-dhcp(directory): If you have a autohotspot-dhcp directory inside the `consolepi-stage` dir, it's contents are coppied to /etc/ConsolePi/dnsmasq.d/autohotspot.  This is useful if you have additional configs you want to use for autohotspot, dhcp-reservations, etc.  The main config for the autohotspot feature `autohotspot` is still managed by ConsolePi.
+
+- wired-dhcp(directory): If you have a wired-dhcp directory inside the `consolepi-stage` dir, it's contents are coppied to /etc/ConsolePi/dnsmasq.d/wired-dhcp.  This is useful if you have additional configs you want to use for wired-dhcp, dhcp-reservations, etc.  The main config for the wired-dhcp feature `wired-dhcp` is still managed by ConsolePi.
+
+- ztp(directory): if a `ztp` directory is found in the `consolepi-stage` dir, it's contents are coppied to /etc/ConsolePi/ztp.  This is where your template/variable files, and custom_parsers are configured.
+
 - consolepi-post.sh: Custom post install script.  This custom script is triggered after all install steps are complete.  It runs just before the post-install message is displayed.  Use it to do anything the installer doens't cover that you normally setup on your systems.  For Example my consolepi-post.sh script does the following:
   - generates an ssh key `sudu -u $iam ssh-keygen`
-  - sends that key to my NAS `sudo -u $iam bash -c "echo 'MyP@ssisFake' | ssh-copy-id git@omv 2>/dev/null"`
+  - sends that key to my NAS `sudo -u $iam ssh-copy-id pi@omv 2>/dev/null`
   - Then it pulls a few files common to all my systems makes executable if it applies etc
-    - `sftp git@omv:/export/BACKUP/Linux/common/wlmount` ... then make executable etc...
+    - `sftp pi@omv:/export/BACKUP/Linux/common/wlmount` ... then make executable etc...
   - I pull cloud credentials for ConsolePi from my main ConsolePi system.
   - modify /etc/nanorc to my liking
   - Update wpa_supplicant if the bug version is installed (unless it's a pi Zero W)

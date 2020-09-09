@@ -315,7 +315,7 @@ do_import_configs() {
                 elif [[ ! $f =~ "/home/pi" ]] && [[ $f =~ $MY_HOME ]]; then
                     src="$f"
                     # dst is in the stage dir for non pi/root users.  After user creation installer will look for files in the stage dir
-                    dst="${IMG_STAGE}${MY_HOME}"
+                    dst="${IMG_STAGE}${f}"
                 else
                     src="$f"
                     dst="/mnt/usb2${f}"

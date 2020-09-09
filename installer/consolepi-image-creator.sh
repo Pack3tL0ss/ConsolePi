@@ -184,6 +184,7 @@ get_input() {
         esac
     done
     unset prompt
+    # return input (input is set globally)
 }
 
 
@@ -772,8 +773,22 @@ parse_args() {
     done
 }
 
+check_dir(){
+    if [[ $(basename $(pwd)) == "consolepi-stage" ]]; then
+        get_input "you are in the consolepi-stage directory, Do you want to chg the working directory to $(dirname $(pwd))"
+        if $input; then
+            cd $(dirname $(pwd)) &&
+            echo -e "\nNew Working Directory $CUR_DIR\n"
+        else
+            echo -e "\n${_lred}Failed to change Working Directory${_norm}"
+        fi
+        sleep 3
+    fi
+}
+
 iam=`whoami`
 if [ "${iam}" = "root" ]; then
+    check_dir
     parse_args "$@"
     do_defaults
     $DEBUG && ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS  | less +G

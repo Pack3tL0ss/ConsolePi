@@ -84,7 +84,6 @@ do_apt_update() {
 
 do_apt_deps() {
     process="Install Reqd Pkgs"
-    logit -L "Debug Line --${iam}--$iam"
     which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
 
     # -- Ensure python3-pip is installed --

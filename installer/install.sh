@@ -200,9 +200,21 @@ pre_git_prep() {
                 _res=$result
                 if $result; then
                     user_input "" "Username for new user"
-                    adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null &&
-                        logit "Successfully added new user $result" ||
+                    if adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null; then
+                        logit "Successfully added new user $result"
+
+                        # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
+                        if [[ -d "$stage_dir/home/$result" ]]; then
+                            logit "Found staged files for $result, copying to users home"
+                            chown -R $(grep "^$result:" /etc/passwd | cut -d: -f3-4) "$stage_dir/home/$result" &&
+                            cp -r "$stage_dir/home/$result" "/home/$result" &&
+                            logit "Success - copy staged files for user $result" ||
+                                logit "An error occured when attempting cp pre-staged files for user $result" "WARNING"
+                        fi
+
+                    else
                         logit "Error adding new user $result" "WARNING"
+                    fi
                 else
                     header
                 fi
@@ -383,13 +395,13 @@ do_pyvenv() {
     fi
 
     if $dopip; then
-        if $upgrade; then
-            # -- *Upgrade Only* update pip to current --
-            logit "Upgrade pip"
-            sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade pip 1>/dev/null 2>> $log_file &&
-                logit "Success - pip upgrade" ||
-                logit "WARNING - pip upgrade returned error" "WARNING"
-        fi
+        # if $upgrade; then
+        # -- update pip to current --
+        logit "Upgrade pip"
+        sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade pip 1>/dev/null 2>> $log_file &&
+            logit "Success - pip upgrade" ||
+            logit "WARNING - pip upgrade returned error" "WARNING"
+        # fi
 
         # -- *Always* update venv packages based on requirements file --
         # [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"

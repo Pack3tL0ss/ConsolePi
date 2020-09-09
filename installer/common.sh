@@ -156,7 +156,6 @@ menu_print() {
     done
 }
 
-# -- Logging function prints to terminal and log file assign value of process prior to calling logit --
 logit() {
     # Logging Function: logit <message|string> [<status|string>] [Flags (can be anywhere)]
     # usage:
@@ -196,12 +195,10 @@ logit() {
 
     log_only=${log_only:-false}
     echo_only=${echo_only:-false}
-    # [[ "${@}" =~ *'-L'* ]] && ${@}
-
 
     local process=${process:-"UNDEFINED"}
     message="${1}"                                      # 1st arg = the log message
-    [ -z "${2}" ] && status="INFO" || status=${2^^} # to upper
+    [ -z "${2}" ] && status="INFO" || status=${2^^} # 2nd Arg the log-lvl (to upper)
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
     if [[ "${status}" == "ERROR" ]]; then
         $stop_on_error && fatal=true
@@ -219,8 +216,8 @@ logit() {
     else
         echo -e "$log_msg" | tee -a $log_file
     fi
-    # This grabs the formatted date of the first log created during this run
-    # used to parse log and re-display warnings after the install
+
+    # grabs the formatted date of the first log created during this run - used to parse log and re-display warnings after the install
     [ -z "$log_start" ] && log_start=$(echo "$log_msg" | cut -d'[' -f1)
 
     # if status was ERROR which means FATAL then log and exit script
@@ -314,8 +311,8 @@ user_input_bool() {
 
 ask_pass(){
     match=false; while ! $match; do
-        read -sep "password: " _pass && echo "$_pass" | sed -r 's/./*/g'
-        read -sep "Retype password: " _pass2 && echo "$_pass2" | sed -r 's/./*/g'
+        read -sep "New password: " _pass && echo "$_pass" | echo  # sed -r 's/./*/g'
+        read -sep "Retype new password: " _pass2 && echo "$_pass2" | echo  # sed -r 's/./*/g'
         [[ "${_pass}" == "${_pass2}" ]] && match=true || match=false
         ! $match && echo -e "ERROR: Passwords Do Not Match\n"
     done

@@ -213,7 +213,7 @@ misc_imports(){
         # -- wired-dhcp configurations --
         if [[ -d ${stage_dir}/wired-dhcp ]]; then
             logit "Staged wired-dhcp directory found copying contents to ConsolePi wired-dchp dir"
-            cp ${stage_dir}/wired-dhcp/* /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
+            cp -r ${stage_dir}/wired-dhcp/. /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
             logit "Success - copying staged wired-dchp configs" ||
                 logit "Failure - copying staged wired-dchp configs" "WARNING"
         fi
@@ -221,7 +221,7 @@ misc_imports(){
         # -- ztp configurations --
         if [[ -d ${stage_dir}/ztp ]]; then
             logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
-            cp ${stage_dir}/ztp/* ${consolepi_dir}ztp/ 2>>$log_file &&
+            cp -r ${stage_dir}/ztp/. ${consolepi_dir}ztp/ 2>>$log_file &&
             logit "Success - copying staged ztp configs" ||
                 logit "Failure - copying staged ztp configs" "WARNING"
             if [[ $(ls -1 | grep -vi "README" | wc -l ) > 0 ]]; then
@@ -232,10 +232,32 @@ misc_imports(){
         # -- autohotspot dhcp configurations --
         if [[ -d ${stage_dir}/autohotspot-dhcp ]]; then
             logit "Staged autohotspot-dhcp directory found copying contents to ConsolePi autohotspot dchp dir"
-            cp ${stage_dir}/autohotspot-dhcp/* /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
+            cp -r ${stage_dir}/autohotspot-dhcp/. /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
             logit "Success - copying staged autohotspot-dchp configs" ||
                 logit "Failure - copying staged autohotspot-dchp configs" "WARNING"
         fi
+
+        # -- udev rules - serial port mappings --
+        found_path=$(get_staged_file_path "10-ConsolePi.rules")
+        if [[ $found_path ]]; then
+            logit "udev rules file found ${found_path} enabling provided udev rules"
+            if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
+                file_diff_update $found_path /etc/udev/rules.d/10-ConsolePi.rules
+            else
+                sudo cp $found_path /etc/udev/rules.d
+                sudo udevadm control --reload-rules && sudo udevadm trigger
+            fi
+        fi
+
+        # -- imported elsewhere during the install
+        # /etc/ser2net.conf in install_ser2net()
+        # /etc/openvpn/client/ConsolePi.ovpn and ovpn_credentials in install_openvpn()
+        # /etc/wpa_supplicant/wpa_supplicant.conf in get_known_ssids()
+        #
+        # -- imported in phase 1 (install.sh)
+        # /home/pi/.ssh/known_hosts
+        # /home/pi/.ssh/authorized_keys
+        # /home/<user>/. for non pi user contents of <stage-dir>/home/<user> is imported after the user is created
 
     fi
     unset process
@@ -681,9 +703,9 @@ get_known_ssids() {
         echo "----------------------------------------------------------------------------------------------"
         word=" additional"
     else
-        # if wpa_supplicant.conf exist in script dir cp it to ConsolePi image.
+        # if wpa_supplicant.conf exist in stage dir cp it to /etc/wpa_supplicant
         # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
-        #   certs should be in 'consolepi-stage/cert, subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
+        #   certs should be in 'consolepi-stage/cert, subdir cert_names are extracted from the pre-staged wpa_supplicant.conf.
         found_path=$(get_staged_file_path "wpa_supplicant.conf")
         if [[ -f $found_path ]]; then
             logit "Found stage file ${found_path} Applying"
@@ -769,45 +791,21 @@ get_serial_udev() {
     logit "${process} Starting"
     header
 
-    # -- if pre-stage file provided during install enable it --
-    if ! $upgrade; then
-        found_path=$(get_staged_file_path "10-ConsolePi.rules")
-        if [[ $found_path ]]; then
-            logit "udev rules file found ${found_path} enabling provided udev rules"
-            if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
-                file_diff_update $found_path /etc/udev/rules.d/10-ConsolePi.rules
-            else
-                sudo cp $found_path /etc/udev/rules.d
-                sudo udevadm control --reload-rules && sudo udevadm trigger
-            fi
-        fi
-    fi
-
     echo
     echo -e "--------------------------------------------- ${_green}Predictable Console ports${_norm} ---------------------------------------------"
     echo "-                                                                                                                   -"
     echo "- Predictable Console ports allow you to configure ConsolePi so that each time you plug-in a specific adapter it    -"
     echo "- will have the same name in consolepi-menu and will be reachable via the same TELNET port.                         -"
     echo "-                                                                                                                   -"
-    echo "- This is useful if you plan to use multiple adapters/devices, or if you are using a multi-port pig-tail adapter.   -"
-    echo '- Also useful if this is being used as a stationary solution.  So you can name the adaper "NASHDC-Rack12-SW3"       -'
-    echo "-   rather than have them show up as ttyUSB0.                                                                       -"
-    echo "-                                                                                                                   -"
     echo "- The behavior if you do *not* define Predictable Console Ports is the adapters will use the root device names      -"
     echo "-   ttyUSB# or ttyACM# where the # starts with 0 and increments for each adapter of that type plugged in. The names -"
-    echo "-   won't necessarily be consistent between reboots.                                                                -"
+    echo "-   won't necessarily be consistent between reboots nor will the TELNET port.  This method is OK for temporary use  -"
+    echo -e "-    of an adapter or if you only plan to use a single adapter.  Otherwise setting predictable aliases is        -"
+    echo "-       ${_lred}highly recommended${_norm}.                                                                                         -"
     echo "-                                                                                                                   -"
     echo "- Defining the ports with this utility is also how device specific serial settings are configured.  Otherwise       -"
-    echo "-   they will use the default which is 96008N1                                                                      -"
+    echo "-   they will use the default which is 9600 8N1                                                                     -"
     echo "-                                                                                                                   -"
-    echo "- This utility includes support for more challenging adapters:                                                      -"
-    echo "-   * Multi-Port Serial Adapters, where the adpater presents a single serial # for all ports                        -"
-    echo "-   * Super Lame cheap crappy adapters that don't burn a serial# to the adapter at all.                             -"
-    echo "-     If you have one of these.  First Check online with the manufacturer of the chip used in the adapter to see    -"
-    echo "-     if they have a utility to flash the EEPROM, some manufacturers do which would allow you to write a serial #   -"
-    echo "-     For example if the adapter uses an FTDI chip (which I reccomend) they have a utility called FT_PROG           -"
-    echo "-     Most FTDI based adapters have serial #s, I've only seen the lack of serial # on dev boards.                   -"
-    echo "-     ---- If you're interested I reccomend adapters that use FTDI chips. ----                                      -"
     echo "-                                                                                                                   -"
     echo -e "-  This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from                -"
     echo -e "-    ${_cyan}consolepi-menu${_norm} via the 'rn' (rename) option.                                                                   -"

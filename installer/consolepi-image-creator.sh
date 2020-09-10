@@ -187,6 +187,19 @@ get_input() {
     # return input (input is set globally)
 }
 
+do_user_dir_import(){
+    [[ $1 == root ]] && local user_home=root || local user_home="home/$1"
+    # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
+    if [[ -d "$STAGE_DIR/$user_home" ]]; then
+        logit "Found staged files for $1, copying to users home"
+        chown -R $(grep "^$1:" /etc/passwd | cut -d: -f3-4) "$STAGE_DIR/$user_home" &&
+        cp -r "$STAGE_DIR/$user_home" "/mnt/usb2/$user_home" &&
+        ( logit "Success - copy staged files for user $1" && return 0 ) ||
+            ( logit "An error occured when attempting cp pre-staged files for user $1" "WARNING"
+              return 1
+            )
+    fi
+}
 
 show_disk_details() {
     echo -e "------------------------------- // Device Details for $(green "$my_usb") \\\\\ -----------------------------------"
@@ -242,6 +255,9 @@ do_import_configs() {
             cp ${CUR_DIR}/$STAGE_DIR/known_hosts $IMG_HOME/.ssh/ ; ((rc+=$?))
             cp ${CUR_DIR}/$STAGE_DIR/known_hosts /mnt/usb2/root/.ssh/ ; do_error $((rc+=$?))
         fi
+
+        do_user_dir_import root
+        do_user_dir_import pi
 
         # -- adjust perms in .ssh directory if created imported --
         if [[ -d $IMG_HOME/.ssh ]]; then

@@ -713,7 +713,7 @@ process_cmds() {
         # if cmd is set process cmd
         # use defaults if flag not set
         if [[ ! -z $cmd ]]; then
-            local pcmd=${cmd/sudo /} ; local pcmd=${cmd/-y /}
+            local pcmd=${cmd/sudo /} ; local pcmd=${pcmd/-y /}
             local pmsg=${pmsg:-"Success - $pcmd"}
             unset pcmd
             # local pmsg=${pmsg:-"Success - ${cmd/-y /}"}

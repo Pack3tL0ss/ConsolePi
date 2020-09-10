@@ -173,7 +173,7 @@ misc_imports(){
             overlay_success=true || overlay_success=false
             if $overlay_success; then
                 sudo mv /tmp/rpi-poe.dtbo /boot/overlays 2>> $log_file &&
-                    logit "Successfully moved overlay file, will activate on boot" ||
+                    logit "Success moved overlay file, will activate on boot" ||
                     logit "Failed to move overlay file"
             else
                 logit "Failed to create Overlay file from dts"
@@ -365,11 +365,7 @@ install_ovpn() {
     fi
 
     sudo chmod 600 /etc/openvpn/client/* 1>/dev/null 2>> $log_file || logit "Failed chmod 600 openvpn client files" "WARNING"
-    unset process
-}
 
-ovpn_graceful_shutdown() {
-    process="OpenVPN Graceful Shutdown"
     systemd_diff_update "ovpn-graceful-shutdown"
     unset process
 }
@@ -419,7 +415,7 @@ install_autohotspotn () {
 
     # -- override_dir set in common.sh
     [[ -f ${override_dir}/hostapd.service ]] && hostapd_override=true || hostapd_override=false
-    [[ -f ${override_dir}/dnsmasq.service ]] && dnsmasq_override=true || dnsmasq_override=false  # No Longer Used
+    # [[ -f ${override_dir}/dnsmasq.service ]] && dnsmasq_override=true || dnsmasq_override=false  # No Longer Used
     if ! $hostapd_override ; then
         logit "disabling hostapd (handled by AutoHotSpotN)."
         sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file &&
@@ -973,10 +969,7 @@ update_main() {
     install_ser2net
     dhcp_run_hook
     ConsolePi_cleanup
-    if $ovpn_enable; then
-        install_ovpn
-        ovpn_graceful_shutdown
-    fi
+    $ovpn_enable && install_ovpn
     if $hotspot ; then
         install_autohotspotn
         gen_dnsmasq_conf
@@ -991,9 +984,7 @@ update_main() {
     ! $upgrade && misc_stuff
     do_resize
     if ( [ ! -z "$skip_utils" ] && $skip_utils ) || $silent; then
-        process="optional utilities installer"
-        logit "utilities menu bypassed by config variable"
-        unset process
+        logit -t "optional utilities installer" "utilities menu bypassed by config variable"
     else
         get_utils
         util_main
@@ -1003,8 +994,7 @@ update_main() {
         get_known_ssids
         get_serial_udev
     else
-        process="Configure WLAN - Predictable Console Ports"
-        logit "Prompts bypassed due to -silent flag"
+        logit -t "Configure WLAN - Predictable Console Ports" "Prompts bypassed due to -silent flag"
     fi
     custom_post_install_script
     process=Complete

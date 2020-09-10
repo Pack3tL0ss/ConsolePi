@@ -10,35 +10,6 @@
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-chg_password() {
-    process="pi user password change"
-    [ -e /run/sshwarn ] || logit "/run/sshwarn failed eval" "DEBUG"
-    if grep -q "^pi:" /etc/passwd && [[ "$iam" == "pi" ]] && [ -e /run/sshwarn ]; then
-        if [ ! -z "$pi_pass" ]; then
-            echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
-                logit "Error occured changing pi password using conf/cmd_line arg" "WARNING"
-        else
-            header
-            echo "You are logged in as pi, and the default password has not been changed"
-            prompt="Do You want to change the password for user pi"
-            response=$(user_input_bool)
-            if $response; then
-                match=false
-                while ! $match; do
-                    read -sep "Enter new password for user pi: " pass && echo
-                    read -sep "Re-Enter new password for user pi: " pass2 && echo
-                    [[ "${pass}" == "${pass2}" ]] && match=true || match=false
-                    ! $match && echo -e "ERROR: Passwords Do Not Match\n"
-                done
-                echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
-                ( logit "Failed to Change Password for pi user" "WARNING" &&
-                echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
-                unset pass && unset pass2 && unset process
-            fi
-        fi
-    fi
-}
-
 set_hostname() {
     process="Change Hostname"
     hostn=$(cat /etc/hostname)
@@ -162,104 +133,103 @@ disable_ipv6()  {
 misc_imports(){
     # additional imports occur in related functions if import file exists
     process="Perform misc imports"
-    if ! $upgrade; then
-        # -- ssh authorized keys --
-        found_path=$(get_staged_file_path "authorized_keys")
-        [[ $found_path ]] && logit "pre-staged ssh authorized keys found - importing"
-        if [[ $found_path ]]; then
-            file_diff_update $found_path /root/.ssh/authorized_keys
-            file_diff_update $found_path ${home_dir}/.ssh/authorized_keys
-                chown $iam:$iam ${home_dir}/.ssh/authorized_keys
-        fi
 
-        # -- ssh known hosts --
-        found_path=$(get_staged_file_path "known_hosts")
-        [[ $found_path ]] && logit "pre-staged ssh known_hosts file found - importing"
-        if [[ $found_path ]]; then
-            file_diff_update $found_path /root/.ssh/known_hosts
-            file_diff_update $found_path ${home_dir}/.ssh/known_hosts
-                chown $iam:$iam ${home_dir}/.ssh/known_hosts
-        fi
-
-        # -- pre staged cloud creds --
-        if $cloud && [[ -f ${stage_dir}/.credentials/credentials.json ]]; then
-            found_path=${stage_dir}/.credentials
-            mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
-            logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
-            logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
-        elif $cloud ; then
-            if [ ! -f "$CLOUD_CREDS_FILE" ]; then
-                desktop_msg="Use 'consolepi-menu cloud' then select the 'r' (refresh) option to authorize ConsolePi in ${cloud_svc}"
-                lite_msg="RaspiOS-lite detected. Refer to the GitHub for instructions on how to generate credential files off box"
-            fi
-        fi
-
-        # -- custom overlay file for PoE hat (fan control) --
-        found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
-        [[ $found_path ]] && logit "overlay file found creating dtbo"
-        if [[ $found_path ]]; then
-            sudo dtc -@ -I dts -O dtb -o /tmp/rpi-poe.dtbo $found_path >> $log_file 2>&1 &&
-                overlay_success=true || overlay_success=false
-                if $overlay_success; then
-                    sudo mv /tmp/rpi-poe.dtbo /boot/overlays 2>> $log_file &&
-                        logit "Successfully moved overlay file, will activate on boot" ||
-                        logit "Failed to move overlay file"
-                else
-                    logit "Failed to create Overlay file from dts"
-                fi
-        fi
-
-        # TODO may need to adjust once fully automated
-        # -- wired-dhcp configurations --
-        if [[ -d ${stage_dir}/wired-dhcp ]]; then
-            logit "Staged wired-dhcp directory found copying contents to ConsolePi wired-dchp dir"
-            cp -r ${stage_dir}/wired-dhcp/. /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
-            logit "Success - copying staged wired-dchp configs" ||
-                logit "Failure - copying staged wired-dchp configs" "WARNING"
-        fi
-
-        # -- ztp configurations --
-        if [[ -d ${stage_dir}/ztp ]]; then
-            logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
-            cp -r ${stage_dir}/ztp/. ${consolepi_dir}ztp/ 2>>$log_file &&
-            logit "Success - copying staged ztp configs" ||
-                logit "Failure - copying staged ztp configs" "WARNING"
-            if [[ $(ls -1 | grep -vi "README" | wc -l ) > 0 ]]; then
-                check_perms ${consolepi_dir}ztp
-            fi
-        fi
-
-        # -- autohotspot dhcp configurations --
-        if [[ -d ${stage_dir}/autohotspot-dhcp ]]; then
-            logit "Staged autohotspot-dhcp directory found copying contents to ConsolePi autohotspot dchp dir"
-            cp -r ${stage_dir}/autohotspot-dhcp/. /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
-            logit "Success - copying staged autohotspot-dchp configs" ||
-                logit "Failure - copying staged autohotspot-dchp configs" "WARNING"
-        fi
-
-        # -- udev rules - serial port mappings --
-        found_path=$(get_staged_file_path "10-ConsolePi.rules")
-        if [[ $found_path ]]; then
-            logit "udev rules file found ${found_path} enabling provided udev rules"
-            if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
-                file_diff_update $found_path /etc/udev/rules.d/10-ConsolePi.rules
-            else
-                sudo cp $found_path /etc/udev/rules.d
-                sudo udevadm control --reload-rules && sudo udevadm trigger
-            fi
-        fi
-
-        # -- imported elsewhere during the install
-        # /etc/ser2net.conf in install_ser2net()
-        # /etc/openvpn/client/ConsolePi.ovpn and ovpn_credentials in install_openvpn()
-        # /etc/wpa_supplicant/wpa_supplicant.conf in get_known_ssids()
-        #
-        # -- imported in phase 1 (install.sh)
-        # /home/pi/.ssh/known_hosts
-        # /home/pi/.ssh/authorized_keys
-        # /home/<user>/. for non pi user contents of <stage-dir>/home/<user> is imported after the user is created
-
+    # -- ssh authorized keys --
+    found_path=$(get_staged_file_path "authorized_keys")
+    [[ $found_path ]] && logit "pre-staged ssh authorized keys found - importing"
+    if [[ $found_path ]]; then
+        file_diff_update $found_path /root/.ssh/authorized_keys
+        file_diff_update $found_path ${home_dir}/.ssh/authorized_keys
+            chown $iam:$iam ${home_dir}/.ssh/authorized_keys
     fi
+
+    # -- ssh known hosts --
+    found_path=$(get_staged_file_path "known_hosts")
+    [[ $found_path ]] && logit "pre-staged ssh known_hosts file found - importing"
+    if [[ $found_path ]]; then
+        file_diff_update $found_path /root/.ssh/known_hosts
+        file_diff_update $found_path ${home_dir}/.ssh/known_hosts
+            chown $iam:$iam ${home_dir}/.ssh/known_hosts
+    fi
+
+    # -- pre staged cloud creds --
+    if $cloud && [[ -f ${stage_dir}/.credentials/credentials.json ]]; then
+        found_path=${stage_dir}/.credentials
+        mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
+        logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
+        logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
+    elif $cloud ; then
+        if [ ! -f "$CLOUD_CREDS_FILE" ]; then
+            desktop_msg="Use 'consolepi-menu cloud' then select the 'r' (refresh) option to authorize ConsolePi in ${cloud_svc}"
+            lite_msg="RaspiOS-lite detected. Refer to the GitHub for instructions on how to generate credential files off box"
+        fi
+    fi
+
+    # -- custom overlay file for PoE hat (fan control) --
+    found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
+    [[ $found_path ]] && logit "overlay file found creating dtbo"
+    if [[ $found_path ]]; then
+        sudo dtc -@ -I dts -O dtb -o /tmp/rpi-poe.dtbo $found_path >> $log_file 2>&1 &&
+            overlay_success=true || overlay_success=false
+            if $overlay_success; then
+                sudo mv /tmp/rpi-poe.dtbo /boot/overlays 2>> $log_file &&
+                    logit "Successfully moved overlay file, will activate on boot" ||
+                    logit "Failed to move overlay file"
+            else
+                logit "Failed to create Overlay file from dts"
+            fi
+    fi
+
+    # TODO may need to adjust once fully automated
+    # -- wired-dhcp configurations --
+    if [[ -d ${stage_dir}/wired-dhcp ]]; then
+        logit "Staged wired-dhcp directory found copying contents to ConsolePi wired-dchp dir"
+        cp -r ${stage_dir}/wired-dhcp/. /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
+        logit "Success - copying staged wired-dchp configs" ||
+            logit "Failure - copying staged wired-dchp configs" "WARNING"
+    fi
+
+    # -- ztp configurations --
+    if [[ -d ${stage_dir}/ztp ]]; then
+        logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
+        cp -r ${stage_dir}/ztp/. ${consolepi_dir}ztp/ 2>>$log_file &&
+        logit "Success - copying staged ztp configs" ||
+            logit "Failure - copying staged ztp configs" "WARNING"
+        if [[ $(ls -1 | grep -vi "README" | wc -l ) > 0 ]]; then
+            check_perms ${consolepi_dir}ztp
+        fi
+    fi
+
+    # -- autohotspot dhcp configurations --
+    if [[ -d ${stage_dir}/autohotspot-dhcp ]]; then
+        logit "Staged autohotspot-dhcp directory found copying contents to ConsolePi autohotspot dchp dir"
+        cp -r ${stage_dir}/autohotspot-dhcp/. /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
+        logit "Success - copying staged autohotspot-dchp configs" ||
+            logit "Failure - copying staged autohotspot-dchp configs" "WARNING"
+    fi
+
+    # -- udev rules - serial port mappings --
+    found_path=$(get_staged_file_path "10-ConsolePi.rules")
+    if [[ $found_path ]]; then
+        logit "udev rules file found ${found_path} enabling provided udev rules"
+        if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
+            file_diff_update $found_path /etc/udev/rules.d/10-ConsolePi.rules
+        else
+            sudo cp $found_path /etc/udev/rules.d
+            sudo udevadm control --reload-rules && sudo udevadm trigger
+        fi
+    fi
+
+    # -- imported elsewhere during the install
+    # /etc/ser2net.conf in install_ser2net()
+    # /etc/openvpn/client/ConsolePi.ovpn and ovpn_credentials in install_openvpn()
+    # /etc/wpa_supplicant/wpa_supplicant.conf in get_known_ssids()
+    #
+    # -- imported in phase 1 (install.sh)
+    # /home/pi/.ssh/known_hosts
+    # /home/pi/.ssh/authorized_keys
+    # /home/<user>/. for non pi user contents of <stage-dir>/home/<user> is imported after the user is created
+
     unset process
 }
 
@@ -994,13 +964,12 @@ update_main() {
     # update_config
 
     if ! $upgrade; then
-        chg_password
         set_hostname
         set_timezone
         disable_ipv6
         do_wifi_country
+        misc_imports
     fi
-    misc_imports
     install_ser2net
     dhcp_run_hook
     ConsolePi_cleanup

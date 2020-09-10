@@ -92,14 +92,12 @@ do_apt_deps() {
 
     # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
     # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
-    process="Verify libffi-dev"
     if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
         process_cmds -pf "install libffi-dev" -apt-install "libffi-dev"
     fi
 
     # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
     # TODO check if this is required
-    process="install libssl-dev"
     if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
         process_cmds -pf "install libssl-dev" -apt-install "libssl-dev"
     fi
@@ -167,6 +165,38 @@ pre_git_prep() {
         unset process
 
     else  # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
+
+        # Update passwd for pi user if it is the default.
+        process="pi user password change"
+        [ -e /run/sshwarn ] || logit "/run/sshwarn failed eval" "DEBUG"
+        if grep -q "^pi:" /etc/passwd && [[ "$iam" == "pi" ]] && [ -e /run/sshwarn ]; then
+            if [ ! -z "$pi_pass" ]; then
+                echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
+                    logit "Error occured changing pi password using conf/cmd_line arg" "WARNING"
+            else
+                header
+                echo "You are logged in as pi, and the default password has not been changed"
+                prompt="Do You want to change the password for user pi"
+                response=$(user_input_bool)
+                if $response; then
+                    # match=false
+                    # while ! $match; do
+                    #     read -sep "Enter new password for user pi: " pass && echo
+                    #     read -sep "Re-Enter new password for user pi: " pass2 && echo
+                    #     [[ "${pass}" == "${pass2}" ]] && match=true || match=false
+                    #     ! $match && echo -e "ERROR: Passwords Do Not Match\n"
+                    # done
+                    ask_pass
+                    echo "pi:${_pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
+                    # echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
+                    ( logit "Failed to Change Password for pi user" "WARNING" &&
+                    echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
+                    # unset pass && unset pass2 && unset process
+                    unset pass; unset process
+                fi
+            fi
+        fi
+
 
         process="Create consolepi user/group"
         # add consolepi user

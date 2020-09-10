@@ -191,6 +191,7 @@ pre_git_prep() {
 
 
         # Create additional Users (with appropriate rights for ConsolePi)
+        process="Add Users"
         if ! $silent; then
             sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups2\"/" /tmp/adduser.conf
             _res=true; while $_res; do
@@ -221,6 +222,7 @@ pre_git_prep() {
         fi
 
         # if pi user exists ensure it has correct group memberships for ConsolePi
+        process="Verify pi user groups"
         if grep -q "^pi:" /etc/passwd; then
             _groups=('consolepi' 'dialout')
             for grp in "${_groups[@]}"; do

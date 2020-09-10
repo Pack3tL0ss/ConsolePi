@@ -619,7 +619,7 @@ main() {
         fi
 
         $LOCAL_DEV && cmd_line="-dev $cmd_line"
-        grep -q "consolepi-install" $IMG_HOME/.bashrc || echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.bashrc
+        grep -q "consolepi-install" $IMG_HOME/.profile || echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.profile
 
         # make install command/script executable
         sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install &&

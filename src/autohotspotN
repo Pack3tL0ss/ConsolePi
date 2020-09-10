@@ -84,11 +84,11 @@ logit() {
     no_color_msg=${message/\\${_green}/} ; no_color_msg=${no_color_msg/\\${_red}/} ; no_color_msg=${no_color_msg/\\${_norm}/}
 
     # -- Log to log-file --
-    echo -e "$(date +"%b %d %T") [${status}][${process}] ${no_color_msg}" >> $log_file
+    echo -e "$(date +"%b %d %T") [$$][${status}][${process}] ${no_color_msg}" >> $log_file
 
     # -- Any warning/errors log to syslog/stdout as well --
     if [[ ! "${status}" == "INFO" ]] && [[ ! "${status}" == "DEBUG" ]]; then
-        if [[ -t 1 ]]; then
+        if [ -t 1 2>/dev/null ]; then
             echo -e "[${c_status}] ${message}"  # log any errors to syslog as well
         else
             echo -e "[${status}] ${no_color_msg}"  # log any errors to syslog as well
@@ -100,7 +100,7 @@ logit() {
         fi
     else
         # -- Always Log to stdout if this is a tty --
-        [ -t 1 ] && echo -e "[${c_status}][${process}] ${message}"
+        [ -t 1 2>/dev/null ] && echo -e "[${c_status}][${process}] ${message}"
     fi
     return 0
 }
@@ -173,11 +173,11 @@ start_stop_dnsmasq() {
     # if all files are in place to use new separate instance for hotspot dhcp do so otherwise assume using dnsmasq default instance
     if [ -f $ahs_dhcp_config ] && [ -f /etc/dnsmasq.d/01-consolepi ] &&
        ( [ -L /etc/systemd/system/consolepi-autohotspot-dhcp.service ] || [ -f /etc/systemd/system/consolepi-autohotspot-dhcp.service ] ); then
-        logit "Using ConsolePi Specific dnsmasq instance"
-        systemctl $1 consolepi-autohotspot-dhcp.service
+        [[ $1 == "start" ]] && logit "Using ConsolePi Specific dnsmasq instance"
+        systemctl $1 consolepi-autohotspot-dhcp.service || logit "Failed to $1 AutoHotSpot DHCP"
     else
-        logit "ConsolePi Specific dnsmasq instance *not* Configured, using default dnsmasq instance"
-        systemctl $1 dnsmasq.service
+        [[ $1 == "start" ]] && logit "ConsolePi Specific dnsmasq instance *not* Configured, using default dnsmasq instance"
+        systemctl $1 dnsmasq.service || logit "Failed to $1 AutoHotSpot DHCP (dnsmasq)"
     fi
 }
 

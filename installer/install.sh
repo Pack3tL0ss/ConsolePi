@@ -187,7 +187,7 @@ pre_git_prep() {
             if [ ! -z "$pi_pass" ]; then
                 echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
                     logit "Error occured changing pi password using conf/cmd_line arg" "WARNING"
-            else
+            elif ! $silent
                 header
                 echo "You are logged in as pi, and the default password has not been changed"
                 prompt="Do You want to change the password for user pi"

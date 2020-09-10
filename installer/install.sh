@@ -197,17 +197,17 @@ pre_git_prep() {
                     echo "pi:${_pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
                     ( logit "Failed to Change Password for pi user" "WARNING" &&
                     echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
-                    unset _pass; unset process
+                    unset _pass
                 fi
             fi
         fi
 
+        # import any pi user stuff after header so usesr can see the import msg
+        header
         do_user_dir_import pi || logit -L "User dir import for pi user returned error"
 
 
         process="Create consolepi user/group"
-        # add consolepi user
-        header
         cp /etc/adduser.conf /tmp/adduser.conf
         extra_groups="adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
         extra_groups2="consolepi adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
@@ -303,7 +303,8 @@ pre_git_prep() {
         #     fi
         # fi
     fi
-    # -- // Operations performed on both installs and upgrades \\ --
+
+    # -- // OPERATIONS PERFORMED ON BOTH INSTALLS AND UPGRADES \\ --
 
     # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
     if [ ! -f /etc/sudoers.d/010_consolepi ]; then
@@ -319,6 +320,7 @@ pre_git_prep() {
         unset process
     fi
 
+    # -- Verify cloud cache is owned by consolepi group
     if [ -f $cloud_cache ]; then
         process="ConsolePi-Upgrade-Prep (check cache owned by consolepi group)"
         group=$(stat -c '%G' $cloud_cache)
@@ -332,6 +334,7 @@ pre_git_prep() {
         unset process
     fi
 
+    # -- verify Group owndership and permissions of /etc/ConsolePi and .git dir
     if [ -d $consolepi_dir ]; then
         process="ConsolePi-Upgrade-Prep (verify permissions)"
 
@@ -438,24 +441,17 @@ do_pyvenv() {
     fi
 
     if $dopip; then
-        # if $upgrade; then
-        # -- update pip to current --
         logit "Upgrade pip"
         sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade pip 1>/dev/null 2>> $log_file &&
             logit "Success - pip upgrade" ||
             logit "WARNING - pip upgrade returned error" "WARNING"
-        # fi
 
-        # -- *Always* update venv packages based on requirements file --
-        # [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"
+        # -- Update venv packages based on requirements file --
         logit "pip install/upgrade ConsolePi requirements - This can take some time."
         echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
         sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
-
-        # clean up the retry logs if pip install requirements was successful
-        # grep -q "^.*Success.*pip install.*requirements" $log_file && sed -i '/WARNING: Retrying (Retry.*/d' $log_file
     else
         logit "pip upgrade / requirements upgrade skipped based on -nopip argument" "WARNING"
     fi
@@ -714,5 +710,4 @@ main() {
     fi
 }
 
-# process_args "$@"
 main "$@"

@@ -378,7 +378,6 @@ install_autohotspotn () {
     process="AutoHotSpotN"
     logit "Install/Update AutoHotSpotN"
 
-    # TODO check logic here, double check consolepi-autohotspot-dhcp is being disabled after install
     systemd_diff_update autohotspot
     if ! head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
         logit "Using New autohotspot specific dnsmasq instance"
@@ -388,12 +387,24 @@ install_autohotspotn () {
             systemctl stop consolepi-autohotspot-dhcp 2>>$log_file ||
                 logit "Failed to stop consolepi-autohotspot-dhcp.service check log" "WARNING"
         fi
-        if systemctl is-enabled >/dev/null 2>&1; then
-            systemctl disable consolepi-autohotspot-dhcp 2>>$log_file ||
+        if systemctl is-enabled consolepi-autohotspot-dhcp >/dev/null 2>&1; then
+            systemctl disable consolepi-autohotspot-dhcp 2>>$log_file &&
+                logit "consolepi-autohotspot-dhcp autostart disabled Successfully, startup handled by autohotspot"
                 logit "Failed to disable consolepi-autohotspot-dhcp.service check log" "WARNING"
         fi
     else
         logit "Using old autohotspot system default dnsmasq instance"
+    fi
+
+    dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
+    if [[ -z "$dnsmasq_ver" ]]; then
+        process_cmds -apt-install dnsmasq
+        # disable dnsmasq only if we just installed it
+        sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
+            logit "dnsmasq autostart disabled Successfully" ||
+                logit "An error occurred disabling dnsmasq autostart - verify after install" "WARNING"
+    else
+        logit "dnsmasq v${dnsmasq_ver} already installed"
     fi
 
     if ! $(which hostapd >/dev/null); then
@@ -403,16 +414,9 @@ install_autohotspotn () {
         logit "hostapd ${hostapd_ver} already installed"
     fi
 
-    dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
-    if [[ -z "$dnsmasq_ver" ]]; then
-        process_cmds -apt-install dnsmasq
-    else
-        logit "dnsmasq v${dnsmasq_ver} already installed"
-    fi
-
     # -- override_dir set in common.sh
     [[ -f ${override_dir}/hostapd.service ]] && hostapd_override=true || hostapd_override=false
-    [[ -f ${override_dir}/dnsmasq.service ]] && dnsmasq_override=true || dnsmasq_override=false
+    [[ -f ${override_dir}/dnsmasq.service ]] && dnsmasq_override=true || dnsmasq_override=false  # No Longer Used
     if ! $hostapd_override ; then
         logit "disabling hostapd (handled by AutoHotSpotN)."
         sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file &&
@@ -423,13 +427,6 @@ install_autohotspotn () {
                 logit "An error occurred disabling hostapd autostart - verify after install" "WARNING"
     else
         logit "${_cyan}skipped hostapd disable - hostapd.service is overriden${_norm}"
-    fi
-
-    # disable dnsmasq only if we just installed it (dnsmasq_ver won't be defined)
-    if [[ -z "$dnsmasq_ver" ]]; then
-        sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
-            logit "dnsmasq autostart disabled Successfully" ||
-                logit "An error occurred disabling dnsmasq autostart - verify after install" "WARNING"
     fi
 
     logit "Create/Configure hostapd.conf"

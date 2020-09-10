@@ -812,7 +812,7 @@ get_serial_udev() {
     "This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from"
     "${_cyan}consolepi-menu${_norm} via the 'rn' (rename) option."
     -nl
-    -foot
+    -foot '-'
     )
     menu_print "${_msg[@]}"
     echo

@@ -378,6 +378,20 @@ install_autohotspotn () {
     process="AutoHotSpotN"
     logit "Install/Update AutoHotSpotN"
 
+    dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
+    if [[ -z "$dnsmasq_ver" ]]; then
+        process_cmds -apt-install dnsmasq
+        # disable dnsmasq only if we just installed it
+        systemctl stop dnsmasq 1>/dev/null 2>> $log_file &&
+            logit "dnsmasq stopped Successfully" ||
+                logit "An error occurred stopping dnsmasq - verify after install" "WARNING"
+        sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
+            logit "dnsmasq autostart disabled Successfully" ||
+                logit "An error occurred disabling dnsmasq autostart - verify after install" "WARNING"
+    else
+        logit "dnsmasq v${dnsmasq_ver} already installed"
+    fi
+
     systemd_diff_update autohotspot
     if ! head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
         logit "Using New autohotspot specific dnsmasq instance"
@@ -394,17 +408,6 @@ install_autohotspotn () {
         fi
     else
         logit "Using old autohotspot system default dnsmasq instance"
-    fi
-
-    dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
-    if [[ -z "$dnsmasq_ver" ]]; then
-        process_cmds -apt-install dnsmasq
-        # disable dnsmasq only if we just installed it
-        sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
-            logit "dnsmasq autostart disabled Successfully" ||
-                logit "An error occurred disabling dnsmasq autostart - verify after install" "WARNING"
-    else
-        logit "dnsmasq v${dnsmasq_ver} already installed"
     fi
 
     if ! $(which hostapd >/dev/null); then

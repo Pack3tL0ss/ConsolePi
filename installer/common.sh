@@ -175,7 +175,7 @@ logit() {
     #
     # NOTE: Sending a status of "ERROR" results in the script exiting
     #       default status is INFO if none provided.
-    [[ $(basename "$0") == 'dhcpcd.exit-hook' ]] && stop_on_error=false || stop_on_error=true
+    [[ $(basename "$0" 2>/dev/null) == 'dhcpcd.exit-hook' ]] && stop_on_error=false || stop_on_error=true
     local args=()
     while (( "$#" )); do
         case "$1" in

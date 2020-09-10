@@ -713,7 +713,10 @@ process_cmds() {
         # if cmd is set process cmd
         # use defaults if flag not set
         if [[ ! -z $cmd ]]; then
-            local pmsg=${pmsg:-"Success - ${cmd/-y /}"}
+            local pcmd=${cmd/sudo /} ; local pcmd=${cmd/-y /}
+            local pmsg=${pmsg:-"Success - $pcmd"}
+            unset pcmd
+            # local pmsg=${pmsg:-"Success - ${cmd/-y /}"}
             local fmsg=${fmsg:-"Error - $cmd  See details in $log_file"}
             local fail_lvl=${fail_lvl:-"WARNING"}
             local _silent=${_silent:-false}
@@ -728,7 +731,7 @@ process_cmds() {
                 echo "------------------------------------------------------------------------------------------"
             fi
             # -- // PROCESS THE CMD \\ --
-            ! $_silent && $showstart && logit "Starting ${pmsg/Success - /}"
+            ! $_silent && $showstart && logit -E "Starting ${pmsg/Success - /}"
             logit -L "process_cmds executing: $cmd"
             if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
                 local cmd_failed=false

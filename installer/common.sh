@@ -112,7 +112,7 @@ menu_print() {
     while (( "$#" )); do
         case "$1" in
             -c)
-                style="$(echo $2 | cut -d'=' -f2)"
+                style=$2
                 shift 2
                 ;;
             -L|-len)
@@ -133,12 +133,12 @@ menu_print() {
                 shift 2
                 ;;
             -foot)
-                [[ -z $2 ]] && str="${style}${style}${style}" || str="${style}${style}$2"
+                str="${style}${style}$2"
                 len=${#str}
                 right=$(( ((line_len-len)) ))
                 printf -v pad_right "%*s" $right && pad_right=${pad_right// /$style}
                 printf "%s%s\n" "$str" "$pad_right"
-                [[ -z $2 ]] && shift || shift 2
+                shift 2
                 unset line_len; unset style
                 ;;
             -nl|-li|*)

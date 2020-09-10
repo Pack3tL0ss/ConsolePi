@@ -1,10 +1,10 @@
 #!/bin/sh
 #
 ### BEGIN INIT INFO
-# Provides:          
+# Provides:
 # Required-Start:
-# Required-Stop:     
-# Should-Start: 
+# Required-Stop:
+# Should-Start:
 # Should-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
@@ -14,9 +14,9 @@
 
 case "$1" in
 start|stop)
-  for i in eth0 wlan0 tun0 tun1 tun2 tun3 tun4 tun5; do
+  for i in eth0 wlan0 consolepi-push-delay.lock tun0 tun1 tun2 tun3 tun4 tun5; do
     i="/tmp/$i"
-    [ -e $i ] && rm $i 
+    [ -e $i ] && rm $i
   done
   echo puship-ConsolePiCleanUp CleanUp Complete
   exit 0
@@ -24,5 +24,5 @@ start|stop)
 *)
   echo Error valid options are start stop
   exit 1
-  ;; 
+  ;;
 esac

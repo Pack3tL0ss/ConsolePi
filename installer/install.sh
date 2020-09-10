@@ -107,6 +107,20 @@ do_apt_deps() {
     logit "$process - Complete"
 }
 
+do_user_dir_import(){
+    [[ $1 == root ]] && local user_home=root || local user_home="home/$1"
+    # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
+    if [[ -d "$stage_dir/$user_home" ]]; then
+        logit "Found staged files for $1, copying to users home"
+        chown -R $(grep "^$1:" /etc/passwd | cut -d: -f3-4) "$stage_dir/$user_home" &&
+        cp -r "$stage_dir/$user_home" "/$user_home" &&
+        ( logit "Success - copy staged files for user $1" && return 0 ) ||
+            ( logit "An error occured when attempting cp pre-staged files for user $1" "WARNING"
+              return 1
+            )
+    fi
+}
+
 # Process Changes that are required prior to git pull when doing upgrade
 pre_git_prep() {
     if $upgrade; then
@@ -179,23 +193,16 @@ pre_git_prep() {
                 prompt="Do You want to change the password for user pi"
                 response=$(user_input_bool)
                 if $response; then
-                    # match=false
-                    # while ! $match; do
-                    #     read -sep "Enter new password for user pi: " pass && echo
-                    #     read -sep "Re-Enter new password for user pi: " pass2 && echo
-                    #     [[ "${pass}" == "${pass2}" ]] && match=true || match=false
-                    #     ! $match && echo -e "ERROR: Passwords Do Not Match\n"
-                    # done
                     ask_pass
                     echo "pi:${_pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
-                    # echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
                     ( logit "Failed to Change Password for pi user" "WARNING" &&
                     echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
-                    # unset pass && unset pass2 && unset process
-                    unset pass; unset process
+                    unset _pass; unset process
                 fi
             fi
         fi
+
+        do_user_dir_import pi || logit -L "User dir import for pi user returned error"
 
 
         process="Create consolepi user/group"
@@ -216,7 +223,10 @@ pre_git_prep() {
                 echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
                 ask_pass  # provides _pass in global context
                 echo -e "${_pass}\n${_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
-                    logit "consolepi user created." || logit "Error creating consolepi user" "ERROR"
+                    (
+                        logit "consolepi user created."
+                        do_user_dir_import consolepi || logit -L "User dir import for consolepi user returned error"
+                    ) || logit "Error creating consolepi user" "ERROR"
                 unset _pass
             fi
             echo
@@ -248,13 +258,15 @@ pre_git_prep() {
                         logit "Successfully added new user $result"
 
                         # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
-                        if [[ -d "$stage_dir/home/$result" ]]; then
-                            logit "Found staged files for $result, copying to users home"
-                            chown -R $(grep "^$result:" /etc/passwd | cut -d: -f3-4) "$stage_dir/home/$result" &&
-                            cp -r "$stage_dir/home/$result" "/home/$result" &&
-                            logit "Success - copy staged files for user $result" ||
-                                logit "An error occured when attempting cp pre-staged files for user $result" "WARNING"
-                        fi
+                        do_user_dir_import $result || logit -L "User dir import for $result user returned error"
+
+                        # if [[ -d "$stage_dir/home/$result" ]]; then
+                        #     logit "Found staged files for $result, copying to users home"
+                        #     chown -R $(grep "^$result:" /etc/passwd | cut -d: -f3-4) "$stage_dir/home/$result" &&
+                        #     cp -r "$stage_dir/home/$result" "/home/$result" &&
+                        #     logit "Success - copy staged files for user $result" ||
+                        #         logit "An error occured when attempting cp pre-staged files for user $result" "WARNING"
+                        # fi
 
                     else
                         logit "Error adding new user $result" "WARNING"

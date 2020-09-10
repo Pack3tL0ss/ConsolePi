@@ -90,6 +90,20 @@ do_apt_deps() {
     [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
         process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
 
+    # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
+    # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
+    process="Verify libffi-dev"
+    if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
+        process_cmds -pf "install libffi-dev" -apt-install "libffi-dev"
+    fi
+
+    # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
+    # TODO check if this is required
+    process="install libssl-dev"
+    if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
+        process_cmds -pf "install libssl-dev" -apt-install "libssl-dev"
+    fi
+
     # TODO add picocom, maybe ser2net, ensure process_cmds can accept multiple packages
 
     logit "$process - Complete"
@@ -249,13 +263,6 @@ pre_git_prep() {
     fi
     # -- // Operations performed on both installs and upgrades \\ --
 
-    # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
-    # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
-    process="Verify libffi-dev"
-    if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
-        process_cmds -nostart -apt-install "libffi-dev"
-    fi
-
     # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
     if [ ! -f /etc/sudoers.d/010_consolepi ]; then
         process="sudo rights consolepi group"
@@ -268,13 +275,6 @@ pre_git_prep() {
             logit "FAILED chmod 0440 consolepi group sudoers.d file" "WARNING"
         fi
         unset process
-    fi
-
-    # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
-    # TODO check if this is required
-    process="install libssl-dev"
-    if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
-        process_cmds -nostart -apt-install "libssl-dev"
     fi
 
     if [ -f $cloud_cache ]; then

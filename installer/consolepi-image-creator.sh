@@ -558,8 +558,18 @@ main() {
 
     # Mount boot partition
     dots "Mounting boot partition to enable ssh"
-    [[ $my_usb =~ "mmcblk" ]] && res=$(sudo mount /dev/${my_usb}p1 /mnt/usb1 2>&1) || res=$(sudo mount /dev/${my_usb}1 /mnt/usb1  2>&1)
-    do_error $? "$res"
+    for i in {1..2}; do
+        [[ $my_usb =~ "mmcblk" ]] && res=$(sudo mount /dev/${my_usb}p1 /mnt/usb1 2>&1) || res=$(sudo mount /dev/${my_usb}1 /mnt/usb1  2>&1) ; rc=$?
+        if [[ $rc == 0 ]]; then
+            break
+        else
+            # mmcblk device would fail on laptop after image creation re-run with -nodd and was fine
+            echo "Sleep then Retry"
+            sleep 3
+            dots "Mounting boot partition to enable ssh"
+        fi
+    done
+    do_error $rc "$res"
 
     # Create empty file ssh in boot partition
     dots "Enabling ssh on image"

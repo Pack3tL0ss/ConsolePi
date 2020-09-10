@@ -46,6 +46,12 @@ slaac private
 # Disable RFC3927 ipv4LL (169.) automatic addressing on dhcp failure
 noipv4ll
 
+{% if noipv6 %}
+# Disable IPv6
+noipv6rs
+noipv6
+{% endif %}
+
 # ConsolePi vendorclassid
 vendorclassid dhcpcd-ConsolePi
 

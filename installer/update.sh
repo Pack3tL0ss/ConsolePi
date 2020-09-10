@@ -136,8 +136,8 @@ misc_imports(){
 
     # -- ssh authorized keys --
     found_path=$(get_staged_file_path "authorized_keys")
-    [[ $found_path ]] && logit "pre-staged ssh authorized keys found - importing"
     if [[ $found_path ]]; then
+        logit "pre-staged ssh authorized keys found - importing"
         file_diff_update $found_path /root/.ssh/authorized_keys
         file_diff_update $found_path ${home_dir}/.ssh/authorized_keys
             chown $iam:$iam ${home_dir}/.ssh/authorized_keys
@@ -145,8 +145,8 @@ misc_imports(){
 
     # -- ssh known hosts --
     found_path=$(get_staged_file_path "known_hosts")
-    [[ $found_path ]] && logit "pre-staged ssh known_hosts file found - importing"
     if [[ $found_path ]]; then
+        logit "pre-staged ssh known_hosts file found - importing"
         file_diff_update $found_path /root/.ssh/known_hosts
         file_diff_update $found_path ${home_dir}/.ssh/known_hosts
             chown $iam:$iam ${home_dir}/.ssh/known_hosts

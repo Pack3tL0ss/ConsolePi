@@ -590,12 +590,12 @@ spaces() {
 }
 
 process_cmds() {
-    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
+    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' '_silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
     local do_autoremove=false  # TODO check if the return is necessary may be relic from early testing
     $_DEBUG_ && echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
         if $_DEBUG_; then
-            echo -e "DEBUG:\n\tcmd=${cmd}\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
+            echo -e "DEBUG:\n\tcmd=${cmd}\n\t_silent=$_silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
             echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
         fi
         case "$1" in
@@ -608,7 +608,7 @@ process_cmds() {
                 shift
                 ;;
             -s) # only show msg if cmd fails
-                local silent=true
+                local _silent=true
                 shift
                 ;;
             -u) # Run Command as logged in User
@@ -664,8 +664,8 @@ process_cmds() {
                 [ -z pmsg ] && local pmsg="Success - Install $pname (apt)"
                 [ -z fmsg ] && local fmsg="Error - Install $pname (apt)"
                 local stop=true
-                [[ ! -z $pexclude ]] && local cmd="sudo apt-get -y install $pkg ${pexclude}-" ||
-                    local cmd="sudo apt-get -y install $pkg"
+                [[ ! -z $pexclude ]] && local cmd="sudo apt -y install $pkg ${pexclude}-" ||
+                    local cmd="sudo apt -y install $pkg"
                 ;;
             -apt-purge) # purge pkg followed by autoremove
                 case "$3" in
@@ -680,7 +680,7 @@ process_cmds() {
                 esac
                 [ -z pmsg ] && local pmsg="Success - Remove $pname (apt)"
                 [ -z fmsg ] && local fmsg="Error - Remove $pname (apt)"
-                local cmd="sudo apt-get -y purge $2"
+                local cmd="sudo apt -y purge $2"
                 local do_autoremove=true
                 shift $_shift
                 ;;
@@ -713,10 +713,10 @@ process_cmds() {
         # if cmd is set process cmd
         # use defaults if flag not set
         if [[ ! -z $cmd ]]; then
-            local pmsg=${pmsg:-"Success - $cmd"}
+            local pmsg=${pmsg:-"Success - ${cmd/-y /}"}
             local fmsg=${fmsg:-"Error - $cmd  See details in $log_file"}
             local fail_lvl=${fail_lvl:-"WARNING"}
-            local silent=${silent:-false}
+            local _silent=${_silent:-false}
             local stop=${stop:-false}
             local err=${err:-$log_file}
             local out=${out:-'/dev/null'}
@@ -724,16 +724,15 @@ process_cmds() {
             local do_apt_install=${do_apt_install:-false}
             [[ ! -z $cmd_pfx ]] && local cmd="$cmd_pfx $cmd"
             if $_DEBUG_; then
-                echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
+                echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\t_silent=$_silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
                 echo "------------------------------------------------------------------------------------------"
             fi
             # -- // PROCESS THE CMD \\ --
-            ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
-            # if eval "$cmd" >>"$out" 2>>"$err"; then # <-- Do the command
+            ! $_silent && $showstart && logit "Starting ${pmsg/Success - /}"
             logit -L "process_cmds executing: $cmd"
             if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
                 local cmd_failed=false
-                ! $silent && logit "$pmsg"
+                ! $_silent && logit "$pmsg"
                 unset cmd
             else
                 local cmd_failed=true
@@ -746,7 +745,7 @@ process_cmds() {
                         logit -L "process_cmds executing: $cmd"
                         if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err"); then
                             local cmd_failed=false
-                            ! $silent && logit "$pmsg"
+                            ! $_silent && logit "$pmsg"
                         fi
                         ((x+=1))
                     done
@@ -775,5 +774,5 @@ process_cmds() {
             logit "Error - apt autoremove returned error-code" "WARNING"
     fi
 
-    return 0
+    ! $cmd_failed && return 0 || return 1
 }

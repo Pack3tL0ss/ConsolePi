@@ -1004,7 +1004,7 @@ update_main() {
         _msg="Success Silent Install Complete a reboot is required."
         [[ "$warn_cnt" > 0 ]] && logit "$_msg\n ${_red}Warnings Occured During Install ($warn_cnt)${_norm}." | cut -d']' -f4- || echo "$_msg"
     fi
-    $silent && $do_reboot && echo -e "\n${_green}Install Complete${_norm}\n  system will reboot in 10 seconds (CTRL+C to abort reboot)" && sleep 10 && $reboot
+    $silent && $do_reboot && echo -e "\n${_green}Install Complete${_norm}\n  system will reboot in 10 seconds (CTRL+C to abort reboot)" && sleep 10 && reboot
 }
 
 # ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line

@@ -112,7 +112,7 @@ menu_print() {
     while (( "$#" )); do
         case "$1" in
             -c)
-                style=$2
+                style="$2"
                 shift 2
                 ;;
             -L|-len)

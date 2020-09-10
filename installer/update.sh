@@ -557,7 +557,8 @@ gen_dnsmasq_conf () {
 gen_dhcpcd_conf () {
     process="dhcpcd.conf"
     logit "configure dhcp client and static fallback"
-    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip} wired_ip=${wired_ip} wired_dhcp=${wired_dhcp}
+    [ -f /etc/sysctl.d/99-noipv6.conf ] && noipv6=true || noipv6=false
+    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip} wired_ip=${wired_ip} wired_dhcp=${wired_dhcp} noipv6=${noipv6}
     unset process
 }
 
@@ -801,7 +802,7 @@ get_serial_udev() {
     echo "-   ttyUSB# or ttyACM# where the # starts with 0 and increments for each adapter of that type plugged in. The names -"
     echo "-   won't necessarily be consistent between reboots nor will the TELNET port.  This method is OK for temporary use  -"
     echo -e "-    of an adapter or if you only plan to use a single adapter.  Otherwise setting predictable aliases is        -"
-    echo "-       ${_lred}highly recommended${_norm}.                                                                                         -"
+    echo -e "-       ${_lred}highly recommended${_norm}.                                                                                         -"
     echo "-                                                                                                                   -"
     echo "- Defining the ports with this utility is also how device specific serial settings are configured.  Otherwise       -"
     echo "-   they will use the default which is 9600 8N1                                                                     -"

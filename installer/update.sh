@@ -768,8 +768,9 @@ misc_stuff() {
     if $hotspot && [ ${wlan_country^^} == "US" ]; then
         process="Set Keyboard Layout"
         logit "${process} - Starting"
-        sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard && logit "KeyBoard Layout changed to ${wlan_country,,}"
-        logit "${process} - Success" || logit "${process} - Failed ~ verify contents of /etc/default/keyboard" "WARNING"
+        sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard &&
+            logit "Success - KeyBoard Layout changed to ${wlan_country,,}" ||
+            logit "${process} - Failed ~ verify contents of /etc/default/keyboard" "WARNING"
         unset process
     fi
 
@@ -792,29 +793,32 @@ get_serial_udev() {
     logit "${process} Starting"
     header
 
+    declare -a _msg=(
+    -L 116 -c '-' -head "${_green}Predictable Console ports${_norm}"
+    -nl
+    "Predictable Console ports allow you to configure ConsolePi so that each time you plug-in a specific adapter it"
+    "will have the same name in consolepi-menu and will be reachable via the same TELNET port."
+    -nl
+    "The behavior if you do ${_lred}not${_norm} define Predictable Console Ports is the adapters will use the root device names"
+    "ttyUSB# or ttyACM# where the # starts with 0 and increments for each adapter of that type plugged in. The names"
+    "won't necessarily be consistent between reboots nor will the TELNET port.  This method is OK for temporary use"
+    "of an adapter or if you only plan to use a single adapter.  Otherwise setting predictable aliases is"
+    "${_lred}highly recommended${_norm}."
+    -nl
+    "Defining the ports with this utility is also how device specific serial settings are configured.  Otherwise"
+    "they will use the default (9600 8N1)."
+    -nl
+    -nl
+    "This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from"
+    "${_cyan}consolepi-menu${_norm} via the 'rn' (rename) option."
+    -nl
+    -foot
+    )
+    menu_print "${_msg[@]}"
     echo
-    echo -e "--------------------------------------------- ${_green}Predictable Console ports${_norm} ---------------------------------------------"
-    echo "-                                                                                                                   -"
-    echo "- Predictable Console ports allow you to configure ConsolePi so that each time you plug-in a specific adapter it    -"
-    echo "- will have the same name in consolepi-menu and will be reachable via the same TELNET port.                         -"
-    echo "-                                                                                                                   -"
-    echo "- The behavior if you do *not* define Predictable Console Ports is the adapters will use the root device names      -"
-    echo "-   ttyUSB# or ttyACM# where the # starts with 0 and increments for each adapter of that type plugged in. The names -"
-    echo "-   won't necessarily be consistent between reboots nor will the TELNET port.  This method is OK for temporary use  -"
-    echo -e "-    of an adapter or if you only plan to use a single adapter.  Otherwise setting predictable aliases is        -"
-    echo -e "-       ${_lred}highly recommended${_norm}.                                                                                         -"
-    echo "-                                                                                                                   -"
-    echo "- Defining the ports with this utility is also how device specific serial settings are configured.  Otherwise       -"
-    echo "-   they will use the default which is 9600 8N1                                                                     -"
-    echo "-                                                                                                                   -"
-    echo "-                                                                                                                   -"
-    echo -e "-  This function can be called anytime from the shell via ${_cyan}consolepi-addconsole${_norm} and is available from                -"
-    echo -e "-    ${_cyan}consolepi-menu${_norm} via the 'rn' (rename) option.                                                                   -"
-    echo "-                                                                                                                   -"
-    echo "---------------------------------------------------------------------------------------------------------------------"
-    echo
-    echo "You need to have the serial adapters you want to map to specific telnet ports available"
-    prompt="Would you like to configure predictable serial ports now"
+
+    echo "You need to have the serial adapters available"
+    prompt="Would you like to configure predictable serial port aliases now"
     $upgrade && user_input false "${prompt}" || user_input true "${prompt}"
     if $result ; then
         if [ -f ${consolepi_dir}src/consolepi-commands/consolepi-menu ]; then
@@ -880,7 +884,7 @@ custom_post_install_script() {
 post_install_msg() {
     clear;echo
     declare -a _msg=(
-            -head "Installation Complete"
+            -head "${_green}Installation Complete${_norm}"
             "${_bold}Next Steps/Info${_norm}"
             -nl
             " ${_bold}Cloud Sync:${_norm}"

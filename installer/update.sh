@@ -389,7 +389,7 @@ install_autohotspotn () {
         fi
         if systemctl is-enabled consolepi-autohotspot-dhcp >/dev/null 2>&1; then
             systemctl disable consolepi-autohotspot-dhcp 2>>$log_file &&
-                logit "consolepi-autohotspot-dhcp autostart disabled Successfully, startup handled by autohotspot"
+                logit "consolepi-autohotspot-dhcp autostart disabled Successfully, startup handled by autohotspot" ||
                 logit "Failed to disable consolepi-autohotspot-dhcp.service check log" "WARNING"
         fi
     else

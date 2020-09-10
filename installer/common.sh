@@ -111,29 +111,35 @@ menu_print() {
     line_len=${line_len:=121}
     while (( "$#" )); do
         case "$1" in
+            -c)
+                style="$(echo $2 | cut -d'=' -f2)"
+                shift 2
+                ;;
             -L|-len)
                 line_len=$2
                 shift 2
                 ;;
             -head)
+                style=${style:-'*'}
                 str=" $2 "
                 len=${#str}
-                # ((line_len+=1)) #actual line_len ends up aw line_len +1 not sure why
+                [[ "$str" =~ "\e[" ]] && ((len-=11))
+                [[ "$str" =~ ';1m' ]] && ((len-=2))
                 left=$(( ((line_len-len))/2 ))
                 [[ $((left+len+left)) -eq $line_len ]] && right=$left || right=$((left+1))
-                printf -v pad_left "%*s" $left && pad_left=${pad_left// /*}
-                printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
-                printf "%s%s%s\n" "$pad_left" "$str" "$pad_right"
+                printf -v pad_left "%*s" $left && pad_left=${pad_left// /$style}
+                printf -v pad_right "%*s" $right && pad_right=${pad_right// /$style}
+                printf "%s%b%s\n" "$pad_left" "$str" "$pad_right"
                 shift 2
                 ;;
             -foot)
-                str="**$2"
+                [[ -z $2 ]] && str="${style}${style}${style}" || str="${style}${style}$2"
                 len=${#str}
                 right=$(( ((line_len-len)) ))
-                printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
+                printf -v pad_right "%*s" $right && pad_right=${pad_right// /$style}
                 printf "%s%s\n" "$str" "$pad_right"
-                shift 2
-                unset line_len
+                [[ -z $2 ]] && shift || shift 2
+                unset line_len; unset style
                 ;;
             -nl|-li|*)
                 if [[ "$1" == "-nl" ]]; then
@@ -149,7 +155,7 @@ menu_print() {
                 [[ "$str" =~ ';1m' ]] && ((len-=2))
                 pad_len=$(( ((line_len-len-5)) ))
                 printf -v pad "%*s" $pad_len # && pad=${pad// /-}
-                printf '* %b %s *\n' "$str" "$pad"
+                printf '%s %b %s %s\n' "$style" "$str" "$pad" "$style"
                 shift
                 ;;
         esac
@@ -222,7 +228,11 @@ logit() {
 
     # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
-        echo -e "$(date +'%b %d %T') [$$][${status}][${process}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
+        echo -e "$(date +'%b %d %T') [$$][${status}][${process}] Last Error is fatal, script exiting Please review log ${log_file}"
+        echo -e "\n${_red}---- Error Detail ----${_norm}"
+        grep -A 999 "${log_start}" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "ERROR" -B 10 | grep -v "INFO"
+        echo '--'
+        exit 1
     fi
 }
 

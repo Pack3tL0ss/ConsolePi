@@ -113,7 +113,7 @@ do_user_dir_import(){
     if [[ -d "$stage_dir/$user_home" ]]; then
         logit "Found staged files for $1, copying to users home"
         chown -R $(grep "^$1:" /etc/passwd | cut -d: -f3-4) "$stage_dir/$user_home" &&
-        cp -r "$stage_dir/$user_home" "/$user_home" &&
+        cp -r "$stage_dir/$user_home/." "/$user_home/" &&
         ( logit "Success - copy staged files for user $1" && return 0 ) ||
             ( logit "An error occured when attempting cp pre-staged files for user $1" "WARNING"
               return 1
@@ -232,17 +232,20 @@ pre_git_prep() {
             echo
         fi
 
-        if [ ! -z "${auto_launch}" ]; then
-            echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile &&
-                logit "consolepi user configured to auto-launch menu on login" ||
-                logit "Failed to cofnigure auto-launch menu on login for consolepi user"
-        else
-            if ! $silent; then
-                user_input true "Make consolepi user auto-launch menu on login"
-                $result && echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile ||
+        # -- consolepi user auto-launch menu (The grep verification is for re-testing scenarios to prevent duplicate lines)
+        if ! grep -q "^consolepi-menu" /home/consolepi/.profile; then
+            if [ ! -z "${auto_launch}" ]; then
+                echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile &&
+                    logit "consolepi user configured to auto-launch menu on login" ||
                     logit "Failed to cofnigure auto-launch menu on login for consolepi user"
             else
-                logit "consolepi user auto-launch menu bypassed -silent install lacking --auto_launch flag="
+                if ! $silent; then
+                    user_input true "Make consolepi user auto-launch menu on login"
+                    $result && ( echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile ||
+                        logit "Failed to cofnigure auto-launch menu on login for consolepi user" )
+                else
+                    logit "consolepi user auto-launch menu bypassed -silent install lacking --auto_launch flag="
+                fi
             fi
         fi
 
@@ -693,8 +696,10 @@ main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
         set +H                              # Turn off ! history expansion
+        cmd_line="$@"
         process_args "$@"
         get_common                          # get and import common functions script
+        [ ! -z "$cmd_line" ] && logit -L -t "ConsolePi Installer" "Called with the following args: $cmd_line"
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if auto-launch install on first login is configured remove
         do_apt_update                       # apt-get update the pi

@@ -210,11 +210,6 @@ Check_is_new_ip() {
     $is_new_ip && StashNewIP
 }
 
-# update_cloud() {
-#     /etc/ConsolePi/cloud/${cloud_svc}/cloud.py &&
-#         logit -L -t puship-${cloud_svc} Updated cloud Config ||
-#         logit -L -t puship-${cloud_svc} Error returned while Updating cloud Config
-# }
 
 update_cloud() {
     logit -L -t puship-${cloud_svc} "Triggering Update in background"
@@ -287,16 +282,8 @@ run() {
 
     Check_is_new_ip
     if $is_new_ip; then
-        # -- if delay lock file not in place delay 10 seconds if it is gen msg and send now.
-        # -- Prevents multiple messages when multiple interfaces come up with new IPs (or OpenVPN connects)
-        [[ ! -f /tmp/consolepi-push-delay.lock ]] && touch /tmp/consolepi-push-delay.lock && sleep 10
-        if [[ -f /tmp/consolepi-push-delay.lock ]]; then
-            rm /tmp/consolepi-push-delay.lock
-            BuildMsg "bound"
-            $push && Push
-        else
-            logit -L -t puship "Push Message deffered based on $interface IP change ($new_ip_address), sent by another interface"
-        fi
+        BuildMsg "bound"
+        $push && Push
         $cloud && update_cloud
         $ovpn_enable && Check_VPN
     else

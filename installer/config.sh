@@ -342,7 +342,6 @@ collect() {
     if ! $selected_prompts || [ -z "$rem_user" ]; then
         header
         [ -z "$rem_user" ] && rem_user=$iam
-        echo
         echo "If you have multiple ConsolePis they can discover each other over the network via mdns"
         echo "and if enabled can sync via Google Drive."
         echo

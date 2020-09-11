@@ -274,17 +274,16 @@ dhcp_run_hook() {
     process="Configure dhcp.exit-hook"
     hook_file="/etc/ConsolePi/src/dhcpcd.exit-hook"
     logit "${process} - Starting"
-    [[ -f /etc/dhcpcd.exit-hook ]] && exists=true || exists=false                      # find out if exit-hook file already exists
-    if $exists; then
-        is_there=`grep -c $hook_file  /etc/dhcpcd.exit-hook`  # find out if it's already pointing to ConsolePi script
-        if [ $is_there -gt 0 ]; then
+    if [ -f /etc/dhcpcd.exit-hook ]; then
+        if grep -q $hook_file  /etc/dhcpcd.exit-hook; then
             logit "exit-hook already configured [File Found and Pointer exists]"  #exit-hook exists and line is already there
         else
-            sudo sed -i '/.*\/etc\/ConsolePi\/.*/c\\/etc\/ConsolePi\/src\/dhcpcd.exit-hook "$@"' /etc/dhcpcd.exit-hook &&
-            logit "Successfully Updated exit-hook Pointer" || logit "Failed to update exit-hook pointer" "ERROR"
+            echo "$hook_file \"\$@\"" > "/tmp/dhcpcd.exit-hook"
+            file_diff_update /tmp/dhcpcd.exit-hook /etc/dhcpcd.exit-hook
+            rm /tmp/dhcpcd.exit-hook >/dev/null 2>>$log_file
         fi
     else
-        sudo echo "$hook_file \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "Failed to create exit-hook script" "ERROR"
+        echo "$hook_file \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "Failed to create exit-hook script" "ERROR"
     fi
 
     # -- Make Sure exit-hook is executable --

@@ -233,11 +233,14 @@ pre_git_prep() {
         fi
 
         if [ ! -z "${auto_launch}" ]; then
-            echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
+            echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile &&
+                logit "consolepi user configured to auto-launch menu on login" ||
+                logit "Failed to cofnigure auto-launch menu on login for consolepi user"
         else
             if ! $silent; then
                 user_input true "Make consolepi user auto-launch menu on login"
-                $result && echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
+                $result && echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile ||
+                    logit "Failed to cofnigure auto-launch menu on login for consolepi user"
             else
                 logit "consolepi user auto-launch menu bypassed -silent install lacking --auto_launch flag="
             fi

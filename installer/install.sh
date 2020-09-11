@@ -121,64 +121,9 @@ do_user_dir_import(){
     fi
 }
 
-# Process Changes that are required prior to git pull when doing upgrade
-pre_git_prep() {
-    if $upgrade; then
-
-        # remove old bluemenu.sh script replaced with consolepi-menu.py
-        process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"
-        if [[ -f /etc/ConsolePi/src/bluemenu.sh ]]; then
-            rm /etc/ConsolePi/src/bluemenu.sh &&
-                logit "Removed old menu script will be replaced during pull" ||
-                    logit "ERROR Found old menu script but unable to remove (/etc/ConsolePi/src/bluemenu.sh)" "WARNING"
-        fi
-
-        # Remove old symlink if it exists
-        process="ConsolePi-Upgrade-Prep (remove symlink consolepi-menu)"
-        if [[ -L /usr/local/bin/consolepi-menu ]]; then
-            unlink /usr/local/bin/consolepi-menu &&
-                logit "Removed old consolepi-menu symlink will replace during upgade" ||
-                    logit "ERROR Unable to remove old consolepi-menu symlink verify it should link to file in src dir" "WARNING"
-        fi
-
-        # Remove old launch file if it exists
-        process="ConsolePi-Upgrade-Prep (remove consolepi-menu quick-launch file)"
-        if [[ -f /usr/local/bin/consolepi-menu ]]; then
-            rm /usr/local/bin/consolepi-menu &&
-                logit "Removed old consolepi-menu quick-launch file will replace during upgade" ||
-                    logit "ERROR Unable to remove old consolepi-menu quick-launch file" "WARNING"
-        fi
-
-        # verify group membership -- upgrade only -- checks
-        process="create consolepi group"
-        if ! grep -q consolepi /etc/group; then
-            sudo groupadd consolepi &&
-            logit "Added consolepi group" ||
-            logit "Error adding consolepi group" "WARNING"
-        else
-            logit "consolepi group already exists"
-        fi
-        process="Verify Group Membership"
-        [[ "$iam" == "pi" ]] && _users=pi || _users=("pi" "$iam")
-        _groups=('consolepi' 'dialout')
-        for user in "${_users[@]}"; do
-            if ! grep -q "^${user}:" /etc/passwd; then
-                logit "$user does not exist. Skipping"
-                continue
-            fi
-            for grp in "${_groups[@]}"; do
-                if [[ ! $(groups $user) == *"${grp}"* ]]; then
-                    sudo usermod -a -G $grp $user &&
-                        logit "Added ${user} user to $grp group" ||
-                            logit "Error adding ${user} user to $grp group" "WARNING"
-                else
-                    logit "${user} already belongs to $grp group"
-                fi
-            done
-        done
-        unset process
-
-    else  # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
+do_users(){
+    if ! $upgrade; then
+        # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
 
         # Update passwd for pi user if it is the default.
         process="pi user password change"
@@ -308,6 +253,67 @@ pre_git_prep() {
         #         userdel pi 2>> $log_file && logit "pi user removed" || "Error returned when attempting to remove pi user" "WARNING"
         #     fi
         # fi
+
+    else  # --- UPGRADE VERIFICATIONS ---
+        # verify group membership -- upgrade only -- checks
+        process="create consolepi group"
+        if ! grep -q consolepi /etc/group; then
+            sudo groupadd consolepi &&
+            logit "Added consolepi group" ||
+            logit "Error adding consolepi group" "WARNING"
+        else
+            logit "consolepi group already exists"
+        fi
+        process="Verify Group Membership"
+        [[ "$iam" == "pi" ]] && _users=pi || _users=("pi" "$iam")
+        _groups=('consolepi' 'dialout')
+        for user in "${_users[@]}"; do
+            if ! grep -q "^${user}:" /etc/passwd; then
+                logit "$user does not exist. Skipping"
+                continue
+            fi
+            for grp in "${_groups[@]}"; do
+                if [[ ! $(groups $user) == *"${grp}"* ]]; then
+                    sudo usermod -a -G $grp $user &&
+                        logit "Added ${user} user to $grp group" ||
+                            logit "Error adding ${user} user to $grp group" "WARNING"
+                else
+                    logit "${user} already belongs to $grp group"
+                fi
+            done
+        done
+    fi
+
+}
+
+# Process Changes that are required prior to git pull when doing upgrade
+pre_git_prep() {
+    if $upgrade; then
+
+        # remove old bluemenu.sh script replaced with consolepi-menu.py
+        process="ConsolePi-Upgrade-Prep (refactor bluemenu.sh)"
+        if [[ -f /etc/ConsolePi/src/bluemenu.sh ]]; then
+            rm /etc/ConsolePi/src/bluemenu.sh &&
+                logit "Removed old menu script will be replaced during pull" ||
+                    logit "ERROR Found old menu script but unable to remove (/etc/ConsolePi/src/bluemenu.sh)" "WARNING"
+        fi
+
+        # Remove old symlink if it exists
+        process="ConsolePi-Upgrade-Prep (remove symlink consolepi-menu)"
+        if [[ -L /usr/local/bin/consolepi-menu ]]; then
+            unlink /usr/local/bin/consolepi-menu &&
+                logit "Removed old consolepi-menu symlink will replace during upgade" ||
+                    logit "ERROR Unable to remove old consolepi-menu symlink verify it should link to file in src dir" "WARNING"
+        fi
+
+        # Remove old launch file if it exists
+        process="ConsolePi-Upgrade-Prep (remove consolepi-menu quick-launch file)"
+        if [[ -f /usr/local/bin/consolepi-menu ]]; then
+            rm /usr/local/bin/consolepi-menu &&
+                logit "Removed old consolepi-menu quick-launch file will replace during upgade" ||
+                    logit "ERROR Unable to remove old consolepi-menu quick-launch file" "WARNING"
+        fi
+        unset process
     fi
 
     # -- // OPERATIONS PERFORMED ON BOTH INSTALLS AND UPGRADES \\ --
@@ -702,9 +708,10 @@ main() {
         [ ! -z "$cmd_line" ] && logit -L -t "ConsolePi Installer" "Called with the following args: $cmd_line"
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if auto-launch install on first login is configured remove
+        do_users                            # USER INPUT - create / update users and do staged imports
         do_apt_update                       # apt-get update the pi
         do_apt_deps                         # install dependencies via apt
-        pre_git_prep                        # process upgrade tasks required prior to git pull
+        pre_git_prep                        # UPGRADE ONLY: process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes
         do_pyvenv                           # build upgrade python3 venv for ConsolePi

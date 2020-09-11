@@ -210,11 +210,6 @@ Check_is_new_ip() {
     $is_new_ip && StashNewIP
 }
 
-# update_cloud() {
-#     /etc/ConsolePi/cloud/${cloud_svc}/cloud.py &&
-#         logit -L -t puship-${cloud_svc} Updated cloud Config ||
-#         logit -L -t puship-${cloud_svc} Error returned while Updating cloud Config
-# }
 
 update_cloud() {
     logit -L -t puship-${cloud_svc} "Triggering Update in background"

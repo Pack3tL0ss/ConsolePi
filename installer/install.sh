@@ -52,9 +52,9 @@ get_common() {
 remove_first_boot() {
     # SD-Card created using Image Creator Script launches installer automatically - remove first-boot launch
     process="Remove exec on first-boot"
-    sudo sed -i "s#consolepi-install.*##g" /home/pi/.bashrc
-    grep -q consolepi-install /home/pi/.bashrc &&
-        logit "Failed to remove first-boot verify /etc/rc.local" "WARNING"
+    sudo sed -i "s#consolepi-install.*##g" /home/pi/.profile
+    grep -q consolepi-install /home/pi/.profile &&
+        logit "Failed to remove first-boot verify /home/pi/.profile" "WARNING"
 }
 
 do_apt_update() {
@@ -90,9 +90,200 @@ do_apt_deps() {
     [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
         process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
 
+    # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
+    # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
+    if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
+        process_cmds -pf "install libffi-dev" -apt-install "libffi-dev"
+    fi
+
+    # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
+    # TODO check if this is required
+    if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
+        process_cmds -pf "install libssl-dev" -apt-install "libssl-dev"
+    fi
+
     # TODO add picocom, maybe ser2net, ensure process_cmds can accept multiple packages
 
     logit "$process - Complete"
+}
+
+do_user_dir_import(){
+    [[ $1 == root ]] && local user_home=root || local user_home="home/$1"
+    # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
+    if [[ -d "$stage_dir/$user_home" ]]; then
+        logit "Found staged files for $1, copying to users home"
+        cp -r "$stage_dir/$user_home/." "/$user_home/" &&
+        chown -R $(grep "^$1:" /etc/passwd | cut -d: -f3-4) "/$user_home/" &&
+        ( logit "Success - copy staged files for user $1" && return 0 ) ||
+            ( logit "An error occured when attempting cp pre-staged files for user $1" "WARNING"
+              return 1
+            )
+    fi
+}
+
+do_users(){
+    if ! $upgrade; then
+        # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
+
+        # Update passwd for pi user if it is the default.
+        process="pi user password change"
+        [ -e /run/sshwarn ] || logit "/run/sshwarn failed eval" "DEBUG"
+        if grep -q "^pi:" /etc/passwd && [[ "$iam" == "pi" ]] && [ -e /run/sshwarn ]; then
+            if [ ! -z "$pi_pass" ]; then
+                echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
+                    logit "Error occured changing pi password using conf/cmd_line arg" "WARNING"
+            elif ! $silent; then
+                header
+                echo "You are logged in as pi, and the default password has not been changed"
+                prompt="Do You want to change the password for user pi"
+                response=$(user_input_bool)
+                if $response; then
+                    ask_pass
+                    echo "pi:${_pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
+                    ( logit "Failed to Change Password for pi user" "WARNING" &&
+                    echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
+                    unset _pass
+                fi
+            fi
+        fi
+
+        # import any pi user stuff after header so usesr can see the import msg
+        header
+        do_user_dir_import pi || logit -L "User dir import for pi user returned error"
+
+
+        process="Create consolepi user/group"
+        cp /etc/adduser.conf /tmp/adduser.conf
+        extra_groups="adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
+        extra_groups2="consolepi adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
+        echo "EXTRA_GROUPS=\"$extra_groups\"" >> /tmp/adduser.conf
+        echo 'ADD_EXTRA_GROUPS=1' >> /tmp/adduser.conf
+
+        if ! grep -q "^consolepi:" /etc/group; then
+            if [ ! -z "${consolepi_pass}" ]; then
+                echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
+                    logit "consolepi user created silently with config/cmd-line argument" || logit "Error silently creating consolepi user" "ERROR"
+                unset consolepi_pass
+            else
+                echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
+                ask_pass  # provides _pass in global context
+                echo -e "${_pass}\n${_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
+                    (
+                        logit "consolepi user created."
+                        do_user_dir_import consolepi || logit -L "User dir import for consolepi user returned error"
+                    ) || logit "Error creating consolepi user" "ERROR"
+                unset _pass
+            fi
+            echo
+        fi
+
+        # -- consolepi user auto-launch menu (The grep verification is for re-testing scenarios to prevent duplicate lines)
+        if ! grep -q "^consolepi-menu" /home/consolepi/.profile; then
+            if [ ! -z "${auto_launch}" ]; then
+                echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile &&
+                    logit "consolepi user configured to auto-launch menu on login" ||
+                    logit "Failed to cofnigure auto-launch menu on login for consolepi user"
+            else
+                if ! $silent; then
+                    user_input true "Make consolepi user auto-launch menu on login"
+                    $result && ( echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile ||
+                        logit "Failed to cofnigure auto-launch menu on login for consolepi user" )
+                else
+                    logit "consolepi user auto-launch menu bypassed -silent install lacking --auto_launch flag="
+                fi
+            fi
+        fi
+
+
+        # Create additional Users (with appropriate rights for ConsolePi)
+        process="Add Users"
+        if ! $silent; then
+            sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups2\"/" /tmp/adduser.conf
+            _res=true; while $_res; do
+                echo
+                user_input false "Would you like to create additional users"
+                _res=$result
+                if $result; then
+                    user_input "" "Username for new user"
+                    if adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null; then
+                        logit "Successfully added new user $result"
+
+                        # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
+                        do_user_dir_import $result || logit -L "User dir import for $result user returned error"
+
+                        # if [[ -d "$stage_dir/home/$result" ]]; then
+                        #     logit "Found staged files for $result, copying to users home"
+                        #     chown -R $(grep "^$result:" /etc/passwd | cut -d: -f3-4) "$stage_dir/home/$result" &&
+                        #     cp -r "$stage_dir/home/$result" "/home/$result" &&
+                        #     logit "Success - copy staged files for user $result" ||
+                        #         logit "An error occured when attempting cp pre-staged files for user $result" "WARNING"
+                        # fi
+
+                    else
+                        logit "Error adding new user $result" "WARNING"
+                    fi
+                else
+                    header
+                fi
+            done
+        fi
+
+        # if pi user exists ensure it has correct group memberships for ConsolePi
+        process="Verify pi user groups"
+        if grep -q "^pi:" /etc/passwd; then
+            _groups=('consolepi' 'dialout')
+            for grp in "${_groups[@]}"; do
+                if [[ ! $(groups pi) == *"${grp}"* ]]; then
+                    sudo usermod -a -G $grp pi &&
+                        logit "Added pi user to $grp group" ||
+                            logit "Error adding pi user to $grp group" "WARNING"
+                else
+                    logit "pi already belongs to $grp group"
+                fi
+            done
+        fi
+
+        rm /tmp/adduser.conf
+
+        # Provide option to remove default pi user
+        # process="Remove Default pi User"
+        # if [[ $iam == "pi" ]]; then
+        #     user_input false "Do You want to remove the default pi user?"
+        #     if $result; then
+        #         userdel pi 2>> $log_file && logit "pi user removed" || "Error returned when attempting to remove pi user" "WARNING"
+        #     fi
+        # fi
+
+    else  # --- UPGRADE VERIFICATIONS ---
+        # verify group membership -- upgrade only -- checks
+        process="create consolepi group"
+        if ! grep -q consolepi /etc/group; then
+            sudo groupadd consolepi &&
+            logit "Added consolepi group" ||
+            logit "Error adding consolepi group" "WARNING"
+        else
+            logit "consolepi group already exists"
+        fi
+        process="Verify Group Membership"
+        [[ "$iam" == "pi" ]] && _users=pi || _users=("pi" "$iam")
+        _groups=('consolepi' 'dialout')
+        for user in "${_users[@]}"; do
+            if ! grep -q "^${user}:" /etc/passwd; then
+                logit "$user does not exist. Skipping"
+                continue
+            fi
+            for grp in "${_groups[@]}"; do
+                if [[ ! $(groups $user) == *"${grp}"* ]]; then
+                    sudo usermod -a -G $grp $user &&
+                        logit "Added ${user} user to $grp group" ||
+                            logit "Error adding ${user} user to $grp group" "WARNING"
+                else
+                    logit "${user} already belongs to $grp group"
+                fi
+            done
+        done
+    fi
+
 }
 
 # Process Changes that are required prior to git pull when doing upgrade
@@ -122,137 +313,10 @@ pre_git_prep() {
                 logit "Removed old consolepi-menu quick-launch file will replace during upgade" ||
                     logit "ERROR Unable to remove old consolepi-menu quick-launch file" "WARNING"
         fi
-
-        # verify group membership -- upgrade only -- checks
-        process="create consolepi group"
-        if ! grep -q consolepi /etc/group; then
-            sudo groupadd consolepi &&
-            logit "Added consolepi group" ||
-            logit "Error adding consolepi group" "WARNING"
-        else
-            logit "consolepi group already exists"
-        fi
-        process="Verify Group Membership"
-        [[ "$iam" == "pi" ]] && _users=pi || _users=("pi" "$iam")
-        _groups=('consolepi' 'dialout')
-        for user in "${_users[@]}"; do
-            if ! grep -q "^${user}:" /etc/passwd; then
-                logit "$user does not exist. Skipping"
-                continue
-            fi
-            for grp in "${_groups[@]}"; do
-                if [[ ! $(groups $user) == *"${grp}"* ]]; then
-                    sudo usermod -a -G $grp $user &&
-                        logit "Added ${user} user to $grp group" ||
-                            logit "Error adding ${user} user to $grp group" "WARNING"
-                else
-                    logit "${user} already belongs to $grp group"
-                fi
-            done
-        done
         unset process
-
-    else  # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
-
-        process="Create consolepi user/group"
-        # add consolepi user
-        header
-        cp /etc/adduser.conf /tmp/adduser.conf
-        extra_groups="adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
-        extra_groups2="consolepi adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
-        echo "EXTRA_GROUPS=\"$extra_groups\"" >> /tmp/adduser.conf
-        echo 'ADD_EXTRA_GROUPS=1' >> /tmp/adduser.conf
-
-        if ! grep -q "^consolepi:" /etc/group; then
-            if [ ! -z "${consolepi_pass}" ]; then
-                echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
-                    logit "consolepi user created silently with config/cmd-line argument" || logit "Error silently creating consolepi user" "ERROR"
-                unset consolepi_pass
-            else
-                echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
-                ask_pass  # provides _pass in global context
-                echo -e "${_pass}\n${_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
-                    logit "consolepi user created." || logit "Error creating consolepi user" "ERROR"
-                unset _pass
-            fi
-            echo
-        fi
-
-        if [ ! -z "${auto_launch}" ]; then
-            echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
-        else
-            if ! $silent; then
-                user_input true "Make consolepi user auto-launch menu on login"
-                $result && echo -e '\n#Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile
-            else
-                logit "consolepi user auto-launch menu bypassed -silent install lacking --auto_launch flag="
-            fi
-        fi
-
-
-        # Create additional Users (with appropriate rights for ConsolePi)
-        if ! $silent; then
-            sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups2\"/" /tmp/adduser.conf
-            _res=true; while $_res; do
-                echo
-                user_input false "Would you like to create additional users"
-                _res=$result
-                if $result; then
-                    user_input "" "Username for new user"
-                    if adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null; then
-                        logit "Successfully added new user $result"
-
-                        # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
-                        if [[ -d "$stage_dir/home/$result" ]]; then
-                            logit "Found staged files for $result, copying to users home"
-                            chown -R $(grep "^$result:" /etc/passwd | cut -d: -f3-4) "$stage_dir/home/$result" &&
-                            cp -r "$stage_dir/home/$result" "/home/$result" &&
-                            logit "Success - copy staged files for user $result" ||
-                                logit "An error occured when attempting cp pre-staged files for user $result" "WARNING"
-                        fi
-
-                    else
-                        logit "Error adding new user $result" "WARNING"
-                    fi
-                else
-                    header
-                fi
-            done
-        fi
-
-        # if pi user exists ensure it has correct group memberships for ConsolePi
-        if grep -q "^pi:" /etc/passwd; then
-            _groups=('consolepi' 'dialout')
-            for grp in "${_groups[@]}"; do
-                if [[ ! $(groups pi) == *"${grp}"* ]]; then
-                    sudo usermod -a -G $grp pi &&
-                        logit "Added pi user to $grp group" ||
-                            logit "Error adding pi user to $grp group" "WARNING"
-                else
-                    logit "pi already belongs to $grp group"
-                fi
-            done
-        fi
-
-        rm /tmp/adduser.conf
-
-        # Provide option to remove default pi user
-        # process="Remove Default pi User"
-        # if [[ $iam == "pi" ]]; then
-        #     user_input false "Do You want to remove the default pi user?"
-        #     if $result; then
-        #         userdel pi 2>> $log_file && logit "pi user removed" || "Error returned when attempting to remove pi user" "WARNING"
-        #     fi
-        # fi
     fi
-    # -- // Operations performed on both installs and upgrades \\ --
 
-    # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
-    # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
-    process="Verify libffi-dev"
-    if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
-        process_cmds -nostart -apt-install "libffi-dev"
-    fi
+    # -- // OPERATIONS PERFORMED ON BOTH INSTALLS AND UPGRADES \\ --
 
     # Give consolepi group sudo rights without passwd to stuff in the ConsolePi dir
     if [ ! -f /etc/sudoers.d/010_consolepi ]; then
@@ -268,13 +332,7 @@ pre_git_prep() {
         unset process
     fi
 
-    # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
-    # TODO check if this is required
-    process="install libssl-dev"
-    if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
-        process_cmds -nostart -apt-install "libssl-dev"
-    fi
-
+    # -- Verify cloud cache is owned by consolepi group
     if [ -f $cloud_cache ]; then
         process="ConsolePi-Upgrade-Prep (check cache owned by consolepi group)"
         group=$(stat -c '%G' $cloud_cache)
@@ -288,6 +346,7 @@ pre_git_prep() {
         unset process
     fi
 
+    # -- verify Group owndership and permissions of /etc/ConsolePi and .git dir
     if [ -d $consolepi_dir ]; then
         process="ConsolePi-Upgrade-Prep (verify permissions)"
 
@@ -394,24 +453,17 @@ do_pyvenv() {
     fi
 
     if $dopip; then
-        # if $upgrade; then
-        # -- update pip to current --
         logit "Upgrade pip"
         sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade pip 1>/dev/null 2>> $log_file &&
             logit "Success - pip upgrade" ||
             logit "WARNING - pip upgrade returned error" "WARNING"
-        # fi
 
-        # -- *Always* update venv packages based on requirements file --
-        # [ ! -z $py3ver ] && [ $py3ver -lt 6 ] && req_file="requirements-legacy.txt" || req_file="requirements.txt"
+        # -- Update venv packages based on requirements file --
         logit "pip install/upgrade ConsolePi requirements - This can take some time."
         echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
         sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
-
-        # clean up the retry logs if pip install requirements was successful
-        # grep -q "^.*Success.*pip install.*requirements" $log_file && sed -i '/WARNING: Retrying (Retry.*/d' $log_file
     else
         logit "pip upgrade / requirements upgrade skipped based on -nopip argument" "WARNING"
     fi
@@ -650,13 +702,16 @@ main() {
     script_iam=`whoami`
     if [ "${script_iam}" = "root" ]; then
         set +H                              # Turn off ! history expansion
+        cmd_line="$@"
         process_args "$@"
         get_common                          # get and import common functions script
+        [ ! -z "$cmd_line" ] && logit -L -t "ConsolePi Installer" "Called with the following args: $cmd_line"
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if auto-launch install on first login is configured remove
+        do_users                            # USER INPUT - create / update users and do staged imports
         do_apt_update                       # apt-get update the pi
         do_apt_deps                         # install dependencies via apt
-        pre_git_prep                        # process upgrade tasks required prior to git pull
+        pre_git_prep                        # UPGRADE ONLY: process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes
         do_pyvenv                           # build upgrade python3 venv for ConsolePi
@@ -670,5 +725,4 @@ main() {
     fi
 }
 
-# process_args "$@"
 main "$@"

@@ -187,6 +187,18 @@ get_input() {
     # return input (input is set globally)
 }
 
+do_user_dir_import(){
+    [[ $1 == root ]] && local user_home=root || local user_home="home/$1"
+    # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
+    if [[ -d "$STAGE_DIR/$user_home" ]]; then
+        dots "Found staged files for $1, cp to ${1}'s home on image"
+        res=$(
+            chown -R $(grep "^$1:" /mnt/usb2/etc/passwd | cut -d: -f3-4) "$STAGE_DIR/$user_home" 2>&1 &&
+            cp -r "$STAGE_DIR/$user_home/." "/mnt/usb2/$user_home/" 2>&1
+            ) &&
+                ( do_error $? && return 0 ) || ( do_error $? "$res" && return 1 )
+    fi
+}
 
 show_disk_details() {
     echo -e "------------------------------- // Device Details for $(green "$my_usb") \\\\\ -----------------------------------"
@@ -242,6 +254,9 @@ do_import_configs() {
             cp ${CUR_DIR}/$STAGE_DIR/known_hosts $IMG_HOME/.ssh/ ; ((rc+=$?))
             cp ${CUR_DIR}/$STAGE_DIR/known_hosts /mnt/usb2/root/.ssh/ ; do_error $((rc+=$?))
         fi
+
+        do_user_dir_import root
+        do_user_dir_import pi
 
         # -- adjust perms in .ssh directory if created imported --
         if [[ -d $IMG_HOME/.ssh ]]; then
@@ -315,7 +330,7 @@ do_import_configs() {
                 elif [[ ! $f =~ "/home/pi" ]] && [[ $f =~ $MY_HOME ]]; then
                     src="$f"
                     # dst is in the stage dir for non pi/root users.  After user creation installer will look for files in the stage dir
-                    dst="${IMG_STAGE}${MY_HOME}"
+                    dst="${IMG_STAGE}${f}"
                 else
                     src="$f"
                     dst="/mnt/usb2${f}"
@@ -436,9 +451,12 @@ main() {
     fi
     [[ $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
     [[ $boot_list =~ $my_usb ]] && my_usb=    # if usb device found make sure it's not marked as bootable if so reset my_usb so we can check for sd card adapter
+    # basename $(mount | grep 'on / '|awk '{print $1}')
     [[ -z $my_usb ]] && my_usb=$( sudo fdisk -l | grep 'Disk /dev/mmcblk' | awk '{print $2}' | cut -d: -f1 | cut -d'/' -f3)
 
-    echo -e "\n\n$(green "ConsolePi Image Creator") \n'exit' (which will terminate the script) is valid at all prompts\n"
+    ! $LOCAL_DEV && SCRIPT_TITLE=$(green "ConsolePi Image Creator") || SCRIPT_TITLE="${_green}ConsolePi Image Creator${_norm} ${_lred}${_blink}Local DEV${_norm}"
+    echo -e "\n\n$SCRIPT_TITLE \n'exit' (which will terminate the script) is valid at all prompts\n"
+
     [[ $my_usb ]] && echo -e "Script has discovered removable flash device @ $(green "${my_usb}") with the following details\n" ||
         echo -e "Script failed to detect removable flash device, you will need to specify the device"
 
@@ -558,8 +576,18 @@ main() {
 
     # Mount boot partition
     dots "Mounting boot partition to enable ssh"
-    [[ $my_usb =~ "mmcblk" ]] && res=$(sudo mount /dev/${my_usb}p1 /mnt/usb1 2>&1) || res=$(sudo mount /dev/${my_usb}1 /mnt/usb1  2>&1)
-    do_error $? "$res"
+    for i in {1..2}; do
+        [[ $my_usb =~ "mmcblk" ]] && res=$(sudo mount /dev/${my_usb}p1 /mnt/usb1 2>&1) || res=$(sudo mount /dev/${my_usb}1 /mnt/usb1  2>&1) ; rc=$?
+        if [[ $rc == 0 ]]; then
+            break
+        else
+            # mmcblk device would fail on laptop after image creation re-run with -nodd and was fine
+            echo "Sleep then Retry"
+            sleep 3
+            dots "Mounting boot partition to enable ssh"
+        fi
+    done
+    do_error $rc "$res"
 
     # Create empty file ssh in boot partition
     dots "Enabling ssh on image"
@@ -609,7 +637,7 @@ main() {
         fi
 
         $LOCAL_DEV && cmd_line="-dev $cmd_line"
-        grep -q "consolepi-install" $IMG_HOME/.bashrc || echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.bashrc
+        grep -q "consolepi-install" $IMG_HOME/.profile || echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.profile
 
         # make install command/script executable
         sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install &&

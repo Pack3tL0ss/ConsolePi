@@ -7,7 +7,7 @@
 # wired_dhcp=false  # temp until a config option
 cur_dir=$(pwd)
 iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
-tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
+tty_cols=$(stty -a 2>/dev/null | grep -o "columns [0-9]*" | awk '{print $2}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"
 bak_dir="${consolepi_dir}bak/"
@@ -111,29 +111,35 @@ menu_print() {
     line_len=${line_len:=121}
     while (( "$#" )); do
         case "$1" in
+            -c)
+                style="$2"
+                shift 2
+                ;;
             -L|-len)
                 line_len=$2
                 shift 2
                 ;;
             -head)
+                style=${style:-'*'}
                 str=" $2 "
                 len=${#str}
-                # ((line_len+=1)) #actual line_len ends up aw line_len +1 not sure why
+                [[ "$str" =~ "\e[" ]] && ((len-=11))
+                [[ "$str" =~ ';1m' ]] && ((len-=2))
                 left=$(( ((line_len-len))/2 ))
                 [[ $((left+len+left)) -eq $line_len ]] && right=$left || right=$((left+1))
-                printf -v pad_left "%*s" $left && pad_left=${pad_left// /*}
-                printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
-                printf "%s%s%s\n" "$pad_left" "$str" "$pad_right"
+                printf -v pad_left "%*s" $left && pad_left=${pad_left// /$style}
+                printf -v pad_right "%*s" $right && pad_right=${pad_right// /$style}
+                printf "%s%b%s\n" "$pad_left" "$str" "$pad_right"
                 shift 2
                 ;;
             -foot)
-                str="**$2"
+                str="${style}${style}$2"
                 len=${#str}
                 right=$(( ((line_len-len)) ))
-                printf -v pad_right "%*s" $right && pad_right=${pad_right// /*}
+                printf -v pad_right "%*s" $right && pad_right=${pad_right// /$style}
                 printf "%s%s\n" "$str" "$pad_right"
                 shift 2
-                unset line_len
+                unset line_len; unset style
                 ;;
             -nl|-li|*)
                 if [[ "$1" == "-nl" ]]; then
@@ -149,7 +155,7 @@ menu_print() {
                 [[ "$str" =~ ';1m' ]] && ((len-=2))
                 pad_len=$(( ((line_len-len-5)) ))
                 printf -v pad "%*s" $pad_len # && pad=${pad// /-}
-                printf '* %b %s *\n' "$str" "$pad"
+                printf '%s %b %s %s\n' "$style" "$str" "$pad" "$style"
                 shift
                 ;;
         esac
@@ -169,7 +175,7 @@ logit() {
     #
     # NOTE: Sending a status of "ERROR" results in the script exiting
     #       default status is INFO if none provided.
-    [[ $(basename "$0") == 'dhcpcd.exit-hook' ]] && stop_on_error=false || stop_on_error=true
+    [[ $(basename "$0" 2>/dev/null) == 'dhcpcd.exit-hook' ]] && stop_on_error=false || stop_on_error=true
     local args=()
     while (( "$#" )); do
         case "$1" in
@@ -222,7 +228,11 @@ logit() {
 
     # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
-        echo -e "$(date +'%b %d %T') [$$][${status}][${process}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
+        echo -e "$(date +'%b %d %T') [$$][${status}][${process}] Last Error is fatal, script exiting Please review log ${log_file}"
+        echo -e "\n${_red}---- Error Detail ----${_norm}"
+        grep -A 999 "${log_start}" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "ERROR" -B 10 | grep -v "INFO"
+        echo '--'
+        exit 1
     fi
 }
 
@@ -580,12 +590,12 @@ spaces() {
 }
 
 process_cmds() {
-    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
+    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' '_silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
     local do_autoremove=false  # TODO check if the return is necessary may be relic from early testing
     $_DEBUG_ && echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
         if $_DEBUG_; then
-            echo -e "DEBUG:\n\tcmd=${cmd}\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
+            echo -e "DEBUG:\n\tcmd=${cmd}\n\t_silent=$_silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
             echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
         fi
         case "$1" in
@@ -598,7 +608,7 @@ process_cmds() {
                 shift
                 ;;
             -s) # only show msg if cmd fails
-                local silent=true
+                local _silent=true
                 shift
                 ;;
             -u) # Run Command as logged in User
@@ -654,8 +664,8 @@ process_cmds() {
                 [ -z pmsg ] && local pmsg="Success - Install $pname (apt)"
                 [ -z fmsg ] && local fmsg="Error - Install $pname (apt)"
                 local stop=true
-                [[ ! -z $pexclude ]] && local cmd="sudo apt-get -y install $pkg ${pexclude}-" ||
-                    local cmd="sudo apt-get -y install $pkg"
+                [[ ! -z $pexclude ]] && local cmd="sudo apt -y install $pkg ${pexclude}-" ||
+                    local cmd="sudo apt -y install $pkg"
                 ;;
             -apt-purge) # purge pkg followed by autoremove
                 case "$3" in
@@ -670,7 +680,7 @@ process_cmds() {
                 esac
                 [ -z pmsg ] && local pmsg="Success - Remove $pname (apt)"
                 [ -z fmsg ] && local fmsg="Error - Remove $pname (apt)"
-                local cmd="sudo apt-get -y purge $2"
+                local cmd="sudo apt -y purge $2"
                 local do_autoremove=true
                 shift $_shift
                 ;;
@@ -703,10 +713,13 @@ process_cmds() {
         # if cmd is set process cmd
         # use defaults if flag not set
         if [[ ! -z $cmd ]]; then
-            local pmsg=${pmsg:-"Success - $cmd"}
+            local pcmd=${cmd/sudo /} ; local pcmd=${pcmd/-y /}
+            local pmsg=${pmsg:-"Success - $pcmd"}
+            unset pcmd
+            # local pmsg=${pmsg:-"Success - ${cmd/-y /}"}
             local fmsg=${fmsg:-"Error - $cmd  See details in $log_file"}
             local fail_lvl=${fail_lvl:-"WARNING"}
-            local silent=${silent:-false}
+            local _silent=${_silent:-false}
             local stop=${stop:-false}
             local err=${err:-$log_file}
             local out=${out:-'/dev/null'}
@@ -714,16 +727,15 @@ process_cmds() {
             local do_apt_install=${do_apt_install:-false}
             [[ ! -z $cmd_pfx ]] && local cmd="$cmd_pfx $cmd"
             if $_DEBUG_; then
-                echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
+                echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\t_silent=$_silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
                 echo "------------------------------------------------------------------------------------------"
             fi
             # -- // PROCESS THE CMD \\ --
-            ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
-            # if eval "$cmd" >>"$out" 2>>"$err"; then # <-- Do the command
+            ! $_silent && $showstart && logit -E "Starting ${pmsg/Success - /}"
             logit -L "process_cmds executing: $cmd"
             if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
                 local cmd_failed=false
-                ! $silent && logit "$pmsg"
+                ! $_silent && logit "$pmsg"
                 unset cmd
             else
                 local cmd_failed=true
@@ -736,7 +748,7 @@ process_cmds() {
                         logit -L "process_cmds executing: $cmd"
                         if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err"); then
                             local cmd_failed=false
-                            ! $silent && logit "$pmsg"
+                            ! $_silent && logit "$pmsg"
                         fi
                         ((x+=1))
                     done
@@ -765,5 +777,5 @@ process_cmds() {
             logit "Error - apt autoremove returned error-code" "WARNING"
     fi
 
-    return 0
+    ! $cmd_failed && return 0 || return 1
 }

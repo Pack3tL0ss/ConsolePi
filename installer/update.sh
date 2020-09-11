@@ -10,35 +10,6 @@
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-chg_password() {
-    process="pi user password change"
-    [ -e /run/sshwarn ] || logit "/run/sshwarn failed eval" "DEBUG"
-    if grep -q "^pi:" /etc/passwd && [[ "$iam" == "pi" ]] && [ -e /run/sshwarn ]; then
-        if [ ! -z "$pi_pass" ]; then
-            echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
-                logit "Error occured changing pi password using conf/cmd_line arg" "WARNING"
-        else
-            header
-            echo "You are logged in as pi, and the default password has not been changed"
-            prompt="Do You want to change the password for user pi"
-            response=$(user_input_bool)
-            if $response; then
-                match=false
-                while ! $match; do
-                    read -sep "Enter new password for user pi: " pass && echo
-                    read -sep "Re-Enter new password for user pi: " pass2 && echo
-                    [[ "${pass}" == "${pass2}" ]] && match=true || match=false
-                    ! $match && echo -e "ERROR: Passwords Do Not Match\n"
-                done
-                echo "pi:${pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
-                ( logit "Failed to Change Password for pi user" "WARNING" &&
-                echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
-                unset pass && unset pass2 && unset process
-            fi
-        fi
-    fi
-}
-
 set_hostname() {
     process="Change Hostname"
     hostn=$(cat /etc/hostname)
@@ -162,104 +133,103 @@ disable_ipv6()  {
 misc_imports(){
     # additional imports occur in related functions if import file exists
     process="Perform misc imports"
-    if ! $upgrade; then
-        # -- ssh authorized keys --
-        found_path=$(get_staged_file_path "authorized_keys")
-        [[ $found_path ]] && logit "pre-staged ssh authorized keys found - importing"
-        if [[ $found_path ]]; then
-            file_diff_update $found_path /root/.ssh/authorized_keys
-            file_diff_update $found_path ${home_dir}/.ssh/authorized_keys
-                chown $iam:$iam ${home_dir}/.ssh/authorized_keys
-        fi
 
-        # -- ssh known hosts --
-        found_path=$(get_staged_file_path "known_hosts")
-        [[ $found_path ]] && logit "pre-staged ssh known_hosts file found - importing"
-        if [[ $found_path ]]; then
-            file_diff_update $found_path /root/.ssh/known_hosts
-            file_diff_update $found_path ${home_dir}/.ssh/known_hosts
-                chown $iam:$iam ${home_dir}/.ssh/known_hosts
-        fi
-
-        # -- pre staged cloud creds --
-        if $cloud && [[ -f ${stage_dir}/.credentials/credentials.json ]]; then
-            found_path=${stage_dir}/.credentials
-            mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
-            logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
-            logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
-        elif $cloud ; then
-            if [ ! -f "$CLOUD_CREDS_FILE" ]; then
-                desktop_msg="Use 'consolepi-menu cloud' then select the 'r' (refresh) option to authorize ConsolePi in ${cloud_svc}"
-                lite_msg="RaspiOS-lite detected. Refer to the GitHub for instructions on how to generate credential files off box"
-            fi
-        fi
-
-        # -- custom overlay file for PoE hat (fan control) --
-        found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
-        [[ $found_path ]] && logit "overlay file found creating dtbo"
-        if [[ $found_path ]]; then
-            sudo dtc -@ -I dts -O dtb -o /tmp/rpi-poe.dtbo $found_path >> $log_file 2>&1 &&
-                overlay_success=true || overlay_success=false
-                if $overlay_success; then
-                    sudo mv /tmp/rpi-poe.dtbo /boot/overlays 2>> $log_file &&
-                        logit "Successfully moved overlay file, will activate on boot" ||
-                        logit "Failed to move overlay file"
-                else
-                    logit "Failed to create Overlay file from dts"
-                fi
-        fi
-
-        # TODO may need to adjust once fully automated
-        # -- wired-dhcp configurations --
-        if [[ -d ${stage_dir}/wired-dhcp ]]; then
-            logit "Staged wired-dhcp directory found copying contents to ConsolePi wired-dchp dir"
-            cp -r ${stage_dir}/wired-dhcp/. /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
-            logit "Success - copying staged wired-dchp configs" ||
-                logit "Failure - copying staged wired-dchp configs" "WARNING"
-        fi
-
-        # -- ztp configurations --
-        if [[ -d ${stage_dir}/ztp ]]; then
-            logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
-            cp -r ${stage_dir}/ztp/. ${consolepi_dir}ztp/ 2>>$log_file &&
-            logit "Success - copying staged ztp configs" ||
-                logit "Failure - copying staged ztp configs" "WARNING"
-            if [[ $(ls -1 | grep -vi "README" | wc -l ) > 0 ]]; then
-                check_perms ${consolepi_dir}ztp
-            fi
-        fi
-
-        # -- autohotspot dhcp configurations --
-        if [[ -d ${stage_dir}/autohotspot-dhcp ]]; then
-            logit "Staged autohotspot-dhcp directory found copying contents to ConsolePi autohotspot dchp dir"
-            cp -r ${stage_dir}/autohotspot-dhcp/. /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
-            logit "Success - copying staged autohotspot-dchp configs" ||
-                logit "Failure - copying staged autohotspot-dchp configs" "WARNING"
-        fi
-
-        # -- udev rules - serial port mappings --
-        found_path=$(get_staged_file_path "10-ConsolePi.rules")
-        if [[ $found_path ]]; then
-            logit "udev rules file found ${found_path} enabling provided udev rules"
-            if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
-                file_diff_update $found_path /etc/udev/rules.d/10-ConsolePi.rules
-            else
-                sudo cp $found_path /etc/udev/rules.d
-                sudo udevadm control --reload-rules && sudo udevadm trigger
-            fi
-        fi
-
-        # -- imported elsewhere during the install
-        # /etc/ser2net.conf in install_ser2net()
-        # /etc/openvpn/client/ConsolePi.ovpn and ovpn_credentials in install_openvpn()
-        # /etc/wpa_supplicant/wpa_supplicant.conf in get_known_ssids()
-        #
-        # -- imported in phase 1 (install.sh)
-        # /home/pi/.ssh/known_hosts
-        # /home/pi/.ssh/authorized_keys
-        # /home/<user>/. for non pi user contents of <stage-dir>/home/<user> is imported after the user is created
-
+    # -- ssh authorized keys --
+    found_path=$(get_staged_file_path "authorized_keys")
+    if [[ $found_path ]]; then
+        logit "pre-staged ssh authorized keys found - importing"
+        file_diff_update $found_path /root/.ssh/authorized_keys
+        file_diff_update $found_path ${home_dir}/.ssh/authorized_keys
+            chown $iam:$iam ${home_dir}/.ssh/authorized_keys
     fi
+
+    # -- ssh known hosts --
+    found_path=$(get_staged_file_path "known_hosts")
+    if [[ $found_path ]]; then
+        logit "pre-staged ssh known_hosts file found - importing"
+        file_diff_update $found_path /root/.ssh/known_hosts
+        file_diff_update $found_path ${home_dir}/.ssh/known_hosts
+            chown $iam:$iam ${home_dir}/.ssh/known_hosts
+    fi
+
+    # -- pre staged cloud creds --
+    if $cloud && [[ -f ${stage_dir}/.credentials/credentials.json ]]; then
+        found_path=${stage_dir}/.credentials
+        mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
+        logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
+        logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
+    elif $cloud ; then
+        if [ ! -f "$CLOUD_CREDS_FILE" ]; then
+            desktop_msg="Use 'consolepi-menu cloud' then select the 'r' (refresh) option to authorize ConsolePi in ${cloud_svc}"
+            lite_msg="RaspiOS-lite detected. Refer to the GitHub for instructions on how to generate credential files off box"
+        fi
+    fi
+
+    # -- custom overlay file for PoE hat (fan control) --
+    found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
+    [[ $found_path ]] && logit "overlay file found creating dtbo"
+    if [[ $found_path ]]; then
+        sudo dtc -@ -I dts -O dtb -o /tmp/rpi-poe.dtbo $found_path >> $log_file 2>&1 &&
+            overlay_success=true || overlay_success=false
+            if $overlay_success; then
+                sudo mv /tmp/rpi-poe.dtbo /boot/overlays 2>> $log_file &&
+                    logit "Success moved overlay file, will activate on boot" ||
+                    logit "Failed to move overlay file"
+            else
+                logit "Failed to create Overlay file from dts"
+            fi
+    fi
+
+    # TODO may need to adjust once fully automated
+    # -- wired-dhcp configurations --
+    if [[ -d ${stage_dir}/wired-dhcp ]]; then
+        logit "Staged wired-dhcp directory found copying contents to ConsolePi wired-dchp dir"
+        cp -r ${stage_dir}/wired-dhcp/. /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
+        logit "Success - copying staged wired-dchp configs" ||
+            logit "Failure - copying staged wired-dchp configs" "WARNING"
+    fi
+
+    # -- ztp configurations --
+    if [[ -d ${stage_dir}/ztp ]]; then
+        logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
+        cp -r ${stage_dir}/ztp/. ${consolepi_dir}ztp/ 2>>$log_file &&
+        logit "Success - copying staged ztp configs" ||
+            logit "Failure - copying staged ztp configs" "WARNING"
+        if [[ $(ls -1 | grep -vi "README" | wc -l ) > 0 ]]; then
+            check_perms ${consolepi_dir}ztp
+        fi
+    fi
+
+    # -- autohotspot dhcp configurations --
+    if [[ -d ${stage_dir}/autohotspot-dhcp ]]; then
+        logit "Staged autohotspot-dhcp directory found copying contents to ConsolePi autohotspot dchp dir"
+        cp -r ${stage_dir}/autohotspot-dhcp/. /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
+        logit "Success - copying staged autohotspot-dchp configs" ||
+            logit "Failure - copying staged autohotspot-dchp configs" "WARNING"
+    fi
+
+    # -- udev rules - serial port mappings --
+    found_path=$(get_staged_file_path "10-ConsolePi.rules")
+    if [[ $found_path ]]; then
+        logit "udev rules file found ${found_path} enabling provided udev rules"
+        if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
+            file_diff_update $found_path /etc/udev/rules.d/10-ConsolePi.rules
+        else
+            sudo cp $found_path /etc/udev/rules.d
+            sudo udevadm control --reload-rules && sudo udevadm trigger
+        fi
+    fi
+
+    # -- imported elsewhere during the install
+    # /etc/ser2net.conf in install_ser2net()
+    # /etc/openvpn/client/ConsolePi.ovpn and ovpn_credentials in install_openvpn()
+    # /etc/wpa_supplicant/wpa_supplicant.conf in get_known_ssids()
+    #
+    # -- imported in phase 1 (install.sh)
+    # /home/pi/.ssh/known_hosts
+    # /home/pi/.ssh/authorized_keys
+    # /home/<user>/. for non pi user contents of <stage-dir>/home/<user> is imported after the user is created
+
     unset process
 }
 
@@ -304,17 +274,16 @@ dhcp_run_hook() {
     process="Configure dhcp.exit-hook"
     hook_file="/etc/ConsolePi/src/dhcpcd.exit-hook"
     logit "${process} - Starting"
-    [[ -f /etc/dhcpcd.exit-hook ]] && exists=true || exists=false                      # find out if exit-hook file already exists
-    if $exists; then
-        is_there=`grep -c $hook_file  /etc/dhcpcd.exit-hook`  # find out if it's already pointing to ConsolePi script
-        if [ $is_there -gt 0 ]; then
+    if [ -f /etc/dhcpcd.exit-hook ]; then
+        if grep -q $hook_file  /etc/dhcpcd.exit-hook; then
             logit "exit-hook already configured [File Found and Pointer exists]"  #exit-hook exists and line is already there
         else
-            sudo sed -i '/.*\/etc\/ConsolePi\/.*/c\\/etc\/ConsolePi\/src\/dhcpcd.exit-hook "$@"' /etc/dhcpcd.exit-hook &&
-            logit "Successfully Updated exit-hook Pointer" || logit "Failed to update exit-hook pointer" "ERROR"
+            echo "$hook_file \"\$@\"" > "/tmp/dhcpcd.exit-hook"
+            file_diff_update /tmp/dhcpcd.exit-hook /etc/dhcpcd.exit-hook
+            rm /tmp/dhcpcd.exit-hook >/dev/null 2>>$log_file
         fi
     else
-        sudo echo "$hook_file \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "Failed to create exit-hook script" "ERROR"
+        echo "$hook_file \"\$@\"" > "/etc/dhcpcd.exit-hook" || logit "Failed to create exit-hook script" "ERROR"
     fi
 
     # -- Make Sure exit-hook is executable --
@@ -395,11 +364,7 @@ install_ovpn() {
     fi
 
     sudo chmod 600 /etc/openvpn/client/* 1>/dev/null 2>> $log_file || logit "Failed chmod 600 openvpn client files" "WARNING"
-    unset process
-}
 
-ovpn_graceful_shutdown() {
-    process="OpenVPN Graceful Shutdown"
     systemd_diff_update "ovpn-graceful-shutdown"
     unset process
 }
@@ -408,7 +373,20 @@ install_autohotspotn () {
     process="AutoHotSpotN"
     logit "Install/Update AutoHotSpotN"
 
-    # TODO check logic here, double check consolepi-autohotspot-dhcp is being disabled after install
+    dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
+    if [[ -z "$dnsmasq_ver" ]]; then
+        process_cmds -apt-install dnsmasq
+        # disable dnsmasq only if we just installed it
+        systemctl stop dnsmasq 1>/dev/null 2>> $log_file &&
+            logit "dnsmasq stopped Successfully" ||
+                logit "An error occurred stopping dnsmasq - verify after install" "WARNING"
+        sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
+            logit "dnsmasq autostart disabled Successfully" ||
+                logit "An error occurred disabling dnsmasq autostart - verify after install" "WARNING"
+    else
+        logit "dnsmasq v${dnsmasq_ver} already installed"
+    fi
+
     systemd_diff_update autohotspot
     if ! head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
         logit "Using New autohotspot specific dnsmasq instance"
@@ -418,8 +396,9 @@ install_autohotspotn () {
             systemctl stop consolepi-autohotspot-dhcp 2>>$log_file ||
                 logit "Failed to stop consolepi-autohotspot-dhcp.service check log" "WARNING"
         fi
-        if systemctl is-enabled >/dev/null 2>&1; then
-            systemctl disable consolepi-autohotspot-dhcp 2>>$log_file ||
+        if systemctl is-enabled consolepi-autohotspot-dhcp >/dev/null 2>&1; then
+            systemctl disable consolepi-autohotspot-dhcp 2>>$log_file &&
+                logit "consolepi-autohotspot-dhcp autostart disabled Successfully, startup handled by autohotspot" ||
                 logit "Failed to disable consolepi-autohotspot-dhcp.service check log" "WARNING"
         fi
     else
@@ -433,16 +412,9 @@ install_autohotspotn () {
         logit "hostapd ${hostapd_ver} already installed"
     fi
 
-    dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
-    if [[ -z "$dnsmasq_ver" ]]; then
-        process_cmds -apt-install dnsmasq
-    else
-        logit "dnsmasq v${dnsmasq_ver} already installed"
-    fi
-
     # -- override_dir set in common.sh
     [[ -f ${override_dir}/hostapd.service ]] && hostapd_override=true || hostapd_override=false
-    [[ -f ${override_dir}/dnsmasq.service ]] && dnsmasq_override=true || dnsmasq_override=false
+    # [[ -f ${override_dir}/dnsmasq.service ]] && dnsmasq_override=true || dnsmasq_override=false  # No Longer Used
     if ! $hostapd_override ; then
         logit "disabling hostapd (handled by AutoHotSpotN)."
         sudo systemctl unmask hostapd.service 1>/dev/null 2>> $log_file &&
@@ -453,13 +425,6 @@ install_autohotspotn () {
                 logit "An error occurred disabling hostapd autostart - verify after install" "WARNING"
     else
         logit "${_cyan}skipped hostapd disable - hostapd.service is overriden${_norm}"
-    fi
-
-    # disable dnsmasq only if we just installed it (dnsmasq_ver won't be defined)
-    if [[ -z "$dnsmasq_ver" ]]; then
-        sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
-            logit "dnsmasq autostart disabled Successfully" ||
-                logit "An error occurred disabling dnsmasq autostart - verify after install" "WARNING"
     fi
 
     logit "Create/Configure hostapd.conf"
@@ -557,7 +522,8 @@ gen_dnsmasq_conf () {
 gen_dhcpcd_conf () {
     process="dhcpcd.conf"
     logit "configure dhcp client and static fallback"
-    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip} wired_ip=${wired_ip} wired_dhcp=${wired_dhcp}
+    [ -f /etc/sysctl.d/99-noipv6.conf ] && noipv6=true || noipv6=false
+    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip} wired_ip=${wired_ip} wired_dhcp=${wired_dhcp} noipv6=${noipv6}
     unset process
 }
 
@@ -767,8 +733,9 @@ misc_stuff() {
     if $hotspot && [ ${wlan_country^^} == "US" ]; then
         process="Set Keyboard Layout"
         logit "${process} - Starting"
-        sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard && logit "KeyBoard Layout changed to ${wlan_country,,}"
-        logit "${process} - Success" || logit "${process} - Failed ~ verify contents of /etc/default/keyboard" "WARNING"
+        sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard &&
+            logit "Success - KeyBoard Layout changed to ${wlan_country,,}" ||
+            logit "${process} - Failed ~ verify contents of /etc/default/keyboard" "WARNING"
         unset process
     fi
 
@@ -790,7 +757,6 @@ get_serial_udev() {
     process="Predictable Console Ports"
     logit "${process} Starting"
     header
-
     echo
     echo -e "--------------------------------------------- ${_green}Predictable Console ports${_norm} ---------------------------------------------"
     echo "-                                                                                                                   -"
@@ -800,8 +766,8 @@ get_serial_udev() {
     echo "- The behavior if you do *not* define Predictable Console Ports is the adapters will use the root device names      -"
     echo "-   ttyUSB# or ttyACM# where the # starts with 0 and increments for each adapter of that type plugged in. The names -"
     echo "-   won't necessarily be consistent between reboots nor will the TELNET port.  This method is OK for temporary use  -"
-    echo -e "-    of an adapter or if you only plan to use a single adapter.  Otherwise setting predictable aliases is        -"
-    echo "-       ${_lred}highly recommended${_norm}.                                                                                         -"
+    echo -e "-    of an adapter or if you only plan to use a single adapter.  Otherwise setting predictable aliases is           -"
+    echo -e "-    ${_lred}highly recommended${_norm}.                                                                                            -"
     echo "-                                                                                                                   -"
     echo "- Defining the ports with this utility is also how device specific serial settings are configured.  Otherwise       -"
     echo "-   they will use the default which is 9600 8N1                                                                     -"
@@ -812,8 +778,8 @@ get_serial_udev() {
     echo "-                                                                                                                   -"
     echo "---------------------------------------------------------------------------------------------------------------------"
     echo
-    echo "You need to have the serial adapters you want to map to specific telnet ports available"
-    prompt="Would you like to configure predictable serial ports now"
+    echo "You need to have the serial adapters available"
+    prompt="Would you like to configure predictable serial port aliases now"
     $upgrade && user_input false "${prompt}" || user_input true "${prompt}"
     if $result ; then
         if [ -f ${consolepi_dir}src/consolepi-commands/consolepi-menu ]; then
@@ -879,7 +845,7 @@ custom_post_install_script() {
 post_install_msg() {
     clear;echo
     declare -a _msg=(
-            -head "Installation Complete"
+            -head "${_green}Installation Complete${_norm}"
             "${_bold}Next Steps/Info${_norm}"
             -nl
             " ${_bold}Cloud Sync:${_norm}"
@@ -930,7 +896,7 @@ post_install_msg() {
             -li "${_cyan}consolepi-addconsole${_norm}: Configure serial adapter to telnet port rules"
             -li "${_cyan}consolepi-showaliases${_norm}: Shows Configured adapter aliases, helps identify any issues with aliases"
             -li "${_cyan}consolepi-logs${_norm}: Displays ConsolePi logs (Note this will install mutli-tail the first time it's ran)"
-            "     valid args: all (will cat consolepi.log), any other argument is passed to tail as a flag."
+            "     valid args: 'all' (will cat consolepi.log), any other argument is passed to tail as a flag."
             "                 If no arguments are specified, script will follow tail on consolepi-log, and syslog (with filters)"
             "     examples: \"consolepi-logs all\", \"consolepi-logs -f\", \"consolepi-logs -20\", \"consolepi-logs 20\""
             -li "${_cyan}consolepi-killvpn${_norm}: Gracefully terminate openvpn tunnel if one is established"
@@ -993,20 +959,16 @@ update_main() {
     # update_config
 
     if ! $upgrade; then
-        chg_password
         set_hostname
         set_timezone
         disable_ipv6
         do_wifi_country
+        misc_imports
     fi
-    misc_imports
     install_ser2net
     dhcp_run_hook
     ConsolePi_cleanup
-    if $ovpn_enable; then
-        install_ovpn
-        ovpn_graceful_shutdown
-    fi
+    $ovpn_enable && install_ovpn
     if $hotspot ; then
         install_autohotspotn
         gen_dnsmasq_conf
@@ -1021,9 +983,7 @@ update_main() {
     ! $upgrade && misc_stuff
     do_resize
     if ( [ ! -z "$skip_utils" ] && $skip_utils ) || $silent; then
-        process="optional utilities installer"
-        logit "utilities menu bypassed by config variable"
-        unset process
+        logit -t "optional utilities installer" "utilities menu bypassed by config variable"
     else
         get_utils
         util_main
@@ -1033,8 +993,7 @@ update_main() {
         get_known_ssids
         get_serial_udev
     else
-        process="Configure WLAN - Predictable Console Ports"
-        logit "Prompts bypassed due to -silent flag"
+        logit -t "Configure WLAN - Predictable Console Ports" "Prompts bypassed due to -silent flag"
     fi
     custom_post_install_script
     process=Complete
@@ -1042,9 +1001,9 @@ update_main() {
         post_install_msg
     else
         _msg="Success Silent Install Complete a reboot is required."
-        [[ "$warn_cnt" > 0 ]] && logit "$_msg\n ${_red}Warnings Occured During Install ($warn_cnt)${_norm}." | cut -d']' -f 3 || echo "$_msg"
+        [[ "$warn_cnt" > 0 ]] && logit "$_msg\n ${_red}Warnings Occured During Install ($warn_cnt)${_norm}." | cut -d']' -f4- || echo "$_msg"
     fi
-    $silent && $do_reboot && echo -e "\n${_green}Install Complete${_norm}\n  system will reboot in 10 seconds (CTRL+C to abort reboot)" && sleep 10 && $reboot
+    $silent && $do_reboot && echo -e "\n${_green}Install Complete${_norm}\n  system will reboot in 10 seconds (CTRL+C to abort reboot)" && sleep 10 && reboot
 }
 
 # ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line

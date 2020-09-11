@@ -7,7 +7,7 @@
 # wired_dhcp=false  # temp until a config option
 cur_dir=$(pwd)
 iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
-tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
+tty_cols=$(stty -a 2>/dev/null | grep -o "columns [0-9]*" | awk '{print $2}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"
 bak_dir="${consolepi_dir}bak/"

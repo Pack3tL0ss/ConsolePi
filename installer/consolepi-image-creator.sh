@@ -452,9 +452,12 @@ main() {
     fi
     [[ $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
     [[ $boot_list =~ $my_usb ]] && my_usb=    # if usb device found make sure it's not marked as bootable if so reset my_usb so we can check for sd card adapter
+    # basename $(mount | grep 'on / '|awk '{print $1}')
     [[ -z $my_usb ]] && my_usb=$( sudo fdisk -l | grep 'Disk /dev/mmcblk' | awk '{print $2}' | cut -d: -f1 | cut -d'/' -f3)
 
-    echo -e "\n\n$(green "ConsolePi Image Creator") \n'exit' (which will terminate the script) is valid at all prompts\n"
+    ! $LOCAL_DEV && SCRIPT_TITLE=$(green "ConsolePi Image Creator") || SCRIPT_TITLE="${_green}ConsolePi Image Creator${_norm} ${_lred}${_blink}Local DEV${_norm}"
+    echo -e "\n\n$SCRIPT_TITLE \n'exit' (which will terminate the script) is valid at all prompts\n"
+
     [[ $my_usb ]] && echo -e "Script has discovered removable flash device @ $(green "${my_usb}") with the following details\n" ||
         echo -e "Script failed to detect removable flash device, you will need to specify the device"
 

@@ -896,7 +896,7 @@ post_install_msg() {
             -li "${_cyan}consolepi-addconsole${_norm}: Configure serial adapter to telnet port rules"
             -li "${_cyan}consolepi-showaliases${_norm}: Shows Configured adapter aliases, helps identify any issues with aliases"
             -li "${_cyan}consolepi-logs${_norm}: Displays ConsolePi logs (Note this will install mutli-tail the first time it's ran)"
-            "     valid args: all (will cat consolepi.log), any other argument is passed to tail as a flag."
+            "     valid args: 'all' (will cat consolepi.log), any other argument is passed to tail as a flag."
             "                 If no arguments are specified, script will follow tail on consolepi-log, and syslog (with filters)"
             "     examples: \"consolepi-logs all\", \"consolepi-logs -f\", \"consolepi-logs -20\", \"consolepi-logs 20\""
             -li "${_cyan}consolepi-killvpn${_norm}: Gracefully terminate openvpn tunnel if one is established"

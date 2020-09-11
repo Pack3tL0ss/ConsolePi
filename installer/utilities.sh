@@ -68,9 +68,6 @@ get_util_status () {
     # PKG_EXPLAIN['wireshark~tshark']="packet capture software"
     util_list_i=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort))
     util_list_f=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort -rn))
-    # sudo rm /tmp/ansible_ver 2>/dev/null
-
-
 
     sep=': '; i=0; for u in ${util_list_i[@]}; do
         pretty=${u//_/ }
@@ -91,6 +88,9 @@ get_util_status () {
         fi
     done
     # echo -e "---\nDEBUG\n${ASK_OPTIONS[@]}\n---" # -- DEBUG LINE --
+
+    # -- CLEANUP --
+    [ -f /tmp/ansible_ver ] && rm /tmp/ansible_ver 2>>$log_file
 }
 
 do_ask() {

@@ -191,13 +191,12 @@ do_user_dir_import(){
     [[ $1 == root ]] && local user_home=root || local user_home="home/$1"
     # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
     if [[ -d "$STAGE_DIR/$user_home" ]]; then
-        logit "Found staged files for $1, copying to users home"
-        chown -R $(grep "^$1:" /etc/passwd | cut -d: -f3-4) "$STAGE_DIR/$user_home" &&
-        cp -r "$STAGE_DIR/$user_home" "/mnt/usb2/$user_home" &&
-        ( logit "Success - copy staged files for user $1" && return 0 ) ||
-            ( logit "An error occured when attempting cp pre-staged files for user $1" "WARNING"
-              return 1
-            )
+        dots "Found staged files for $1, cp to ${1}'s home on image"
+        res=$(
+            chown -R $(grep "^$1:" /mnt/usb2/etc/passwd | cut -d: -f3-4) "$STAGE_DIR/$user_home" 2>&1 &&
+            cp -r "$STAGE_DIR/$user_home/." "/mnt/usb2/$user_home/" 2>&1
+            ) &&
+                ( do_error $? && return 0 ) || ( do_error $? "$res" && return 1 )
     fi
 }
 

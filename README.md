@@ -81,6 +81,15 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
   - Additionally AutoHotSpot was added as a configurable option, but the prompt didn't display.  All of these worked via cmd-line option/silent install.
   > If you did a fresh install w/ any version from v2020-2.4 - v2020-4.2 you are likely impacted.  Just use `sudo passwd consolepi` to set the password as desired.
 
+### Sept 2020 (v2020-4.3) Installer Version 53 Sept 2020 Lots of Installer Tweaks
+- This effort was primarily around the Installer and the Image Creator.
+- Installer: Tested, re-tested, made enhancements/improvements, added more imports
+- Place home/pi home/your-user /root etc. in consolepi-stage dir and run image-creator...
+  - Image Creator will import home/pi into home/pi on the image, entire directory structure.  Same for /root.
+  - Once the installer runs on the image it will also import /home/pi (redundant, but useful if you don't use the image-creator)
+  - Installer also prompts to see if you want to create new users, once created if in the consolepi-stage dir it's structure will be imported
+> So you can import .ssh keys / known_hosts and any other files/dirs you want in the users home.
+
 
 # Features
 ## **Feature Summary Image**
@@ -570,6 +579,8 @@ Examples:
 - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled with `--auto_install=false`.
   > If you set `--auto_install=false`, `--cmd_line=...` is ignored.  You would specify arguments for the installer manually.
 - If the `consolepi-image-creator.sh` script is ran from a ConsolePi, the script will detect that it's a ConsolePi and offer to pre-staage it's existing settings.  If a file has alredy been pre-staged (via consolepi-stage dir) it will skip it.  It will give you the chance to edit ConsolePi.yaml if pre-staged, so you can deploy multiple ConsolePis and edit the specifics for each as you stage them.
+- Entire home directory imports:  If you place /root and/or /home/pi inside the consolepi-stage directory.  Those contents/subdirs will be imported to the respective users directory on the image.
+  - You can even pre-stage a users home directory for a user that doesn't exist.  When the installer runs, you are given the option to create new users.  Once created if a folder is found in consolepi-stage for that user (i.e. `home/pi/consolepi-stage/home/larry`), the contents will be coppied from the `consolepi-stage` dir to `/home/larry`.
 
 The install script (not this image-creator, the installer that actually installs ConsolePi) will look for and if found import a number of items from the consolepi-stage directory.  Gdrive credentials, ovpn settings, ssh keys refer to *TODO link to section highlighting imports*
 

@@ -304,7 +304,7 @@ Refer to [Manual Host Entries](#configuring-manual-host-entries) in the Configur
 
 ## ZTP Orchestration
 
-ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DHCP.  The feature uses DHCP to trigger ZTP, and supports config file generation using jinja2 templates.  For more details see [`ConsolePi ZTP Orchestration`](reademe_content/ztp.md).
+ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DHCP.  The feature uses DHCP to trigger ZTP, and supports config file generation using jinja2 templates.  For more details see [`ConsolePi ZTP Orchestration`](readme_content/ztp.md).
 
 ## ConsolePi API
 

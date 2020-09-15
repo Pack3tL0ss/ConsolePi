@@ -23,7 +23,7 @@ else
 fi
 
 if [[ ${rt} != 0 ]] && [[ "$1" != 'sh' ]] ; then
-    echo -e  "\n\n\nIt appears an error occured in the primary menu\n"
+    echo -e  "\n\n\nIt appears an error occurred in the primary menu\n"
     echo "The shell based menu acts as a backup menu in the unlikely event"
     echo "something breaks with the fully functional python based menu."
     echo
@@ -34,7 +34,7 @@ if [[ ${rt} != 0 ]] && [[ "$1" != 'sh' ]] ; then
     read -ep "Enter y/yes to launch the backup shell menu, or enter to exit. " ch
     case "${ch,,}" in
         y|yes)
-        sudo /etc/ConsolePi/src/consolepi-menu.sh
+        /etc/ConsolePi/src/consolepi-menu.sh
         ;;
     esac
 fi

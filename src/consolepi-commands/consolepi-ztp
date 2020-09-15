@@ -5,7 +5,7 @@ state_file=/tmp/pre-ztp-states
 
 print_msgs() {
     for msg in "${@}"; do
-        echo -e "$msg" |  cut -d']' -f 3 | sed -e 's/^[[:space:]]*//'
+        echo -e "$msg" |  cut -d']' -f 3- | sed -e 's/^[[:space:]]*//'
     done
 }
 
@@ -48,7 +48,7 @@ ztp_do_imports() {
 ztp_prep() {
     process="PREP ZTP"
 
-    systemctl is_active consolepi-wired-dhcp >/dev/null && word=Restart || word=Start
+    systemctl is-active consolepi-wired-dhcp >/dev/null && word=Restart || word=Start
     [[ "$1" == "y" ]] && result=true ||
         user_input true "$word DHCP for ZTP Now"
     if $result; then

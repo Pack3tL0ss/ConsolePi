@@ -4,10 +4,10 @@ import json
 import logging
 import os
 import requests  # NoQA
-from consolepi.utils import Utils  # NoQA
+from consolepi.utils import Utils  # type: ignore # NoQA
 
 try:
-    import better_exceptions
+    import better_exceptions  # type: ignore
     better_exceptions.MAX_LENGTH = None
     os.environ['BETTER_EXCEPTIONS'] = '1'
 except ImportError:
@@ -123,7 +123,7 @@ utils = Utils()
 
 log = ConsolePiLog(LOG_FILE)
 
-from consolepi.config import Config  # NoQA
+from consolepi.config import Config  # type: ignore # NoQA
 
 config = Config()  # NoQA
 if config.debug:

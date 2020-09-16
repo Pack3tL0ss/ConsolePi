@@ -2,8 +2,10 @@
 import os
 import yaml
 import json
+import shutil
+from pathlib import Path
 
-from consolepi import utils, log
+from consolepi import utils, log  # type: ignore
 LOG_FILE = '/var/log/ConsolePi/consolepi.log'
 
 # overridable defaults (via OVERRIDES section of ConsolePi.yaml)
@@ -56,6 +58,7 @@ class Config():
         '''Parse bash style cfg vars from cfg file convert to class attributes.'''
         # prefer yaml file for all config items if it exists
         do_legacy = True
+        yml = {}
         if yaml_cfg and utils.valid_file(yaml_cfg):
             yml = self.get_yaml_file(yaml_cfg)
             cfg = yml.get('CONFIG', yml)
@@ -198,7 +201,34 @@ class Config():
             if hosts[h].get('method').lower() == 'ssh':
                 port = 22 if ':' not in hosts[h]['address'] else hosts[h]['address'].split(':')[1]
                 _user_str = '' if not hosts[h].get('username') else f'{hosts[h].get("username")}@'
-                hosts[h]['cmd'] = f"sudo -u {self.loc_user} ssh -t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
+                key_file = None
+                if hosts[h].get("key"):
+                    if utils.valid_file(f"/home/{self.loc_user}/.ssh/{hosts[h]['key']}"):
+                        user_key = Path(f"/home/{self.loc_user}/.ssh/{hosts[h]['key']}")
+                        if utils.valid_file(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}"):
+                            mstr_key = Path(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}")
+                            if mstr_key.stat().st_mtime > user_key.stat().st_mtime:
+                                shutil.copy(mstr_key, user_key)
+                                shutil.chown(user_key, user=self.loc_user, group=self.loc_user)
+                                user_key.chmod(0o600)
+                                log.info(f"{hosts[h]['key']} Updated from ConsolePi global .ssh key_dir to "
+                                         f"{str(user_key.parent)} for use with {h}...", show=True)
+                            key_file = str(user_key)
+                    elif utils.valid_file(hosts[h]['key']):
+                        key_file = hosts[h]['key']
+                    elif utils.valid_file(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}"):
+                        user_ssh_dir = Path(f"/home/{self.loc_user}/.ssh/")
+                        if user_ssh_dir.is_dir:
+                            shutil.copy(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}", user_ssh_dir)
+                            user_key = Path(f"{user_ssh_dir}/{hosts[h]['key']}")
+                            shutil.chown(user_key, user=self.loc_user, group=self.loc_user)
+                            user_key.chmod(0o600)
+                            log.info(f"{hosts[h]['key']} imported from ConsolePi global .ssh key_dir to "
+                                     f"{str(user_ssh_dir)} for use with {h}...", show=True)
+                            key_file = str(user_key)
+                hosts[h]['cmd'] = f"sudo -u {self.loc_user} ssh{' ' if not key_file else f' -i {key_file} '}" \
+                                  f"-t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
+                # hosts[h]['cmd'] = f"sudo -u {self.loc_user} ssh -t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
             elif hosts[h].get('method').lower() == 'telnet':
                 port = 23 if ':' not in hosts[h]['address'] else hosts[h]['address'].split(':')[1]
                 _user_str = '' if not hosts[h].get('username') else f'-l {hosts[h].get("username")}'
@@ -275,6 +305,7 @@ class Config():
                 log_ptr = None
 
                 connect_params = line[4].replace(',', ' ').split()
+                baud = None
                 for option in connect_params:
                     if option in self.static.get('VALID_BAUD',
                                                  ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']):

@@ -158,6 +158,7 @@ class Utils:
                     "It is also possible that a host key has just been changed."
                 )
                 while True:
+                    choice = ''
                     try:
                         choice = input(
                             "\nDo you want to remove the old host key and re-attempt the connection (y/n)? "
@@ -544,6 +545,8 @@ class Utils:
                     for d in dev
                     if "/" not in d
                 }
+            else:
+                d_out = None
             # for d in dev:
             #     if '/' not in d:
             #         _pfx = pfx if pfx + d in data else pfx_else

@@ -532,9 +532,9 @@ class ConsolePiMenu(Rename):
                 footer['opts'].insert(0, 'power')
                 footer['overrides'] = {'power': ['p', 'Power Control Menu (linked, GPIO, tasmota)']}
 
-            # for dli menu remove any tasmota errors
+            # for dli menu remove any tasmota or esphome errors
             for _error in log.error_msgs:
-                if 'TASMOTA' in _error:
+                if 'TASMOTA' in _error or 'esphome' in _error:
                     log.error_msgs.remove(_error)
 
             self.menu.print_menu(outer_body, header=header, subhead=subhead, footer=footer, subs=slines,
@@ -914,6 +914,7 @@ class ConsolePiMenu(Rename):
 
             # Build menu items for each reachable remote ConsolePi
             subs.append('Remote ConsolePis')
+            # TODO make a sep method as main essentially has this same section
             for host in sorted(rem):
                 if rem[host].get('rem_ip'):
                     mlines.append(f'{host} @ {rem[host]["rem_ip"]}')
@@ -924,7 +925,7 @@ class ConsolePiMenu(Rename):
                     item += 1
             outer_body.append(mlines)
 
-            # Build menu items for each manually defined host in hosts.json / ConsolePi.yaml
+            # Build menu items for each manually defined host in ConsolePi.yaml
             if config.hosts:
                 for _sub in config.hosts['rshell']:
                     subs.append(_sub)

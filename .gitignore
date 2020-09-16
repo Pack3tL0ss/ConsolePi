@@ -26,3 +26,6 @@ ztp/*
 # Except this file and the readme
 # !.gitignore
 ztp/*!README
+
+# -- // device specific ssh key dir \\ --
+.ssh

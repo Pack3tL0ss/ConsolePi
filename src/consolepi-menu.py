@@ -12,10 +12,13 @@ from halo import Halo
 
 # --// ConsolePi imports \\--
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi.consolepi import ConsolePi  # NoQA
-from consolepi.udevrename import Rename  # NoQA
-from consolepi import log, utils, config  # NoQA
-# from consolepi.gdrive import GoogleDrive # <-- hidden import burried in refresh method of consolepi.remotes.Remotes(...).refresh
+from consolepi.consolepi import ConsolePi  # type: ignore # NoQA
+from consolepi.udevrename import Rename  # type: ignore # NoQA
+from consolepi import log, utils, config  # type: ignore # NoQA
+
+# GoogleDrive import below is in refresh method of consolepi.remotes.Remotes(...).refresh
+# package costs too much to import (time). Imported on demand when necessary
+# from consolepi.gdrive import GoogleDrive
 
 MIN_WIDTH = 55
 MAX_COLS = 5
@@ -437,9 +440,10 @@ class ConsolePiMenu(Rename):
             index = start = 1
             outer_body = []
             slines = []
+            state_list = []
             for dli in sorted(dli_dict):
-                state_list = []
                 mlines = []
+                state_list = []
                 port_dict = dli_dict[dli]
                 # strip off all but hostname if address is fqdn
                 host_short = dli.split('.')[0] if '.' in dli and not dli.split('.')[0].isdigit() else dli
@@ -532,9 +536,9 @@ class ConsolePiMenu(Rename):
                 footer['opts'].insert(0, 'power')
                 footer['overrides'] = {'power': ['p', 'Power Control Menu (linked, GPIO, tasmota)']}
 
-            # for dli menu remove any tasmota errors
+            # for dli menu remove any tasmota or esphome errors
             for _error in log.error_msgs:
-                if 'TASMOTA' in _error:
+                if 'TASMOTA' in _error or 'esphome' in _error:
                     log.error_msgs.remove(_error)
 
             self.menu.print_menu(outer_body, header=header, subhead=subhead, footer=footer, subs=slines,
@@ -606,6 +610,8 @@ class ConsolePiMenu(Rename):
         if adapters.get('_hosts'):
             for h in adapters['_hosts']:
                 menu_line = adapters['_hosts'][h].get('menu_line')
+                _m = "ssh"  # init.  TODO verify, and remove, shouldn't need to build the cmd below, built in config
+                host_pretty = h  # init
                 if not menu_line:
                     host_pretty = h.replace('/host/', '')
                     _addr = adapters['_hosts'][h]['address']
@@ -701,8 +707,7 @@ class ConsolePiMenu(Rename):
     def rename_menu(self, direct_launch=False, from_name=None):
         cpi = self.cpi
         local = cpi.local
-        if not direct_launch:
-            remotes = cpi.remotes
+        remotes = cpi.remotes if not direct_launch else None
         choice = ''
         menu_actions = {}
         # -- rename invoked from another ConsolePi (remote rename) --
@@ -716,8 +721,7 @@ class ConsolePiMenu(Rename):
                 if not direct_launch:
                     remotes.data = remotes.get_remote(data=config.remote_update())
             loc = local.adapters
-            if not direct_launch:
-                rem = remotes.data
+            rem = remotes.data if not direct_launch else []
 
             slines = []
             outer_body = []
@@ -914,6 +918,7 @@ class ConsolePiMenu(Rename):
 
             # Build menu items for each reachable remote ConsolePi
             subs.append('Remote ConsolePis')
+            # TODO make a sep method as main essentially has this same section
             for host in sorted(rem):
                 if rem[host].get('rem_ip'):
                     mlines.append(f'{host} @ {rem[host]["rem_ip"]}')
@@ -924,7 +929,7 @@ class ConsolePiMenu(Rename):
                     item += 1
             outer_body.append(mlines)
 
-            # Build menu items for each manually defined host in hosts.json / ConsolePi.yaml
+            # Build menu items for each manually defined host in ConsolePi.yaml
             if config.hosts:
                 for _sub in config.hosts['rshell']:
                     subs.append(_sub)

@@ -90,6 +90,9 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
   - Installer also prompts to see if you want to create new users, once created if in the consolepi-stage dir it's structure will be imported
 > So you can import .ssh keys / known_hosts and any other files/dirs you want in the users home.
 
+### Sept 2020 (v2020-4.4)
+- Added support for host specific ssh private key for [Manual Host Entries](#configuring-manual-host-entries).
+- minor typo fixes, linter clean-up, etc
 
 # Features
 ## **Feature Summary Image**
@@ -298,7 +301,7 @@ picocom v3.1
 Refer to [Power Control Setup](readme_content/power.md) for details on how to setup Power Control.
 
 ## Manual Host Entries
-The Manual Host Entries Feature allows you to manually define other SSH or TELNET endpoints that you want to appear in the menu.  These entries will appear in the `rs` (remote shell) menu by default, but can also show-up in the main menu if `show_in_main: true`.  Manual host entries support outlet linkages (Auto Power On when connecting through the menu).
+The Manual Host Entries Feature allows you to manually define other SSH or TELNET endpoints that you want to appear in the menu.  These entries will appear in the `rs` (remote shell) menu by default, but can also show-up in the main menu if `show_in_main: true`.  Manual host entries support outlet bindings (Auto Power On when connecting through the menu).
 
 Refer to [Manual Host Entries](#configuring-manual-host-entries) in the Configuration section foe details on how to configure.
 
@@ -366,11 +369,11 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
 - rpi-poe-overlay.dts: This is a custom overlay file for the official Rpi PoE hat.  If the dts is found in the stage dir, a dtbo (overlay binary) is created from it and placed in /boot/overlays.  A custom overlay for the PoE hat can be used to adjust what temp triggers the fan, and how fast the fan will run at each temp threshold.
 > Refer to google for more info, be aware some apt upgrades update the overlays overwriting your customization.  I use a separate script I run occasionally which creates a dtbo then compares it to the one in /boot/overlays, and updates if necessary (to revery back to my custom settings)
 
-- autohotspot-dhcp(directory): If you have a autohotspot-dhcp directory inside the `consolepi-stage` dir, it's contents are coppied to /etc/ConsolePi/dnsmasq.d/autohotspot.  This is useful if you have additional configs you want to use for autohotspot, dhcp-reservations, etc.  The main config for the autohotspot feature `autohotspot` is still managed by ConsolePi.
+- autohotspot-dhcp(directory): If you have a autohotspot-dhcp directory inside the `consolepi-stage` dir, it's contents are copied to /etc/ConsolePi/dnsmasq.d/autohotspot.  This is useful if you have additional configs you want to use for autohotspot, dhcp-reservations, etc.  The main config for the autohotspot feature `autohotspot` is still managed by ConsolePi.
 
-- wired-dhcp(directory): If you have a wired-dhcp directory inside the `consolepi-stage` dir, it's contents are coppied to /etc/ConsolePi/dnsmasq.d/wired-dhcp.  This is useful if you have additional configs you want to use for wired-dhcp, dhcp-reservations, etc.  The main config for the wired-dhcp feature `wired-dhcp` is still managed by ConsolePi.
+- wired-dhcp(directory): If you have a wired-dhcp directory inside the `consolepi-stage` dir, it's contents are copied to /etc/ConsolePi/dnsmasq.d/wired-dhcp.  This is useful if you have additional configs you want to use for wired-dhcp, dhcp-reservations, etc.  The main config for the wired-dhcp feature `wired-dhcp` is still managed by ConsolePi.
 
-- ztp(directory): if a `ztp` directory is found in the `consolepi-stage` dir, it's contents are coppied to /etc/ConsolePi/ztp.  This is where your template/variable files, and custom_parsers are configured.
+- ztp(directory): if a `ztp` directory is found in the `consolepi-stage` dir, it's contents are copied to /etc/ConsolePi/ztp.  This is where your template/variable files, and custom_parsers are configured.
 
 - consolepi-post.sh: Custom post install script.  This custom script is triggered after all install steps are complete.  It runs just before the post-install message is displayed.  Use it to do anything the installer doens't cover that you normally setup on your systems.  For Example my consolepi-post.sh script does the following:
   - generates an ssh key `sudu -u $iam ssh-keygen`
@@ -574,13 +577,13 @@ Examples:
 
 - The entire stage dir (consolepi-stage) is moved to the /home/pi dir on the micro-sd if found in the script dir.  This can be used to pre-stage a number of config files the installer will detect and use, along with anything else you'd like on the ConsolePi image.
 - Pre-Configure a psk or open WLAN via parameters in script.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP if doing a headless install.
-- You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the stage dir.  This will be coppied to the /etc/wpa_supplicant dir on the micro-sd card.  This method supports the typical methods along with EAP-TLS with certificates.  Just place the cert files referenced in the provided wpa_supplicant.conf file in a 'cert' folder inside the stage dir.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ), the image creator will then move the certs to the micro-sd to the path specified in the provided wap_supplicant.conf.
+- You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the stage dir.  This will be copied to the /etc/wpa_supplicant dir on the micro-sd card.  This method supports the typical methods along with EAP-TLS with certificates.  Just place the cert files referenced in the provided wpa_supplicant.conf file in a 'cert' folder inside the stage dir.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ), the image creator will then move the certs to the micro-sd to the path specified in the provided wap_supplicant.conf.
 - create a quick command 'consolepi-install' to simplify the command string to pull the installer from this repo and launch.  If cmd_line= argument is provided to consolepi-image-creator.sh those arguments are passed on to the auto-install.
 - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled with `--auto_install=false`.
   > If you set `--auto_install=false`, `--cmd_line=...` is ignored.  You would specify arguments for the installer manually.
 - If the `consolepi-image-creator.sh` script is ran from a ConsolePi, the script will detect that it's a ConsolePi and offer to pre-staage it's existing settings.  If a file has alredy been pre-staged (via consolepi-stage dir) it will skip it.  It will give you the chance to edit ConsolePi.yaml if pre-staged, so you can deploy multiple ConsolePis and edit the specifics for each as you stage them.
 - Entire home directory imports:  If you place /root and/or /home/pi inside the consolepi-stage directory.  Those contents/subdirs will be imported to the respective users directory on the image.
-  - You can even pre-stage a users home directory for a user that doesn't exist.  When the installer runs, you are given the option to create new users.  Once created if a folder is found in consolepi-stage for that user (i.e. `home/pi/consolepi-stage/home/larry`), the contents will be coppied from the `consolepi-stage` dir to `/home/larry`.
+  - You can even pre-stage a users home directory for a user that doesn't exist.  When the installer runs, you are given the option to create new users.  Once created if a folder is found in consolepi-stage for that user (i.e. `home/pi/consolepi-stage/home/larry`), the contents will be copied from the `consolepi-stage` dir to `/home/larry`.
 
 The install script (not this image-creator, the installer that actually installs ConsolePi) will look for and if found import a number of items from the consolepi-stage directory.  Gdrive credentials, ovpn settings, ssh keys refer to *TODO link to section highlighting imports*
 
@@ -712,7 +715,7 @@ The Use Cases
       - Use Case... I just wanted to see if it would work.  I also have it open a lot so handy to be able to just run from there.
       - No local-adapters wsl would be remote only.
       - Install process: Same as above with the exception of leave out the consolpi-mdnsbrowse bit (no systemd on wsl)
-      - Result is it works as expected, with the minor caveat that it's only source to get remote details is via cloud-sync.  Adapter data is still refreshed on menu-load by querying the remote directly.  You also can not create the cloud credentials files (do the initial Authorization) in wsl.  That needs to be done on another system and coppied over.
+      - It works as expected, with the minor caveat that it's only source to get remote details is via cloud-sync.  Adapter data is still refreshed on menu-load by querying the remote directly.  You also can not create the cloud credentials files (do the initial Authorization) in wsl.  That needs to be done on another system and copied over.
 
 # ConsolePi Usage
 
@@ -724,7 +727,7 @@ The Configuration file is validated and created during the install.  Settings ca
 When you assign a friendly alias to an adapter for predictability via the `rn` (rename) option in `consolepi-menu` or via `consolepi-addconsole` an alias (udev rule) is created for that adapter and ser2net.conf is updated with a pointer to that alias using the next available TELNET port in the 7xxx range which includes the desired serial settings.  The `consolepi-menu` parses the ser2net.conf to retrieve the serial settings for each device, but it also uses this file to determine the order the adapters appear in the menu.  The menu is sorted by TELNET port#.  So if you want re-arrange the order devices show up you just need to re-arrange the port #s used in ser2net.conf for the devices.
 
 ### Configuring Manual Host Entries
-The Manual Host Entries Feature allows you to manually define other SSH or TELNET endpoints that you want to appear in the menu.  These entries will appear in the `rs` remote shell menu by default, but can also show-up in the main menu if `show_in_main: true`.  Manual host entries support outlet linkages (Auto Power On when connecting through the menu) To enable this feature simply populate the optional `HOSTS:` section of `ConsolePi.yaml`. Using the following structure:
+The Manual Host Entries Feature allows you to manually define other SSH or TELNET endpoints that you want to appear in the menu.  These entries will appear in the `rs` remote shell menu by default, but can also show-up in the main menu if `show_in_main: true`.  Manual host entries support [power outlet bindings](readme_content/power.md#power-control-setup) as well. To configure this feature simply populate the optional `HOSTS:` section of `ConsolePi.yaml`. Using the following structure:
 
 ```
 HOSTS:
@@ -738,6 +741,7 @@ HOSTS:
     method: ssh
     username: wade
     show_in_main: true
+    key: wade_arubaos_pub.key
     group: WLAN
   LabDigi1:
     address: labdigi.kabrew.com
@@ -750,17 +754,24 @@ HOSTS:
     group: WADELAB-HOSTS
 ```
 **The Above Example highlights different options**
-- The address field can be a IP or FQDN and a custom port can be included by appending :port to the end of the address if no port is defined the standard port for the protocol specified via the `method` key is used (22 for ssh 23 for TELNET).
+- The address field can be a IP or FQDN and a custom port can be included by appending `:<port>` to the end of the address if no port is defined the standard port for the protocol specified via the `method` key is used (22 for ssh 23 for TELNET).
 - mm1 shows the address with an optional non-std port defined.  Connection would be made via TELNET on port 7001
+- mm1 will use `wade_arubaos_pub.key` as the ssh private key/identity rather than the default identity file (typically `~/.ssh/id_rsa`)
+  > The `key` specified can be in a number of places.
+  > 1. The script always looks in `~/.ssh` first
+  > 2. full path and relative (to cwd) path are also valid in the config (i.e. `key: /home/pi/mykeys/wade_arubaos_pub.key`)
+  > 3. Lastly if you create the dir `/etc/ConsolePi/.ssh` and place the key there.  It will be copied to the users .ssh dir (`~/.ssh`) on menu launch and permissions/ownership will be updated appropriately for the logged in user.
+  >
+  > Option 3 has the benefit of providing a single global identity file for the host regardless of what user you are logged in as on the ConsolePi.  If the file in `/etc/ConsolePi/.ssh` is updated, the menu will detect the change, and copy the new file.
 - mm1 and mc1 will show up in the main menu both grouped under the WLAN sub-head
 - LagDigi1 does not define a group or set show_in_main (both are optional).  It will show up in the rshell menu in group "user-defined".
 - omv will show up in the rshell menu under group "WADELAB-HOSTS"
-- outlet linkages with these devices are supported by adding the device name in linked_devs for an outlet defined in the POWER: section
+- outlet bindings with these devices are supported by adding the device name in linked_devs for an outlet defined in the [POWER: section](readme_content/power.md#power-control-setup) of `ConsolePi.yaml`.
     > Ensure names are unique across both hosts defined here and the adapters defined via the menu or `consolepi-addconsole`.  If there is a conflict the serial adapter wins.
 
 ### Local UART Support
 
-With Version 2020.2.1 ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 actually has 6 UARTs onboard (5 useable).  The additional UARTs would need to be enabled.  The examples below should get you there if you want to make use of the extra UARTs, obviously you can search the internet or refer to the Pi4 [datasheet](https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2711/rpi_DATA_2711_1p0.pdf) for info beyond that.
+ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 actually has 6 UARTs onboard (5 useable).  The additional UARTs would need to be enabled.  The examples below should get you there if you want to make use of the extra UARTs, obviously you can search the internet or refer to the Pi4 [datasheet](https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2711/rpi_DATA_2711_1p0.pdf) for info beyond that.
 
 >Note: The RaspberryPis onboard UARTs are TTL level.  This is useful for connecting to other devices with TTL level UARTs (i.e. Another Rpi, Arduino, or Aruba APs that used the flat 4 pin connector (The grey Aruba Adapter used to connect to these APs `AP-SER` has a TTL to RS232 level shifter built into the cable)).  To use these to connect to RS232 ports typically found on Network Hardware and other equipment you need a ttl<-->RS232 level shifter i.e. (max232 family).
 >
@@ -830,7 +841,7 @@ Refer to [ZTP Orchestration](readme_content/ztp.md)
 
 To Upgrade ConsolePi it's recommended to use the `consolepi-upgrade` command.  This runs the install/upgrade script which on upgrade will verify some of the system configuration related to ConsolePi functionality.  If you've made customizations to any of the system files ConsolePi initially configures, the upgrade script will backup the file (to /etc/ConsolePi/bak) and replace it.  This may be undesired if you've made customizations, to prevent this from occuring simply create an empty file (doesn't technically have to be empty) with the same name as the file you want to prevent being modified by ConsolePi in '/etc/ConsolePi/overrides' (i.e. `touch /etc/ConsolePi/overrides/dhcpcd.conf`)
 
-> `consolepi-upgrade` is the preferred method, but you can run `consolepi-sync` described in [Convenience Commands](#convenience-commands) or alternatively simply do a git pull from within /etc/ConsolePi to Upgrade.
+> `consolepi-upgrade` is the preferred method, but you can run `consolepi-sync` described in [Convenience Commands](#convenience-commands) or alternatively simply do a git pull from within /etc/ConsolePi to Upgrade.  However there is some risk, as references to system paths/symlinks etc. may have changed, and `consolepi-sync` doesn't automate any of the system changes that may be part of the upgrade.
 
 **List of files ConsolePi will verify and potentially update**
 - /etc/dhcpcd.conf

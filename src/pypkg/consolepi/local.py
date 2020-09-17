@@ -91,6 +91,13 @@ class Local():
 
             # -- no need for remaining logic on ttyAMA adapters (local UART)
             if 'ttyAMA' in root_dev:
+                # TODO clean up logic this is copy paste from below
+                # clean up some redundant or less useful properties
+                rm_list = ['devlinks', 'id_mm_candidate', 'id_model_enc', 'id_path_tag', 'tags', 'major', 'minor',
+                           'usec_initialized', 'id_vendor_enc', 'id_pci_interface_from_database', 'id_revision']
+
+                devs[dev_name] = {k: v for k, v in devs[dev_name].items() if k not in rm_list}
+
                 continue
 
             # with some multi-port adapters the model_id and vendor_id need to be pulled from higher in stack

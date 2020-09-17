@@ -114,15 +114,15 @@ class Rename():
                 devs = local.detect_adapters()
                 if f'/dev/{from_name}' in devs:
                     _tty = devs[f'/dev/{from_name}']
-                    id_prod = _tty['id_model_id']
-                    id_model = _tty['id_model']  # NoQA pylint: disable=unused-variable
-                    id_vendorid = _tty['id_vendor_id']
-                    id_vendor = _tty['id_vendor']  # NoQA pylint: disable=unused-variable
-                    id_serial = _tty['id_serial_short']
-                    id_ifnum = _tty['id_ifnum']
-                    id_path = _tty['id_path']  # NoQA
-                    lame_devpath = _tty['lame_devpath']
-                    root_dev = _tty['root_dev']
+                    id_prod = _tty.get('id_model_id')
+                    id_model = _tty.get('id_model')  # NoQA pylint: disable=unused-variable
+                    id_vendorid = _tty.get('id_vendor_id')
+                    id_vendor = _tty.get('id_vendor')  # NoQA pylint: disable=unused-variable
+                    id_serial = _tty.get('id_serial_short')
+                    id_ifnum = _tty.get('id_ifnum')
+                    id_path = _tty.get('id_path')  # NoQA
+                    lame_devpath = _tty.get('lame_devpath')
+                    root_dev = _tty.get('root_dev')
                 else:
                     return 'ERROR: Adapter no longer found'
 
@@ -168,23 +168,16 @@ class Rename():
                         devname = devs[f'/dev/{from_name}'].get('devname', '')
                         # -- // local ttyAMA adapters \\ --
                         if 'ttyAMA' in devname:
-                            udev_line = ('KERNEL=="{}", SYMLINK+="{}"  # GPIO UART'.format(
+                            udev_line = ('KERNEL=="{}", SYMLINK+="{}"'.format(
                                             devname.replace('/dev/', ''), to_name))
 
+                            # Testing simplification not using separate file for ttyAMA
                             error = None
                             while not error:
-                                error = self.add_to_udev(udev_line, '# END BYSERIAL-DEVS')
+                                error = self.add_to_udev(udev_line, '# END TTYAMA-DEVS')
                                 error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
                                                              parity=parity, flow=flow)
                                 break
-
-                            # Testing simplification not using separate file for ttyAMA
-                            # error = None
-                            # while not error:
-                            #     error = self.add_to_udev(udev_line, '# END TTYAMA-DEVS')
-                            #     error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
-                            #                                  parity=parity, flow=flow)
-                                # break
                         else:
                             # -- // LAME ADAPTERS NO SERIAL NUM (map usb port) \\ --
                             log.warning('[ADD ADAPTER] Lame adapter missing key detail: idVendor={}, idProduct={}, serial#={}'.format(  # NoQA

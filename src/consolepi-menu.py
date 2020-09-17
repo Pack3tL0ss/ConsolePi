@@ -762,7 +762,8 @@ class ConsolePiMenu(Rename):
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
             if not choice == 'b':
-                if 'c' in choice and self.udev_pending:     # if trying to connect to local adapter after rename refresh udev
+                # if trying to connect to local adapter after rename refresh udev
+                if choice.startswith('c') and len(choice) <= len(str(rem_item - 1)) + 1 and self.udev_pending:
                     n = int(choice.replace('c', '').strip())
                     if n < rem_item:
                         self.trigger_udev()

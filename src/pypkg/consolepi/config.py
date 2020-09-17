@@ -202,7 +202,7 @@ class Config():
                 port = 22 if ':' not in hosts[h]['address'] else hosts[h]['address'].split(':')[1]
                 _user_str = '' if not hosts[h].get('username') else f'{hosts[h].get("username")}@'
                 key_file = None
-                if hosts[h].get("key"):
+                if hosts[h].get("key") and self.loc_user is not None:
                     if utils.valid_file(f"/home/{self.loc_user}/.ssh/{hosts[h]['key']}"):
                         user_key = Path(f"/home/{self.loc_user}/.ssh/{hosts[h]['key']}")
                         if utils.valid_file(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}"):

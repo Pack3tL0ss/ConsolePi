@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+sudo nano /etc/udev/rules.d/10-ConsolePi.rules /etc/ser2net.conf
+
+echo use consolepi-showaliases to validate udev and ser2net, check for orphans

@@ -222,7 +222,7 @@ The Power Control Function allows you to control power to external outlets.  Con
 
 ### The Power Control Menu
 *Defined Outlets will show up in the Power Menu.  Note: These menu captures lack color, see the [Feature Summary Image](#feature-summary-image) to see what these sub-menus like in a terminal with ASCII colors.*
-  ```
+  ```bash
   ===========================================================
 
     enter item # to toggle power state on outlet
@@ -259,7 +259,7 @@ The Power Control Function allows you to control power to external outlets.  Con
 ### Additional Controls for Digital Loggers
 *You may have an 8 port digital-loggers web power switch, with only some of those ports linked to devices.  Any Outlets linked to devices will show up in the Power Menu, All of the Ports for the DLI (regardless of linkage) will show up in the dli menu*
 
-```
+```bash
 ===========================================================================================
  --------------------------------- DLI Web Power Switch ----------------------------------
 ===========================================================================================
@@ -291,7 +291,7 @@ The Power Control Function allows you to control power to external outlets.  Con
 ### Outlet Linkages
 
 Example Outlet Linkage.  In this case the switch "rw-6200T-sw" has 2 ports linked.  Both are on a dli web power switch.  One of the ports is for this switch, the other is for the up-stream switch that serves this rack.  When connecting to the switch, ConsolePi will ensure the linked outlets are powered ON.  *ConsolePi does **not** power-off the outlets when you disconnect.*
-```
+```bash
 
 ------------------------------------------------------------------------------------
   Ensuring r2-6200T-sw Linked Outlets (labpower2:[1, 4]) are Powered ON
@@ -494,7 +494,7 @@ Configure parameters to your liking then
 - `ctrl + x`  --> to exit
 - Then run the installer
 
-```
+```bash
 sudo /etc/ConsolePi/installer/install.sh
 ```
 
@@ -521,7 +521,7 @@ Using a Linux System (Most distros should work only requirement is a bash shell 
 
 The Pre-staging described below is optional, this script can be used without any pre-staging files, it will simply burn a RaspiOS image to the micro-sd, enable SSH, and set the installer to run automatically on boot (unless you set auto_install to false via cmd line arg or config).
 
-```
+```bash
 USAGE: sudo ./consolepi-image-creator.sh [OPTIONS]
 
 Available Options
@@ -548,7 +548,7 @@ Examples:
   This example passes the -C option to the installer (telling it to get some info from the specified config) as well as the silent install option (no prompts)
         sudo ./consolepi-image-creator.sh --cmd_line='-C /home/pi/consolepi-stage/installer.conf -silent'
 ```
-```
+```bash
 # ----------------------------------- // DEFAULTS \\ -----------------------------------
 # ssid: No Default ~ psk ssid not configured if ssid and psk is not provided
 # psk: No Default
@@ -591,7 +591,7 @@ Examples:
 The install script (not this image-creator, the installer that actually installs ConsolePi) will look for and if found import a number of items from the consolepi-stage directory.  Gdrive credentials, ovpn settings, ssh keys refer to *TODO link to section highlighting imports*
 
 **This capture highlights what the script does and what it pulls via mass import if ran from an existing ConsolePi**
-```
+```bash
 pi@ConsolePi-dev:~$ sudo ./consolepi-image-creator.sh
    ______                       __     ____  _
   / ____/___  ____  _________  / /__  / __ \(_)
@@ -691,7 +691,7 @@ The Use Cases
   1. ConsolePi running on a Linux Mint LapTop
       - desire was to be able to load the menu, see the remotes, and use a locally connected adapter if I wanted, but to only sync one way (discover remote ConsolePis, but don't advertise to them).  This is because the laptop is used ad-hoc and if I'm using it I'm on it, not remote.
       - Install Process was simply (this is from memory so might be off a bit):
-      ```
+      ```bash
       sudo apt install python3-pip virtualenv git
       cd /tmp
       git clone https://github.com/Pack3tL0ss/ConsolePi.git
@@ -732,7 +732,7 @@ When you assign a friendly alias to an adapter for predictability via the `rn` (
 ### Configuring Manual Host Entries
 The Manual Host Entries Feature allows you to manually define other SSH or TELNET endpoints that you want to appear in the menu.  These entries will appear in the `rs` remote shell menu by default, but can also show-up in the main menu if `show_in_main: true`.  Manual host entries support [power outlet bindings](readme_content/power.md#power-control-setup) as well. To configure this feature simply populate the optional `HOSTS:` section of `ConsolePi.yaml`. Using the following structure:
 
-```
+```yaml
 HOSTS:
   mm1(serial):
     address: 10.0.30.60:7001
@@ -777,11 +777,44 @@ HOSTS:
 ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 actually has 6 UARTs onboard (5 useable).  The additional UARTs would need to be enabled.  The examples below should get you there if you want to make use of the extra UARTs, obviously you can search the internet or refer to the Pi4 [datasheet](https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2711/rpi_DATA_2711_1p0.pdf) for info beyond that.
 
 >Note: The RaspberryPis onboard UARTs are TTL level.  This is useful for connecting to other devices with TTL level UARTs (i.e. Another Rpi, Arduino, or Aruba APs that used the flat 4 pin connector (The grey Aruba Adapter used to connect to these APs `AP-SER` has a TTL to RS232 level shifter built into the cable)).  To use these to connect to RS232 ports typically found on Network Hardware and other equipment you need a ttl<-->RS232 level shifter i.e. (max232 family).
->
->The example is pulled from my [primary ConsolePi](#consolepi-@-work) which has been customized to the extent that it is powered via PoE hat (LoveRpi Pi4 PoE Hat) and extends GPIO via a modified 30 pin idc cable.  The first 10 pins are not extended, as a result of the PoE hat consuming the first 6.
 
-  **To Enable:**
+  **To Enable Support for GPIO UARTs (ttyAMA):**
+
+  #### Update 10-ConsolePi.rules if necessary
+
+  If `/etc/udev/rules.d/10-ConsolePi.rules` already exists on the system, and was created prior to v2020-4.5 (Sept 2020).  You will likely need to update the file to support the additional GPIO UARTs on the Pi4.  The GPIO UARTs were initially configured to use it's own separate rules file (11-ConsolePi-ttyama.rules).  With v2020-4.5 it was added to the common rules file `10-CosnolePi.rules`.  The format/template used to build `10-ConsolePi.rules` had to be updated to support the GPIO UARTs (ttyAMA devices).
+
+  You can verify by checking `/etc/udev/rules.d/10-ConsolePi.rules` for `KERNEL=="ttyAMA[1-4]*", GOTO="TTYAMA-DEVS"` near the top of the file (line 2) and `LABEL="TTYAMA-DEVS"` around line 17.
+
+  if they don't exist you will need to edit `/etc/udev/rules.d/10-ConsolePi.rules` and remove everything above
+  ```bash
+  # -------------- // ByPort Multi-Port Adapter w/ Single Serial# for All Ports GOTO --> BYPORT-DEVS \\ -----------------------
   ```
+  and replace (copy and paste) the updated portion which is shown below (the src template is in `/etc/ConsolePi/src`)
+  ```bash
+# Created by ConsolePi ~ Pack3tL0ss
+#   -- It's OK to edit manually, however keep manual edits to add/del device lines
+#   -- Comments and LABELs should remain. Changing them may break ConsolePis
+#   -- ability to automate the addition of adapters properly
+
+# ---------------- // COLLECT AND STORE ATTRIBUTES FROM VARIOUS LEVELS OF DEV HIERARCHY \\ --------------------------------
+SUBSYSTEM!="tty", GOTO="END"
+KERNEL=="ttyAMA[1-4]*", GOTO="TTYAMA-DEVS"
+KERNEL!="ttyUSB[0-9]*|ttyACM[0-9]*", GOTO="END"
+
+SUBSYSTEMS=="usb", IMPORT{builtin}="usb_id", IMPORT{builtin}="hwdb --subsystem=usb"
+SUBSYSTEMS=="usb-serial", ENV{.ID_PORT}="$attr{port_number}"
+ENV{ID_SERIAL_SHORT}=="", IMPORT{builtin}="path_id", GOTO="BYPATH-POINTERS"
+SUBSYSTEMS=="usb", ENV{ID_USB_INTERFACE_NUM}="$attr{bInterfaceNumber}"
+
+# ------------- // TTYAMA-devs ~ Pi4 GPIO uarts to symlink --> END \\ ------------------------
+LABEL="TTYAMA-DEVS"
+# END TTYAMA-DEVS
+SUBSYSTEM=="tty", GOTO="END"
+
+  ```
+  #### Configure `/boot/config.txt`
+  ```bash
   # related snippet from /boot/config.txt
 
   #Enable Default UART (used to access this ConsolePi not externally)
@@ -798,8 +831,7 @@ ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 a
   dtoverlay=uart2
 
   # Enable uart 3 on GPIOs 4,5
-  # Disabled, no access to this UART due to PoE hat (This unit extends GPIO using modified 30 pin IDC cable where GPIO17/pin 11 is first pin extended)
-  # dtoverlay=uart3
+  dtoverlay=uart3
 
   # Enable uart 4 on GPIOs 8,9
   dtoverlay=uart4
@@ -807,12 +839,12 @@ ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 a
   # Enable uart 5 on GPIOs 12,13
   dtoverlay=uart5
   ```
-
-  ```
+  #### Configure `/boot/cmdline.txt`
+  ```bash
 # /boot/cmdline.txt
 
 # The default UART is enabled for "inbound" access to this Pi, the pins are actually not accessible in my setup so they are not used at all
-console=serial0,115200 console=tty1 root=PARTUUID=73aabb67-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
+console=serial0,115200 console=tty1 root=PARTUUID=73aabb97-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
 
 # the remaining UARTS configured for external access, Note that uart3 is not actually being used due to pin access
 console=ttyAMA1,115200
@@ -821,13 +853,13 @@ console=ttyAMA3,115200
 console=ttyAMA4,115200
 ```
 
-#### ConsolePi.yaml Configuration to enable local UARTs
+#### Configure ConsolePi.yaml
 
 ConsolePi.yaml needs to include a TTYAMA: key (where `TTYAMA` is not indented, it should be at the same level as `CONFIG` or the optional `OVERRIDES`, `HOSTS`, and `POWER` keys)
 
 Given the example above with 3 uarts enabled (technically 4 but the default UART is used for "inbound" access)
 
-```
+```yaml
 TTYAMA: [ttyAMA1, ttyAMA2, ttyAMA3]
 ```
 The onboard UARTs will then showup in the consolepi-menu as ttyAMA#, you can then use the rename option to assign a friendly name and configure custom serial settings (i.e. change the baud used by the menu, the rename option will also add the device to ser2net using the next available TELNET port in the 7xxx range)

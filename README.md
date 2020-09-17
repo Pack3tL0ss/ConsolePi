@@ -92,7 +92,10 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
 
 ### Sept 2020 (v2020-4.4)
 - Added support for host specific ssh private key for [Manual Host Entries](#configuring-manual-host-entries).
+- Added gpiofan and associated systemd unit file for Variable Speed fan control
+  - I'll document the optional scripts in the near future.
 - minor typo fixes, linter clean-up, etc
+- more error prevention in rename (no rename to alias that's aready in use, no rename to alias that starts with sys root_dev prefix)
 
 # Features
 ## **Feature Summary Image**

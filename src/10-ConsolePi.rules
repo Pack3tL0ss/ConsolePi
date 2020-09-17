@@ -10,29 +10,30 @@ KERNEL!="ttyUSB[0-9]*|ttyACM[0-9]*", GOTO="END"
 
 SUBSYSTEMS=="usb", IMPORT{builtin}="usb_id", IMPORT{builtin}="hwdb --subsystem=usb"
 SUBSYSTEMS=="usb-serial", ENV{.ID_PORT}="$attr{port_number}"
-ENV{ID_SERIAL_SHORT}=="", IMPORT{builtin}="path_id", GOTO="BYPATH-POINTERS"
 SUBSYSTEMS=="usb", ENV{ID_USB_INTERFACE_NUM}="$attr{bInterfaceNumber}"
 
-# ------------- // TTYAMA-devs ~ Pi4 GPIO uarts to symlink --> END \\ ------------------------
-LABEL="TTYAMA-DEVS"
-# END TTYAMA-DEVS
-SUBSYSTEM=="tty", GOTO="END"
+ENV{ID_SERIAL_SHORT}=="", IMPORT{builtin}="path_id", GOTO="BYPATH-POINTERS"
 
 # -------------- // ByPort Multi-Port Adapter w/ Single Serial# for All Ports GOTO --> BYPORT-DEVS \\ -----------------------
 # Multi-Port Pigtail adapters that present the same serial for all ports but have unique USB IF#.
 # BYPORT-POINTERS
 # END BYPORT-POINTERS
 
-# ---------------------- // ByPath devs That Lack Serial# GOTO --> BYPORT-DEVS \\ --------------------------------------------
+# ------------------------ // ByPath devs That Lack Serial# GOTO --> BYPATH-DEVS \\ -----------------------------------------
 # -- Devices Lacking a serial #.  Mapped to specific USB port, any device plugged into that port will use this alias.
 # -- This is only useful if the adapters stay static.  These adapters are super Lame.
 # -- Check w/ vendor/chipset online to see if there is a method to re-flash the adapter with a serial.
-# BYPATH-POINTERS
+LABEL="BYPATH-POINTERS"
 # END BYPATH-POINTERS
 
 # ------------- // BySerial-devs Each has a Unique Serail# (The Gold Std) Define then GOTO --> END \\ ------------------------
 # BYSERIAL-DEVS
 # END BYSERIAL-DEVS
+SUBSYSTEM=="tty", GOTO="END"
+
+# ------------------------------ // TTYAMA-devs ~ Pi4 GPIO uarts to symlink --> END \\ --------------------------------------
+LABEL="TTYAMA-DEVS"
+# END TTYAMA-DEVS
 SUBSYSTEM=="tty", GOTO="END"
 
 # ------------- // ByPort-devs Single Serial for multi-port with unique port IDs Define then GOTO --> END \\ -----------------

@@ -5,7 +5,7 @@ import socket
 import netifaces as ni
 import os
 import time
-from consolepi import utils, log, config
+from consolepi import utils, log, config  # type: ignore
 
 
 class Local():
@@ -68,15 +68,17 @@ class Local():
                 log.error(f'pyudev Ubable to find {root_dev}')
                 continue  # TODO Catching error as have seen it in consolepi-mdnsreg not sure if continue is appropriate
             _devlinks = _dev.get('DEVLINKS', '').split()
-            if not _devlinks:   # skip occurs on non rpi
-                continue
-            for _d in _devlinks:
-                if '/dev/serial' not in _d:
-                    dev_name = _d.replace('/dev/', '')
-                elif '/dev/serial/by-path/' in _d:
-                    by_path = _d
-                elif '/dev/serial/by-id/' in _d:
-                    by_id = _d
+            if not _devlinks:   # skip occurs on non rpi and ttyAMA
+                if not root_dev.startswith('ttyAMA'):
+                    continue
+            else:
+                for _d in _devlinks:
+                    if '/dev/serial' not in _d:
+                        dev_name = _d.replace('/dev/', '')
+                    elif '/dev/serial/by-path/' in _d:
+                        by_path = _d
+                    elif '/dev/serial/by-id/' in _d:
+                        by_id = _d
 
             dev_name = f'/dev/{root_dev}' if not dev_name else f'/dev/{dev_name}'
             devs[dev_name] = {'by_path': by_path, 'by_id': by_id}
@@ -89,6 +91,13 @@ class Local():
 
             # -- no need for remaining logic on ttyAMA adapters (local UART)
             if 'ttyAMA' in root_dev:
+                # TODO clean up logic this is copy paste from below
+                # clean up some redundant or less useful properties
+                rm_list = ['devlinks', 'id_mm_candidate', 'id_model_enc', 'id_path_tag', 'tags', 'major', 'minor',
+                           'usec_initialized', 'id_vendor_enc', 'id_pci_interface_from_database', 'id_revision']
+
+                devs[dev_name] = {k: v for k, v in devs[dev_name].items() if k not in rm_list}
+
                 continue
 
             # with some multi-port adapters the model_id and vendor_id need to be pulled from higher in stack

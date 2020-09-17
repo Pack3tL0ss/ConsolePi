@@ -1,7 +1,7 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import os
-from consolepi import log, config, utils
+from consolepi import log, config, utils  # type: ignore
 
 
 class Rename():
@@ -18,6 +18,7 @@ class Rename():
         self.rules_file = config.static.get('RULES_FILE', '/etc/udev/rules.d/10-ConsolePi.rules')
         self.ttyama_rules_file = config.static.get('TTYAMA_RULES_FILE', '/etc/udev/rules.d/11-ConsolePi-ttyama.rules')
         self.ser2net_file = config.static.get('SER2NET_FILE', '/etc/ser2net.conf')
+        self.reserved_names = ['ttyUSB', 'ttyACM', 'ttyAMA']
 
     # --- // START MONSTER RENAME FUNCTION \\ --- # TODO maybe break this up a bit
     def do_rename_adapter(self, from_name):
@@ -48,13 +49,24 @@ class Rename():
             while not to_name:
                 to_name = input(' [rename {}]: Provide desired name: '.format(c_from_name))
             to_name = to_name.replace('/dev/', '')  # strip /dev/ if they thought they needed to include it
+            # it's ok to essentialy rename with same name (to chg baud etc.), but not OK to rename to a name that is already
+            # in use by another adapter
+            if from_name != to_name and f"/dev/{to_name}" in local.adapters:
+                return f"There is already an adapter using alias {to_name}"
+
+            for _name in self.reserved_names:
+                if to_name.startswith(_name):
+                    return f"You can't start the alias with {_name}.  Matches system root device prefix"
+
             if ' ' in to_name or ':' in to_name or '(' in to_name or ')' in to_name:
                 print('\033[1;33m!!\033[0m Spaces, Colons and parentheses are not allowed by the associated config files.\n'
                       '\033[1;33m!!\033[0m Swapping with valid characters\n')
                 to_name = to_name.replace(' ', '_').replace('(', '_').replace(')', '_')  # not allowed in udev
                 to_name = to_name.replace(':', '-')  # replace any colons with - as it's the field delim in ser2net
+
         except (KeyboardInterrupt, EOFError):
             return 'Rename Aborted based on User Input'
+
         c_to_name = '{}{}{}'.format(c['green'], to_name, c['norm'])
 
         if utils.user_input_bool(' Please Confirm Rename {} --> {}'.format(c_from_name, c_to_name)):
@@ -68,7 +80,10 @@ class Rename():
             flow = _dev['flow']
             sbits = _dev['sbits']
             parity = _dev['parity']
-            word = 'Use default' if 'ttyUSB' in from_name or 'ttyACM' in from_name else 'Keep existing'
+            word = 'keep existing'
+            for _name in self.reserved_names:
+                if from_name.startswith(_name):
+                    word = 'Use default'
 
             # -- // Ask user if they want to update connection settings \\ --
             use_def = utils.user_input_bool(' {} connection values [{} {}{}1 Flow: {}]'.format(
@@ -95,30 +110,31 @@ class Rename():
                 self.sbits = self.con_dict['sbits']
                 self.con_dict = None
 
-            if 'ttyUSB' in from_name or 'ttyACM' in from_name or 'ttyAMA' in from_name:
+            if word == 'Use default':  # see above word is set if from_name matches a root_dev pfx
                 devs = local.detect_adapters()
                 if f'/dev/{from_name}' in devs:
                     _tty = devs[f'/dev/{from_name}']
-                    id_prod = _tty['id_model_id']
-                    id_model = _tty['id_model']  # NoQA pylint: disable=unused-variable
-                    id_vendorid = _tty['id_vendor_id']
-                    id_vendor = _tty['id_vendor']  # NoQA pylint: disable=unused-variable
-                    id_serial = _tty['id_serial_short']
-                    id_ifnum = _tty['id_ifnum']
-                    id_path = _tty['id_path']  # NoQA
-                    lame_devpath = _tty['lame_devpath']
-                    root_dev = _tty['root_dev']
+                    id_prod = _tty.get('id_model_id')
+                    id_model = _tty.get('id_model')  # NoQA pylint: disable=unused-variable
+                    id_vendorid = _tty.get('id_vendor_id')
+                    id_vendor = _tty.get('id_vendor')  # NoQA pylint: disable=unused-variable
+                    id_serial = _tty.get('id_serial_short')
+                    id_ifnum = _tty.get('id_ifnum')
+                    id_path = _tty.get('id_path')  # NoQA
+                    lame_devpath = _tty.get('lame_devpath')
+                    root_dev = _tty.get('root_dev')
                 else:
                     return 'ERROR: Adapter no longer found'
 
+                # this should never hit now added check after to_name input to throw error
                 if not root_dev:
                     return 'Did you really create an alias with "ttyUSB" or "ttyACM" in it (same as root devices)?\n\t' \
                            'Rename failed cause you\'re silly'
 
-                # -- // ADAPTERS WITH ALL ATTRIBUTES \\ --
+                # -- // ADAPTERS WITH ALL ATTRIBUTES AND GPIO UART (TTYAMA) \\ --
                 if id_prod and id_serial and id_vendorid:
                     if id_serial not in devs['_dup_ser']:
-                        udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{}", ATTRS{{idProduct}}=="{}", '
+                        udev_line = ('ATTRS{{idVendor}}=="{}", ATTRS{{idProduct}}=="{}", '
                                      'ATTRS{{serial}}=="{}", SYMLINK+="{}"'.format(
                                         id_vendorid, id_prod, id_serial, to_name))
 
@@ -131,8 +147,8 @@ class Rename():
 
                     # -- // MULTI-PORT ADAPTERS WITH COMMON SERIAL (different ifnums) \\ --
                     else:
-                        # SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", ATTRS{serial}=="FT4213OP", GOTO="FT4213OP"  # NoQA
-                        udev_line = ('SUBSYSTEM=="tty", ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", '
+                        # SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", ATTRS{serial}=="FT4XXXXP", GOTO="FTXXXXP"  # NoQA
+                        udev_line = ('ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", '
                                      'ATTRS{{serial}}=="{2}", GOTO="{2}"'.format(
                                       id_vendorid, id_prod, id_serial))
 
@@ -155,6 +171,7 @@ class Rename():
                             udev_line = ('KERNEL=="{}", SYMLINK+="{}"'.format(
                                             devname.replace('/dev/', ''), to_name))
 
+                            # Testing simplification not using separate file for ttyAMA
                             error = None
                             while not error:
                                 error = self.add_to_udev(udev_line, '# END TTYAMA-DEVS')
@@ -365,8 +382,8 @@ class Rename():
             {str|None} -- Returns error string if an error occurs
         '''
         found = ser_label_exists = get_next = update_file = False  # init
-        goto = ''  # init
-        rules_file = self.rules_file if 'ttyAMA' not in udev_line else self.ttyama_rules_file
+        goto = line = cmd = ''  # init
+        rules_file = self.rules_file  # if 'ttyAMA' not in udev_line else self.ttyama_rules_file  Testing 1 rules file
         if utils.valid_file(rules_file):   # pylint: disable=maybe-no-member
             with open(rules_file) as x:  # pylint: disable=maybe-no-member
                 for line in x:
@@ -399,6 +416,7 @@ class Rename():
                 goto = last_line.strip().replace('LABEL=', '').replace('"', '') if 'LABEL=' in last_line else None
         else:
             error = utils.do_shell_cmd(f'sudo cp /etc/ConsolePi/src/{os.path.basename(rules_file)} /etc/udev/rules.d/')
+            # TODO switch to pathlib.Path('path...').copy(src, dst)
             found = True
             goto = 'END'
 

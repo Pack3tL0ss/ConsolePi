@@ -315,7 +315,7 @@ class ConsolePiExec:
             print("")
             # this_ser2net = config.ser2net_conf.get(a, {})
             # print(f"ser2net config: {this_ser2net.get('line', '!! Not Found !!')}")
-            print(f'ser2net config: {adapters[a]["config"]["line"]}')
+            print(f'ser2net config: {adapters[a]["config"].get("line", "Not Defined")}')
 
         input("\nPress Enter To Continue\n")
 
@@ -347,7 +347,7 @@ class ConsolePiExec:
 
         else:
             ch = choice.lower
-            try:  # Invalid Selection
+            try:  # Invalid Selection, Keyboard Interupt
                 if isinstance(menu_actions[ch], dict):
                     if menu_actions[ch].get("cmd"):
                         # TimeStamp for picocom session log file if defined
@@ -395,7 +395,7 @@ class ConsolePiExec:
                                                     break
                                                 else:
                                                     time.sleep(3)
-                                            except KeyboardInterrupt:
+                                            except (KeyboardInterrupt, EOFError):
                                                 self.autopwr_wait = False
                                                 log.show("Connection Aborted")
                                                 break
@@ -428,7 +428,7 @@ class ConsolePiExec:
                                     "/etc/ConsolePi/src/consolepi-commands/resize >/dev/null"
                                 )
 
-                        except KeyboardInterrupt:
+                        except (KeyboardInterrupt, EOFError):
                             log.show("Aborted last command based on user input")
 
                     elif "function" in menu_actions[ch]:
@@ -669,6 +669,9 @@ class ConsolePiExec:
             except KeyError as e:
                 if len(choice.orig) <= 2 or not self.exec_shell_cmd(choice.orig):
                     log.show(f"Invalid selection {e}, please try again.")
+            except (KeyboardInterrupt, EOFError):
+                log.show('Operation Aborted')
+                print('')  # prevents header and prompt on same line in debug
         return True
 
     def confirm_and_spin(self, action_dict, *args, **kwargs):
@@ -759,7 +762,7 @@ class ConsolePiExec:
                         else str(port) + "(" + port_name + ")",
                     )
                 )
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, EOFError):
                 name = None
                 confirmed = False
                 print("")  # So header doesn't print on same line as aborted prompt when DEBUG is on

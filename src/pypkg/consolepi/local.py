@@ -5,7 +5,7 @@ import socket
 import netifaces as ni
 import os
 import time
-from consolepi import utils, log, config
+from consolepi import utils, log, config  # type: ignore
 
 
 class Local():
@@ -68,15 +68,17 @@ class Local():
                 log.error(f'pyudev Ubable to find {root_dev}')
                 continue  # TODO Catching error as have seen it in consolepi-mdnsreg not sure if continue is appropriate
             _devlinks = _dev.get('DEVLINKS', '').split()
-            if not _devlinks:   # skip occurs on non rpi
-                continue
-            for _d in _devlinks:
-                if '/dev/serial' not in _d:
-                    dev_name = _d.replace('/dev/', '')
-                elif '/dev/serial/by-path/' in _d:
-                    by_path = _d
-                elif '/dev/serial/by-id/' in _d:
-                    by_id = _d
+            if not _devlinks:   # skip occurs on non rpi and ttyAMA
+                if not root_dev.startswith('ttyAMA'):
+                    continue
+            else:
+                for _d in _devlinks:
+                    if '/dev/serial' not in _d:
+                        dev_name = _d.replace('/dev/', '')
+                    elif '/dev/serial/by-path/' in _d:
+                        by_path = _d
+                    elif '/dev/serial/by-id/' in _d:
+                        by_id = _d
 
             dev_name = f'/dev/{root_dev}' if not dev_name else f'/dev/{dev_name}'
             devs[dev_name] = {'by_path': by_path, 'by_id': by_id}

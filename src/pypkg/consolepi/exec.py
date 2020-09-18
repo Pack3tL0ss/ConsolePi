@@ -301,7 +301,7 @@ class ConsolePiExec:
             rem, rem_ip, rem_user = _rem
             print(self.menu.format_line("{{magenta}}Attempting to copy ssh cert to " + rem + "{{norm}}").text)
             ret = utils.do_shell_cmd(
-                f"sudo -u {loc_user} ssh-copy-id {rem_user}@{rem_ip}", timeout=360
+                f"sudo -u {loc_user} ssh-copy-id {rem_user}@{rem_ip}", timeout=15  # 360
             )
             if ret is not None:
                 return_list.append("{}: {}".format(rem, ret))

@@ -3,6 +3,7 @@
 import string
 import subprocess
 import shlex
+from subprocess import TimeoutExpired
 import time
 import psutil
 import os
@@ -322,15 +323,19 @@ class Utils:
                 proc = subprocess.Popen(
                     cmd, stderr=subprocess.PIPE, universal_newlines=True, **kwargs
                 )
-                err = proc.communicate(timeout=timeout)[1]
-                if err is not None and do_print:
-                    print(self.shell_output_cleaner(err), file=sys.stdout)
-                # if proc.returncode != 0 and handle_errors:
-                if err and handle_errors:
-                    err = self.error_handler(cmd, err)
 
-                proc.wait()
-                return err
+                try:
+                    err = proc.communicate(timeout=timeout)[1]
+                    if err is not None and do_print:
+                        print(self.shell_output_cleaner(err), file=sys.stdout)
+                    # if proc.returncode != 0 and handle_errors:
+                    if err and handle_errors:
+                        err = self.error_handler(cmd, err)
+
+                    proc.wait()
+                    return err
+                except (TimeoutExpired, TimeoutError):
+                    return f"Timed Out.  Host is likely unreachable."
 
     def check_install_apt_pkg(self, pkg: str, verify_cmd=None):
         verify_cmd = "which {}".format(pkg) if verify_cmd is None else verify_cmd

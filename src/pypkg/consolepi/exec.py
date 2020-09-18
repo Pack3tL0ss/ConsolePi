@@ -76,7 +76,7 @@ class ConsolePiExec:
         # -- // Perform Auto Power On (if not already on) \\ --
         for o in outlets["linked"][pwr_key]:
             outlet = outlets["defined"].get(o.split(":")[0])
-            ports = [] if ":" not in o else json.loads(o.split(":")[1])  # NoQA .replace('\'', '"')) No longer necessary single port defs are listified in config.py
+            ports = [] if ":" not in o else json.loads(o.replace("'", '"').split(":")[1])
             _addr = outlet["address"]
 
             # -- // DLI web power switch Auto Power On \\ --

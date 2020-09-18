@@ -97,6 +97,11 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
 - minor typo fixes, linter clean-up, etc
 - more error prevention in rename (no rename to alias that's aready in use, no rename to alias that starts with sys root_dev prefix)
 
+### Sept 2020 (v2020-4.5)
+- Bypass ssh private key import logic for daemons
+- mv ttyAMA rules to common rules file (initially deployed to it's own rules file)
+- Additional rename error prevention (don't add new alias to ser2net if already mapped)
+
 # Features
 ## **Feature Summary Image**
 ![consolepi-menu image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePi_features.jpg)

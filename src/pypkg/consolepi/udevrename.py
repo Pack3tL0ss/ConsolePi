@@ -31,7 +31,7 @@ class Rename():
         from_name(str): Devices current name passed in from rename_menu()
 
         returns:
-        None type if no error, or Error (str) if Error occured
+        None type if no error, or Error (str) if Error occurred
         '''
         from_name = from_name.replace('/dev/', '')
         local = self.cpi.local

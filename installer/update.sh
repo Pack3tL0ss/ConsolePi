@@ -649,7 +649,7 @@ do_consolepi_mdns() {
             [[ "$d" =~ "socket" ]] && logit "disabling ${d%.*} ConsolePi has it's own mdns daemon"
             systemctl stop "$d" >/dev/null 2>&1 || _error=true
             systemctl disable "$d" 2>/dev/null || _error=true
-            $_error && logit "Error occured: stop - disable $d Check daemon status" "warning"
+            $_error && logit "Error occurred: stop - disable $d Check daemon status" "warning"
         fi
     done
     unset process
@@ -1001,7 +1001,7 @@ update_main() {
         post_install_msg
     else
         _msg="Success Silent Install Complete a reboot is required."
-        [[ "$warn_cnt" > 0 ]] && logit "$_msg\n ${_red}Warnings Occured During Install ($warn_cnt)${_norm}." | cut -d']' -f4- || echo "$_msg"
+        [[ "$warn_cnt" > 0 ]] && logit "$_msg\n ${_red}Warnings Occurred During Install ($warn_cnt)${_norm}." | cut -d']' -f4- || echo "$_msg"
     fi
     $silent && $do_reboot && echo -e "\n${_green}Install Complete${_norm}\n  system will reboot in 10 seconds (CTRL+C to abort reboot)" && sleep 10 && reboot
 }

@@ -784,35 +784,22 @@ ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 a
 
   If `/etc/udev/rules.d/10-ConsolePi.rules` already exists on the system, and was created prior to v2020-4.5 (Sept 2020).  You will likely need to update the file to support the additional GPIO UARTs on the Pi4.  The GPIO UARTs were initially configured to use it's own separate rules file (11-ConsolePi-ttyama.rules).  With v2020-4.5 it was added to the common rules file `10-CosnolePi.rules`.  The format/template used to build `10-ConsolePi.rules` had to be updated to support the GPIO UARTs (ttyAMA devices).
 
-  You can verify by checking `/etc/udev/rules.d/10-ConsolePi.rules` for `KERNEL=="ttyAMA[1-4]*", GOTO="TTYAMA-DEVS"` near the top of the file (line 2) and `LABEL="TTYAMA-DEVS"` around line 17.
+  You can verify by checking `/etc/udev/rules.d/10-ConsolePi.rules` for `KERNEL=="ttyAMA[1-4]*", GOTO="TTYAMA-DEVS"` near the top of the file (line 2).
 
-  if they don't exist you will need to edit `/etc/udev/rules.d/10-ConsolePi.rules` and remove everything above
+  If `/etc/udev/rules.d/10-ConsolePi.rules` does not exist, nothing needs to be done.  If it does and the verification above indicates it needs to be updated you can either delete it (which will remove any current aliases, you'll be startig over, but the file will take on the new format). -- or -- if you want to avoid the need to rename the serial devices you've already set aliases for, you can...
   ```bash
-  # -------------- // ByPort Multi-Port Adapter w/ Single Serial# for All Ports GOTO --> BYPORT-DEVS \\ -----------------------
+  sudo mv /etc/udev/rules.d/10-ConsolePi.rules ~/ # move the file out of the rules dir (to your home dir)
+  sudo cp /etc/ConsolePi/src/10-ConsolePi.rules /etc/udev/rules.d  # copy the new file template to the rules dir
+  cat ~/10-ConsolePi.rules  # cat the old file contents.
+  # Select and copy only the lines with aliases that were previously configured
+  sudo nano /etc/udev/rules.d/10-ConsolePi.rules  # open the new rules file for editting
+  # paste in the lines with aliases from the previous rules file, in the same section they existed previously
+  # Be sure not to remove any of the existing comments/lines
+  # repeat cat, copy, edit, paste as needed if content existed in multiple sections.
+  consolepi-resetudev  # trigger/reload udev to update devs based on new file content.
+  consolepi-showaliases  # This utility verifies All aliases set in the rules file also exist in ser2net and vice versa.
   ```
-  and replace (copy and paste) the updated portion which is shown below (the src template is in `/etc/ConsolePi/src`)
-  ```bash
-# Created by ConsolePi ~ Pack3tL0ss
-#   -- It's OK to edit manually, however keep manual edits to add/del device lines
-#   -- Comments and LABELs should remain. Changing them may break ConsolePis
-#   -- ability to automate the addition of adapters properly
 
-# ---------------- // COLLECT AND STORE ATTRIBUTES FROM VARIOUS LEVELS OF DEV HIERARCHY \\ --------------------------------
-SUBSYSTEM!="tty", GOTO="END"
-KERNEL=="ttyAMA[1-4]*", GOTO="TTYAMA-DEVS"
-KERNEL!="ttyUSB[0-9]*|ttyACM[0-9]*", GOTO="END"
-
-SUBSYSTEMS=="usb", IMPORT{builtin}="usb_id", IMPORT{builtin}="hwdb --subsystem=usb"
-SUBSYSTEMS=="usb-serial", ENV{.ID_PORT}="$attr{port_number}"
-ENV{ID_SERIAL_SHORT}=="", IMPORT{builtin}="path_id", GOTO="BYPATH-POINTERS"
-SUBSYSTEMS=="usb", ENV{ID_USB_INTERFACE_NUM}="$attr{bInterfaceNumber}"
-
-# ------------- // TTYAMA-devs ~ Pi4 GPIO uarts to symlink --> END \\ ------------------------
-LABEL="TTYAMA-DEVS"
-# END TTYAMA-DEVS
-SUBSYSTEM=="tty", GOTO="END"
-
-  ```
   #### Configure `/boot/config.txt`
   ```bash
   # related snippet from /boot/config.txt

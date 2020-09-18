@@ -422,8 +422,7 @@ class ConsolePiExec:
                                 log.show(_error)
 
                             # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
-                            c = " ".join([str(i) for i in c])
-                            if "picocom" in c:
+                            if "picocom" in menu_actions[ch]["cmd"] or "telnet" in menu_actions[ch]["cmd"]:
                                 os.system(
                                     "/etc/ConsolePi/src/consolepi-commands/resize >/dev/null"
                                 )

@@ -11,8 +11,8 @@ try:
 except RuntimeError:
     is_rpi = False
 
-from consolepi import log, config, requests, utils
-from consolepi.power import DLI
+from consolepi import log, config, requests, utils  # type: ignore
+from consolepi.power import DLI  # type: ignore
 
 TIMING = False
 
@@ -111,7 +111,7 @@ class Outlets:
                     else:
                         return False  # return False for cycle if outlet was off indicating state is invalid for cycle
                 else:
-                    return cur_state  # an error occured getting current state
+                    return cur_state  # an error occurred getting current state
             else:
                 raise ConsolePiPowerException(f'Invalid Type {type(command)} passed to do_tasmota_cmd')
 

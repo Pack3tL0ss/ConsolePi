@@ -290,7 +290,7 @@ util_exec() {
     else
         ch=true
     fi
-    $ch && process_cmds "${cmd_list[@]}" && logit "Done - $2 $process Completed without issue." || logit "Done - $2 $process Completed WARNINGS Occured." "WARNING"
+    $ch && process_cmds "${cmd_list[@]}" && logit "Done - $2 $process Completed without issue." || logit "Done - $2 $process Completed WARNINGS Occurred." "WARNING"
 }
 
 # translate menu tag to pkg name when a prettier name is used in the menu

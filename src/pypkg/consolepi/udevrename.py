@@ -31,7 +31,7 @@ class Rename():
         from_name(str): Devices current name passed in from rename_menu()
 
         returns:
-        None type if no error, or Error (str) if Error occured
+        None type if no error, or Error (str) if Error occurred
         '''
         from_name = from_name.replace('/dev/', '')
         local = self.cpi.local
@@ -73,7 +73,7 @@ class Rename():
             for i in local.adapters:
                 if i == f'/dev/{from_name}':
                     break
-            _dev = local.adapters[i].get('config')  # dict
+            _dev = local.adapters[i].get('config')  # type: ignore # dict
             # -- these values are always safe, values set by config.py if not extracted from ser2net.conf
             baud = _dev['baud']
             dbits = _dev['dbits']
@@ -203,6 +203,7 @@ class Rename():
                                 '2': 'by_id'
                             }
                             valid = False
+                            ch = ''
                             while not valid:
                                 print(' Please Select an option')
                                 ch = self.wait_for_input()
@@ -287,8 +288,9 @@ class Rename():
             return 'Aborted based on user input'
     # --- // END MONSTER RENAME METHOD \\ ---
 
-    def do_ser2net_line(self, from_name=None, to_name=None, baud=None, dbits=None, parity=None,
-                        flow=None, sbits=None):
+    def do_ser2net_line(self, from_name: str = None, to_name: str = None, baud: int = None,
+                        dbits: int = None, parity: str = None,
+                        flow: str = None, sbits: int = None):
         '''Process Adapter Configuration Changes in ser2net.conf.
 
         Keyword Arguments:
@@ -303,6 +305,11 @@ class Rename():
         Returns:
             {str|None} -- Returns error text if an error occurs or None if no issues.
         '''
+        # don't add the new entry to ser2net if one already exists for the alias
+        if from_name != to_name and config.ser2net_conf.get(f"/dev/{to_name}"):
+            log.info(f"ser2net: {to_name} already mapped to port {config.ser2net_conf[f'/dev/{to_name}'].get('port')}", show=True)
+            return
+
         ser2net_parity = {
             'n': 'NONE',
             'e': 'EVEN',
@@ -367,7 +374,7 @@ class Rename():
         else:
             return error
 
-    def add_to_udev(self, udev_line, section_marker, label=None):
+    def add_to_udev(self, udev_line: str, section_marker: str, label: str = None):
         '''Add or edit udev rules file with new symlink after adapter rename.
 
         Arguments:
@@ -384,16 +391,18 @@ class Rename():
         found = ser_label_exists = get_next = update_file = False  # init
         goto = line = cmd = ''  # init
         rules_file = self.rules_file  # if 'ttyAMA' not in udev_line else self.ttyama_rules_file  Testing 1 rules file
-        if utils.valid_file(rules_file):   # pylint: disable=maybe-no-member
-            with open(rules_file) as x:  # pylint: disable=maybe-no-member
+        if utils.valid_file(rules_file):
+            with open(rules_file) as x:
                 for line in x:
                     # temporary for those that have the original file
                     if 'ID_SERIAL' in line and 'IMPORT' not in line:
                         _old = 'ENV{ID_SERIAL}=="", GOTO="BYPATH-POINTERS"'
                         _new = 'ENV{ID_SERIAL_SHORT}=="", IMPORT{builtin}="path_id", GOTO="BYPATH-POINTERS"'
-                        cmd = "sudo sed -i 's/{}/{}/' {}".format(_old, _new, rules_file)  # pylint: disable=maybe-no-member
+                        cmd = "sudo sed -i 's/{}/{}/' {}".format(_old, _new, rules_file)
                         update_file = True
-                    if line.strip() == udev_line.strip():
+
+                    # No longer including SUBSYSTEM in formatted udev line, redundant given logic @ top of rules file
+                    if line.replace('SUBSYSTEM=="tty", ', '').strip() == udev_line.strip():
                         return  # Line is already in file Nothing to do.
                     if get_next:
                         goto = line

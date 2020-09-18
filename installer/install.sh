@@ -115,7 +115,7 @@ do_user_dir_import(){
         cp -r "$stage_dir/$user_home/." "/$user_home/" &&
         chown -R $(grep "^$1:" /etc/passwd | cut -d: -f3-4) "/$user_home/" &&
         ( logit "Success - copy staged files for user $1" && return 0 ) ||
-            ( logit "An error occured when attempting cp pre-staged files for user $1" "WARNING"
+            ( logit "An error occurred when attempting cp pre-staged files for user $1" "WARNING"
               return 1
             )
     fi
@@ -131,7 +131,7 @@ do_users(){
         if grep -q "^pi:" /etc/passwd && [[ "$iam" == "pi" ]] && [ -e /run/sshwarn ]; then
             if [ ! -z "$pi_pass" ]; then
                 echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
-                    logit "Error occured changing pi password using conf/cmd_line arg" "WARNING"
+                    logit "Error occurred changing pi password using conf/cmd_line arg" "WARNING"
             elif ! $silent; then
                 header
                 echo "You are logged in as pi, and the default password has not been changed"
@@ -216,7 +216,7 @@ do_users(){
                         #     chown -R $(grep "^$result:" /etc/passwd | cut -d: -f3-4) "$stage_dir/home/$result" &&
                         #     cp -r "$stage_dir/home/$result" "/home/$result" &&
                         #     logit "Success - copy staged files for user $result" ||
-                        #         logit "An error occured when attempting cp pre-staged files for user $result" "WARNING"
+                        #         logit "An error occurred when attempting cp pre-staged files for user $result" "WARNING"
                         # fi
 
                     else
@@ -544,9 +544,9 @@ update_banner() {
 
 do_imports() {
     process="import config.sh"
-    . "${consolepi_dir}installer/config.sh" 2>>$log_file || logit "Error Occured importing config.sh" "Error"
+    . "${consolepi_dir}installer/config.sh" 2>>$log_file || logit "Error Occurred importing config.sh" "Error"
     process="import update.sh"
-    . "${consolepi_dir}installer/update.sh" 2>>$log_file || logit "Error Occured importing update.sh" "Error"
+    . "${consolepi_dir}installer/update.sh" 2>>$log_file || logit "Error Occurred importing update.sh" "Error"
     unset process
 }
 

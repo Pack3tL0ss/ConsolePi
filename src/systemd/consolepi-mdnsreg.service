@@ -3,7 +3,7 @@ Description=Advertise ConsolePi and local serial information via mdns
 Documentation=https://github.com/Pack3tL0ss/ConsolePi
 DefaultDependencies=no
 After=consolepi-api.service
-Wants=consolepi-api.sercice
+Wants=consolepi-api.service
 StartLimitInterval=200
 StartLimitBurst=5
 

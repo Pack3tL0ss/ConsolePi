@@ -4,7 +4,7 @@ import sys
 from collections import OrderedDict as od
 import os
 
-from consolepi import utils, log, config
+from consolepi import utils, log, config  # type: ignore
 
 MIN_WIDTH = 55
 MAX_COLS = 5
@@ -12,6 +12,7 @@ MAX_COLS = 5
 
 class Menu():
 
+    # TODO move footer_opts to script calling this module, more flexible
     def __init__(self):  # utils, debug=False, log=None, log_file=None):
         self.go = True
         self.states = {
@@ -319,12 +320,14 @@ class Menu():
         elif section == 'body':
             max_len = 0
             blines = list(text) if isinstance(text, str) else text
-            pad = True if len(blines) + index > 10 or len(blines) + index > 100 else False
+            pad = True if (index < 10 and len(blines) + index > 10) or \
+                          (9 < index < 100 and len(blines) + index - 1 < 100) else False
+            _end_index_len = len(str(len(blines) + index - 1))
             indent = l_offset + 4 if pad else l_offset + 3
             width_list = []
             for _line in blines:
                 # -- format spacing of item entry --
-                _i = str(index) + '. ' if not pad or index > 9 else str(index) + '.  '
+                _i = str(index) + '. ' + ' ' * (_end_index_len - len(str(index)))
                 # -- generate line and calculate line length --
                 _line = ' ' * l_offset + _i + _line
                 line = self.format_line(_line)

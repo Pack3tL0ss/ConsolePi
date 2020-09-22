@@ -212,7 +212,7 @@ class ConsolePiExec:
 
             if not found:
                 if name == "init" and thread_type == "power":
-                    if self.pwr and not self.pwr.data.get("dli_power"):
+                    if self.pwr and not self.pwr.data or not self.pwr.data.get("dli_power"):
                         self.pwr.dli_exists = False
                     self.pwr_init_complete = True
                 if do_log:

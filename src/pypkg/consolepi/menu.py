@@ -31,7 +31,7 @@ class Menu():
         '''
         format and print current menu.
 
-        build the content and in the calling method and pass into this function for format & printing
+        build the content in the calling method and pass into this function for format & printing
         params:
             body: a list of lists or list of strings, where each inner list is made up of text for each
                     menu-item in that logical section/group.
@@ -320,10 +320,8 @@ class Menu():
         elif section == 'body':
             max_len = 0
             blines = list(text) if isinstance(text, str) else text
-            pad = True if (index < 10 and len(blines) + index > 10) or \
-                          (9 < index < 100 and len(blines) + index - 1 < 100) else False
             _end_index_len = len(str(len(blines) + index - 1))
-            indent = l_offset + 4 if pad else l_offset + 3
+            indent = l_offset + _end_index_len + 2  # The 2 is for '. '
             width_list = []
             for _line in blines:
                 # -- format spacing of item entry --

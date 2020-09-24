@@ -9,6 +9,9 @@ Single Command Install Script. Run from a RaspberryPi running RaspiOS Buster (id
 wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
 ```
 
+![consolepi animated Demo](readme_content/main-demo.gif)
+
+
 >*Making multiple ConsolePis?  Want to re-image, but pull-over all of your existing configs?  Check out the [image creator](#3-consolepi-image-creator)!!!*
 
 ------

@@ -184,10 +184,12 @@ class ConsolePiExec:
                 elif "sudo -u " not in cmd:
                     cmd = cmd.replace("sudo ", "")
                 subprocess.run(cmd, shell=True)
+                print("")
+                input("Press Enter to Continue... ")
             except (KeyboardInterrupt, EOFError):
-                pass
-            print("")
-            input("Press Enter to Continue... ")
+                log.show('Operation Aborted')
+                print('')  # prevents header and prompt on same line in debug
+
             return True
 
     def wait_for_threads(self, name="init", timeout=10, thread_type="power"):
@@ -210,7 +212,7 @@ class ConsolePiExec:
 
             if not found:
                 if name == "init" and thread_type == "power":
-                    if self.pwr and not self.pwr.data.get("dli_power"):
+                    if self.pwr and not self.pwr.data or not self.pwr.data.get("dli_power"):
                         self.pwr.dli_exists = False
                     self.pwr_init_complete = True
                 if do_log:

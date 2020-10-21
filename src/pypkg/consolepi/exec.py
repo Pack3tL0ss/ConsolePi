@@ -80,23 +80,19 @@ class ConsolePiExec:
             _addr = outlet["address"]
 
             # -- // DLI web power switch Auto Power On \\ --
+            #
+            # TODO combine all ports from same pwr_key and sent to pwr_toggle once
+            # TODO Update outlet if return is OK, then run refresh in the background to validate
+            # TODO Add class attribute to cpi_menu ~ cpi_menu.new_data = "power", "main", etc
+            #      Then in wait_for_input run loop to check for updates and re-display menu
+            # TODO power_menu and dli_menu wait_for_threads auto power ... check cpiexec.autopwr_wait first
+            #
             if outlet["type"].lower() == "dli":
                 for p in ports:
                     log.debug(
                         f"[Auto PwrOn] Power ON {pwr_key} Linked Outlet {outlet['type']}:{_addr} p{p}"
                     )
-                    # TODO have seen this, but unable to recreate.  may be transient failure???
-                    # NoQA This log occurs: [ERROR]: [DLI GET OUTLETS] dli @ labpower2.kabrew.com reachable, but failed to fetch statuslist (outlet_list)
-                    # NoQA is_on in pwr.data['labpower2']['defined'] is being flushed based on error above so empty dict resulting in key error
-                    # Exception in thread auto_pwr_on_r1-8320T-sw:
-                    # Traceback (most recent call last):
-                    # File "/usr/lib/python3.7/threading.py", line 917, in _bootstrap_inner
-                    #     self.run()
-                    # File "/usr/lib/python3.7/threading.py", line 865, in run
-                    #     self._target(*self._args, **self._kwargs)
-                    # File "/etc/ConsolePi/src/pypkg/consolepi/exec.py", line 88, in auto_pwron_thread
-                    #     if not outlet["is_on"][p][
-                    # KeyError: 2
+
                     if not outlet["is_on"][p]["state"]:  # This is just checking what's in the dict not querying the DLI
                         r = self.pwr.pwr_toggle(
                             outlet["type"], _addr, desired_state=True, port=p
@@ -176,6 +172,7 @@ class ConsolePiExec:
         s = subprocess
         c = cmd.replace("-u", "").replace("sudo", "").strip()
         p = "PATH=$PATH:/etc/ConsolePi/src/consolepi-commands && "
+        # TODO if shutil.which(c.split()[0]):
         r = s.run(f"{p}which {c.split()[0]}", shell=True, stderr=s.PIPE, stdout=s.PIPE)
         if r.returncode == 0:
             try:
@@ -199,7 +196,6 @@ class ConsolePiExec:
             bool: True if threads are still running indicating a timeout
                   None indicates no threads found ~ they have finished
         """
-        # log = self.config.log
         start = time.time()
         do_log = False
         found = False
@@ -235,6 +231,7 @@ class ConsolePiExec:
                 )
                 return True
 
+    # TODO REMOVE - Depricated
     def launch_shell(self):
         iam = config.loc_user
         os.system(
@@ -250,7 +247,7 @@ class ConsolePiExec:
         self, upd_linked=False, refresh=False, key="defined", outlets=None
     ):
         """
-        Called by consolepi-menu refresh
+        Called by consolepi-menu refresh and exec_auto_pwron (to update outlets in menu)
         """
         pwr = self.pwr
         if config.power:
@@ -289,6 +286,7 @@ class ConsolePiExec:
         loc_home = self.local.loc_home
 
         # -- generate local key file if it doesn't exist
+        # TODO pathlib
         if not os.path.isfile(loc_home + "/.ssh/id_rsa"):
             print("\nNo Local ssh cert found, generating...\n")
             utils.do_shell_cmd(
@@ -302,11 +300,14 @@ class ConsolePiExec:
         for _rem in rem_data:
             rem, rem_ip, rem_user = _rem
             print(self.menu.format_line("{{magenta}}Attempting to copy ssh cert to " + rem + "{{norm}}").text)
-            ret = utils.do_shell_cmd(
-                f"sudo -u {loc_user} ssh-copy-id {rem_user}@{rem_ip}", timeout=15  # 360
-            )
-            if ret is not None:
-                return_list.append("{}: {}".format(rem, ret))
+            if not utils.is_reachable(rem_ip, 22, timeout=5, silent=True):
+                return_list.append(f"{rem}: is not reachable... Skipped")
+            else:
+                ret = utils.do_shell_cmd(
+                    f"sudo -u {loc_user} ssh-copy-id {rem_user}@{rem_ip}", timeout=60  # 360
+                )
+                if ret is not None:
+                    return_list.append("{}: {}".format(rem, ret))
         return return_list
 
     def show_adapter_details(self, adapters):
@@ -377,6 +378,7 @@ class ConsolePiExec:
                                 )
                                 if _error and self.autopwr_wait:
                                     # TODO simplify this after moving to action object
+                                    _h = None
                                     _method = "ssh -t" if "ssh" in c else "telnet"
                                     if "ssh" in _method:
                                         _h = (
@@ -402,17 +404,18 @@ class ConsolePiExec:
                                                 log.show("Connection Aborted")
                                                 break
 
-                                    print(
-                                        "\nInitial Attempt Failed, but host is linked to an outlet that was"
-                                    )
-                                    print("off. Host may still be booting\n")
-                                    utils.spinner(
-                                        f"Waiting for {_h} to boot, CTRL-C to Abort",
-                                        wait_for_boot,
-                                    )
-                                    if self.autopwr_wait:
-                                        _error = utils.do_shell_cmd(c, **menu_actions[ch]["exec_kwargs"])
-                                        self.autopwr_wait = False
+                                    if _h:
+                                        print(
+                                            "\nInitial Attempt Failed, but host is linked to an outlet that was"
+                                        )
+                                        print("off. Host may still be booting\n")
+                                        utils.spinner(
+                                            f"Waiting for {_h} to boot, CTRL-C to Abort",
+                                            wait_for_boot,
+                                        )
+                                        if self.autopwr_wait:
+                                            _error = utils.do_shell_cmd(c, **menu_actions[ch]["exec_kwargs"])
+                                            self.autopwr_wait = False
                             else:
                                 c = shlex.split(menu_actions[ch]["cmd"])
                                 result = subprocess.run(c, stderr=subprocess.PIPE)
@@ -675,7 +678,7 @@ class ConsolePiExec:
                 print('')  # prevents header and prompt on same line in debug
         return True
 
-    def confirm_and_spin(self, action_dict, *args, **kwargs):
+    def confirm_and_spin(self, action_dict: dict, *args, **kwargs):
         """
         called by menu_exec.
         Collects user Confirmation if operation warrants it (Powering off or cycle outlets)

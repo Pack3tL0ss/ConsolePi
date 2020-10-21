@@ -145,10 +145,12 @@ class Utils:
         return ppid is None
 
     def error_handler(self, cmd, stderr, user=loc_user):
+        # TODO rather than running the command return something to the calling function instructing it to retry
+        # with new cmd
         if isinstance(cmd, str):
             cmd = shlex.split(cmd)
         if stderr and "FATAL: cannot lock /dev/" not in stderr:
-            # Handle key change Error
+            # -- // KEY CHANGE ERROR \\ --
             if "WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!" in stderr:
                 print(
                     "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
@@ -198,10 +200,18 @@ class Utils:
                 in stderr
             ):
                 return "Skipped - key already exists"
+
             elif "/usr/bin/ssh-copy-id: INFO:" in stderr:
                 if "sh: 1:" in stderr:
                     return "".join(stderr.split("sh: 1:")[1:]).strip()
-            # ssh cipher suite errors
+                else:
+                    if '\n' in stderr:
+                        stderr = stderr.replace('\r', '')
+                        return "".join([line for line in stderr.split('\n')
+                                        if not line.startswith('/usr/bin/ssh-copy-id: INFO:')
+                                        ]).strip()
+
+            # -- // SSH CIPHER SUITE ERRORS \\ --
             elif "no matching cipher found. Their offer:" in stderr:
                 print("Connection Error: {}\n".format(stderr))
                 cipher = stderr.split("offer:")[1].strip().split(",")
@@ -210,12 +220,23 @@ class Utils:
                     cipher = aes_cipher[-1]
                 else:
                     cipher = cipher[-1]
-                cmd += ["-c", cipher]
+                cmd += ["-o", f"ciphers={cipher}"]
 
-                print("Reattempting Connection using cipher {}".format(cipher))
-                r = subprocess.run(cmd)
-                if r.returncode:
-                    return "Error on Retry Attempt"  # TODO better way... handle banners... paramiko?
+                print(f"Reattempting Connection using cipher {cipher}")
+                # r = subprocess.run(cmd)
+                # if r.returncode:
+                #     time.sleep(3)
+                #     return "Error on Retry Attempt"  # TODO better way... handle banners... paramiko?
+                s = subprocess
+                with s.Popen(cmd, stderr=s.PIPE, bufsize=1, universal_newlines=True) as p, StringIO() as buf1:
+                    for line in p.stderr:
+                        print(line, end="")
+                        if not line.startswith('/usr/bin/ssh-copy-id: INFO:'):
+                            buf1.write(line)
+
+                    return buf1.getvalue()
+
+            # TODO handle invalid Key Exchange -o KexAlgorithms=...
             else:
                 return stderr  # return value that was passed in
 
@@ -571,7 +592,10 @@ class Utils:
         return os.path.isfile(filepath) and os.stat(filepath).st_size > 0
 
     def listify(self, var):
-        return var if isinstance(var, list) or var is None else [var]
+        if var is None:
+            return []
+        else:
+            return var if isinstance(var, list) else [var]
 
     def get_host_short(self, host):
         """Extract hostname from fqdn

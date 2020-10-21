@@ -37,7 +37,6 @@ ztp_do_imports() {
         wired_dhcp=${wired_dhcp:-false}
         if [ ! -z "$LOG_FILE" ]; then
             log_file=$LOG_FILE
-            echo -e "# -- consolepi-ztp STARTING $(date +"%b %d %T") -- " >> $log_file
         else
             ((rc+=$?))
         fi
@@ -143,6 +142,9 @@ ztp_start   () {
         sudo systemctl daemon-reload && sudo systemctl restart consolepi-wired-dhcp &&
         echo -e "\n${_bold}dhcp/ztp is now running waiting for devices to deploy${_norm}\n"
     fi
+
+    echo -e "# -- consolepi-ztp STARTING $(date +"%b %d %T") -- " >> $log_file ||
+        echo -e '!! Error echoing ZTP start to log file'
 
     # echo -e "To see pcaps for DHCP/TFTP you can also use 'sudo tcpdump -vnes0 -i eth0 port 67 or port 68 or tftp'\n"
     echo

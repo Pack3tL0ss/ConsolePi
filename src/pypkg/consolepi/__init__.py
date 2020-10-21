@@ -118,6 +118,9 @@ class ConsolePiLog:
     def setLevel(self, level):
         getattr(self._log, 'setLevel')(level)
 
+    def clear(self):
+        self.error_msgs = []
+
 
 utils = Utils()
 

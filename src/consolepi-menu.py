@@ -24,9 +24,14 @@ MIN_WIDTH = 55
 MAX_COLS = 5
 
 
+class Actions():
+    def __init__(self, ):
+        pass
+
+
 class ConsolePiMenu(Rename):
 
-    def __init__(self, bypass_remotes=False):
+    def __init__(self, bypass_remotes: bool = False):
         self.cpi = ConsolePi(bypass_remotes=bypass_remotes)
         self.cpiexec = self.cpi.cpiexec
         self.baud = config.default_baud
@@ -43,10 +48,27 @@ class ConsolePiMenu(Rename):
             re.compile('Connection to .* closed'),
             re.compile('Warning: Permanently added .* to the list of known hosts')
         ]
+        self.show_ports = False
+        self.menu.show_legend = config.ovrd.get("show_legend", True)
         self.do_menu_load_warnings()
+        self.menu.legend_options = {
+            'power': ['p', 'Power Control Menu'],
+            'dli': ['d', '[dli] Web Power Switch Menu'],
+            'rshell': ['rs', 'Remote Shell Menu'],
+            'key': ['k', 'Distribute SSH public Key to Remote Hosts'],
+            'shell': ['sh', 'Enter Local Shell'],
+            'rn': ['rn', 'Rename Adapters'],
+            'refresh': ['r', 'Refresh'],
+            'sync': ['s', 'Sync with cloud'],
+            'sp': ['sp', 'Toggle Display of associated TELNET ports'],
+            'con': ['c', 'Change Default Serial Settings (devices marked with ** only)'],
+            'picohelp': ['h', 'Display Picocom Help'],
+            'back': ['b', 'Back'],
+            'x': ['x', 'Exit']
+        }
         super().__init__(self.menu)
 
-    def print_attribute(self, ch, locs={}):
+    def print_attribute(self, ch: str, locs: dict = {}) -> bool:
         '''Debugging Function allowing user to print class attributes / function returns.
 
         Params:
@@ -174,7 +196,7 @@ class ConsolePiMenu(Rename):
         input('Press Enter to Continue... ')
 
     # -- // POWER MENU \\ --
-    def power_menu(self, calling_menu='main_menu'):
+    def power_menu(self, calling_menu: str = 'main_menu'):
         cpi = self.cpi
         pwr = cpi.pwr
         menu = self.menu
@@ -199,7 +221,9 @@ class ConsolePiMenu(Rename):
             log.show('No Linked Outlets are connected')
             return
 
-        while choice not in ['x', 'b']:
+        utils.spinner("Waiting for Auto Power Threads to Complete", cpi.cpiexec.wait_for_threads, name="auto_pwr", timeout=20)
+
+        while choice not in ['x']:
             item = 1
 
             header = 'Power Control Menu'
@@ -212,7 +236,7 @@ class ConsolePiMenu(Rename):
             state_list = []
             body = []
             _linked = ''
-            footer = {'opts': [], 'before': []}
+            legend = {'opts': [], 'before': []}
             for r in sorted(outlets):
                 outlet = outlets[r]
                 # -- // Linked DLI OUTLET AND ESPHOME MENU LINE(s) \\ --
@@ -232,7 +256,7 @@ class ConsolePiMenu(Rename):
                         _outlet = outlet['is_on'][_port]
                         _state = states[_outlet['state']]
                         state_list.append(_outlet['state'])
-                        _state = menu.format_line(_state).text
+                        # _state = menu.format_line(_state).text
                         _name = ' ' + _outlet['name'] if 'ON' in _state else _outlet['name']
                         if _name != r:
                             body.append(f"[{_state}] {_name} ({r} Port:{_port}) {_linked if _linked else ''}")
@@ -264,7 +288,8 @@ class ConsolePiMenu(Rename):
                     if pwr.data['defined'][r].get('errors'):
                         log.show(f'{r} - {pwr.data["defined"][r]["errors"]}')
                         del pwr.data['defined'][r]['errors']
-                    elif show_linked:
+
+                    if show_linked:
                         this_linked = config.cfg_yml.get('POWER', {}).get(r, {}).get('linked_devs', {})
                         # _linked = ', '.join([k for k in this_linked])
                         _linked = ['{}'.format('{{red}}' + k + '{{norm}}'
@@ -273,7 +298,7 @@ class ConsolePiMenu(Rename):
                     if isinstance(outlet.get('is_on'), bool):
                         _state = states[outlet['is_on']]
                         state_list.append(outlet['is_on'])
-                        _state = menu.format_line(_state).text
+                        # _state = menu.format_line(_state).text
                         body.append(f"[{_state}] {' ' + r if 'ON' in _state else r} ({outlet['type']}:{outlet['address']}) "
                                     f"{_linked if _linked else ''}")
                         menu_actions[str(item)] = {
@@ -300,36 +325,36 @@ class ConsolePiMenu(Rename):
 
             if item > 2:
                 if False in state_list:
-                    footer['before'].append('all on: Turn all outlets {{green}}ON{{norm}}')
+                    legend['before'].append('all on: Turn all outlets {{green}}ON{{norm}}')
                     menu_actions['all on'] = {
                         'function': pwr.pwr_all,
                         'kwargs': {'outlets': outlets, 'action': 'toggle', 'desired_state': True}
                         }
                 if True in state_list:
-                    footer['before'].append('all off: Turn all outlets {{red}}OFF{{norm}}')
+                    legend['before'].append('all off: Turn all outlets {{red}}OFF{{norm}}')
                     menu_actions['all off'] = {
                         'function': pwr.pwr_all,
                         'kwargs': {'outlets': outlets, 'action': 'toggle', 'desired_state': False}
                         }
-                    footer['before'].append('cycle all: Cycle all outlets '
+                    legend['before'].append('cycle all: Cycle all outlets '
                                             '{{green}}ON{{norm}}{{dot}}{{red}}OFF{{norm}}{{dot}}{{green}}ON{{norm}}')
 
                     menu_actions['cycle all'] = {
                         'function': pwr.pwr_all,
                         'kwargs': {'outlets': outlets, 'action': 'cycle'}
                         }
-                footer['before'].append('')
+                legend['before'].append('')
                 if not show_linked:
-                    footer['before'].append('L.  Show Connected Linked Devices')
+                    legend['before'].append('L.  Show Connected Linked Devices')
                 else:
-                    footer['before'].append('L.  Hide Connected Linked Devices')
+                    legend['before'].append('L.  Hide Connected Linked Devices')
 
-            footer['opts'] = ['back', 'refresh']
+            legend['opts'] = ['back', 'refresh']
             if pwr.dli_exists and not calling_menu == 'dli_menu':
-                footer['opts'].insert(0, 'dli')
+                legend['opts'].insert(0, 'dli')
                 menu_actions['d'] = self.dli_menu
 
-            menu.print_menu(body, header=header, subhead=subhead, footer=footer)
+            menu_actions = menu.print_menu(body, header=header, subhead=subhead, legend=legend, menu_actions=menu_actions)
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
             if choice not in ['b', 'r', 'l']:
@@ -343,7 +368,7 @@ class ConsolePiMenu(Rename):
                     with Halo(text='Refreshing Outlets', spinner='dots'):
                         outlets = self.cpiexec.outlet_update(refresh=True, upd_linked=True)
 
-    def wait_for_input(self, prompt=" >> ", terminate=False, locs={}):
+    def wait_for_input(self, prompt: str = " >> ", terminate: bool = False, locs: dict = {}) -> object:
         '''Get input from user.
 
         User Can Input One of the following for special handling:
@@ -380,8 +405,8 @@ class ConsolePiMenu(Rename):
 
         try:
             if config.debug:
-                menu.menu_rows += 1  # TODO REMOVE AFTER SIMPLIFIED
-                prompt = f' m[r:{menu.menu_rows}, c:{menu.menu_cols}] a[r:{menu.rows}, c:{menu.cols}]{prompt}'
+                prompt = f'pg[{menu.cur_page}] m[r:{menu.page.rows}, c:{menu.page.cols}] ' \
+                         f'a[r:{menu.tty.rows}, c:{menu.tty.cols}]{prompt}'
 
             ch = choice()
 
@@ -415,7 +440,7 @@ class ConsolePiMenu(Rename):
                 return choice(clear=True)
 
     # ------ // DLI WEB POWER SWITCH MENU \\ ------ #
-    def dli_menu(self, calling_menu='power_menu'):
+    def dli_menu(self, calling_menu: str = 'power_menu'):
         cpi = self.cpi
         pwr = cpi.pwr
         menu_actions = {
@@ -429,11 +454,13 @@ class ConsolePiMenu(Rename):
         if not cpi.pwr_init_complete:
             with Halo(text='Waiting for Outlet init Threads to Complete...',
                       spinner='dots'):
-                self.cpiexec.wait_for_threads('init')
+                cpi.cpiexec.wait_for_threads('init')
 
         if not pwr.dli_exists:
             log.show('All Defined dli Web Power Switches are unreachable')
             return
+
+        utils.spinner("Waiting for Auto Power Threads to Complete", cpi.cpiexec.wait_for_threads, name="auto_pwr", timeout=20)
 
         dli_dict = pwr.data['dli_power']
         while choice not in ['x', 'b']:
@@ -530,19 +557,22 @@ class ConsolePiMenu(Rename):
                 subhead.append('enter c + item # i.e. "c2" to cycle power on outlet')
             subhead.append('enter r + item # i.e. "r2" to rename the outlet')
 
-            footer = {'opts': ['back', 'refresh']}
-            if (not calling_menu == 'power_menu' and pwr.data) and (pwr.gpio_exists or pwr.tasmota_exists or pwr.linked_exists):
+            legend = {'opts': ['back', 'refresh']}
+            if (not calling_menu == 'power_menu' and pwr.data) and (pwr.gpio_exists or pwr.tasmota_exists or
+                                                                    pwr.linked_exists or pwr.esphome_exists):
                 menu_actions['p'] = self.power_menu
-                footer['opts'].insert(0, 'power')
-                footer['overrides'] = {'power': ['p', 'Power Control Menu (linked, GPIO, tasmota)']}
+                legend['opts'].insert(0, 'power')
+                legend['overrides'] = {'power': ['p', 'Power Control Menu (linked, GPIO, tasmota)']}
 
             # for dli menu remove any tasmota or esphome errors
             for _error in log.error_msgs:
                 if 'TASMOTA' in _error or 'esphome' in _error:
                     log.error_msgs.remove(_error)
 
-            self.menu.print_menu(outer_body, header=header, subhead=subhead, footer=footer, subs=slines,
-                                 force_cols=True, by_tens=True)
+            menu_actions = self.menu.print_menu(outer_body, header=header, subhead=subhead, legend=legend, subs=slines,
+                                                by_tens=True, menu_actions=menu_actions)
+            # self.menu.print_menu(outer_body, header=header, subhead=subhead, footer=footer, subs=slines,
+            #                      force_cols=True, by_tens=True)
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
@@ -566,12 +596,16 @@ class ConsolePiMenu(Rename):
         }
         while choice.lower() not in ['x', 'b']:
             header = ' Remote SSH Key Distribution Menu '
+            subhead = ["Use this menu to distribute your ssh public key to remote hosts.",
+                       "SSH Public/Private keys are generated if one doesn't already exist.",
+                       "This facilitates certificate based authentication."]
 
             # Build menu items for each serial adapter found on remote ConsolePis
             item = 1
+            outer_body = []
             all_list = []
             mlines = []
-            subs = ['Send SSH Public Key to...']
+            subs = ['Remote ConsolePis']
             for host in sorted(rem):
                 if 'rem_ip' not in rem[host]:
                     log.warning('[KEY_MENU] {} lacks rem_ip skipping'.format(host))
@@ -586,17 +620,46 @@ class ConsolePiMenu(Rename):
                     all_list.append(this)
                     item += 1
 
+            outer_body.append(mlines)
+
+            # Build menu items for each manually defined host in ConsolePi.yaml
+            host_all_list = []
+            if config.hosts:
+                for _key in config.hosts:
+                    if not _key.startswith('_'):
+                        for _sub in config.hosts[_key]:
+                            host_mlines = []
+                            for host in config.hosts[_key][_sub]:
+                                this = config.hosts[_key][_sub][host]
+                                if "address" in this and "username" in this and this.get("method", "").lower() == "ssh":
+                                    host_mlines.append(f"{host.replace('/host/', '')} @ {this['address']}")
+                                    this_args = (host.replace('/host/', ''), this['address'], this['username'])
+                                    menu_actions[str(item)] = {'function': self.cpiexec.gen_copy_key, 'args': [this_args]}
+                                    host_all_list.append(this_args)
+                                    item += 1
+                            if host_mlines:
+                                subs.append(_sub)
+                                outer_body.append(host_mlines)
+
             # -- all option to loop through all remotes and deploy keys --
-            footer = {'opts': 'back',
-                      'before': ['a.  {{cyan}}*all*{{norm}} remotes listed above', '']}
-            menu_actions['a'] = {'function': self.cpiexec.gen_copy_key, 'args': [all_list]}
-            self.menu.print_menu(mlines, subs=subs, header=header, footer=footer, do_format=False)
+            legend = {'opts': 'back',
+                      'before': ['"all cpis".  {{cyan}}*all*{{norm}} Remote ConsolePis',
+                                 '"all hosts". {{cyan}}*all*{{norm}} Manual Host Entries',
+                                 '           {{dyellow}}**host must support ssh-copy-id{{norm}}',
+                                 ''
+                                 ]}
+
+            menu_actions['all cpis'] = {'function': self.cpiexec.gen_copy_key, 'args': [all_list]}
+            menu_actions['all hosts'] = {'function': self.cpiexec.gen_copy_key, 'args': [host_all_list]}
+
+            menu_actions = self.menu.print_menu(outer_body, subs=subs, header=header, subhead=subhead, legend=legend)
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
 
             cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='key_menu')
 
-    def gen_adapter_lines(self, adapters, item=1, remote=False, rem_user=None, host=None, rename=False):
+    def gen_adapter_lines(self, adapters: dict, item: int = 1, remote: bool = False,
+                          rem_user: str = None, host: str = None, rename: bool = False) -> tuple:
         cpi = self.cpi
         if hasattr(cpi, 'remotes'):
             rem = cpi.remotes.data
@@ -634,11 +697,12 @@ class ConsolePiMenu(Rename):
         for _dev in sorted(adapters.items(), key=lambda i: i[1]['config'].get('port', 0)):
             dev = _dev[0]
             cfg_dict = adapters[dev].get('config', adapters[dev])
-            if cfg_dict.get('port', 0) != 0:
+            port = cfg_dict.get('port')
+            if port != 0:
                 def_indicator = ''
             else:
                 def_indicator = '**'
-                self.display_con_settings = True
+                self.display_con_settings = True  # Can Remove - no longer used, use picocom if no alias
             baud = cfg_dict.get('baud', self.baud)
             dbits = cfg_dict.get('dbits', 8)
             flow = cfg_dict.get('flow', 'n')
@@ -647,9 +711,14 @@ class ConsolePiMenu(Rename):
             dev_pretty = dev.replace('/dev/', '')
 
             # Generate Adapter Menu Line
-            menu_line = f'{dev_pretty} {def_indicator}[{baud} {dbits}{parity[0].upper()}{sbits}]'
+            if not self.show_ports:
+                menu_line_sfx = f'{def_indicator}[{baud} {dbits}{parity[0].upper()}{sbits}]'
+            else:
+                menu_line_sfx = '**undefined' if port == 0 else port
+
             if flow != 'n' and flow in flow_pretty:
-                menu_line += f' {flow_pretty[flow]}'
+                menu_line_sfx += f' {flow_pretty[flow]}'
+            menu_line = f'{dev_pretty} {menu_line_sfx}'
             mlines.append(menu_line)
 
             # fallback_cmd should never be used as the cmd should always be in the dev dict
@@ -704,7 +773,7 @@ class ConsolePiMenu(Rename):
 
         return mlines, menu_actions, item
 
-    def rename_menu(self, direct_launch=False, from_name=None):
+    def rename_menu(self, direct_launch: bool = False, from_name: str = None):
         cpi = self.cpi
         local = cpi.local
         remotes = cpi.remotes if not direct_launch else None
@@ -715,7 +784,7 @@ class ConsolePiMenu(Rename):
             self.do_rename_adapter(from_name)
             self.trigger_udev()
             sys.exit()
-        while choice not in ['b']:
+        while choice not in ["x"]:  # == '' or menu_actions[choice] is not None:  # choice not in ['b']:
             if choice == 'r':
                 local.adapters = local.build_adapter_dict(refresh=True)
                 if not direct_launch:
@@ -743,7 +812,7 @@ class ConsolePiMenu(Rename):
                         outer_body.append(mlines)
                         menu_actions = {**menu_actions, **rem_menu_actions}
 
-            footer = {'before': [
+            legend = {'before': [
                 's#. Show details for the adapter i.e. \'s1\'',
                 'c#. Connect to the device i.e. \'c1\'',
                 '',
@@ -751,32 +820,46 @@ class ConsolePiMenu(Rename):
                 ''
             ], 'opts': []}
             if not direct_launch:
-                footer['opts'].append('back')
+                legend['opts'].append('back')
 
-            footer['opts'].append('refresh')
+            legend['opts'].append('sp')
+            menu_actions['sp'] = self.toggle_show_ports
+            legend['opts'].append('refresh')
+            menu_actions['b'] = None
             menu_actions['r'] = None
             menu_actions['x'] = self.exit
 
-            self.menu.print_menu(outer_body, header='Define/Rename Adapters', footer=footer, subs=slines, do_format=False)
+            menu_actions = self.menu.print_menu(outer_body, header='Define/Rename Adapters',
+                                                legend=legend, subs=slines, menu_actions=menu_actions, calling_menu='rename_menu')
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
-            if not choice == 'b':
-                # if trying to connect to local adapter after rename refresh udev
-                if choice.startswith('c') and len(choice) <= len(str(rem_item - 1)) + 1 and self.udev_pending:
-                    n = int(choice.replace('c', '').strip())
-                    if n < rem_item:
-                        self.trigger_udev()
-                cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rename_menu')
-                # -- if rename was performed on a remote update remotes to pull the new name
-                if choice.isdigit() and int(choice) >= rem_item:
-                    print('Triggering Refresh due to Remote Name Change')
-                    # remotes.refresh(bypass_cloud=True)  # NoQA TODO would be more ideal just to query the remote involved in the rename and update the dict
-                    remotes.data = remotes.get_remote(data=config.remote_update(), rename=True)
+            # if choice in menu_actions:  # == 'b':
+            # if trying to connect to local adapter after rename refresh udev
+            if choice.startswith('c') and len(choice) <= len(str(rem_item - 1)) + 1 and self.udev_pending:
+                n = int(choice.replace('c', '').strip())
+                if n < rem_item:
+                    self.trigger_udev()
+            cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rename_menu')
+            # -- if rename was performed on a remote update remotes to pull the new name
+            if choice.isdigit() and int(choice) >= rem_item:
+                print('Triggering Refresh due to Remote Name Change')
+                # remotes.refresh(bypass_cloud=True)  # NoQA TODO would be more ideal just to query the remote involved in the rename and update the dict
+                remotes.data = remotes.get_remote(data=config.remote_update(), rename=True)
+
+            # TODO Temp need more elegant way to handle back to main_menu
+            elif menu_actions.get(choice, {}) is None and choice == "b":
+                break
 
         # trigger refresh udev and restart ser2net after rename
         if self.udev_pending:
             self.trigger_udev()
+
+    def toggle_show_ports(self):
+        self.show_ports = not self.show_ports
+
+    def toggle_show_legend(self):
+        self.menu.show_legend = not self.menu.show_legend
 
     # ------ // MAIN MENU \\ ------ #
     def main_menu(self):
@@ -795,6 +878,7 @@ class ConsolePiMenu(Rename):
             'h': self.picocom_help,
             'r': remotes.refresh,
             'x': self.exit,
+            'tl': self.toggle_show_legend
             # 'sh': self.cpiexec.launch_shell
         }
         if config.power and pwr.data:
@@ -882,10 +966,11 @@ class ConsolePiMenu(Rename):
         if loc or remotes.connected:  # and config.root:
             foot_opts.append('rn')
             menu_actions['rn'] = self.rename_menu
+            menu_actions['sp'] = self.toggle_show_ports
         foot_opts.append('refresh')
 
-        menu.print_menu(outer_body, header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
-                        footer={'opts': foot_opts}, subs=slines, do_format=False)
+        menu_actions = menu.print_menu(outer_body, header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
+                                       legend={'opts': foot_opts}, subs=slines, menu_actions=menu_actions)
 
         choice_c = self.wait_for_input(locs=locals(), terminate=True)
         choice = choice_c.lower
@@ -900,18 +985,18 @@ class ConsolePiMenu(Rename):
         return
 
     # ------ // REMOTE SHELL MENU \\ ------ #
-    def rshell_menu(self, do_ssh_hosts=False):
+    def rshell_menu(self):
         choice = ''
         cpi = self.cpi
         local = cpi.local
         rem = cpi.remotes.data
         menu_actions = {
             'rshell_menu': self.rshell_menu,
-            'b': self.main_menu,
+            'b': None,
             'x': self.exit
         }
 
-        while choice not in ['x', 'b']:
+        while choice not in ['x']:
             outer_body = []
             mlines = []
             subs = []
@@ -939,18 +1024,20 @@ class ConsolePiMenu(Rename):
                     menu_actions = {**menu_actions, **host_menu_actions}
                     outer_body.append(mlines)
 
-            footer = {'opts': 'back'}
-            self.menu.print_menu(outer_body, header='Remote Shell Menu',
-                                 subhead='Enter item # to connect to remote',
-                                 footer=footer, subs=subs)
+            legend = {'opts': 'back'}
+            menu_actions = self.menu.print_menu(outer_body, header='Remote Shell Menu',
+                                                subhead='Enter item # to connect to remote',
+                                                legend=legend, subs=subs, menu_actions=menu_actions)
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
 
             cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rshell_menu')
+            if choice == "b":
+                break
 
     # -- // CONNECTION MENU \\ --
-    def con_menu(self, rename=False, con_dict=None):
+    def con_menu(self, rename: bool = False, con_dict: dict = None):
         menu = self.cpi.menu
         menu_actions = {
             '1': self.baud_menu,
@@ -1007,19 +1094,20 @@ class ConsolePiMenu(Rename):
             ('6', 115200),
             ('c', 'custom')
         ])
-        text = ' b.  Back'
+        # text = ' b.  Back'
         std_baud = [110, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200, 128000, 256000]
 
         while True:
             # -- Print Baud Menu --
-            menu.menu_formatting('header', text=' Select Desired Baud Rate ')
+            menu.menu_formatting('header', text=' Select Desired Baud Rate ', do_print=True)
             print('')
 
             for key in menu_actions:
                 _cur_baud = menu_actions[key]
                 print(' {0}. {1}'.format(key, _cur_baud if _cur_baud != self.baud else '[{}]'.format(_cur_baud)))
 
-            menu.menu_formatting('footer', text=text)
+            # menu.menu_formatting('footer', text=text)
+            menu.menu_formatting('footer', footer={"opts": 'back'}, do_print=True)
             ch = self.wait_for_input(" Baud >>  ", locs=locals()).lower
 
             # -- Evaluate Response --
@@ -1055,7 +1143,8 @@ class ConsolePiMenu(Rename):
         while not valid:
             menu.menu_formatting('header', text=' Enter Desired Data Bits ')
             print('\n Default 8, Current [{}], Valid range 5-8'.format(self.data_bits))
-            menu.menu_formatting('footer', text=' b.  Back')
+            # menu.menu_formatting('footer', text=' b.  Back')
+            menu.menu_formatting('footer', footer={'opts': 'back'})
             choice = self.wait_for_input(' Data Bits >>  ', locs=locals()).orig
             try:
                 if choice.lower() == 'x':
@@ -1083,8 +1172,9 @@ class ConsolePiMenu(Rename):
             print(f" 1. {'[None]' if self.parity == 'n' else 'None'}")
             print(f" 2. {'[Odd]' if self.parity == 'o' else 'Odd'}")
             print(f" 3. {'[Even]' if self.parity == 'e' else 'Even'}")
-            text = ' b.  Back'
-            menu.menu_formatting('footer', text=text)
+            # text = ' b.  Back'
+            # menu.menu_formatting('footer', text=text)
+            menu.menu_formatting('footer', footer={"opts": 'back'})
         valid = False
         while not valid:
             print_menu()
@@ -1117,8 +1207,9 @@ class ConsolePiMenu(Rename):
             print(f" 1. {'[None]' if self.flow == 'n' else 'None'}")
             print(f" 2. {'[Xon/Xoff]' if self.flow == 'x' else 'Xon/Xoff'} (software)")
             print(f" 3. {'[RTS/CTS]' if self.flow == 'h' else 'RTS/CTS'} (hardware)")
-            text = ' b.  Back'
-            menu.menu_formatting('footer', text=text)
+            # text = ' b.  Back'
+            # menu.menu_formatting('footer', text=text)
+            menu.menu_formatting('footer', footer={"opts": 'back'})
         valid = False
         while not valid:
             print_menu()

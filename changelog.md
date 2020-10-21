@@ -1,16 +1,19 @@
 # CHANGELOG
+***Most recent @ end of Log***
 
 - ConsolePi remote discovery via mdns, or sync to Google Drive
 - Power Outlet Control, via relay attached to GPIO or network connected tasmota flashed wifi smart-outlet.  Power on automatically when attempting to connect to console session (via `consolepi-menu`), or toggle via power sub-menu (`consolepi-menu`)
 - consolepi-menu adapter connection parameters (baud, flow, parity, data-bits) are now extracted from the associated definition in ser2net.conf if one exists, if it doesn't defaults are used (which can be changed via menu option c)
 - Added new option 's' to menu which allows you to connect to the shell on any reachable remote ConsolePis
 - Added new quick commands and an option to delete a remote ConsolePi from the local cloud cache via ```consolepi-remotes```
-    <br>**8/19/2019**
+
+### AUG 2019 *Major Update*
 - remote connections are now established through proxy script, which will prompt/kill a previous hung session.
     - Bonus, the proxy script also adds support for auto-power-on for devices linked to outlets on the remote system (having them appear in a power sub-menu will come later once I build out the API further)
 -  Added override function for most system files involved... So Custom system files won't be backed up and replaced during `consolepi-upgrade`
 -  Added option to install and configure a tftp server.
-    <br>**9/10/2019 ~ MAJOR UPDATE**
+
+### Sept 2019 *Major Update*
 -  Menu will now allow user to purge host key from known hosts and retry connection when connecting to a remote ConsolePi who's SSH key has changed.
 -  Menu Auto-sizing with multiple cols based on terminal size.  Currently will place multiple remotes in different Cols if warranted (still 1 col if enough space vertically).
 - Added Support for Digital Loggers Web Power Switches (both the newer ones with API and older models).  Separate menu for DLI outlets, the existing power menu remains for linked outlets (The existing power menu will evolve, still considering best options for how to display defined but not linked, different types, etc.)
@@ -18,7 +21,8 @@
 - Any information or error messages now display in an information pane that populates the bottom of the menu if any errors are encountered
 - Changed URI for a couple of API methods (so all match the key field in the dict they reference)
 - lots of other little tweaks
-<br>**11/07/2019**
+
+### NOV 2019
 - New rename function directly from menu.  Rename adapters already defined by `consolepi-addconsole` (or manually) or adapters that have never been defined.
 
 ### DEC 2019 *Major Update*
@@ -93,3 +97,42 @@
   - installer creates consolepi user and offers to make it auto-launch menu on login (prev ver created a consolepi group)
     - This is only for new installs Upgrades are not impacted.
   - consolepi-image-creator supports mass import if ran from a ConsolePi
+
+### Sept 2020 (v2020-4.0) Sept 2020 *Major Update*
+- Major Feature add is ZTP-Orchestration and wired DHCP (fallback if no address recieved from any DHCP servers)
+  - ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DHCP.  The feature uses DHCP to trigger ZTP, and supports config file generation using jinja2 templates.  For more details see [`ConsolePi ZTP Orchestration`](reademe_content/ztp.md).
+- Fix bug with legacy digital loggers power controllers, failures would occur after the session expired, session is now being renewed when necessary.  This did not impact newer dli power controllers that support REST API.
+- Removed `apt upgrade` from `consolepi-upgrade`.  ConsolePi will only install/verify/upgrade packages related to it's operation.  Up to the user beyond that.
+
+### Sept 2020 (v2020-4.1) Sept 2020 Bug Fix
+- Fixes a bug that would result in all the optional sections from the example config being populated in the resulting default config.  If You've done a recent install this is why there were some hosts in the menu that you didn't configure.
+
+> If you've installed in the last few months, you can clean out the results of the bug by checking your ConsolePi.yaml and deleting everything below the CONFIG: section (OVERRIDES, POWER, HOSTS... essentially anything past the 'debug:' line)
+
+### Sept 2020 (v2020-4.2) Sept 2020 Bug Fix
+- Fixes issue introduced with changes made in v2020-2.4 (technically it was a merge after v2020-2.4)
+- That release introduced a change where a consolepi user is created vs. just a consolepi group. You were to be given the option to auto-launch menu for that user.
+  - Neither prompt was shown, but the user was created, and auto-launch enabled.  The bug resulted in no user input being requested.
+  - Additionally AutoHotSpot was added as a configurable option, but the prompt didn't display.  All of these worked via cmd-line option/silent install.
+  > If you did a fresh install w/ any version from v2020-2.4 - v2020-4.2 you are likely impacted.  Just use `sudo passwd consolepi` to set the password as desired.
+
+### Sept 2020 (v2020-4.3) Installer Version 53 Sept 2020 Lots of Installer Tweaks
+- This effort was primarily around the Installer and the Image Creator.
+- Installer: Tested, re-tested, made enhancements/improvements, added more imports
+- Place home/pi home/your-user /root etc. in consolepi-stage dir and run image-creator...
+  - Image Creator will import home/pi into home/pi on the image, entire directory structure.  Same for /root.
+  - Once the installer runs on the image it will also import /home/pi (redundant, but useful if you don't use the image-creator)
+  - Installer also prompts to see if you want to create new users, once created if in the consolepi-stage dir it's structure will be imported
+> So you can import .ssh keys / known_hosts and any other files/dirs you want in the users home.
+
+### Sept 2020 (v2020-4.4)
+- Added support for host specific ssh private key for [Manual Host Entries](#configuring-manual-host-entries).
+- Added gpiofan and associated systemd unit file for Variable Speed fan control
+  - I'll document the optional scripts in the near future.
+- minor typo fixes, linter clean-up, etc
+- more error prevention in rename (no rename to alias that's aready in use, no rename to alias that starts with sys root_dev prefix)
+
+### Sept 2020 (v2020-4.5)
+- Bypass ssh private key import logic for daemons
+- mv ttyAMA rules to common rules file (initially deployed to it's own rules file)
+- Additional rename error prevention (don't add new alias to ser2net if already mapped)

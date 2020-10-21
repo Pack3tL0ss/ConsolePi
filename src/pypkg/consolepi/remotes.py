@@ -6,7 +6,7 @@ import socket
 from halo import Halo
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
-from consolepi import utils, log, config, json, requests
+from consolepi import utils, log, config, json, requests  # type: ignore
 # from consolepi.gdrive import GoogleDrive  !!--> Import burried in refresh method to speed menu load times on older platforms
 
 
@@ -190,7 +190,7 @@ class Remotes:
             if cloud_svc == "gdrive" and self.cloud is None:
                 # burried import until I find out why this import takes so @#%$@#% long.  Not imported until 1st refresh is called
                 with Halo(text="Loading Google Drive Library", spinner="dots1"):
-                    from consolepi.gdrive import GoogleDrive
+                    from consolepi.gdrive import GoogleDrive  # type: ignore
                 self.cloud = GoogleDrive(hostname=local.hostname)
                 log.info("[MENU REFRESH] Gdrive init")
 
@@ -546,7 +546,7 @@ class Remotes:
                     rem_ip_list.remove(_ip)
                     rem_ip_list.insert(0, _ip)
 
-        rem_ip = None
+        rem_ip = _adapters = None
         for _ip in rem_ip_list:
             log.debug(f"[API_REACHABLE] verifying {remote_host}")
             _adapters = self.get_adapters_via_api(_ip, rename=rename, log_host=f"{remote_host}({_ip})")

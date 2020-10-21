@@ -496,7 +496,7 @@ class Menu:
 
                 # Update sub-header for section if CONTINUED
                 _sub_key = 0 if not self.reverse else -1
-                if sub and sub_section[_sub_key] != self.body_in[sec][0]:
+                if sub and sub_section[_sub_key].split()[0] != self.body_in[sec][0].split()[0]:
                     sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0]}"
                 # sub = _sub if _sub is None or sub_section[_sub_key] == self.body_in[sec][0] else \
                 #     f"[CONTINUED] {_sub.split('] ')[-1].split(' @')[0]}"

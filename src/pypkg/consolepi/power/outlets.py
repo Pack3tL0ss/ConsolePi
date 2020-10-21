@@ -223,7 +223,11 @@ class Outlets:
             i.e.: (<dli object>, True)
         '''
         if not self._dli.get(address):
-            self._dli[address] = DLI(address, username, password, timeout=config.dli_timeout, log=log)
+            try:
+                self._dli[address] = DLI(address, username, password, timeout=config.dli_timeout, log=log)
+            except ConnectionError as e:
+                log.warning(f"[PWR-DLI] DLI @ {address} is now unreachable {e}", show=True)
+                return None, None
             # --// Return Pass or fail based on reachability \\--
             if self._dli[address].reachable:
                 return self._dli[address], False
@@ -268,8 +272,8 @@ class Outlets:
                      1: list: list of all ports linked on this dli (used to initiate query against the dli)
         '''
         this_dli = self._dli.get(outlet['address'])
+        _p = []
         if outlet.get('linked_devs'):
-            _p = []
             for dev in outlet['linked_devs']:
                 if isinstance(outlet['linked_devs'][dev], list):
                     [_p.append(int(_)) for _ in outlet['linked_devs'][dev] if int(_) not in _p]
@@ -297,7 +301,7 @@ class Outlets:
                 else:
                     threading.Thread(target=dlis[address].dli.session.close).start()
 
-    def pwr_get_outlets(self, outlet_data={}, upd_linked=False, failures={}):
+    def pwr_get_outlets(self, outlet_data: dict = {}, upd_linked: bool = False, failures: dict = {}):
         '''Get Details for Outlets defined in ConsolePi.yaml power section
 
         On Menu Launch this method is called in parallel (threaded) for each outlet
@@ -323,6 +327,7 @@ class Outlets:
         for k in outlet_data:
             outlet = outlet_data[k]
             _start = time.time()
+
             # -- // GPIO \\ --
             if outlet['type'].upper() == 'GPIO':
                 if not is_rpi:
@@ -422,9 +427,9 @@ class Outlets:
                             (outlet, _p) = self.update_linked_devs(outlet)
 
                 if TIMING:
-                    print('[TIMING] this_dli.outlets: {}'.format(time.time() - xstart))  # TIMING
+                    print('[TIMING] this_dli.outlets: {}'.format(time.time() - xstart))  # type: ignore
 
-            log.debug(f'dli {k} Updated. Elapsed Time(secs): {time.time() - _start}')
+            log.debug(f"{outlet['type'].lower()} {k} Updated. Elapsed Time(secs): {time.time() - _start}")
             # -- END for LOOP for k in outlet_data --
 
         # Move failed outlets from the keys that populate the menu to the 'failures' key
@@ -481,37 +486,35 @@ class Outlets:
         # -- // Toggle dli web power switch port \\ --
         if pwr_type.lower() == 'dli':
             if port is not None:
-                response = self._dli[address].toggle(port, toState=desired_state)
+                return self._dli[address].toggle(port, toState=desired_state)
 
         # -- // Toggle GPIO port \\ --
         elif pwr_type.upper() == 'GPIO':
             gpio = address
             # get current state and determine inverse if toggle called with no desired_state specified
             if desired_state is None:
-                cur_state = bool(GPIO.input(gpio)) if noff else not bool(GPIO.input(gpio))  # pylint: disable=maybe-no-member
+                cur_state = bool(GPIO.input(gpio)) if noff else not bool(GPIO.input(gpio))
                 desired_state = not cur_state
             if desired_state:
-                GPIO.output(gpio, int(noff))  # pylint: disable=maybe-no-member
+                GPIO.output(gpio, int(noff))
             else:
-                GPIO.output(gpio, int(not noff))  # pylint: disable=maybe-no-member
-            response = bool(GPIO.input(gpio)) if noff else not bool(GPIO.input(gpio))  # pylint: disable=maybe-no-member
+                GPIO.output(gpio, int(not noff))
+            return bool(GPIO.input(gpio)) if noff else not bool(GPIO.input(gpio))
 
         # -- // Toggle TASMOTA port \\ --
         elif pwr_type.lower() == 'tasmota':
             if desired_state is None:
                 desired_state = not self.do_tasmota_cmd(address)
-            response = self.do_tasmota_cmd(address, desired_state)
+            return self.do_tasmota_cmd(address, desired_state)
 
         # -- // Toggle espHome port \\ --
         elif pwr_type.lower() == 'esphome':
             if desired_state is None:
                 desired_state = not self.do_esphome_cmd(address, port)
-            response = self.do_esphome_cmd(address, port, desired_state)
+            return self.do_esphome_cmd(address, port, desired_state)
 
         else:
             raise Exception('pwr_toggle: Invalid type ({}) or no name provided'.format(pwr_type))
-
-        return response
 
     def pwr_cycle(self, pwr_type, address, port=None, noff=True):
         '''returns Bool True = Power Cycle success, False Not performed Outlet OFF
@@ -522,7 +525,7 @@ class Outlets:
         # --// CYCLE DLI PORT \\--
         if pwr_type == 'dli':
             if port is not None:
-                response = self._dli[address].cycle(port)
+                return self._dli[address].cycle(port)
             else:
                 raise ConsolePiPowerException('pwr_cycle: port must be provided for outlet type dli')
 
@@ -536,21 +539,19 @@ class Outlets:
                 time.sleep(config.cycle_time)
                 GPIO.output(gpio, int(noff))
                 response = bool(GPIO.input(gpio))
-                response = response if noff else not response
+                return response if noff else not response
             else:
-                response = False  # Cycle is not valid on ports that are alredy off
+                return False  # Cycle is not valid on ports that are already off
 
         # --// CYCLE TASMOTA PORT \\--
         elif pwr_type == 'tasmota':
             # response = self.do_tasmota_cmd(address)  # this logic is handled in the function now
             # if response:  # Only Cycle if outlet is currently ON
-            response = self.do_tasmota_cmd(address, 'cycle')
+            return self.do_tasmota_cmd(address, 'cycle')
 
         # --// CYCLE ESPHOME PORT \\--
         elif pwr_type == 'esphome':
-            response = self.do_esphome_cmd(address, port, 'cycle')
-
-        return response
+            return self.do_esphome_cmd(address, port, 'cycle')
 
     def pwr_rename(self, type, address, name=None, port=None):
         if name is None:

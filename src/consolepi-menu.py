@@ -6,6 +6,7 @@ import sys
 import re
 import threading
 import itertools
+from os import system
 from pprint import pprint
 from collections import OrderedDict as od
 from halo import Halo
@@ -590,11 +591,11 @@ class ConsolePiMenu(Rename):
         rem = cpi.remotes.data
         choice = ''
         menu_actions = {
-            'b': self.main_menu,
+            'b': None,
             'x': self.exit,
             'key_menu': self.key_menu
         }
-        while choice.lower() not in ['x', 'b']:
+        while choice.lower() not in ['x']:
             header = ' Remote SSH Key Distribution Menu '
             subhead = ["Use this menu to distribute your ssh public key to remote hosts.",
                        "SSH Public/Private keys are generated if one doesn't already exist.",
@@ -652,11 +653,14 @@ class ConsolePiMenu(Rename):
             menu_actions['all cpis'] = {'function': self.cpiexec.gen_copy_key, 'args': [all_list]}
             menu_actions['all hosts'] = {'function': self.cpiexec.gen_copy_key, 'args': [host_all_list]}
 
-            menu_actions = self.menu.print_menu(outer_body, subs=subs, header=header, subhead=subhead, legend=legend)
+            menu_actions = self.menu.print_menu(outer_body, subs=subs, header=header, subhead=subhead,
+                                                legend=legend, menu_actions=menu_actions)
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
 
-            cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='key_menu')
+            if choice == 'b':
+                break
+            menu_actions = cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='key_menu')
 
     def gen_adapter_lines(self, adapters: dict, item: int = 1, remote: bool = False,
                           rem_user: str = None, host: str = None, rename: bool = False) -> tuple:
@@ -1067,10 +1071,10 @@ class ConsolePiMenu(Rename):
             mlines.append('Data Bits [{}]'.format(self.data_bits))
             mlines.append('Parity [{}]'.format(self.parity_pretty[self.parity]))
             mlines.append('Flow [{}]'.format(self.flow_pretty[self.flow]))
-            footer = {'opts': ['back', 'x'],
+            legend = {'opts': ['back', 'x'],
                       'overrides': {'back': ['b', 'Back {}'.format(' (Apply Changes to Files)' if rename else '')]}
                       }
-            menu.print_menu(mlines, header=header, footer=footer)
+            menu.print_menu(mlines, header=header, legend=legend)
             ch = self.wait_for_input(locs=locals()).lower
             try:
                 if ch == 'b':
@@ -1080,6 +1084,7 @@ class ConsolePiMenu(Rename):
             except KeyError as e:
                 if ch:
                     log.show('Invalid selection {}, please try again.'.format(e))
+                    log.clear()
 
     # -- // BAUD MENU \\ --
     def baud_menu(self):
@@ -1099,15 +1104,24 @@ class ConsolePiMenu(Rename):
 
         while True:
             # -- Print Baud Menu --
-            menu.menu_formatting('header', text=' Select Desired Baud Rate ', do_print=True)
-            print('')
+            # menu.menu_formatting('header', text=' Select Desired Baud Rate ', do_print=True)
+            if not config.debug:
+                _ = system("clear")
+            header = menu.format_header(text=' Select Desired Baud Rate ')
+            print(header)
+            # print('')
 
             for key in menu_actions:
                 _cur_baud = menu_actions[key]
                 print(' {0}. {1}'.format(key, _cur_baud if _cur_baud != self.baud else '[{}]'.format(_cur_baud)))
 
             # menu.menu_formatting('footer', text=text)
-            menu.menu_formatting('footer', footer={"opts": 'back'}, do_print=True)
+            # menu.menu_formatting('footer', footer={"opts": 'back'}, do_print=True)
+            legend = menu.format_legend(legend={"opts": 'back'})
+            footer = menu.format_footer()
+            print(legend)
+            print(footer)
+            log.clear()
             ch = self.wait_for_input(" Baud >>  ", locs=locals()).lower
 
             # -- Evaluate Response --
@@ -1141,10 +1155,19 @@ class ConsolePiMenu(Rename):
         menu = self.cpi.menu
         valid = False
         while not valid:
-            menu.menu_formatting('header', text=' Enter Desired Data Bits ')
+            # menu.menu_formatting('header', text=' Enter Desired Data Bits ')
+            if not config.debug:
+                _ = system("clear")
+            header = menu.format_header(text=' Enter Desired Data Bits ')
+            print(header)
             print('\n Default 8, Current [{}], Valid range 5-8'.format(self.data_bits))
             # menu.menu_formatting('footer', text=' b.  Back')
-            menu.menu_formatting('footer', footer={'opts': 'back'})
+            # menu.menu_formatting('footer', footer={'opts': 'back'})
+            legend = menu.format_legend(legend={"opts": 'back'})
+            footer = menu.format_footer()
+            print(legend)
+            print(footer)
+            log.clear()
             choice = self.wait_for_input(' Data Bits >>  ', locs=locals()).orig
             try:
                 if choice.lower() == 'x':
@@ -1167,14 +1190,23 @@ class ConsolePiMenu(Rename):
         menu = self.cpi.menu
 
         def print_menu():
-            menu.menu_formatting('header', text=' Select Desired Parity ')
+            if not config.debug:
+                _ = system("clear")
+            # menu.menu_formatting('header', text=' Select Desired Parity ')
+            header = menu.format_header(text=' Select Desired Parity ')
+            print(header)
             print('\n Default No Parity\n')
             print(f" 1. {'[None]' if self.parity == 'n' else 'None'}")
             print(f" 2. {'[Odd]' if self.parity == 'o' else 'Odd'}")
             print(f" 3. {'[Even]' if self.parity == 'e' else 'Even'}")
             # text = ' b.  Back'
             # menu.menu_formatting('footer', text=text)
-            menu.menu_formatting('footer', footer={"opts": 'back'})
+            # menu.menu_formatting('footer', footer={"opts": 'back'})
+            legend = menu.format_legend(legend={"opts": 'back'})
+            footer = menu.format_footer()
+            print(legend)
+            print(footer)
+            log.clear()
         valid = False
         while not valid:
             print_menu()
@@ -1201,7 +1233,11 @@ class ConsolePiMenu(Rename):
         menu = self.cpi.menu
 
         def print_menu():
-            menu.menu_formatting('header', text=' Select Desired Flow Control ')
+            if not config.debug:
+                _ = system("clear")
+            # menu.menu_formatting('header', text=' Select Desired Flow Control ')
+            header = menu.format_header(text=' Select Desired Flow Control ')
+            print(header)
             print('')
             print(' Default No Flow\n')
             print(f" 1. {'[None]' if self.flow == 'n' else 'None'}")
@@ -1209,7 +1245,12 @@ class ConsolePiMenu(Rename):
             print(f" 3. {'[RTS/CTS]' if self.flow == 'h' else 'RTS/CTS'} (hardware)")
             # text = ' b.  Back'
             # menu.menu_formatting('footer', text=text)
-            menu.menu_formatting('footer', footer={"opts": 'back'})
+            # menu.menu_formatting('footer', footer={"opts": 'back'})
+            legend = menu.format_legend(legend={"opts": 'back'})
+            footer = menu.format_footer()
+            print(legend)
+            print(footer)
+            log.clear()
         valid = False
         while not valid:
             print_menu()

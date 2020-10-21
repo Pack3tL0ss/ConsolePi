@@ -9,11 +9,11 @@ from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 
 import sys
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import log, config  # NoQA
-from consolepi.consolepi import ConsolePi  # NoQA
+from consolepi import log, config  # type: ignore # NoQA
+from consolepi.consolepi import ConsolePi  # type: ignore # NoQA
 
 try:
-    import better_exceptions  # NoQA pylint: disable=import-error
+    import better_exceptions  # type: ignore # NoQA
 except Exception:
     pass
 
@@ -124,8 +124,8 @@ class MDNS_Browser:
                             print(f'\nDiscovered ConsolePis: {self.discovered}')
                             print("press Ctrl-C to exit...\n")
 
-                        log.debug('[MDNS DSCVRY] {} Final data set:\n{}'.format(hostname,
-                                                                                json.dumps(mdns_data, indent=4, sort_keys=True)))
+                        log.debugv('[MDNS DSCVRY] {} Final data set:\n{}'.format(hostname,
+                                                                                 json.dumps(mdns_data, indent=4, sort_keys=True)))
 
                         # TODO could probably just put the call to cache update in the api_reachable method
                         if update_cache:
@@ -134,7 +134,7 @@ class MDNS_Browser:
                             cpi.remotes.data = cpi.remotes.update_local_cloud_file(remote_consoles=mdns_data)
                             log.info(f'[MDNS DSCVRY] {hostname} Local Cache Updated after mdns discovery')
                     else:
-                        log.warning(f'[MDNS DSCVRY] {hostname}: No properties found')
+                        log.warning(f'[MDNS DSCVRY] {name}: No properties found')  # TODO Verify name is useful here
             else:
                 log.warning(f'[MDNS DSCVRY] {info}: No info found')
 

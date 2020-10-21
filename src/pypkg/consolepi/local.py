@@ -151,7 +151,7 @@ class Local():
 
         return devs if key is None else devs[key]
 
-    def default_ser_config(self, tty_dev, tty_port=0000):
+    def default_ser_config(self, tty_dev, tty_port=0):
         '''Return default serial parameters when no match found in ser2net'''
         return {
                 'port': tty_port,

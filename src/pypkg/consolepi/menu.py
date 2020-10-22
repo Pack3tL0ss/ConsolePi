@@ -223,6 +223,15 @@ class MenuParts:
         parts = [self.header, self.subhead, self.body, self.legend, self.footer]
         return sum([p.rows for p in parts if p] or [0])
 
+    def __str__(self):
+        parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        return "\n".join([line for p in parts for line in p.lines])
+        # for p in parts:
+        #     if p:
+        #         ret += "\n".join(p.lines)
+        # return ret
+        # return "\n".join([p.lines for p in parts])
+
     def __iter__(self, key: str = None) -> MenuSection:
         parts = {
             "header": self.header,
@@ -349,8 +358,18 @@ class Menu:
         else:
             new_menu = False
 
+        # if self.subs_in and subs and self.subs_in[0] == subs[0] and self.subs_in != subs:
+        # Forces update of _in attributes after refresh
+        if self.cur_page == 1:
+            new_menu = True
+        # If header is different indicating a diffent menu reset cur_page to 1 and claer pages
+        elif new_menu:
+            self.cur_page = 1
+            self.pages = {}
+
         if new_menu:
             self.pbody, self.psubs, self.pitems = None, None, None
+            self.page.prev_slice, self.page.this_slice, self.page.next_slice = {}, {}, {}
 
         tty = self.tty
         tty.update()
@@ -377,6 +396,7 @@ class Menu:
                 self.legend_in = legend
             elif isinstance(legend, list):
                 self.legend_in = {"opts": legend}
+        # self.legend_options = {**DEF_LEGEND_OPTIONS, **self.legend_options}
         self.legend_options = {**DEF_LEGEND_OPTIONS, **self.legend_options}
         header = self.format_header(header)
         subhead = self.format_subhead(subhead)
@@ -470,11 +490,11 @@ class Menu:
                 self.tot_body_1col_rows = sum([len(_section) + addl_rows for _section in _body])
 
             # current col must have room for 3 items from section otherwise new section starts in next col
-            if self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.tty.body_avail_rows or \
-               len(col_lines) + len(_section) + addl_rows >= self.tot_body_1col_rows / 2:
-                _end = len(_section)
-            elif tty.body_avail_rows - len(col_lines) >= 3 + addl_rows:
+            if tty.body_avail_rows - len(col_lines) >= 3 + addl_rows:
                 _end = tty.body_avail_rows - len(col_lines) - addl_rows
+            elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.tty.body_avail_rows or \
+                    len(col_lines) + len(_section) + addl_rows >= self.tot_body_1col_rows / 2:
+                _end = len(_section)
             else:
                 _end = tty.body_avail_rows - addl_rows
 
@@ -568,7 +588,7 @@ class Menu:
         # update slices (first/last items) in the event tty was resized and no page change was selected
         self.update_slices()
 
-        for menu_part in [self.page.header, self.page.legend, self.page.footer]:
+        for menu_part in [self.page.legend, self.page.footer, self.page.header]:
             menu_part.update(width=self.page.cols)
 
         # ---- CLEAR SCREEN -----
@@ -578,8 +598,9 @@ class Menu:
             print("")
 
         # -- // PRINT THE MENU \\ --
-        for p in self.page:
-            print(p)
+        print(self.page)
+        # for p in self.page:
+        #     print(p)
 
         self.init_pager()
 
@@ -1027,6 +1048,7 @@ class Menu:
             self.prev_page = 1
             self.page.prev_slice = {}
             self.reverse = False
+            self.actions = {**self.actions, **self.menu_actions_in}
 
         if not reprint:
             self.cur_page -= 1
@@ -1108,7 +1130,7 @@ class Menu:
         _header.update_kwargs = {"width": width}
         self.page.header = _header
 
-        return _header
+        return self.page.header
 
     def format_subhead(self, text: Union[str, list]) -> MenuSection:
         if not text:
@@ -1206,6 +1228,7 @@ class Menu:
 
         # replace any pre-defined options with those passed in as overrides
         legend_options = self.legend_options
+        # legend_options = self.legend_in
         if legend.get("overrides") and isinstance(legend["overrides"], dict):
             legend_options = {**legend_options, **legend["overrides"]}
             no_match_overrides = [

@@ -15,6 +15,7 @@ from halo import Halo
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
 from consolepi.consolepi import ConsolePi  # type: ignore # NoQA
 from consolepi.udevrename import Rename  # type: ignore # NoQA
+from consolepi.menu import Menu  # type: ignore # NoQA
 from consolepi import log, utils, config  # type: ignore # NoQA
 
 # GoogleDrive import below is in refresh method of consolepi.remotes.Remotes(...).refresh
@@ -67,6 +68,7 @@ class ConsolePiMenu(Rename):
             'back': ['b', 'Back'],
             'x': ['x', 'Exit']
         }
+        self.cur_menu = None
         super().__init__(self.menu)
 
     def print_attribute(self, ch: str, locs: dict = {}) -> bool:
@@ -200,12 +202,20 @@ class ConsolePiMenu(Rename):
     def power_menu(self, calling_menu: str = 'main_menu'):
         cpi = self.cpi
         pwr = cpi.pwr
-        menu = self.menu
+        # menu = self.menu
+        menu = Menu()
         states = self.states
         menu_actions = {
             # 'b': self.main_menu,
             'x': self.exit,
             'power_menu': self.power_menu,
+        }
+        menu.legend_options = {
+            'power': ['p', 'Power Control Menu'],
+            'dli': ['d', '[dli] Web Power Switch Menu'],
+            'refresh': ['r', 'Refresh'],
+            'back': ['b', 'Back'],
+            'x': ['x', 'Exit']
         }
         show_linked = False
         choice = ''
@@ -221,8 +231,8 @@ class ConsolePiMenu(Rename):
         if not outlets:
             log.show('No Linked Outlets are connected')
             return
-
-        utils.spinner("Waiting for Auto Power Threads to Complete", cpi.cpiexec.wait_for_threads, name="auto_pwr", timeout=20)
+        if cpi.cpiexec.autopwr_wait:
+            utils.spinner("Waiting for Auto Power Threads to Complete", cpi.cpiexec.wait_for_threads, name="auto_pwr", timeout=20)
 
         while choice not in ['x']:
             item = 1
@@ -358,16 +368,17 @@ class ConsolePiMenu(Rename):
             menu_actions = menu.print_menu(body, header=header, subhead=subhead, legend=legend, menu_actions=menu_actions)
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
-            if choice not in ['b', 'r', 'l']:
+            if choice not in ['r', 'l']:
+                if menu.cur_page == 1 and choice == "b":
+                    break
                 cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='power_menu')
             elif choice == 'l':
                 show_linked = not show_linked
-            elif choice == 'b':
-                return
             elif choice == 'r':
                 if pwr.dli_exists:
-                    with Halo(text='Refreshing Outlets', spinner='dots'):
-                        outlets = self.cpiexec.outlet_update(refresh=True, upd_linked=True)
+                    outlets = utils.spinner("Refreshing Outlets", self.cpiexec.outlet_update, refresh=True, upd_linked=True)
+                    # with Halo(text='Refreshing Outlets', spinner='dots'):
+                    #     outlets = self.cpiexec.outlet_update(refresh=True, upd_linked=True)
 
     def wait_for_input(self, prompt: str = " >> ", terminate: bool = False, locs: dict = {}) -> object:
         '''Get input from user.
@@ -405,9 +416,12 @@ class ConsolePiMenu(Rename):
                     self.orig = ''
 
         try:
+            # if config.debug:
+            #     prompt = f'pg[{menu.cur_page}] m[r:{menu.page.rows}, c:{menu.page.cols}] ' \
+            #              f'a[r:{menu.tty.rows}, c:{menu.tty.cols}]{prompt}'
             if config.debug:
-                prompt = f'pg[{menu.cur_page}] m[r:{menu.page.rows}, c:{menu.page.cols}] ' \
-                         f'a[r:{menu.tty.rows}, c:{menu.tty.cols}]{prompt}'
+                prompt = f'pg[{self.cur_menu.cur_page}] m[r:{self.cur_menu.page.rows}, c:{self.cur_menu.page.cols}] ' \
+                         f'a[r:{self.cur_menu.tty.rows}, c:{self.cur_menu.tty.cols}]{prompt}'
 
             ch = choice()
 
@@ -444,6 +458,13 @@ class ConsolePiMenu(Rename):
     def dli_menu(self, calling_menu: str = 'power_menu'):
         cpi = self.cpi
         pwr = cpi.pwr
+        menu = Menu()
+        menu.legend_options = {
+            'power': ['p', 'Power Control Menu'],
+            'refresh': ['r', 'Refresh'],
+            'back': ['b', 'Back'],
+            'x': ['x', 'Exit']
+        }
         menu_actions = {
             'b': self.power_menu,
             'x': self.exit,
@@ -461,10 +482,11 @@ class ConsolePiMenu(Rename):
             log.show('All Defined dli Web Power Switches are unreachable')
             return
 
-        utils.spinner("Waiting for Auto Power Threads to Complete", cpi.cpiexec.wait_for_threads, name="auto_pwr", timeout=20)
+        if cpi.cpiexec.autopwr_wait:
+            utils.spinner("Waiting for Auto Power Threads to Complete", cpi.cpiexec.wait_for_threads, name="auto_pwr", timeout=20)
 
         dli_dict = pwr.data['dli_power']
-        while choice not in ['x', 'b']:
+        while choice not in ['x']:
             index = start = 1
             outer_body = []
             slines = []
@@ -570,8 +592,16 @@ class ConsolePiMenu(Rename):
                 if 'TASMOTA' in _error or 'esphome' in _error:
                     log.error_msgs.remove(_error)
 
-            menu_actions = self.menu.print_menu(outer_body, header=header, subhead=subhead, legend=legend, subs=slines,
-                                                by_tens=True, menu_actions=menu_actions)
+            # menu_actions = self.menu.print_menu(outer_body, header=header, subhead=subhead, legend=legend, subs=slines,
+            #                                     by_tens=True, menu_actions=menu_actions)
+            menu_actions = menu.print_menu(outer_body, header=header, subhead=subhead, legend=legend, subs=slines,
+                                           by_tens=True, menu_actions=menu_actions)
+
+            self.cur_menu = menu
+
+            if menu.cur_page == 1 and choice == "b":
+                break
+
             # self.menu.print_menu(outer_body, header=header, subhead=subhead, footer=footer, subs=slines,
             #                      force_cols=True, by_tens=True)
 
@@ -589,6 +619,12 @@ class ConsolePiMenu(Rename):
     def key_menu(self):
         cpi = self.cpi
         rem = cpi.remotes.data
+        menu = Menu()
+        menu.legend_options = {
+            'refresh': ['r', 'Refresh'],
+            'back': ['b', 'Back'],
+            'x': ['x', 'Exit']
+        }
         choice = ''
         menu_actions = {
             'b': None,
@@ -653,14 +689,19 @@ class ConsolePiMenu(Rename):
             menu_actions['all cpis'] = {'function': self.cpiexec.gen_copy_key, 'args': [all_list]}
             menu_actions['all hosts'] = {'function': self.cpiexec.gen_copy_key, 'args': [host_all_list]}
 
-            menu_actions = self.menu.print_menu(outer_body, subs=subs, header=header, subhead=subhead,
-                                                legend=legend, menu_actions=menu_actions)
+            # menu_actions = self.menu.print_menu(outer_body, subs=subs, header=header, subhead=subhead,
+            #                                     legend=legend, menu_actions=menu_actions)
+            menu_actions = menu.print_menu(outer_body, subs=subs, header=header, subhead=subhead,
+                                           legend=legend, menu_actions=menu_actions)
+            self.cur_menu = menu
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
 
-            if choice == 'b':
+            # TODO Temp need more elegant way to handle back to main_menu
+            if menu.cur_page == 1 and choice == "b":
                 break
-            menu_actions = cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='key_menu')
+
+            cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='key_menu')
 
     def gen_adapter_lines(self, adapters: dict, item: int = 1, remote: bool = False,
                           rem_user: str = None, host: str = None, rename: bool = False) -> tuple:
@@ -779,6 +820,13 @@ class ConsolePiMenu(Rename):
 
     def rename_menu(self, direct_launch: bool = False, from_name: str = None):
         cpi = self.cpi
+        menu = Menu()
+        menu.legend_options = {
+            'refresh': ['r', 'Refresh'],
+            'sp': ['sp', 'Toggle Display of associated TELNET ports'],
+            'back': ['b', 'Back'],
+            'x': ['x', 'Exit']
+        }
         local = cpi.local
         remotes = cpi.remotes if not direct_launch else None
         choice = ''
@@ -833,8 +881,12 @@ class ConsolePiMenu(Rename):
             menu_actions['r'] = None
             menu_actions['x'] = self.exit
 
-            menu_actions = self.menu.print_menu(outer_body, header='Define/Rename Adapters',
-                                                legend=legend, subs=slines, menu_actions=menu_actions, calling_menu='rename_menu')
+            # menu_actions = self.menu.print_menu(outer_body, header='Define/Rename Adapters',
+            #                              legend=legend, subs=slines, menu_actions=menu_actions, calling_menu='rename_menu')
+            menu_actions = menu.print_menu(outer_body, header='Define/Rename Adapters',
+                                           legend=legend, subs=slines, menu_actions=menu_actions, calling_menu='rename_menu')
+
+            self.cur_menu = menu
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
@@ -976,6 +1028,8 @@ class ConsolePiMenu(Rename):
         menu_actions = menu.print_menu(outer_body, header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
                                        legend={'opts': foot_opts}, subs=slines, menu_actions=menu_actions)
 
+        self.cur_menu = menu
+
         choice_c = self.wait_for_input(locs=locals(), terminate=True)
         choice = choice_c.lower
         # TODO Temporary local only refresh refactor to action object
@@ -1036,9 +1090,10 @@ class ConsolePiMenu(Rename):
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
 
-            cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rshell_menu')
             if choice == "b":
                 break
+
+            cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rshell_menu')
 
     # -- // CONNECTION MENU \\ --
     def con_menu(self, rename: bool = False, con_dict: dict = None):

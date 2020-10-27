@@ -491,9 +491,14 @@ class Menu:
 
             # current col must have room for 3 items from section otherwise new section starts in next col
             if tty.body_avail_rows - len(col_lines) >= 3 + addl_rows:
-                _end = tty.body_avail_rows - len(col_lines) - addl_rows
-            elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.tty.body_avail_rows or \
-                    len(col_lines) + len(_section) + addl_rows >= self.tot_body_1col_rows / 2:
+                if (len(col_lines) + len(_section) + addl_rows) >= self.tot_body_1col_rows / 2 and \
+                        (len(col_lines) + len(_section) + addl_rows) <= self.tty.body_avail_rows:
+                    _end = len(_section)
+                else:
+                    _end = tty.body_avail_rows - len(col_lines) - addl_rows
+            # elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.tty.body_avail_rows or \
+            #         len(col_lines) + len(_section) + addl_rows >= self.tot_body_1col_rows / 2:
+            elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.tty.body_avail_rows:
                 _end = len(_section)
             else:
                 _end = tty.body_avail_rows - addl_rows
@@ -517,7 +522,13 @@ class Menu:
                 # Update sub-header for section if CONTINUED
                 _sub_key = 0 if not self.reverse else -1
                 if sub and sub_section[_sub_key].split()[0] != self.body_in[sec][0].split()[0]:
-                    sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0]}"
+                    if "Local Adapters" in sub:
+                        sub = f"[CONTINUED] {sub.replace('Rename ', '')}"
+                    else:
+                        sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0].split(' on ')[-1]}"
+
+                if sub and config.debug:
+                    sub = f"-{sec}-{sub}"
                 # sub = _sub if _sub is None or sub_section[_sub_key] == self.body_in[sec][0] else \
                 #     f"[CONTINUED] {_sub.split('] ')[-1].split(' @')[0]}"
 
@@ -669,6 +680,7 @@ class Menu:
                     self.pages = {}
                     self.page = 1
                     _stop = False
+                    item = 1
                     for idx, lines in enumerate(body):
                         rows = self.rows[idx]
 
@@ -690,7 +702,6 @@ class Menu:
                         else:
                             _slice = [slice(0, len(lines), 1)]
 
-                        item = 1
                         for s in _slice:
                             sub_section = self.body[idx][s]
 
@@ -707,18 +718,12 @@ class Menu:
                                 format_sub=format_subs,
                             )
 
-                            item = item + this_rows if not reverse else item - this_rows
+                            item = item + len(sub_section) if not reverse else item - len(sub_section)
 
                             section_slices[idx] = s if not reverse else \
                                 slice(len(self.body[idx]) - s.stop, len(self.body[idx]) - s.start)
 
                             if len(col_lines) + len(this_lines) > tty.body_avail_rows:
-                                if self.page_width + self.col_width > tty.cols:
-                                    self.page += 1
-                                    if _pass == 0:
-                                        tty.body_avail_rows -= 1
-                                        _stop = True
-                                        break
 
                                 if self.page not in self.pages:
                                     self.pager_write_first_col(col_lines, page=self.page)
@@ -727,6 +732,13 @@ class Menu:
 
                                 if self.page == self.cur_page:
                                     self.vert_cols += 1
+
+                                if self.page_width + self.col_width > tty.cols:
+                                    self.page += 1
+                                    if _pass == 0:
+                                        tty.body_avail_rows -= 1
+                                        _stop = True
+                                        break
 
                                 # -- Prev Col written update col with current lines
                                 col_lines = this_lines
@@ -750,25 +762,28 @@ class Menu:
                         # abort loop and start next loop with updated body size
                         if _stop:
                             break
+                    # abort loop and start next loop with updated body size
+                    if _stop:
+                        break
 
-                    # Write Final Col
-                    if self.page not in self.pages:
-                        if self.page_width + self.col_width > tty.cols:
-                            self.page += 1
-                        # self.pages[self.page] = [f"{line:{self.col_width}}" for line in _lines]
-                        self.pager_write_first_col(col_lines, page=self.page)
-                    else:
-                        self.pager_write_other_col(col_lines, page=self.page)
+                # Write Final Col
+                if self.page not in self.pages:
+                    # if self.page_width + self.col_width > tty.cols:
+                    #     self.page += 1
+                    # self.pages[self.page] = [f"{line:{self.col_width}}" for line in _lines]
+                    self.pager_write_first_col(col_lines, page=self.page)
+                else:
+                    self.pager_write_other_col(col_lines, page=self.page)
 
-                    if self.page == self.cur_page:
-                        self.vert_cols += 1
+                if self.page == self.cur_page:
+                    self.vert_cols += 1
 
-                    if self.page == self.cur_page:
-                        self.this_slice = {**self.this_slice, **section_slices}
-                    elif self.page < self.cur_page:
-                        self.prev_slice = {**self.prev_slice, **section_slices}
-                    else:
-                        self.next_slice = {**self.next_slice, **section_slices}
+                if self.page == self.cur_page:
+                    self.this_slice = {**self.this_slice, **section_slices}
+                elif self.page < self.cur_page:
+                    self.prev_slice = {**self.prev_slice, **section_slices}
+                else:
+                    self.next_slice = {**self.next_slice, **section_slices}
 
             # -- // Helpers called by pager_write_col_to_page() \\ --
             def pager_write_first_col(self, col_lines: list, page: int) -> None:

@@ -1091,10 +1091,14 @@ class ConsolePiMenu(Rename):
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
 
-            if choice == "b":
-                break
+            # if choice == "b":
+            #     break
 
             cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rshell_menu')
+
+            # TODO Temp need more elegant way to handle back to main_menu
+            if menu_actions.get(choice, {}) is None and choice == "b":
+                break
 
     # -- // CONNECTION MENU \\ --
     def con_menu(self, rename: bool = False, con_dict: dict = None):

@@ -771,19 +771,19 @@ class Menu:
                     # if self.page_width + self.col_width > tty.cols:
                     #     self.page += 1
                     # self.pages[self.page] = [f"{line:{self.col_width}}" for line in _lines]
-                    self.pager_write_first_col(col_lines, page=self.page)
+                    self.pager_write_first_col(col_lines, page=self.page)  # type: ignore
                 else:
-                    self.pager_write_other_col(col_lines, page=self.page)
+                    self.pager_write_other_col(col_lines, page=self.page)  # type: ignore
 
                 if self.page == self.cur_page:
                     self.vert_cols += 1
 
                 if self.page == self.cur_page:
-                    self.this_slice = {**self.this_slice, **section_slices}
+                    self.this_slice = {**self.this_slice, **section_slices}  # type: ignore
                 elif self.page < self.cur_page:
-                    self.prev_slice = {**self.prev_slice, **section_slices}
+                    self.prev_slice = {**self.prev_slice, **section_slices}  # type: ignore
                 else:
-                    self.next_slice = {**self.next_slice, **section_slices}
+                    self.next_slice = {**self.next_slice, **section_slices}  # type: ignore
 
             # -- // Helpers called by pager_write_col_to_page() \\ --
             def pager_write_first_col(self, col_lines: list, page: int) -> None:

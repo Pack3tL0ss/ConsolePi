@@ -107,7 +107,8 @@ class MenuSection:
 
     def update(self, *args, **kwargs):
         # self.rows = len(self.lines)
-        self.update_method(*[*self.update_args, *args], **{**self.update_kwargs, **kwargs})
+        if self.update_method:
+            self.update_method(*[*self.update_args, *args], **{**self.update_kwargs, **kwargs})
 
     def __len__(self):
         return len(self.lines)
@@ -118,7 +119,7 @@ class MenuSection:
     def __add__(self, data: Union[int, list]):
         if isinstance(data, list):
             line_info = [format_line(l) for l in data]
-            self.with_list += [l.len for l in line_info]
+            self.width_list += [l.len for l in line_info]
             self.lines += [l.text for l in line_info]
             self.update()
 
@@ -224,13 +225,14 @@ class MenuParts:
         return sum([p.rows for p in parts if p] or [0])
 
     def __str__(self):
+        # ---- CLEAR SCREEN -----
+        if not config.debug:
+            _ = system("clear")
+        else:
+            print("")  # if DEBUG need this to get off the prompt line
+
         parts = [self.header, self.subhead, self.body, self.legend, self.footer]
         return "\n".join([line for p in parts for line in p.lines])
-        # for p in parts:
-        #     if p:
-        #         ret += "\n".join(p.lines)
-        # return ret
-        # return "\n".join([p.lines for p in parts])
 
     def __iter__(self, key: str = None) -> MenuSection:
         parts = {
@@ -349,49 +351,49 @@ class Menu:
         Returns:
             [dict]: Returns the menu_actions dict which may include paging actions if warranted.
         """
-        if not self.prev_header:
-            self.prev_header = header
-            new_menu = True
-        elif self.prev_header != header:
-            self.prev_header = header
-            new_menu = True
-        else:
-            new_menu = False
+        # if not self.prev_header:
+        #     self.prev_header = header
+        #     new_menu = True
+        # elif self.prev_header != header:
+        #     self.prev_header = header
+        #     new_menu = True
+        # else:
+        #     new_menu = False
 
         # if self.subs_in and subs and self.subs_in[0] == subs[0] and self.subs_in != subs:
         # Forces update of _in attributes after refresh
-        if self.cur_page == 1:
-            new_menu = True
-        # If header is different indicating a diffent menu reset cur_page to 1 and claer pages
-        elif new_menu:
-            self.cur_page = 1
-            self.pages = {}
+        # if self.cur_page == 1:
+        #     new_menu = True
+        # # If header is different indicating a diffent menu reset cur_page to 1 and claer pages
+        # elif new_menu:
+        #     self.cur_page = 1
+        #     self.pages = {}
 
-        if new_menu:
-            self.pbody, self.psubs, self.pitems = None, None, None
-            self.page.prev_slice, self.page.this_slice, self.page.next_slice = {}, {}, {}
+        # if new_menu:
+        #     self.pbody, self.psubs, self.pitems = None, None, None
+        #     self.page.prev_slice, self.page.this_slice, self.page.next_slice = {}, {}, {}
 
         tty = self.tty
         tty.update()
 
-        if not self.body_in or new_menu:
+        if not self.body_in:  # or new_menu:
             self.body_in = body
             self.size = self.calc_size(self.body_in, subs, format_subs=format_subs, by_tens=by_tens)
 
-        if not self.items_in or new_menu:
+        if not self.items_in:  # or new_menu:
             x = 1
             self.items_in = []
             for idx, sec in enumerate(self.body_in):
                 if idx > 0:
                     x += len(self.body_in[idx - 1])
                 self.items_in.append([y + x for y in range(len(sec))])
-        if not self.subs_in or new_menu:
+        if not self.subs_in:  # or new_menu:
             self.subs_in = subs
-        if not self.menu_actions_in or new_menu:
+        if not self.menu_actions_in:  # or new_menu:
             self.menu_actions_in = menu_actions
             self.actions = None
         self.actions = self.menu_actions_in if not self.actions else {**self.menu_actions_in, **self.actions}
-        if not self.legend_in or new_menu:
+        if not self.legend_in:  # or new_menu:
             if isinstance(legend, dict):
                 self.legend_in = legend
             elif isinstance(legend, list):
@@ -407,6 +409,11 @@ class Menu:
             header.append("")
 
         tty.body_avail_rows = tty.rows - header.rows - subhead.rows - legend.rows - footer.rows - 1  # - 1 if for prompt line
+
+        # Return Now if no body provided
+        if not body:
+            self.empty_menu()
+            return self.actions
 
         self.pg_cnt = 0
         try:
@@ -496,8 +503,6 @@ class Menu:
                     _end = len(_section)
                 else:
                     _end = tty.body_avail_rows - len(col_lines) - addl_rows
-            # elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.tty.body_avail_rows or \
-            #         len(col_lines) + len(_section) + addl_rows >= self.tot_body_1col_rows / 2:
             elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.tty.body_avail_rows:
                 _end = len(_section)
             else:
@@ -527,10 +532,9 @@ class Menu:
                     else:
                         sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0].split(' on ')[-1]}"
 
+                # if debug enabled Add index of section to section header (sub)
                 if sub and config.debug:
                     sub = f"-{sec}-{sub}"
-                # sub = _sub if _sub is None or sub_section[_sub_key] == self.body_in[sec][0] else \
-                #     f"[CONTINUED] {_sub.split('] ')[-1].split(' @')[0]}"
 
                 this_lines, this_width, this_rows = self.format_section(
                     body=sub_section,
@@ -541,6 +545,7 @@ class Menu:
 
                 item = item + len(sub_section) if not self.reverse else item - len(sub_section)
 
+                # Broken out this way for easier debug / verification of logic (step through in debugger)
                 if len(col_lines) + len(this_lines) > self.tty.body_avail_rows:
                     self.pager_write_col_to_page(col_lines, section_slices)
                     section_slices = {}
@@ -602,20 +607,46 @@ class Menu:
         for menu_part in [self.page.legend, self.page.footer, self.page.header]:
             menu_part.update(width=self.page.cols)
 
-        # ---- CLEAR SCREEN -----
-        if not config.debug:
-            _ = system("clear")
-        else:
-            print("")
-
         # -- // PRINT THE MENU \\ --
         print(self.page)
-        # for p in self.page:
-        #     print(p)
 
         self.init_pager()
 
         return self.actions
+
+    def empty_menu(self) -> None:
+        '''Print Menu with Empty body when no body is provided to print_menu().
+        '''
+        self.page.body = MenuSection(
+                            lines=[],
+                            rows=0,
+                            width=0
+                            )
+
+        self.format_subhead(
+            [
+                "",
+                "No local serial devices found.",
+                "No remote ConsolePis discovered and reachable.",
+                "No Manually Defined TELNET/SSH hosts configured.",
+                f"{self.log_sym_2bang}  There is Nothing to display  {self.log_sym_2bang}"
+            ]
+        )
+        opts = ["x"] if not self.legend_in or "refresh" not in self.legend_in.get("opts", []) else ["refresh", "x"]
+        self.page.legend.update(legend={"opts": opts}, width=self.page.cols)
+
+        for menu_part in [self.page.legend, self.page.footer, self.page.header]:
+            menu_part.update(width=self.page.cols)
+
+        # ---- CLEAR SCREEN -----
+        # if not config.debug:
+        #     _ = system("clear")
+        # else:
+        #     print("")
+
+        print(self.page)
+
+        self.init_pager()
 
     def calc_size(self, body: list, subs: Union[list, None],
                   format_subs: bool = False, by_tens: bool = False) -> object:
@@ -1288,17 +1319,25 @@ class Menu:
             legend_text = [line.text for line in legend_text]
             _middle = int(len(legend_text) / 2)
             col_1_max = max([_len for _len in legend_width_list[_middle:len(legend_width_list)]])
-            col_2_max = max([_len for _len in legend_width_list[0:_middle]])
+            col_2_max = max([_len for _len in legend_width_list[0:_middle]] or [0])
             col_1_text = [line for line in legend_text[_middle:len(legend_text)]]
             col_2_text = [line for line in legend_text[0:_middle]]
-            if len(col_2_text) < len(col_1_text):
-                col_2_text += [""]
-            legend_text = [f"{col[0]:{col_1_max}}{' ':{COL_PAD}}{col[1]:{col_2_max}}" for col in zip(col_1_text, col_2_text)]
+            if col_2_max > 0:
+                if len(col_2_text) < len(col_1_text):
+                    col_2_text += [""]
+                legend_text = [f"{col[0]:{col_1_max}}{' ':{COL_PAD}}{col[1]:{col_2_max}}" for col in zip(col_1_text, col_2_text)]
+                width_list += [col_1_max + COL_PAD + col_2_max]  # +2 is for " |" appended to the end of each line
+                legend_text.insert(0, " " + "-" * (col_1_max + COL_PAD + col_2_max - 1))
+            else:  # legend consists of only 1 item
+                legend_text = col_1_text
+                width_list = legend_width_list
+                legend_text.insert(0, " " + "-" * (col_1_max - 1))
+
             # legend_text = [f"{col[0]:{col_1_max}}{' ':{COL_PAD}}{col[1]:{col_2_max}} |" for col in zip(col_1_text, col_2_text)]
             # legend_text.insert(0, "-" * (col_1_max + COL_PAD + col_2_max + 2))
-            legend_text.insert(0, " " + "-" * (col_1_max + COL_PAD + col_2_max - 1))
-            width_list += [col_1_max + COL_PAD + col_2_max]  # +2 is for " |" appended to the end of each line
-
+            # legend_text.insert(0, " " + "-" * (col_1_max + COL_PAD + col_2_max - 1))
+            # width_list += [col_1_max + COL_PAD + col_2_max]  # +2 is for " |" appended to the end of each line
+#
         if legend.get("after"):
             legend["after"] = utils.listify(legend["after"])
             post_text = [format_line(f" {line}") for line in legend["after"]]

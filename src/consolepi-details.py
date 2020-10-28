@@ -49,8 +49,8 @@ if len(sys.argv) > 1:
     elif sys.argv[1] == 'outlets':
         jprint(get_outlets())
     elif sys.argv[1] == 'hosts':
-            _ = subprocess.run("sed -n '/HOSTS:/,/^ *$/p' /etc/ConsolePi/ConsolePi.yaml | more", shell=True)
-            print(f"Total: {len(config.hosts.get('_host_list', []))}")
+        _ = subprocess.run("sed -n '/HOSTS:/,/^ *$/p' /etc/ConsolePi/ConsolePi.yaml | more", shell=True)
+        print(f"Total: {len(config.hosts.get('_host_list', []))}")
     elif sys.argv[1] == 'remotes':
         if len(sys.argv) == 2:
             jprint(remotes)
@@ -84,5 +84,5 @@ if log.error_msgs:
     print('!! ', end='')
     print('\n!! '.join(log.error_msgs))
 
-if not cpi.cpiexec.pwr_init_complete:
+if config.outlets and not cpi.cpiexec.pwr_init_complete:
     utils.spinner('Exiting... Waiting for Power Threads To Complete', cpi.cpiexec.wait_for_threads)

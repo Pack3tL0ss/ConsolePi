@@ -3,7 +3,7 @@
 import sys
 
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import config  # NoQA
+from consolepi import config  # type: ignore # NoQA
 
 cfg = {**config.cfg, **{"comment": "START OF OVERRIDES"},  **config.ovrd}
 

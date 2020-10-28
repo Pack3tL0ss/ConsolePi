@@ -102,26 +102,28 @@ update_config() {
 
         # get all other optional config sections from existing config (POWER, HOSTS, TTYAMA)
         awk 'matched; /^  debug:/ { matched = 1 } ' $CONFIG_FILE_YAML | awk '/^[A-Z]*$/ { matched = 1 } matched' >> $yml_temp
-        file_diff_update $yml_temp $CONFIG_FILE_YAML
-        rm $yml_temp
-
-        # TODO Move this to common as a function
-        group=$(stat -c '%G' $CONFIG_FILE_YAML)
-        if [ ! $group == "consolepi" ]; then
-            sudo chgrp consolepi $CONFIG_FILE_YAML 2>> $log_file &&
-                logit "Successfully Updated Config File Group Ownership" ||
-                logit "Failed to Update Config File Group Ownership (consolepi)" "WARNING"
-        else
-            logit "Config File Group ownership already OK"
-        fi
-        if [ ! $(stat -c "%a" $CONFIG_FILE_YAML) == 664 ]; then
-            sudo chmod g+w $CONFIG_FILE_YAML &&
-                logit "Config File Permissions Updated (group writable)" ||
-                logit "Failed to make Config File group writable" "WARNING"
-        else
-            logit "Config File Group Permissions already OK"
-        fi
     fi
+
+    file_diff_update $yml_temp $CONFIG_FILE_YAML
+    rm $yml_temp
+
+    # TODO Move this to common as a function
+    group=$(stat -c '%G' $CONFIG_FILE_YAML)
+    if [ ! $group == "consolepi" ]; then
+        sudo chgrp consolepi $CONFIG_FILE_YAML 2>> $log_file &&
+            logit "Successfully Updated Config File Group Ownership" ||
+            logit "Failed to Update Config File Group Ownership (consolepi)" "WARNING"
+    else
+        logit "Config File Group ownership already OK"
+    fi
+    if [ ! $(stat -c "%a" $CONFIG_FILE_YAML) == 664 ]; then
+        sudo chmod g+w $CONFIG_FILE_YAML &&
+            logit "Config File Permissions Updated (group writable)" ||
+            logit "Failed to make Config File group writable" "WARNING"
+    else
+        logit "Config File Group Permissions already OK"
+    fi
+
 
     if [[ -f $CONFIG_FILE ]] ; then
         echo "ConsolePi now supports a new Configuration format and is configured via ConsolePi.yaml"

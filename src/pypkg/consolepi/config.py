@@ -74,7 +74,7 @@ class Config():
             if utils.valid_file(legacy_cfg):
                 with open(legacy_cfg, 'r') as config:
                     for line in config:
-                        if not line.startswith('#'):
+                        if line.strip() and not line.startswith('#'):
                             var = line.split("=")[0]
                             value = line.split('#')[0]
                             value = value.replace('{0}='.format(var), '')

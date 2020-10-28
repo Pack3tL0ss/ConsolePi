@@ -681,8 +681,8 @@ class ConsolePiMenu(Rename):
 
             # -- all option to loop through all remotes and deploy keys --
             legend = {'opts': 'back',
-                      'before': ['"all cpis".  {{cyan}}*all*{{norm}} Remote ConsolePis',
-                                 '"all hosts". {{cyan}}*all*{{norm}} Manual Host Entries',
+                      'before': ['all cpis:  {{cyan}}*all*{{norm}} Remote ConsolePis',
+                                 'all hosts: {{cyan}}*all*{{norm}} Manual Host Entries',
                                  '           {{dyellow}}**host must support ssh-copy-id{{norm}}',
                                  ''
                                  ]}
@@ -1049,6 +1049,12 @@ class ConsolePiMenu(Rename):
         cpi = self.cpi
         local = cpi.local
         rem = cpi.remotes.data
+        menu = Menu()
+        menu.legend_options = {
+            'refresh': ['r', 'Refresh'],
+            'back': ['b', 'Back'],
+            'x': ['x', 'Exit']
+        }
         menu_actions = {
             'rshell_menu': self.rshell_menu,
             'b': None,
@@ -1084,9 +1090,9 @@ class ConsolePiMenu(Rename):
                     outer_body.append(mlines)
 
             legend = {'opts': 'back'}
-            menu_actions = self.menu.print_menu(outer_body, header='Remote Shell Menu',
-                                                subhead='Enter item # to connect to remote',
-                                                legend=legend, subs=subs, menu_actions=menu_actions)
+            menu_actions = menu.print_menu(outer_body, header='Remote Shell Menu',
+                                           subhead='Enter item # to connect to remote',
+                                           legend=legend, subs=subs, menu_actions=menu_actions)
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower

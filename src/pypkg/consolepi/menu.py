@@ -380,15 +380,35 @@ class Menu:
             self.body_in = body
             self.size = self.calc_size(self.body_in, subs, format_subs=format_subs, by_tens=by_tens)
 
-        if not self.items_in:  # or new_menu:
+        refresh = False
+        if not self.subs_in:  # or new_menu:
+            self.subs_in = subs
+        elif subs:
+            if [y for y in subs if y not in self.subs_in]:
+                refresh = True
+                self.subs_in = subs
+                self.body_in = body
+                self.reverse = False
+                self.pbody, self.psubs, self.pitems = None, None, None
+                self.prev_page, self.cur_page = 1, 1
+                self.page.prev_slice = {}
+                self.reverse = False
+                self.actions = {**self.actions, **self.menu_actions_in}
+                x = 1
+                self.items_in = []
+                for idx, sec in enumerate(self.body_in):
+                    if idx > 0:
+                        x += len(self.body_in[idx - 1])
+                    self.items_in.append([y + x for y in range(len(sec))])
+
+        if not self.items_in or refresh:  # or new_menu:
             x = 1
             self.items_in = []
             for idx, sec in enumerate(self.body_in):
                 if idx > 0:
                     x += len(self.body_in[idx - 1])
                 self.items_in.append([y + x for y in range(len(sec))])
-        if not self.subs_in:  # or new_menu:
-            self.subs_in = subs
+
         if not self.menu_actions_in:  # or new_menu:
             self.menu_actions_in = menu_actions
             self.actions = None
@@ -501,6 +521,10 @@ class Menu:
                 if (len(col_lines) + len(_section) + addl_rows) >= self.tot_body_1col_rows / 2 and \
                         (len(col_lines) + len(_section) + addl_rows) <= self.tty.body_avail_rows:
                     _end = len(_section)
+                elif (len(col_lines) + len(_section) + addl_rows) >= self.tty.body_avail_rows:
+                    _end = self.tty.body_avail_rows - (len(col_lines) + addl_rows)
+                elif len(_section) + addl_rows <= self.tty.body_avail_rows:
+                    _end = len(_section)
                 else:
                     _end = tty.body_avail_rows - len(col_lines) - addl_rows
             elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.tty.body_avail_rows:
@@ -533,7 +557,7 @@ class Menu:
                         sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0].split(' on ')[-1]}"
 
                 # if debug enabled Add index of section to section header (sub)
-                if sub and config.debug:
+                if sub and config.debug and not sub.startswith(f"-{sec}-"):
                     sub = f"-{sec}-{sub}"
 
                 this_lines, this_width, this_rows = self.format_section(
@@ -552,7 +576,10 @@ class Menu:
                     # -- Prev Col written update col with current lines
                     col_lines = this_lines
                     self.col_width = this_width
-                elif len(col_lines) + len(this_lines) >= self.tot_body_1col_rows / 2:
+                elif len(col_lines) + len(this_lines) >= self.tot_body_1col_rows / 2 \
+                        and (
+                            not self.pages or
+                            not (len(col_lines) + len(_section) + addl_rows) <= len(self.pages[self.cur_page])):
                     self.pager_write_col_to_page(col_lines, section_slices)
                     section_slices = {}
                     # -- Prev Col written update col with current lines
@@ -1263,10 +1290,13 @@ class Menu:
         if kwargs.get("opts"):
             opts = [*opts, *utils.listify(opts)]
 
-        # Ensure exit is the last option
+        # Ensure exit is the last option unless only 2 opts
         if "x" in opts:
             opts.pop(opts.index("x"))
-        opts.append("x")
+        if len(opts) > 2:
+            opts.append("x")
+        else:
+            opts.insert(0, "x")
         opts = utils.unique(opts)
 
         no_match_overrides, no_match_rjust = [], []  # init

@@ -67,20 +67,21 @@ def format_line(line: Union[str, bool]) -> object:
 
 
 class TTY:
-    def __init__(self, body_avail_rows: int = None):
-        self.update(body_avail_rows)
+    def __init__(self):
+        self.update()
 
-    def update(self, body_avail_rows: int = None):
+    def update(self):
         if sys.stdin.isatty():
             self.rows, self.cols = utils.get_tty_size()
         else:
             self.rows = self.cols = None
 
-        self.body_avail_rows = body_avail_rows
-        self.body_avail_cols = None
-
-    def __bool__(self):
+    @staticmethod
+    def __bool__():
         return sys.stdin.isatty()
+
+
+tty = TTY()
 
 
 class MenuSection:
@@ -169,6 +170,7 @@ class MenuParts:
         # +1 is for prompt line
         self.rows = 0 if len(self) == 0 else (len(self) + 1)
         self.cols = self._cols()
+        # tty = tty
 
     @property
     def header(self):
@@ -232,6 +234,7 @@ class MenuParts:
             print("")  # if DEBUG need this to get off the prompt line
 
         parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        log.clear()
         return "\n".join([line for p in parts for line in p.lines])
 
     def __iter__(self, key: str = None) -> MenuSection:
@@ -255,26 +258,17 @@ class MenuParts:
     def update(self):
         self.rows = 0 if len(self) == 0 else (len(self) + 1)
         self.cols = self._cols()
+        parts = [self.header, self.subhead, self.legend, self.footer]
+        self.body_avail_rows = tty.rows - sum([p.rows for p in parts if p] or [0]) - 1
 
 
 class Menu:
-
-    class orig:
-        def __init__(self, header: Union[str, list], subs: list, body: list,
-                     subhead: Union[str, list] = None, lopts: list = None) -> None:
-            self.header = header
-            self.body = body
-            self.subs = subs
-            self.subhead = subhead
-            self.legend_opts = lopts
-
     def __init__(self):  # utils, debug=False, log=None, log_file=None):
         self.go = True
         self.states = {True: "{{green}}ON{{norm}}", False: "{{red}}OFF{{norm}}"}
         self.ignored_errors = []  # Populated by menu script consolepi-menu.py
         self.log_sym_2bang = "\033[1;33m!!\033[0m"
-        self.tty = TTY()
-        self.col_avail_rows = self.tty.rows
+        # tty = TTY()
         self.prev_page = 1
         self.cur_page = 1
         self.legend_options = None
@@ -294,6 +288,7 @@ class Menu:
         self.tot_body_1col_rows = 0
         self.pages = {}
         self.item = 1
+        self.tty = tty
 
     def init_pager(self):
         self.prev_page = self.cur_page
@@ -301,8 +296,8 @@ class Menu:
         self.col_width = 0       # assigned in do_pager
         self.page_width = 0      # assigned in do_pager
         self.cur_page_width = 0  # assigned in pager_write_other_col
-        if hasattr(self, "page"):
-            log.clear()
+        # if hasattr(self, "page"):
+        #     log.clear()
 
     def print_menu(
         self,
@@ -351,34 +346,12 @@ class Menu:
         Returns:
             [dict]: Returns the menu_actions dict which may include paging actions if warranted.
         """
-        # if not self.prev_header:
-        #     self.prev_header = header
-        #     new_menu = True
-        # elif self.prev_header != header:
-        #     self.prev_header = header
-        #     new_menu = True
-        # else:
-        #     new_menu = False
+        self.tty.update()
 
-        # if self.subs_in and subs and self.subs_in[0] == subs[0] and self.subs_in != subs:
-        # Forces update of _in attributes after refresh
-        # if self.cur_page == 1:
-        #     new_menu = True
-        # # If header is different indicating a diffent menu reset cur_page to 1 and claer pages
-        # elif new_menu:
-        #     self.cur_page = 1
-        #     self.pages = {}
-
-        # if new_menu:
-        #     self.pbody, self.psubs, self.pitems = None, None, None
-        #     self.page.prev_slice, self.page.this_slice, self.page.next_slice = {}, {}, {}
-
-        tty = self.tty
-        tty.update()
-
+        do_size = False
         if not self.body_in:  # or new_menu:
             self.body_in = body
-            self.size = self.calc_size(self.body_in, subs, format_subs=format_subs, by_tens=by_tens)
+            do_size = True
 
         refresh = False
         if not self.subs_in:  # or new_menu:
@@ -409,37 +382,38 @@ class Menu:
                     x += len(self.body_in[idx - 1])
                 self.items_in.append([y + x for y in range(len(sec))])
 
-        if not self.menu_actions_in:  # or new_menu:
+        if not self.menu_actions_in or refresh:  # or new_menu:
             self.menu_actions_in = menu_actions
             self.actions = None
+
         self.actions = self.menu_actions_in if not self.actions else {**self.menu_actions_in, **self.actions}
         if not self.legend_in:  # or new_menu:
             if isinstance(legend, dict):
                 self.legend_in = legend
             elif isinstance(legend, list):
                 self.legend_in = {"opts": legend}
-        # self.legend_options = {**DEF_LEGEND_OPTIONS, **self.legend_options}
+
         self.legend_options = {**DEF_LEGEND_OPTIONS, **self.legend_options}
         header = self.format_header(header)
         subhead = self.format_subhead(subhead)
         legend = self.format_legend(self.legend_in)
-        footer = self.format_footer()
+        self.format_footer()
 
         if not subs:
             header.append("")
 
-        tty.body_avail_rows = tty.rows - header.rows - subhead.rows - legend.rows - footer.rows - 1  # - 1 if for prompt line
+        # self.page.update()  # Update body_avail_rows
+        # tty.body_avail_rows = tty.rows - header.rows - subhead.rows - legend.rows - footer.rows - 1  # - 1 if for prompt line
 
-        # Return Now if no body provided
-        if not body:
-            self.empty_menu()
-            return self.actions
+        if do_size:
+            self.size = self.calc_size(self.body_in, subs, format_subs=format_subs, by_tens=by_tens)
 
         self.pg_cnt = 0
         try:
-            self.size.get_cols()
+            self.size.get_cols(self.page.body_avail_rows)
             if len(self.size.pages) > 1:
-                tty.body_avail_rows -= 1  # legend will gain an extra line for Back/Next when pager... Updated after body is built
+                # tty.body_avail_rows -= 1  # legend will gain an extra line for Back/Next when pager... Updated after body built
+                self.page.body_avail_rows -= 1
             self.pg_cnt = len(self.size.pages)
             self.addl_rows = self.size.addl_rows
         except Exception as e:
@@ -517,26 +491,26 @@ class Menu:
                 self.tot_body_1col_rows = sum([len(_section) + addl_rows for _section in _body])
 
             # current col must have room for 3 items from section otherwise new section starts in next col
-            if tty.body_avail_rows - len(col_lines) >= 3 + addl_rows:
+            if self.page.body_avail_rows - len(col_lines) >= 3 + addl_rows:
                 if (len(col_lines) + len(_section) + addl_rows) >= self.tot_body_1col_rows / 2 and \
-                        (len(col_lines) + len(_section) + addl_rows) <= self.tty.body_avail_rows:
+                        (len(col_lines) + len(_section) + addl_rows) <= self.page.body_avail_rows:
                     _end = len(_section)
-                elif (len(col_lines) + len(_section) + addl_rows) >= self.tty.body_avail_rows:
-                    _end = self.tty.body_avail_rows - (len(col_lines) + addl_rows)
-                elif len(_section) + addl_rows <= self.tty.body_avail_rows:
+                elif (len(col_lines) + len(_section) + addl_rows) >= self.page.body_avail_rows:
+                    _end = self.page.body_avail_rows - (len(col_lines) + addl_rows)
+                elif len(_section) + addl_rows <= self.page.body_avail_rows:
                     _end = len(_section)
                 else:
-                    _end = tty.body_avail_rows - len(col_lines) - addl_rows
-            elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.tty.body_avail_rows:
+                    _end = self.page.body_avail_rows - len(col_lines) - addl_rows
+            elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.page.body_avail_rows:
                 _end = len(_section)
             else:
-                _end = tty.body_avail_rows - addl_rows
+                _end = self.page.body_avail_rows - addl_rows
 
             # -- break sections with too many rows to fit tty into list of slices for each col that fit into limits of tty
             if 0 < _end < len(_section):
                 _slice = [slice(0, _end, 1)]
-                while len(_section[_end:len(_section)]) + addl_rows > tty.body_avail_rows:
-                    _start, _end = _end, _end + (tty.body_avail_rows - addl_rows)
+                while len(_section[_end:len(_section)]) + addl_rows > self.page.body_avail_rows:
+                    _start, _end = _end, _end + (self.page.body_avail_rows - addl_rows)
                     _slice += [slice(_start, _end, 1)]
 
                 # Add any remaining slices in section
@@ -570,28 +544,39 @@ class Menu:
                 item = item + len(sub_section) if not self.reverse else item - len(sub_section)
 
                 # Broken out this way for easier debug / verification of logic (step through in debugger)
-                if len(col_lines) + len(this_lines) > self.tty.body_avail_rows:
+                if col_lines and len(col_lines) + len(this_lines) > self.page.body_avail_rows:
                     self.pager_write_col_to_page(col_lines, section_slices)
                     section_slices = {}
                     # -- Prev Col written update col with current lines
                     col_lines = this_lines
                     self.col_width = this_width
-                elif len(col_lines) + len(this_lines) >= self.tot_body_1col_rows / 2 \
+                elif col_lines and len(col_lines) + len(this_lines) >= self.tot_body_1col_rows / 2 \
                         and (
-                            not self.pages or
-                            not (len(col_lines) + len(_section) + addl_rows) <= len(self.pages[self.cur_page])):
+                            not self.pages or (
+                                len(self.pages[self.cur_page]) > 0 and
+                                not (len(col_lines) + len(_section) + addl_rows) <= len(self.pages[self.cur_page])
+                                )
+                            ):
                     self.pager_write_col_to_page(col_lines, section_slices)
                     section_slices = {}
                     # -- Prev Col written update col with current lines
                     col_lines = this_lines
                     self.col_width = this_width
-                elif max_section <= self.tty.body_avail_rows and equal_sections:
+                elif col_lines and max_section <= self.page.body_avail_rows and equal_sections:
                     self.pager_write_col_to_page(col_lines, section_slices)
                     section_slices = {}
                     # -- Prev Col written update col with current lines
                     col_lines = this_lines
                     self.col_width = this_width
-                elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.tty.body_avail_rows:
+                elif col_lines and sum([len(s) + addl_rows for s in _body[idx:]]) <= len(col_lines) and \
+                        not len(col_lines) + len(this_lines) <= len(self.pages[self.cur_page]):
+                    self.pager_write_col_to_page(col_lines, section_slices)
+                    section_slices = {}
+                    # -- Prev Col written update col with current lines
+                    col_lines = this_lines
+                    self.col_width = this_width
+                elif col_lines and self.cur_page == 1 and self.pg_cnt == 1 and \
+                        len(_body) <= 3 and max_section <= self.page.body_avail_rows:
                     self.pager_write_col_to_page(col_lines, section_slices)
                     section_slices = {}
                     # -- Prev Col written update col with current lines
@@ -677,15 +662,17 @@ class Menu:
 
     def calc_size(self, body: list, subs: Union[list, None],
                   format_subs: bool = False, by_tens: bool = False) -> object:
-        tty = self.tty
+        # tty = tty
         body = utils.listify(body)
         body = [body] if len(body) >= 1 and isinstance(body[0], str) else body
         reverse = self.reverse
         format_section = self.format_section
         cur_page = self.cur_page
+        body_avail_rows = self.page.body_avail_rows
 
         class Size:
             def __init__(self, lines: list = None, cols: int = None, rows: int = None):
+                self.body_avail_rows = body_avail_rows
                 self.lines = []
                 self.cols = []
                 self.rows = []
@@ -729,7 +716,8 @@ class Menu:
                 if rows:
                     self.rows += [rows]
 
-            def get_cols(self):
+            def get_cols(self, body_avail_rows: int = None):
+                body_avail_rows = self.body_avail_rows if body_avail_rows is None else body_avail_rows
                 # first pass to determine what is possible then break, second pass populates menu
                 self.addl_rows = addl_rows
                 for _pass in range(2):
@@ -742,16 +730,16 @@ class Menu:
                     for idx, lines in enumerate(body):
                         rows = self.rows[idx]
 
-                        if tty.body_avail_rows - len(col_lines) >= 3 + addl_rows:
-                            _end = tty.body_avail_rows - len(col_lines) - addl_rows
+                        if self.body_avail_rows - len(col_lines) >= 3 + addl_rows:
+                            _end = self.body_avail_rows - len(col_lines) - addl_rows
                         else:
-                            _end = tty.body_avail_rows - addl_rows
+                            _end = self.body_avail_rows - addl_rows
 
                         # -- break sections with too many rows to fit tty into list of slices for each col that fit into tty
                         if 0 < _end < len(lines):
                             _slice = [slice(0, _end)]
-                            while len([lines[s] for s in _slice]) > tty.body_avail_rows:
-                                _start, _end = _end, _end + (tty.body_avail_rows - addl_rows)
+                            while len([lines[s] for s in _slice]) > self.body_avail_rows:
+                                _start, _end = _end, _end + (self.body_avail_rows - addl_rows)
                                 _slice += [slice(_start, _end, 1)]
 
                             # Add any remaining slices in section
@@ -781,7 +769,7 @@ class Menu:
                             section_slices[idx] = s if not reverse else \
                                 slice(len(self.body[idx]) - s.stop, len(self.body[idx]) - s.start)
 
-                            if len(col_lines) + len(this_lines) > tty.body_avail_rows:
+                            if len(col_lines) + len(this_lines) > self.body_avail_rows:
 
                                 if self.page not in self.pages:
                                     self.pager_write_first_col(col_lines, page=self.page)
@@ -794,7 +782,7 @@ class Menu:
                                 if self.page_width + self.col_width > tty.cols:
                                     self.page += 1
                                     if _pass == 0:
-                                        tty.body_avail_rows -= 1
+                                        self.body_avail_rows -= 1
                                         _stop = True
                                         break
 
@@ -925,7 +913,7 @@ class Menu:
 
         '''
         page = 1 if not self.pages else len(self.pages)
-        if self.page_width + COL_PAD + self.col_width > self.tty.cols:
+        if self.page_width + COL_PAD + self.col_width > tty.cols:
             # Increment page unless this is first col of first page
             page = page if not self.pages[page] else page + 1
 
@@ -1181,8 +1169,8 @@ class Menu:
         return format_line(line)
 
     def format_header(self, text: Union[str, list], width: int = MIN_WIDTH) -> MenuSection:
-        if self.tty and width > self.tty.cols:
-            width = self.tty.cols
+        if tty and width > tty.cols:
+            width = tty.cols
         orig = text
         head_lines = ["=" * width]
         width_list = [width]
@@ -1392,8 +1380,8 @@ class Menu:
         return _legend
 
     def format_footer(self, width: int = MIN_WIDTH) -> MenuSection:
-        if self.tty and width > self.tty.cols:
-            width = self.tty.cols
+        if tty and width > tty.cols:
+            width = tty.cols
         foot_width_list = []
         mlines = []
 

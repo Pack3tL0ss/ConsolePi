@@ -421,7 +421,7 @@ class ConsolePiMenu(Rename):
             #              f'a[r:{menu.tty.rows}, c:{menu.tty.cols}]{prompt}'
             if config.debug:
                 prompt = f'pg[{self.cur_menu.cur_page}] m[r:{self.cur_menu.page.rows}, c:{self.cur_menu.page.cols}] ' \
-                         f'a[b:{self.cur_menu.tty.body_avail_rows} r:{self.cur_menu.tty.rows}, c:{self.cur_menu.tty.cols}]' \
+                         f'a[r:{self.cur_menu.tty.rows}, c:{self.cur_menu.tty.cols}]' \
                          f'{prompt}'
 
             ch = choice()

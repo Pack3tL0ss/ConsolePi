@@ -51,7 +51,7 @@ class ConsolePiMenu(Rename):
             re.compile('Warning: Permanently added .* to the list of known hosts')
         ]
         self.show_ports = False
-        self.menu.show_legend = config.ovrd.get("show_legend", True)
+        self.menu.page.hide = config.ovrd.get("hide_legend", False)
         self.do_menu_load_warnings()
         self.menu.legend_options = {
             'power': ['p', 'Power Control Menu'],
@@ -915,8 +915,8 @@ class ConsolePiMenu(Rename):
     def toggle_show_ports(self):
         self.show_ports = not self.show_ports
 
-    def toggle_show_legend(self):
-        self.menu.show_legend = not self.menu.show_legend
+    # def toggle_show_legend(self):
+    #     self.menu.show_legend = not self.menu.show_legend
 
     # ------ // MAIN MENU \\ ------ #
     def main_menu(self):
@@ -935,7 +935,7 @@ class ConsolePiMenu(Rename):
             'h': self.picocom_help,
             'r': remotes.refresh,
             'x': self.exit,
-            'tl': self.toggle_show_legend
+            # 'tl': self.toggle_show_legend
             # 'sh': self.cpiexec.launch_shell
         }
         if config.power and pwr.data:

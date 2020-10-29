@@ -9,8 +9,13 @@ from consolepi import utils, log, config  # type: ignore
 
 MIN_WIDTH = 55
 MAX_COLS = 5
-DEF_LEGEND_OPTIONS = {"back": ("b", "Back"), "next": ("n", "Next Page"), "x": ("x", "Exit")}
-COL_PAD = 4
+DEF_LEGEND_OPTIONS = {
+    "back": ("b", "Back"),
+    "next": ("n", "Next Page"),
+    "x": ("x", "Exit")
+    }
+COL_PAD = 3
+L_OFFSET = 1  # Number of spaces the body of menu is offset from left.
 
 
 def format_line(line: Union[str, bool]) -> object:
@@ -85,31 +90,28 @@ tty = TTY()
 
 
 class MenuSection:
-    def __init__(self, orig: Any = None, lines: list = [], row_list: list = [], width_list: list = [],
-                 rows: int = 0, width: int = 0, sections: list = [], opts: list = [],
-                 overrides: dict = {}, data_dict: dict = {}, update_method: Any = None,
-                 update_args: Union[list, tuple, set] = [], update_kwargs: dict = {}):
+    def __init__(self, orig: Any = None, lines: list = [], width_list: list = [], rows: int = 0, cols: int = 0,
+                 opts: list = [], overrides: dict = {}, update_method: Any = None, update_args: Union[list, tuple, set] = [],
+                 update_kwargs: dict = {}, name: str = None, hide: bool = False):
+        self.hide = hide
         self.orig = orig  # Original unformatted data
         self.lines = lines
-        self.sections = sections
-        self.row_list = row_list
         self.width_list = width_list
         self.opts = opts
         self.overrides = overrides
         self.rows = rows
-        self.width = width
-        self.data_dict = data_dict
+        self.cols = cols
+        self.name_in = name
         self.update_method = update_method
         self.update_args = update_args
         self.update_kwargs = update_kwargs
 
+    def __repr__(self):
+        name = "" if not self.update_method else f" ({repr(self.update_method).split('format_')[-1].split()[0]})"
+        return f"<{self.__module__}.{type(self).__name__}{name} object at {hex(id(self))}>"
+
     def __str__(self):
         return "\n".join(self.lines)
-
-    def update(self, *args, **kwargs):
-        # self.rows = len(self.lines)
-        if self.update_method:
-            self.update_method(*[*self.update_args, *args], **{**self.update_kwargs, **kwargs})
 
     def __len__(self):
         return len(self.lines)
@@ -134,12 +136,24 @@ class MenuSection:
                 ret = e
         return ret
 
+    @property
+    def name(self):
+        return self._name() if not self.name_in else self.name_in
+
+    def _name(self):
+        name = repr(self) if not self.update_method else f"{repr(self.update_method).split('format_')[-1].split()[0]}"
+        return name
+
+    def update(self, *args, **kwargs):
+        if self.update_method:
+            self.update_method(*[*self.update_args, *args], **{**self.update_kwargs, **kwargs})
+
     def append(self, data: str):
         line = format_line(data)
         self.lines += [line.text]
         self.width_list += [line.len]
-        if line.len > self.width:
-            self.width = line.len
+        if line.len > self.cols:
+            self.cols = line.len
         self.update()
 
     def get(self, attr: str, default: Any = None):
@@ -163,10 +177,10 @@ class MenuParts:
         self._body = None
         self._legend = None
         self._footer = None
-        self.show_legend = True
         self.prev_slice = {}
         self.this_slice = {}
         self.next_slice = {}
+        # self.parts = [self.header, self.subhead, self.body, self.legend, self.footer]
         # +1 is for prompt line
         self.rows = 0 if len(self) == 0 else (len(self) + 1)
         self.cols = self._cols()
@@ -238,37 +252,59 @@ class MenuParts:
         return "\n".join([line for p in parts for line in p.lines])
 
     def __iter__(self, key: str = None) -> MenuSection:
-        parts = {
-            "header": self.header,
-            "subhead": self.subhead,
-            "body": self.body,
-            "legend": self.legend,
-            "footer": self.footer
-            }
+        parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        # parts = {
+        #     "header": self.header,
+        #     "subhead": self.subhead,
+        #     "body": self.body,
+        #     "legend": self.legend,
+        #     "footer": self.footer
+        #     }
         for p in parts:
-            if not parts[p] or (key and p != key) or (p == "legend" and not self.show_legend):
+            # if not parts[p] or (key and p != key) or (p == "legend" and not self.page.show_legend):
+            if not p or (key and p.name != key):  # or (p.name == "legend" and p.hide):
                 continue
             else:
-                yield parts[p]
+                yield p
+                # yield parts[p]
 
     def _cols(self):
         parts = [self.header, self.subhead, self.body, self.legend, self.footer]
-        return max([p.width for p in parts if p] or [0])
+        return max([p.cols for p in parts if p] or [0])
 
     def update(self):
         self.rows = 0 if len(self) == 0 else (len(self) + 1)
         self.cols = self._cols()
         parts = [self.header, self.subhead, self.legend, self.footer]
-        self.body_avail_rows = tty.rows - sum([p.rows for p in parts if p] or [0]) - 1
+        self.body_avail_rows = tty.rows - sum([p.rows for p in parts if p] or [0]) - 1  # -1 for prompt line
+
+    def diag(self):
+        tty.update()
+        parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        ret = [
+            "", "",
+            f"    tty rows, cols: {tty.rows} {tty.cols}",
+            ]
+        ret += [
+            f"    {p.name} rows, cols: {p.rows} {p.cols}"
+            f"{'' if not p.name == 'body' else f' (Available Rows: {self.body_avail_rows})'}"
+            for p in parts
+            ]
+        ret += [f"    Total Menu rows, cols: {self.rows} {self.cols}", ""]
+        return "\n".join(ret)
 
 
 class Menu:
-    def __init__(self):  # utils, debug=False, log=None, log_file=None):
+    def __init__(self, left_offset: int = L_OFFSET):  # utils, debug=False, log=None, log_file=None):
+        self.left_offset = left_offset
         self.go = True
+        self.def_actions = {
+            "dump": self.dump_formatter_data,
+            "tl": self.toggle_legend
+            }
         self.states = {True: "{{green}}ON{{norm}}", False: "{{red}}OFF{{norm}}"}
         self.ignored_errors = []  # Populated by menu script consolepi-menu.py
         self.log_sym_2bang = "\033[1;33m!!\033[0m"
-        # tty = TTY()
         self.prev_page = 1
         self.cur_page = 1
         self.legend_options = None
@@ -296,8 +332,6 @@ class Menu:
         self.col_width = 0       # assigned in do_pager
         self.page_width = 0      # assigned in do_pager
         self.cur_page_width = 0  # assigned in pager_write_other_col
-        # if hasattr(self, "page"):
-        #     log.clear()
 
     def print_menu(
         self,
@@ -308,8 +342,7 @@ class Menu:
         legend: Union[dict, list] = None,
         format_subs=False,
         by_tens=False,
-        menu_actions: dict = {},
-        calling_menu: str = "main_menu"
+        menu_actions: dict = {}
     ) -> dict:
         """Format and print current menu, sized to fit terminal.  Pager implemented if required.
 
@@ -349,13 +382,14 @@ class Menu:
         self.tty.update()
 
         do_size = False
-        if not self.body_in:  # or new_menu:
+        if not self.body_in:
             self.body_in = body
             do_size = True
 
         refresh = False
-        if not self.subs_in:  # or new_menu:
+        if not self.subs_in:
             self.subs_in = subs
+        # if a refresh triggered a change to subs/body reset to page 1
         elif subs:
             if [y for y in subs if y not in self.subs_in]:
                 refresh = True
@@ -374,7 +408,7 @@ class Menu:
                         x += len(self.body_in[idx - 1])
                     self.items_in.append([y + x for y in range(len(sec))])
 
-        if not self.items_in or refresh:  # or new_menu:
+        if not self.items_in or refresh:
             x = 1
             self.items_in = []
             for idx, sec in enumerate(self.body_in):
@@ -382,12 +416,17 @@ class Menu:
                     x += len(self.body_in[idx - 1])
                 self.items_in.append([y + x for y in range(len(sec))])
 
-        if not self.menu_actions_in or refresh:  # or new_menu:
+        if not self.menu_actions_in or refresh:
             self.menu_actions_in = menu_actions
             self.actions = None
 
         self.actions = self.menu_actions_in if not self.actions else {**self.menu_actions_in, **self.actions}
-        if not self.legend_in:  # or new_menu:
+
+        # hidden menu diagnostic command dumps data used to determine format
+        # if config.debug:
+        #     self.actions["dump"] = self.dump_formatter_data
+
+        if not self.legend_in:
             if isinstance(legend, dict):
                 self.legend_in = legend
             elif isinstance(legend, list):
@@ -396,14 +435,11 @@ class Menu:
         self.legend_options = {**DEF_LEGEND_OPTIONS, **self.legend_options}
         header = self.format_header(header)
         subhead = self.format_subhead(subhead)
-        legend = self.format_legend(self.legend_in)
+        self.format_legend(self.legend_in)
         self.format_footer()
 
         if not subs:
             header.append("")
-
-        # self.page.update()  # Update body_avail_rows
-        # tty.body_avail_rows = tty.rows - header.rows - subhead.rows - legend.rows - footer.rows - 1  # - 1 if for prompt line
 
         if do_size:
             self.size = self.calc_size(self.body_in, subs, format_subs=format_subs, by_tens=by_tens)
@@ -444,7 +480,6 @@ class Menu:
         else:
             item = max([item for sublist in items for item in sublist])
 
-        # if not self.cur_page < self.prev_page:
         if not self.reverse:
             self.page.next_slice = {}
         self.page.this_slice = {}
@@ -453,7 +488,6 @@ class Menu:
         col_lines = []
         addl_rows = 0
         section_slices = {}
-        # for _sub, _section in zip(subs, _body):
 
         equal_sections = True if len(set([len(section) for section in _body])) == 1 else False
         max_section = max([len(section) + addl_rows for section in _body])
@@ -535,16 +569,16 @@ class Menu:
                     sub = f"-{sec}-{sub}"
 
                 this_lines, this_width, this_rows = self.format_section(
-                    body=sub_section,
-                    sub=sub,
-                    index=item,
-                    format_sub=format_subs,
-                )
+                        body=sub_section,
+                        sub=sub,
+                        index=item,
+                        format_sub=format_subs
+                    )
 
                 item = item + len(sub_section) if not self.reverse else item - len(sub_section)
 
                 # Broken out this way for easier debug / verification of logic (step through in debugger)
-                if col_lines and len(col_lines) + len(this_lines) > self.page.body_avail_rows:
+                if col_lines and len(col_lines) + this_rows > self.page.body_avail_rows:
                     self.pager_write_col_to_page(col_lines, section_slices)
                     section_slices = {}
                     # -- Prev Col written update col with current lines
@@ -591,9 +625,9 @@ class Menu:
                     if this_width > self.col_width:
                         self.col_width = this_width
 
-                if self.cur_page_width >= self.page.legend.width:
+                if self.cur_page_width >= self.page.legend.cols:
                     self.page.legend.lines = [f"{line:{self.cur_page_width}}" for line in self.page.legend.lines]
-                    self.page.legend.width = self.cur_page_width
+                    self.page.legend.cols = self.cur_page_width
 
                 section_slices[sec] = s if not self.reverse else \
                     slice(len(self.body_in[sec]) - s.stop, len(self.body_in[sec]) - s.start, 1)
@@ -607,7 +641,8 @@ class Menu:
         self.page.body = MenuSection(
                                      lines=self.pages[self.cur_page],
                                      rows=len(self.pages[self.cur_page]),
-                                     width=self.cur_page_width
+                                     cols=self.cur_page_width,
+                                     name="body"
                                      )
 
         # Adds Next/Back option as appropriate for Paged Menu
@@ -624,7 +659,11 @@ class Menu:
 
         self.init_pager()
 
-        return self.actions
+        return {**self.def_actions, **self.actions}
+
+    def dump_formatter_data(self):
+        print(self.page.diag())
+        input('Press Enter to Continue... ')
 
     def empty_menu(self) -> None:
         '''Print Menu with Empty body when no body is provided to print_menu().
@@ -632,7 +671,8 @@ class Menu:
         self.page.body = MenuSection(
                             lines=[],
                             rows=0,
-                            width=0
+                            cols=0,
+                            name="body"
                             )
 
         self.format_subhead(
@@ -669,10 +709,12 @@ class Menu:
         format_section = self.format_section
         cur_page = self.cur_page
         body_avail_rows = self.page.body_avail_rows
+        left_offset = self.left_offset
 
         class Size:
             def __init__(self, lines: list = None, cols: int = None, rows: int = None):
                 self.body_avail_rows = body_avail_rows
+                self.left_offset = left_offset
                 self.lines = []
                 self.cols = []
                 self.rows = []
@@ -858,19 +900,19 @@ class Menu:
                     for _ in range(len(self.pages[page]) - len(col_lines)):
                         col_lines += [f"{' ':{self.col_width}}"]
 
-                # if not self.cur_page < self.prev_page:
+                col_pad = COL_PAD - self.left_offset
                 if not reverse:
                     self.pages[page] = [
-                        f"{line[0]}{' ':{COL_PAD}}{line[1]:{self.col_width}}"
+                        f"{line[0]}{' ':{col_pad}}{line[1]:{self.col_width}}"
                         for line in zip(self.pages[page], col_lines)
                         ]
                 else:  # Add From Right to Left when parsing slices in reverse order (Back)
                     self.pages[page] = [
-                        f"{line[0]:{self.col_width}}{' ':{COL_PAD}}{line[1]:{self.col_width}}"
+                        f"{line[0]:{self.col_width}}{' ':{col_pad}}{line[1]:{self.col_width}}"
                         for line in zip(col_lines, self.pages[page])
                         ]
 
-                self.page_width += (COL_PAD + self.col_width)
+                self.page_width += (col_pad + self.col_width)
 
         size = Size()
         start = item = 1
@@ -891,12 +933,12 @@ class Menu:
 
         return size
 
-    def toggle_show_legend(self):
+    def toggle_legend(self):
         '''Toggles Display of the Legend.
 
         Currently a hidden option, not built out, doesn't have impact on sizing yet so of little value
         '''
-        self.page.show_legend = not self.page.show_legend
+        self.page.legend.hide = not self.page.legend.hide
 
     def pager_write_col_to_page(self, col_lines: list, col_slices: dict, legend_lines: list = None) -> None:
         '''Writes Column completed column to Page (Body) extending to legend once beyond legend text.
@@ -913,7 +955,7 @@ class Menu:
 
         '''
         page = 1 if not self.pages else len(self.pages)
-        if self.page_width + COL_PAD + self.col_width > tty.cols:
+        if self.page_width + (COL_PAD - self.left_offset) + self.col_width > tty.cols:
             # Increment page unless this is first col of first page
             page = page if not self.pages[page] else page + 1
 
@@ -995,19 +1037,19 @@ class Menu:
             for _ in range(len(self.pages[page]) - len(col_lines)):
                 col_lines += [f"{' ':{self.col_width}}"]
 
-        # if not self.cur_page < self.prev_page:
+        col_pad = COL_PAD - self.left_offset
         if not self.reverse:
             self.pages[page] = [
-                f"{line[0]}{' ':{COL_PAD}}{line[1]:{self.col_width}}"
+                f"{line[0]}{' ':{col_pad}}{line[1]:{self.col_width}}"
                 for line in zip(self.pages[page], col_lines)
                 ]
         else:  # Add From Right to Left when parsing slices in reverse order (Back)
             self.pages[page] = [
-                f"{line[0]:{self.col_width}}{' ':{COL_PAD}}{line[1]:{self.col_width}}"
+                f"{line[0]:{self.col_width}}{' ':{col_pad}}{line[1]:{self.col_width}}"
                 for line in zip(col_lines, self.pages[page])
                 ]
 
-        self.page_width += (COL_PAD + self.col_width)
+        self.page_width += (col_pad + self.col_width)
 
     def pager_update_legend(self):
         '''Updates the Legend with Back/Next Options as appropriate for Paged menu.
@@ -1123,7 +1165,7 @@ class Menu:
                     del self.page.prev_slice[idx]
                 else:
                     self.page.prev_slice[idx] = slice(0, self.page.this_slice[idx].start, 1)
-        # If user caused reduction of avail lines for error display a section could be removed
+        # If user caused reduction of avail lines for error display or tty resize a section could be removed
         # this will re-populate any orphaned sections into prev_slice
         if len(self.page.prev_slice) not in self.page.this_slice:
             self.page.prev_slice[len(self.page.prev_slice)] = slice(0, len(self.body_in[len(self.page.prev_slice)]), 1)
@@ -1139,13 +1181,10 @@ class Menu:
 
         if not self.page.this_slice or self.cur_page > self.prev_page:
             return
-        # elif self.cur_page < self.prev_page:
         elif self.reverse:
             self.pager_reverse_parse_update()
         else:
-            # self.page.this_slice = {k: v for k, v in sorted(self.page.this_slice.items())}
             if self.page.next_slice:
-                # for _last_key in [_ for _ in sorted(self.page.this_slice.keys())][::-1]:
                 for _last_key in [_ for _ in self.page.this_slice.keys()][::-1]:
                     if _last_key not in self.page.next_slice:
                         break
@@ -1163,7 +1202,7 @@ class Menu:
                     else:
                         self.page.prev_slice[_first_key] = slice(0, self.page.this_slice[_first_key].start, 1)
 
-# -- // SECTION FORMATTERS \\ --
+# -- // MENU PART FORMATTERS \\ --
     @staticmethod
     def format_line(line: Union[str, bool]) -> object:
         return format_line(line)
@@ -1185,7 +1224,7 @@ class Menu:
         head_lines.append("=" * width)
         width_list += [width]
 
-        _header = MenuSection(lines=head_lines, rows=len(head_lines), width=max(width_list), width_list=width_list, orig=orig)
+        _header = MenuSection(lines=head_lines, rows=len(head_lines), cols=max(width_list), width_list=width_list, orig=orig)
         _header.update_method = self.format_header
         _header.update_args = (text)
         _header.update_kwargs = {"width": width}
@@ -1195,7 +1234,7 @@ class Menu:
 
     def format_subhead(self, text: Union[str, list]) -> MenuSection:
         if not text:
-            _subhead = MenuSection()
+            _subhead = MenuSection(name="subhead")
             self.page.subhead = _subhead
             return _subhead
 
@@ -1210,7 +1249,7 @@ class Menu:
             subhead += [""]
         max_len = max([len(sh) for sh in subhead])
 
-        _subhead = MenuSection(lines=subhead, rows=len(subhead), width=max_len)
+        _subhead = MenuSection(lines=subhead, rows=len(subhead), cols=max_len)
         _subhead.update_method = self.format_subhead
         _subhead.update_args = (text)
         self.page.subhead = _subhead
@@ -1218,17 +1257,18 @@ class Menu:
         return _subhead
 
     def format_section(self, body: list, sub: str = None, index: int = 1,
-                       l_offset: int = 1, format_sub: bool = False) -> MenuSection:
+                       left_offset: int = None, format_sub: bool = False) -> MenuSection:
+        left_offset = self.left_offset if not left_offset else left_offset
         max_len = 0
         mlines = []
         _end_index_len = len(str(len(body) + index - 1))
-        indent = l_offset + _end_index_len + 2  # The 2 is for '. '
+        indent = left_offset + _end_index_len + 2  # The 2 is for '. '
         width_list = []
         for _line in body:
             # -- format spacing of item entry --
             _i = f"{str(index)}. {' ' * (_end_index_len - len(str(index)))}"
             # -- generate line and calculate line length --
-            _line = " " * l_offset + _i + _line
+            _line = " " * left_offset + _i + _line
             line = format_line(_line)
             # if not self.cur_page < self.prev_page:
             if not self.reverse:
@@ -1242,7 +1282,7 @@ class Menu:
         max_len = 0 if not width_list else max(width_list)
         if sub:
             # -- Add subs lines to top of menu item section --
-            x = ((max_len - len(sub)) / 2) - (l_offset + (indent / 2))
+            x = ((max_len - len(sub)) / 2) - (left_offset + (indent / 2))
             mlines.insert(0, "")
             width_list.insert(0, 0)
             if format_sub:
@@ -1269,12 +1309,16 @@ class Menu:
                   for line, line_len in zip(mlines, width_list)]
         return mlines, max_len, len(mlines)
 
-    def format_legend(self, legend: dict = {}, **kwargs) -> MenuSection:
+    def format_legend(self, legend: dict = {}, left_offset: int = None, **kwargs) -> MenuSection:
+        if self.page.legend and self.page.legend.hide:
+            self.page.legend = MenuSection(name="legend", hide=True)
+            return self.page.legend
 
+        left_offset = self.left_offset if not left_offset else left_offset
+        col_pad = COL_PAD - left_offset
         width_list = []
         opts = utils.listify(legend.get("opts", []))
-        # if self.page.legend:
-        #     opts = [*opts, *self.page.legend.opts]
+
         if kwargs.get("opts"):
             opts = [*opts, *utils.listify(opts)]
 
@@ -1292,7 +1336,6 @@ class Menu:
 
         # replace any pre-defined options with those passed in as overrides
         legend_options = self.legend_options
-        # legend_options = self.legend_in
         if legend.get("overrides") and isinstance(legend["overrides"], dict):
             legend_options = {**legend_options, **legend["overrides"]}
             no_match_overrides = [
@@ -1328,7 +1371,7 @@ class Menu:
         if opts:
             f = legend_options
             legend_text = [
-                f' {f[k][0]}.{" " if len(f[k][0]) == 2 else "  "}{f[k][1]}'
+                f'{" " * left_offset}{f[k][0]}.{" " if len(f[k][0]) == 2 else "  "}{f[k][1]}'
                 for k in opts
                 if k in f
             ]
@@ -1343,19 +1386,16 @@ class Menu:
             if col_2_max > 0:
                 if len(col_2_text) < len(col_1_text):
                     col_2_text += [""]
-                legend_text = [f"{col[0]:{col_1_max}}{' ':{COL_PAD}}{col[1]:{col_2_max}}" for col in zip(col_1_text, col_2_text)]
-                width_list += [col_1_max + COL_PAD + col_2_max]  # +2 is for " |" appended to the end of each line
-                legend_text.insert(0, " " + "-" * (col_1_max + COL_PAD + col_2_max - 1))
+                legend_text = [
+                    f"{col[0]:{col_1_max}}{' ':{col_pad}}{col[1]:{col_2_max}}" for col in zip(col_1_text, col_2_text)
+                    ]
+                width_list += [col_1_max + col_pad + col_2_max]  # +2 is for " |" appended to the end of each line
+                legend_text.insert(0, " " + "-" * (col_1_max + col_pad + col_2_max - 1))
             else:  # legend consists of only 1 item
                 legend_text = col_1_text
                 width_list = legend_width_list
                 legend_text.insert(0, " " + "-" * (col_1_max - 1))
 
-            # legend_text = [f"{col[0]:{col_1_max}}{' ':{COL_PAD}}{col[1]:{col_2_max}} |" for col in zip(col_1_text, col_2_text)]
-            # legend_text.insert(0, "-" * (col_1_max + COL_PAD + col_2_max + 2))
-            # legend_text.insert(0, " " + "-" * (col_1_max + COL_PAD + col_2_max - 1))
-            # width_list += [col_1_max + COL_PAD + col_2_max]  # +2 is for " |" appended to the end of each line
-#
         if legend.get("after"):
             legend["after"] = utils.listify(legend["after"])
             post_text = [format_line(f" {line}") for line in legend["after"]]
@@ -1370,7 +1410,8 @@ class Menu:
                 f'menu_formatting passed options ({",".join(no_match_overrides + no_match_rjust)})'
                 " that lacked a match in legend_options = No impact to menu")
 
-        _legend = MenuSection(lines=mlines, width=max(width_list), rows=len(mlines), opts=opts or [],
+        # TODO update attributes if self.page has attr legend
+        _legend = MenuSection(lines=mlines, cols=max(width_list), rows=len(mlines), opts=opts or [],
                               overrides=legend.get("overrides", {}))
         _legend.update_method = self.format_legend
         _legend.update_kwargs = {"legend": {"before": legend.get("before", []), "opts": _legend.opts,
@@ -1422,23 +1463,21 @@ class Menu:
 
         mlines.insert(0, "")
         page_text = f"| Page {self.cur_page} of {len(self.pages)} |"
-        # if self.page.prev_slice:
-        #     page_text += "b. Back (Prev Page) "
-        # if self.page.next_slice:
-        #     page_text += "n. Next (Next Page) "
-        # page_text += "|"
 
         top_line = "=" * width
         bot_line = top_line
         if self.page.prev_slice or self.page.next_slice:
             bot_line = "=" * (width - len(page_text) - 5) + page_text + "=" * 5
+        if self.page.legend.hide:
+            legend_text = " Use 'TL' to restore Legend "
+            bot_line = "=" * 5 + legend_text + bot_line[len(legend_text) + 5:]
 
         if log.error_msgs:
             mlines.insert(1, top_line)
 
         mlines += [bot_line]
 
-        _footer = MenuSection(lines=mlines, rows=len(mlines), width=width, update_method=self.format_footer,
+        _footer = MenuSection(lines=mlines, rows=len(mlines), cols=width, update_method=self.format_footer,
                               update_kwargs={"width": width})
         self.page.footer = _footer
 

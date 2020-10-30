@@ -821,7 +821,7 @@ class ConsolePiMenu(Rename):
 
     def rename_menu(self, direct_launch: bool = False, from_name: str = None):
         cpi = self.cpi
-        menu = Menu()
+        menu = Menu(name='rename_menu')
         menu.legend_options = {
             'refresh': ['r', 'Refresh'],
             'sp': ['sp', 'Toggle Display of associated TELNET ports'],
@@ -885,7 +885,7 @@ class ConsolePiMenu(Rename):
             # menu_actions = self.menu.print_menu(outer_body, header='Define/Rename Adapters',
             #                              legend=legend, subs=slines, menu_actions=menu_actions, calling_menu='rename_menu')
             menu_actions = menu.print_menu(outer_body, header='Define/Rename Adapters',
-                                           legend=legend, subs=slines, menu_actions=menu_actions, calling_menu='rename_menu')
+                                           legend=legend, subs=slines, menu_actions=menu_actions)
 
             self.cur_menu = menu
 
@@ -922,6 +922,7 @@ class ConsolePiMenu(Rename):
     def main_menu(self):
         cpi = self.cpi
         menu = cpi.menu
+        menu.name = "main_menu"
         loc = cpi.local.adapters
         pwr = cpi.pwr
         remotes = cpi.remotes
@@ -935,8 +936,6 @@ class ConsolePiMenu(Rename):
             'h': self.picocom_help,
             'r': remotes.refresh,
             'x': self.exit,
-            # 'tl': self.toggle_show_legend
-            # 'sh': self.cpiexec.launch_shell
         }
         if config.power and pwr.data:
             if pwr.linked_exists or pwr.gpio_exists or pwr.tasmota_exists:

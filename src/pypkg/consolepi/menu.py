@@ -107,7 +107,10 @@ class MenuSection:
         self.update_kwargs = update_kwargs
 
     def __repr__(self):
-        name = "" if not self.update_method else f" ({repr(self.update_method).split('format_')[-1].split()[0]})"
+        if self.name_in:
+            name = f" ({self.name_in})"
+        else:
+            name = "" if not self.update_method else f" ({repr(self.update_method).split('format_')[-1].split()[0]})"
         return f"<{self.__module__}.{type(self).__name__}{name} object at {hex(id(self))}>"
 
     def __str__(self):
@@ -138,7 +141,7 @@ class MenuSection:
 
     @property
     def name(self):
-        return self._name() if not self.name_in else self.name_in
+        return self.name_in if self.name_in else self._name()
 
     def _name(self):
         name = repr(self) if not self.update_method else f"{repr(self.update_method).split('format_')[-1].split()[0]}"
@@ -171,7 +174,8 @@ class MenuSection:
 #   The Primary Menu Object
 #
 class MenuParts:
-    def __init__(self):
+    def __init__(self, name: str = None):
+        self.name = name
         self._header = None
         self._subhead = None
         self._body = None
@@ -180,7 +184,7 @@ class MenuParts:
         self.prev_slice = {}
         self.this_slice = {}
         self.next_slice = {}
-        # self.parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        self.parts = [self.header, self.subhead, self.body, self.legend, self.footer]
         # +1 is for prompt line
         self.rows = 0 if len(self) == 0 else (len(self) + 1)
         self.cols = self._cols()
@@ -236,9 +240,13 @@ class MenuParts:
         self.update()
         # self._footer.update(width=self.cols)
 
+    def __repr__(self):
+        name = "" if not self.name else f" {(self.name)}"
+        return f"<{self.__module__}.{type(self).__name__}{name} object at {hex(id(self))}>"
+
     def __len__(self):
-        parts = [self.header, self.subhead, self.body, self.legend, self.footer]
-        return sum([p.rows for p in parts if p] or [0])
+        # parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        return sum([p.rows for p in self.parts if p] or [0])
 
     def __str__(self):
         # ---- CLEAR SCREEN -----
@@ -248,34 +256,34 @@ class MenuParts:
             print("")  # if DEBUG need this to get off the prompt line
 
         parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        if self.legend and self.legend.hide:
+            _ = parts.pop(parts.index(self.legend))
         log.clear()
         return "\n".join([line for p in parts for line in p.lines])
 
     def __iter__(self, key: str = None) -> MenuSection:
-        parts = [self.header, self.subhead, self.body, self.legend, self.footer]
-        # parts = {
-        #     "header": self.header,
-        #     "subhead": self.subhead,
-        #     "body": self.body,
-        #     "legend": self.legend,
-        #     "footer": self.footer
-        #     }
-        for p in parts:
-            # if not parts[p] or (key and p != key) or (p == "legend" and not self.page.show_legend):
+        # parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        for p in self.parts:
             if not p or (key and p.name != key):  # or (p.name == "legend" and p.hide):
                 continue
             else:
                 yield p
-                # yield parts[p]
 
     def _cols(self):
-        parts = [self.header, self.subhead, self.body, self.legend, self.footer]
-        return max([p.cols for p in parts if p] or [0])
+        # parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        return max([p.cols for p in self.parts if p] or [0])
 
     def update(self):
         self.rows = 0 if len(self) == 0 else (len(self) + 1)
         self.cols = self._cols()
-        parts = [self.header, self.subhead, self.legend, self.footer]
+        if self.legend and self.legend.hide:
+            if self.legend in self.parts:
+                _ = self.parts.pop(self.parts.index(self.legend))
+            parts = [self.header, self.subhead, self.footer]
+        else:
+            self.parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+            parts = [self.header, self.subhead, self.legend, self.footer]
+
         self.body_avail_rows = tty.rows - sum([p.rows for p in parts if p] or [0]) - 1  # -1 for prompt line
 
     def diag(self):
@@ -295,7 +303,7 @@ class MenuParts:
 
 
 class Menu:
-    def __init__(self, left_offset: int = L_OFFSET):  # utils, debug=False, log=None, log_file=None):
+    def __init__(self, name: str = None, left_offset: int = L_OFFSET):  # utils, debug=False, log=None, log_file=None):
         self.left_offset = left_offset
         self.go = True
         self.def_actions = {
@@ -309,7 +317,7 @@ class Menu:
         self.cur_page = 1
         self.legend_options = None
         self.init_pager()
-        self.page = MenuParts()  # Needs to come after init_pager()
+        self.page = MenuParts(name)  # Needs to come after init_pager()
         self.actions = None  # set in print_menu()
         self.body_in = None
         self.items_in = None
@@ -325,6 +333,10 @@ class Menu:
         self.pages = {}
         self.item = 1
         self.tty = tty
+
+    def __repr__(self):
+        name = "" if not self.name else f" ({self.name})"
+        return f"<{self.__module__}.{type(self).__name__}{name} object at {hex(id(self))}>"
 
     def init_pager(self):
         self.prev_page = self.cur_page
@@ -690,12 +702,6 @@ class Menu:
         for menu_part in [self.page.legend, self.page.footer, self.page.header]:
             menu_part.update(width=self.page.cols)
 
-        # ---- CLEAR SCREEN -----
-        # if not config.debug:
-        #     _ = system("clear")
-        # else:
-        #     print("")
-
         print(self.page)
 
         self.init_pager()
@@ -939,6 +945,9 @@ class Menu:
         Currently a hidden option, not built out, doesn't have impact on sizing yet so of little value
         '''
         self.page.legend.hide = not self.page.legend.hide
+        # if self.page.legend.hide:
+        #     self.page.legend.lines = []
+        #     self.page.legend.rows, self.page.legend.cols = 0, 0
 
     def pager_write_col_to_page(self, col_lines: list, col_slices: dict, legend_lines: list = None) -> None:
         '''Writes Column completed column to Page (Body) extending to legend once beyond legend text.
@@ -1311,7 +1320,6 @@ class Menu:
 
     def format_legend(self, legend: dict = {}, left_offset: int = None, **kwargs) -> MenuSection:
         if self.page.legend and self.page.legend.hide:
-            self.page.legend = MenuSection(name="legend", hide=True)
             return self.page.legend
 
         left_offset = self.left_offset if not left_offset else left_offset
@@ -1411,11 +1419,21 @@ class Menu:
                 " that lacked a match in legend_options = No impact to menu")
 
         # TODO update attributes if self.page has attr legend
-        _legend = MenuSection(lines=mlines, cols=max(width_list), rows=len(mlines), opts=opts or [],
-                              overrides=legend.get("overrides", {}))
+        if not hasattr(self.page, "legend") or self.page.legend is None:
+            _legend = MenuSection(lines=mlines, cols=max(width_list), rows=len(mlines), opts=opts or [],
+                                  overrides=legend.get("overrides", {}))
+        else:
+            _legend = getattr(self.page, "legend")
+            _legend.lines = mlines
+            _legend.cols = max(width_list)
+            _legend.rows = len(mlines)
+            _legend.opts = opts or []
+
         _legend.update_method = self.format_legend
         _legend.update_kwargs = {"legend": {"before": legend.get("before", []), "opts": _legend.opts,
                                             "after": legend.get("after", []), "overrides": _legend.overrides}}
+
+        # _legend.update(width=self.page.cols)
         self.page.legend = _legend
 
         return _legend

@@ -90,7 +90,6 @@ do_git_pull() {
         branch=$(git rev-parse --abbrev-ref HEAD)
         echo -e "\n -- Performing git pull"
         dots "git pull ConsolePi (${branch})"
-        # git pull >/dev/null 2>>$log_file ; local rc=$?
         res=$(git pull 2>>$log_file) ; local rc=$?
         popd >/dev/null
         if [[ $rc -eq 0 ]] ; then

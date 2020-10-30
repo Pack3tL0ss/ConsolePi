@@ -94,6 +94,7 @@ do_git_pull() {
         popd >/dev/null
         if [[ $rc -eq 0 ]] ; then
             echo OK
+            echo $res
             echo $res | grep -q "files changed" && echo $res | sed -n "/From /,/^$/p"
             break
         else

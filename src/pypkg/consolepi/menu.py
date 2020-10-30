@@ -434,10 +434,6 @@ class Menu:
 
         self.actions = self.menu_actions_in if not self.actions else {**self.menu_actions_in, **self.actions}
 
-        # hidden menu diagnostic command dumps data used to determine format
-        # if config.debug:
-        #     self.actions["dump"] = self.dump_formatter_data
-
         if not self.legend_in:
             if isinstance(legend, dict):
                 self.legend_in = legend
@@ -460,7 +456,6 @@ class Menu:
         try:
             self.size.get_cols(self.page.body_avail_rows)
             if len(self.size.pages) > 1:
-                # tty.body_avail_rows -= 1  # legend will gain an extra line for Back/Next when pager... Updated after body built
                 self.page.body_avail_rows -= 1
             self.pg_cnt = len(self.size.pages)
             self.addl_rows = self.size.addl_rows
@@ -542,7 +537,10 @@ class Menu:
                         (len(col_lines) + len(_section) + addl_rows) <= self.page.body_avail_rows:
                     _end = len(_section)
                 elif (len(col_lines) + len(_section) + addl_rows) >= self.page.body_avail_rows:
-                    _end = self.page.body_avail_rows - (len(col_lines) + addl_rows)
+                    if self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.page.body_avail_rows:
+                        _end = len(_section)
+                    else:
+                        _end = self.page.body_avail_rows - (len(col_lines) + addl_rows)
                 elif len(_section) + addl_rows <= self.page.body_avail_rows:
                     _end = len(_section)
                 else:
@@ -674,7 +672,8 @@ class Menu:
         return {**self.def_actions, **self.actions}
 
     def dump_formatter_data(self):
-        print(self.page.diag())
+        diag_data = [f"    Total Rows(1 col): {self.tot_body_1col_rows}"]
+        print(self.page.diag(diag_data))
         input('Press Enter to Continue... ')
 
     def empty_menu(self) -> None:
@@ -743,6 +742,7 @@ class Menu:
                 return self
 
             def __iter__(self, key: Union[slice, tuple, int] = None) -> Tuple:
+                print("hit")
                 if key:
                     if isinstance(key, tuple):
                         _slice = slice(*key)
@@ -862,9 +862,6 @@ class Menu:
 
                 # Write Final Col
                 if self.page not in self.pages:
-                    # if self.page_width + self.col_width > tty.cols:
-                    #     self.page += 1
-                    # self.pages[self.page] = [f"{line:{self.col_width}}" for line in _lines]
                     self.pager_write_first_col(col_lines, page=self.page)  # type: ignore
                 else:
                     self.pager_write_other_col(col_lines, page=self.page)  # type: ignore
@@ -1510,3 +1507,12 @@ class MenuExecute:
         self.args = args
         self.kwargs = kwargs
         self.calling_menu = calling_menu
+
+# class MenuGroup:
+#     def __init__(self, lines, sub=None, item: int = 1, format_subs: bool = False):
+#         self.lines, self.cols, self.rows = m.format_section(
+#             body=lines, sub=sub, index=item, format_sub=format_subs
+#         )
+#         self.item_range = range(item, len(lines))
+#         self.first_item = item
+#         self.last_item = len(lines)

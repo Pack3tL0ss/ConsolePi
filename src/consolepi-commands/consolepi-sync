@@ -94,7 +94,8 @@ do_git_pull() {
         popd >/dev/null
         if [[ $rc -eq 0 ]] ; then
             echo OK
-            echo $res | grep -q "file\? changed" && echo $res | sed -n "/From /,/^$/p"
+            # echo $res | grep -q "file\? changed" && echo $res | sed -n "/From /,/^$/p"
+            echo -e " --\n$res\n --"
             break
         else
             if tail $log_file | grep -q "error: insufficient permission\|Permission denied" ; then

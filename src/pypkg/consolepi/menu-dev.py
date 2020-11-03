@@ -1,6 +1,7 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import sys
+# from collections import OrderedDict as od
 from os import system
 from typing import Tuple, Union, Any
 
@@ -1507,3 +1508,657 @@ class MenuExecute:
         self.args = args
         self.kwargs = kwargs
         self.calling_menu = calling_menu
+
+
+class MenuGroup:
+    def __init__(self, lines, sub=None, items: list = None, format_subs: bool = False):
+        item = 1 if not items else items[0]
+        self.left_offset = 1
+        self.reverse = False
+        self.lines, self.slines, self.slines_cont, self.cols, self.rows = self.format_section(
+            body=lines, sub=sub, index=item, format_sub=format_subs
+        )
+        self.item_range = range(item, item + len(lines))
+        self.first_item = item
+        self.last_item = item + len(lines) - 1
+
+    def __str__(self, _slice: slice = None):
+        if not _slice:
+            _slice = slice(0, len(self.lines), 1)
+
+        slines = self.slines if _slice.start == 0 else self.slines_cont
+        return "\n".join([*slines, *self.lines[_slice]])
+
+    def __len__(self, data: list = None) -> int:
+        return self.rows if not data else len(data)
+
+    def __getitem__(self, index: Union[int, list, slice, tuple, set] = None) -> Any:
+        if isinstance(index, int):
+            return self.lines[index]
+
+        if isinstance(index, (tuple, list, set)) and len(index) >= 2:
+            index = slice(*index)
+        elif index is None:
+            index = slice(0, self.rows, 1)
+        elif isinstance(index, slice):
+            pass
+        else:
+            raise ValueError(f"index must be of type(int, list, slice, tuple, set) not {type(index)}")
+
+        slines = self.slines if index.start is None or index.start == 0 else self.slines_cont
+        return [*slines, *self.lines[index]]
+
+    def __iter__(self, index: Union[int, list, slice, tuple, set]) -> Any:
+        for i in index:
+            yield self[i]
+
+    def format_section(self, body: list, sub: str = None, index: int = 1,
+                       left_offset: int = None, format_sub: bool = False) -> MenuSection:
+        left_offset = self.left_offset if not left_offset else left_offset
+        max_len = 0
+        mlines = []
+        slines = []
+        slines_cont = []
+        _end_index_len = len(str(len(body) + index - 1))
+        indent = left_offset + _end_index_len + 2  # The 2 is for '. '
+        width_list = []
+        swidth_list = []
+        for _line in body:
+            # -- format spacing of item entry --
+            _i = f"{str(index)}. {' ' * (_end_index_len - len(str(index)))}"
+            # -- generate line and calculate line length --
+            _line = " " * left_offset + _i + _line
+            line = format_line(_line)
+
+            if not self.reverse:
+                width_list.append(line.len)
+                mlines.append(line.text)
+                index += 1
+            else:
+                width_list.insert(0, line.len)
+                mlines.insert(0, line.text)
+                index -= 1
+        max_len = 0 if not width_list else max(width_list)
+        if sub:
+            # -- Add subs lines to top of menu item section --
+            sub = format_line(sub)
+            x = ((max_len - sub.len) / 2) - (left_offset + (indent / 2))
+            if format_sub:
+
+                slines += [
+                    "{0}{1} {2} {3}".format(
+                        " " * indent,
+                        "-" * int(x),
+                        sub.text,
+                        "-" * int(x) if x == int(x) else "-" * (int(x) + 1),
+                    )
+                ]
+            else:
+                slines += [" " * indent + sub.text]
+            swidth_list += [len(slines[-1].replace(sub.text, '')) + sub.len]
+            # update max_len in case subsheading is the longest line in the section
+            max_len = max(width_list + swidth_list)
+            slines += [" " * indent + "-" * (max_len - indent)]
+            swidth_list += [len(slines[-1])]
+            slines.insert(0, f"{' ':{max_len}}")
+
+            if "Local Adapters" in slines:
+                cont = f"[CONTINUED] {slines[1].replace('Rename ', '')}"
+            else:
+                cont = f"[CONTINUED] {slines[1].split('] ')[-1].split(' @')[0].split(' on ')[-1]}"
+            slines_cont = [" " * indent + cont]
+            cont_max = max_len if len(slines[-1]) < max_len else len(slines[-1])
+            slines_cont += [" " * indent + "-" * (cont_max - indent)]
+            slines_cont.insert(0, f"{' ':{cont_max}}")
+
+        # -- adding padding to line to full width of longest line in section --
+        mlines = [f"{line:{max_len}}" for line in mlines]
+        return mlines, slines, slines_cont, max_len, len(mlines) + len(slines)
+
+
+class NewMenu:
+    def __init__(self, body: list, subs: list = None, header: Union[str, list] = "---", subhead: Union[str, list] = None,
+                 legend: Union[dict, list] = None, actions: list = None, fomat_subs: bool = False, left_offset: int = L_OFFSET,
+                 legend_options: dict = {}, name: str = None, ignored_errors: list = []):
+        self.def_actions = {
+            "dump": self.dump_formatter_data,
+            "tl": self.toggle_legend
+            }
+        self.tty = tty
+        self.left_offset = left_offset
+        self.ignored_errors = ignored_errors
+        # TODO
+        self.log_sym_2bang = "\033[1;33m!!\033[0m"
+        self.legend_options = legend_options
+        self.name = name
+        self.prev_page = 1
+        self.cur_page = 1
+        self.pages = {1: []}
+        self.actions = actions
+        self.page = MenuParts(name)
+        self.format_header(header)
+        self.format_subhead(subhead)
+        self.format_legend(legend)
+        self.format_footer()
+        self.groups = self._body_groups_init(body, subs)
+        self.format_body()
+
+    def __repr__(self):
+        name = "" if not self.name else f" ({self.name})"
+        return f"<{self.__module__}.{type(self).__name__}{name} object at {hex(id(self))}>"
+
+    @staticmethod
+    def _body_groups_init(body, subs: list = None, format_subs: bool = False):
+        # if str was passed place in list to iterate over
+        if isinstance(body, str):
+            body = [body]
+
+        # ensure body is a list of lists for mapping with list of subs
+        body = [body] if len(body) >= 1 and isinstance(body[0], str) else body
+
+        # generate matching list of item entries
+        i = 1
+        items = []
+        for idx, sec in enumerate(body):
+            if idx > 0:
+                i += len(body[idx - 1])
+            items += [list(y + i for y, _ in enumerate(sec))]
+
+        return [MenuGroup(b, sub=s, items=i, format_subs=format_subs) for b, s, i in zip(body, subs, items)]
+
+    def toggle_legend(self):
+        '''Toggles Display of the Legend.
+
+        Currently a hidden option, not built out, doesn't have impact on sizing yet so of little value
+        '''
+        self.page.legend.hide = not self.page.legend.hide
+
+    def dump_formatter_data(self):
+        diag_data = [f"    Total Rows(1 col): {self.tot_body_1col_rows}"]
+        print(self.page.diag(diag_data))
+        input('Press Enter to Continue... ')
+
+    def empty_menu(self) -> None:
+        '''Print Menu with Empty body when no body is provided to print_menu().
+        '''
+        self.page.body = MenuSection(
+                            lines=[],
+                            rows=0,
+                            cols=0,
+                            name="body"
+                            )
+
+        self.format_subhead(
+            [
+                "",
+                "No local serial devices found.",
+                "No remote ConsolePis discovered and reachable.",
+                "No Manually Defined TELNET/SSH hosts configured.",
+                f"{self.log_sym_2bang}  There is Nothing to display  {self.log_sym_2bang}"
+            ]
+        )
+        opts = ["x"] if not self.legend_in or "refresh" not in self.legend_in.get("opts", []) else ["refresh", "x"]
+        self.page.legend.update(legend={"opts": opts}, width=self.page.cols)
+
+        for menu_part in [self.page.legend, self.page.footer, self.page.header]:
+            menu_part.update(width=self.page.cols)
+
+        print(self.page)
+
+    def format_body(self):
+        col_pad = COL_PAD - self.left_offset
+        col_lines = []
+        page_lines = []
+        widest = 0
+        page_width = 0
+        cur_page_width = 0
+        _menu_cols = 0
+        max_menu_cols = len(self.groups)  # init
+        _col_list = sorted([g.cols for g in self.groups], reverse=True)
+        for i in range(1, len(self.groups)):
+            _menu_cols = sum(_col_list[:i])
+            if _menu_cols > self.tty.cols:
+                max_menu_cols = i - 1
+                break
+        tot_rows = sum([g.rows for g in self.groups])
+        max_group_rows = max([g.rows for g in self.groups])
+        avail_rows = self.page.body_avail_rows
+        avail_cols = self.tty.cols
+        col_break = tot_rows / max_menu_cols
+        min_rows_for_split = MIN_LINES_FOR_SPLIT_COL  # init
+        pages = {}
+        cur_page = 1
+        page_slices = {}
+        this_page_slices = []
+        col_slices = []
+        col_rows = 0
+        do_write = False
+        for i, g in enumerate(self.groups):
+            if i == 0:
+                min_rows_for_split = len(g.slines) + MIN_LINES_FOR_SPLIT_COL
+            # widest = g.cols if g.cols > widest else widest
+            combined_rows = g.rows + col_rows
+            combined_cols = page_width + col_pad + max([g.cols, widest])
+            # COL IS FULL
+            if 0 < col_rows >= col_break or do_write:
+                if page_width + col_pad + widest <= avail_cols:
+                    # COL IS FULL PAGE HAS ROOM WRITE COL TO PAGE
+                    if 0 < len(page_lines) < col_rows:
+                        page_lines += [" " for _ in range(col_rows - len(page_lines))]
+                    elif col_rows < len(page_lines):
+                        col_lines += [" " for _ in range(len(page_lines) - col_rows)]
+                        _ = None
+
+                    if page_lines:
+                        page_lines = [f"{pline:{page_width}}{' ':{col_pad}}{cline:{widest}}"
+                                      for pline, cline in zip(page_lines, col_lines)]
+                        _ = None
+                    else:
+                        page_lines = [f"{line:{widest}}" for line in col_lines]
+                        _ = None
+
+                    this_page_slices += [col_slices]
+                    page_width += (col_pad + widest)
+                else:
+                    # COL IS FULL BUT PAGE IS FULL ADVANCE TO NEXT PAGE
+                    pages[cur_page] = page_lines
+                    page_slices[cur_page] = this_page_slices
+                    cur_page += 1
+                    this_page_slices = col_slices
+                    if cur_page == self.cur_page:
+                        cur_page_width = page_width
+                    page_width = widest
+                    page_lines = col_lines
+                widest, col_rows = 0, 0
+                col_slices, col_lines = [], []
+                do_write = False
+                combined_rows = g.rows + col_rows
+
+            # COL NOT FULL
+            if combined_rows <= avail_rows:
+                col_rows = combined_rows
+                col_slices += [{i: slice(0, len(g.lines), 1)}]
+                col_lines += g[0:]
+                widest = max([g.cols, widest])
+            else:
+                do_write = True
+                if combined_rows - avail_rows >= min_rows_for_split:
+                    pass
+
+        # write final col to page
+        if col_rows:
+            if page_width + col_pad + widest <= avail_cols:
+                # COL IS FULL PAGE HAS ROOM WRITE COL TO PAGE
+                if 0 < len(page_lines) < col_rows:
+                    page_lines += [" " for _ in range(col_rows - len(page_lines))]
+                elif col_rows < len(page_lines):
+                    col_lines += [" " for _ in range(len(page_lines) - col_rows)]
+                    _ = None
+
+                if page_lines:
+                    page_lines = [f"{pline:{page_width}}{' ':{col_pad}}{cline:{widest}}"
+                                    for pline, cline in zip(page_lines, col_lines)]
+                    _ = None
+                else:
+                    page_lines = [f"{line:{widest}}" for line in col_lines]
+                    _ = None
+
+                this_page_slices += [col_slices]
+                page_width += (col_pad + widest)
+            else:
+                # COL IS FULL BUT PAGE IS FULL ADVANCE TO NEXT PAGE
+                pages[cur_page] = page_lines
+                page_slices[cur_page] = this_page_slices
+                if cur_page == self.cur_page:
+                    cur_page_width = page_width
+                cur_page += 1
+                this_page_slices = col_slices
+                page_width = widest
+                page_lines = col_lines
+            widest, col_rows = 0, 0
+            col_slices, col_lines = [], []
+            do_write = False
+            combined_rows = g.rows + col_rows
+        if not pages:
+            pages[cur_page] = page_lines
+            cur_page_width = page_width
+
+        self.page.body = MenuSection(
+                                    lines=pages[self.cur_page],
+                                    rows=len(pages[self.cur_page]),
+                                    cols=cur_page_width,
+                                    name="body"
+                                    )
+
+        for menu_part in [self.page.legend, self.page.footer, self.page.header]:
+            menu_part.update(width=self.page.cols)
+
+        # -- // PRINT THE MENU \\ --
+        print(self.page)
+
+
+        return {**self.def_actions, **self.actions}
+                # LOOP HERE
+
+                # page_slices[cur_page] = this_page_slices
+                # if page_lines:
+                #     if len(page_lines) < len(col_rows):
+                #         page_lines += [" " for _ in range(len(col_rows) - len(page_lines))]
+                #     page_lines = [f"{pline * page_width}{' ':{col_pad}}{cline:{widest}}"
+                #                 for pline, cline in zip(page_lines, col_lines)]
+                #     page_width = page_width + col_pad + widest
+                # else:
+                #     col_lines = g.lines
+                #     widest = g.cols
+                #     col_slices = [{i: slice(0, g.rows, 1)}]
+                #     # page_width = widest
+                # cur_page += 1
+                # this_page_slices = []
+
+                    # page_lines = [f"{line:{g.cols}}" for line in g[:avail_rows]]
+                    # page_width = page_width + col_pad + g.cols
+                # page_width = 0
+
+
+                # this_page_slices += {i: slice(0, avail_rows, 1)}
+                # # TODO Need a loop here
+                # _end = g.rows if g.rows <= avail_rows else g.rows - avail_rows
+                # col_lines = g[avail_rows:_end]
+                # col_slices += {i: slice(avail_rows, _end, 1)}
+
+                    # if g.rows > self.page.body_avail_rows  # first group is larger than availal body
+                    # col_lines = [f"{line:{widest}}" for line in col_lines]
+                # else:
+                #     # TODO flawed should be line ... g.slines...
+                #     # if page_lines < len(col_lines):
+                #     #     page_lines += [" " for _ in range(len(col_lines) - len(page_lines))]
+                #     # elif page_lines > len(col_lines):
+                #     #     if page_lines - (g.rows + col_lines > 5
+
+                #     if page_lines:
+                #         if len(page_lines) < len(col_lines):
+                #             page_lines += [" " for _ in range(len(col_lines) - len(page_lines))]
+                #         elif len(col_lines) < len(page_lines):
+                #             col_lines += [" " for _ in range(len(page_lines) - len(col_lines))]
+                #         page_lines = [f"{pline:{page_width}}{' ':{col_pad}}{cline:{widest}}"
+                #                       for pline, cline in zip(page_lines, col_lines)]
+                #     else:
+                #         page_lines = [f"{cline:{widest}}" for cline in col_lines]
+                #     col_lines = g.slines + g.lines
+                #     page_width += widest
+                #     widest = g.cols
+        pass
+
+        # current col must have room for 3 items from section otherwise new section starts in next col
+        # if self.page.body_avail_rows - len(col_lines) >= 3 + addl_rows:
+        #     if (len(col_lines) + len(_section) + addl_rows) >= self.tot_body_1col_rows / 2 and \
+        #             (len(col_lines) + len(_section) + addl_rows) <= self.page.body_avail_rows:
+        #         _end = len(_section)
+        #     elif (len(col_lines) + len(_section) + addl_rows) >= self.page.body_avail_rows:
+        #         if self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.page.body_avail_rows:
+        #             _end = len(_section)
+        #         else:
+        #             _end = self.page.body_avail_rows - (len(col_lines) + addl_rows)
+        #     elif len(_section) + addl_rows <= self.page.body_avail_rows:
+        #         _end = len(_section)
+        #     else:
+        #         _end = self.page.body_avail_rows - len(col_lines) - addl_rows
+        # elif self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.page.body_avail_rows:
+        #     _end = len(_section)
+        # else:
+        #     _end = self.page.body_avail_rows - addl_rows
+
+        # # -- break sections with too many rows to fit tty into list of slices for each col that fit into limits of tty
+        # if 0 < _end < len(_section):
+        #     _slice = [slice(0, _end, 1)]
+        #     while len(_section[_end:len(_section)]) + addl_rows > self.page.body_avail_rows:
+        #         _start, _end = _end, _end + (self.page.body_avail_rows - addl_rows)
+        #         _slice += [slice(_start, _end, 1)]
+
+        #     # Add any remaining slices in section
+        #     if _end < len(_section):
+        #         _slice += [slice(_end, len(_section), 1)]
+        # else:
+        #     _slice = [slice(0, len(_section), 1)]
+
+        # for s in _slice:
+        #     sub_section = _section[s]
+
+# -- // MENU PART FORMATTERS \\ --
+    @staticmethod
+    def format_line(line: Union[str, bool]) -> object:
+        return format_line(line)
+
+    def format_header(self, text: Union[str, list], width: int = MIN_WIDTH) -> MenuSection:
+        if self.tty and width > self.tty.cols:
+            width = self.tty.cols
+        orig = text
+        head_lines = ["=" * width]
+        width_list = [width]
+        text = utils.listify(text)
+        for t in text:
+            line = format_line(t)
+            width_list += [line.len]
+            a = width - line.len
+            b = (a / 2) - 2
+            c = int(b) if b == int(b) else int(b) + 1
+            head_lines.append(f" {'-' * int(b)} {line.text} {'-' * c}")
+        head_lines.append("=" * width)
+        width_list += [width]
+
+        _header = MenuSection(lines=head_lines, rows=len(head_lines), cols=max(width_list), width_list=width_list, orig=orig)
+        _header.update_method = self.format_header
+        _header.update_args = (text)
+        _header.update_kwargs = {"width": width}
+        self.page.header = _header
+
+        return self.page.header
+
+    def format_subhead(self, text: Union[str, list]) -> MenuSection:
+        if not text:
+            _subhead = MenuSection(name="subhead")
+            self.page.subhead = _subhead
+            return _subhead
+
+        subhead = utils.listify(text)
+        # indent each subhead line with a space if not provided that way
+        subhead = [
+            f"{' ' + line if not line.startswith(' ') else line}"
+            for line in subhead
+        ]
+        subhead.insert(0, "")
+        if not self.subs_in:
+            subhead += [""]
+        max_len = max([len(sh) for sh in subhead])
+
+        _subhead = MenuSection(lines=subhead, rows=len(subhead), cols=max_len)
+        _subhead.update_method = self.format_subhead
+        _subhead.update_args = (text)
+        self.page.subhead = _subhead
+
+        return _subhead
+
+    def format_legend(self, legend: dict = None, **kwargs) -> MenuSection:
+        legend = legend or {}
+        if self.page.legend and self.page.legend.hide:
+            return self.page.legend
+
+        left_offset = self.left_offset
+        col_pad = COL_PAD - left_offset
+        width_list = []
+        opts = utils.listify(legend.get("opts", []))
+
+        if kwargs.get("opts"):
+            opts = [*opts, *utils.listify(opts)]
+
+        # Ensure exit is the last option unless only 2 opts
+        if "x" in opts:
+            opts.pop(opts.index("x"))
+        if len(opts) > 2:
+            opts.append("x")
+        else:
+            opts.insert(0, "x")
+        opts = utils.unique(opts)
+
+        no_match_overrides, no_match_rjust = [], []  # init
+        pre_text, post_text, legend_text = [], [], []  # init
+
+        # replace any pre-defined options with those passed in as overrides
+        self.legend_options = self.legend_options or {}
+        legend_options = {**DEF_LEGEND_OPTIONS, **self.legend_options}
+        if legend.get("overrides") and isinstance(legend["overrides"], dict):
+            legend_options = {**legend_options, **legend["overrides"]}
+            no_match_overrides = [
+                e for e in legend["overrides"]
+                if e not in legend_options and e not in legend.get("rjust", {})
+            ]
+
+        # update legend_options with any specially formmated (rjust) additions
+        width = self.page.cols
+        if legend.get("rjust"):
+            r = legend.get("rjust")
+            f = legend_options
+            legend_overrides = {
+                k: [f[k][0], "{}{}".format(f[k][1], r[k].rjust(width - len(
+                                f' {f[k][0]}.{" " if len(f[k][0]) == 2 else "  "}{f[k][1]}'
+                                )
+                            ),
+                        ),
+                    ]
+                for k in r
+                if k in f
+            }
+
+            legend_options = {**legend_options, **legend_overrides}
+            no_match_rjust = [e for e in legend["rjust"] if e not in legend_options]
+
+        if legend.get("before"):
+            legend["before"] = utils.listify(legend["before"])
+            pre_text = [format_line(f" {line}") for line in legend["before"]]
+            width_list += [line.len for line in pre_text]
+            pre_text = [line.text for line in pre_text]
+
+        if opts:
+            f = legend_options
+            legend_text = [
+                f'{" " * left_offset}{f[k][0]}.{" " if len(f[k][0]) == 2 else "  "}{f[k][1]}'
+                for k in opts
+                if k in f
+            ]
+            legend_text = [format_line(line) for line in legend_text]
+            legend_width_list = [line.len for line in legend_text]
+            legend_text = [line.text for line in legend_text]
+            _middle = int(len(legend_text) / 2)
+            col_1_max = max([_len for _len in legend_width_list[_middle:len(legend_width_list)]])
+            col_2_max = max([_len for _len in legend_width_list[0:_middle]] or [0])
+            col_1_text = [line for line in legend_text[_middle:len(legend_text)]]
+            col_2_text = [line for line in legend_text[0:_middle]]
+            if col_2_max > 0:
+                if len(col_2_text) < len(col_1_text):
+                    col_2_text += [""]
+                legend_text = [
+                    f"{col[0]:{col_1_max}}{' ':{col_pad}}{col[1]:{col_2_max}}" for col in zip(col_1_text, col_2_text)
+                    ]
+                width_list += [col_1_max + col_pad + col_2_max]  # +2 is for " |" appended to the end of each line
+                legend_text.insert(0, " " + "-" * (col_1_max + col_pad + col_2_max - 1))
+            else:  # legend consists of only 1 item
+                legend_text = col_1_text
+                width_list = legend_width_list
+                legend_text.insert(0, " " + "-" * (col_1_max - 1))
+
+        if legend.get("after"):
+            legend["after"] = utils.listify(legend["after"])
+            post_text = [format_line(f" {line}") for line in legend["after"]]
+            width_list += [line.len for line in post_text]
+            post_text = [line.text for line in post_text]
+
+        mlines = [""] + pre_text + legend_text + post_text
+
+        # log errors if non-match overrides/rjust options were sent
+        if no_match_overrides + no_match_rjust:
+            log.error(
+                f'menu_formatting passed options ({",".join(no_match_overrides + no_match_rjust)})'
+                " that lacked a match in legend_options = No impact to menu")
+
+        # TODO update attributes if self.page has attr legend
+        if not hasattr(self.page, "legend") or self.page.legend is None:
+            _legend = MenuSection(lines=mlines, cols=max(width_list), rows=len(mlines), opts=opts or [],
+                                  overrides=legend.get("overrides", {}))
+        else:
+            _legend = getattr(self.page, "legend")
+            _legend.lines = mlines
+            _legend.cols = max(width_list)
+            _legend.rows = len(mlines)
+            _legend.opts = opts or []
+
+        _legend.update_method = self.format_legend
+        _legend.update_kwargs = {"legend": {"before": legend.get("before", []), "opts": _legend.opts,
+                                            "after": legend.get("after", []), "overrides": _legend.overrides}}
+
+        # _legend.update(width=self.page.cols)
+        self.page.legend = _legend
+
+        return _legend
+
+    def format_footer(self, width: int = MIN_WIDTH) -> MenuSection:
+        if tty and width > tty.cols:
+            width = tty.cols
+        foot_width_list = []
+        mlines = []
+
+        # Remove any error_msgs matching re from ignored_errors list
+        if log.error_msgs:
+            for _error in log.error_msgs:
+                for e in self.ignored_errors:
+                    _e = _error.strip("\r\n")
+                    if hasattr(e, "match") and e.match(_e):
+                        log.error_msgs.remove(_error)
+                        break
+                    elif isinstance(e, str) and e in _error:
+                        log.error_msgs.remove(_error)
+                        break
+
+        # --// ERRORs - append to footer \\-- #
+        if log.error_msgs:
+            errors = log.error_msgs
+            for _ in range(2):
+                for _error in errors:
+                    error = format_line(_error)
+                    foot_width_list.append(error.len + 6)  # +6 is for "!! {error.msg} !!"
+                    x = (width - (error.len + 6)) / 2
+                    mlines.append(
+                        "{0} {1}{2}{3} {0}".format(
+                            self.log_sym_2bang,
+                            " " * int(x),
+                            error.text,
+                            " " * int(x) if x == int(x) else " " * (int(x) + 1),
+                        )
+                    )
+
+                if max(foot_width_list) <= width:
+                    break
+                else:
+                    mlines = []
+                    width = max(foot_width_list)
+
+        mlines.insert(0, "")
+        page_text = f"| Page {self.cur_page} of {len(self.pages)} |"
+
+        top_line = "=" * width
+        bot_line = top_line
+        if self.page.prev_slice or self.page.next_slice:
+            bot_line = "=" * (width - len(page_text) - 5) + page_text + "=" * 5
+        if self.page.legend.hide:
+            legend_text = " Use 'TL' to restore Legend "
+            bot_line = "=" * 5 + legend_text + bot_line[len(legend_text) + 5:]
+
+        if log.error_msgs:
+            mlines.insert(1, top_line)
+
+        mlines += [bot_line]
+
+        _footer = MenuSection(lines=mlines, rows=len(mlines), cols=width, update_method=self.format_footer,
+                              update_kwargs={"width": width})
+        self.page.footer = _footer
+
+        return _footer

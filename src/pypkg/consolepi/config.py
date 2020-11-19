@@ -198,7 +198,7 @@ class Config():
 
         # generate remote command used in menu
         for h in hosts:
-            if hosts[h].get('method').lower() == 'ssh':
+            if hosts[h].get('method', 'ssh').lower() == 'ssh':  # method defaults to ssh if not provided
                 port = 22 if ':' not in hosts[h]['address'] else hosts[h]['address'].split(':')[1]
                 _user_str = '' if not hosts[h].get('username') else f'{hosts[h].get("username")}@'
                 key_file = None
@@ -247,7 +247,7 @@ class Config():
             if not host_dict['rshell'][g]:
                 del host_dict['rshell'][g]
 
-        host_dict['_methods'] = utils.unique([hosts[h]['method'] for h in hosts])
+        host_dict['_methods'] = utils.unique([hosts[h].get('method', 'ssh') for h in hosts])
         host_dict['_host_list'] = [f'/host/{h.split("/")[-1]}' for h in hosts]
 
         return host_dict

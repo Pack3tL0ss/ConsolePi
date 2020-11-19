@@ -581,7 +581,7 @@ show_usage() {
     _help "--tz=<i.e. 'America/Chicago'>" "If set will bypass tz prompt on install and configure based on this value"
     _help "--auto_launch='<true|false>'" "Bypass prompt 'Auto Launch menu when consolepi user logs in' - set based on this value"
     _help "--consolepi_pass='<password>'" "Use single quotes: Bypass prompt on install set consolepi user pass to this value"
-    _help "--pi_pass=<'password>" "Use single quotes: Bypass prompt on install set pi user pass to this value"
+    _help "--pi_pass='<password>'" "Use single quotes: Bypass prompt on install set pi user pass to this value"
     echo "    pi user can be deleted after initial install if desired, A non silent install will prompt for additional users and set appropriate group perms"
     echo -e "    ${_cyan}Any manually added users should be members of 'dialout' and 'consolepi' groups for ConsolePi to function properly${_norm}"
     echo

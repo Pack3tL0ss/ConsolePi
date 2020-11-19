@@ -478,10 +478,10 @@ class Outlets:
             Bool representing resulting port state (True = ON)
         '''
         # --// REMOVE ONCE VERIFIED \\--
-        if isinstance(desired_state, str):  # menu should be passing in True/False no on off now. can remove once that's verified
-            desired_state = False if desired_state.lower() == 'off' else True
-            print('\ndev_note: pwr_toggle passed str not bool for desired_state check calling function {}'.format(desired_state))
-            time.sleep(5)
+        # if isinstance(desired_state, str):  # menu should be passing in True/False no on off now. can remove once that's verified
+        #     desired_state = False if desired_state.lower() == 'off' else True
+        #     print('\ndev_note: pwr_toggle passed str not bool for desired_state check calling function {}'.format(desired_state))
+        #     time.sleep(5)
 
         # -- // Toggle dli web power switch port \\ --
         if pwr_type.lower() == 'dli':
@@ -592,6 +592,9 @@ class Outlets:
         responses = []
         for grp in outlets:
             outlet = outlets[grp]
+            # if no_all: true in config outlet is ignored during all off/on operations
+            if outlet.get("no_all"):
+                continue
             noff = True if 'noff' not in outlet else outlet['noff']
             if action == 'toggle':
                 # skip any defined dlis that don't have any linked_outlets defined

@@ -1524,17 +1524,18 @@ class MenuGroup:
 
     def __str__(self, _slice: slice = None):
         if not _slice:
-            _slice = slice(0, len(self.lines), 1)
+            _slice = slice(0, len(self), 1)
+            # _slice = slice(0, len(self.lines), 1)
 
         slines = self.slines if _slice.start == 0 else self.slines_cont
-        return "\n".join([*slines, *self.lines[_slice]])
+        return "\n".join([*slines, *self.lines][_slice])
 
     def __len__(self, data: list = None) -> int:
         return self.rows if not data else len(data)
 
     def __getitem__(self, index: Union[int, list, slice, tuple, set] = None) -> Any:
         if isinstance(index, int):
-            return self.lines[index]
+            return [*self.slines, *self.lines][index]
 
         if isinstance(index, (tuple, list, set)) and len(index) >= 2:
             index = slice(*index)
@@ -1546,9 +1547,11 @@ class MenuGroup:
             raise ValueError(f"index must be of type(int, list, slice, tuple, set) not {type(index)}")
 
         slines = self.slines if index.start is None or index.start == 0 else self.slines_cont
-        return [*slines, *self.lines[index]]
+        return [*slines, *self.lines][index]
 
-    def __iter__(self, index: Union[int, list, slice, tuple, set]) -> Any:
+    def __iter__(self, index: Union[int, list, slice, tuple, set] = None) -> Any:
+        if not index:
+            index = range(len(self))
         for i in index:
             yield self[i]
 
@@ -1615,6 +1618,55 @@ class MenuGroup:
         mlines = [f"{line:{max_len}}" for line in mlines]
         return mlines, slines, slines_cont, max_len, len(mlines) + len(slines)
 
+class MenuColumn:
+    def __init__(self, lines: list = [], cols: Union[int, list, tuple] = 0, col_slices: list = [],
+                    col_break: int = 0, pad: int = None):
+                    # col_break: int = col_break, pad: int = COL_PAD - self.left_offset):
+        self.lines = lines
+        self.col_slices = col_slices
+        self.col_break = col_break
+        self.pad = pad
+        if isinstance(cols, int):
+            self.cols = cols
+        else:
+            self.cols = max(cols)
+        self.rows = len(self)
+
+    def __len__(self):
+        return len(self.lines)
+
+    def __call__(self, lines: list = None, cols: Union[int, list, tuple] = 0, col_slices: list = None,
+                    col_break: int = None, pad: int = None):
+        if lines:
+            self.lines += lines
+        if col_slices:
+            self.col_slices += col_slices
+        self.col_break = col_break or self.col_break
+        self.pad = pad or self.pad
+        if isinstance(cols, int):
+            self.cols = max([cols, self.cols])
+        else:
+            self.cols = max([*cols, self.cols])
+        self.rows = len(self)
+
+class MenuPage:
+    def __init__(self, lines: list = [], cols: int = 0, page_slices: list = [],
+                    min_rows_for_split: int = None):
+        self.lines = lines
+        self.cols = cols
+        self.page_slices = page_slices
+        self.min_rows_for_split = min_rows_for_split
+        self.rows = len(self)
+
+    def __len__(self):
+        return len(self.lines)
+
+    def __call__(self, lines: list = [], cols: int = 0, page_slices: list = [], min_rows_for_split: int = None):
+        self.lines += lines
+        self.page_slices += page_slices
+        self.min_rows_for_split = min_rows_for_split or self.min_rows_for_split
+        self.cols += cols
+        self.rows = len(self)
 
 class NewMenu:
     def __init__(self, body: list, subs: list = None, header: Union[str, list] = "---", subhead: Union[str, list] = None,
@@ -1706,15 +1758,11 @@ class NewMenu:
         print(self.page)
 
     def format_body(self):
-        col_pad = COL_PAD - self.left_offset
-        col_lines = []
-        page_lines = []
-        widest = 0
-        page_width = 0
-        cur_page_width = 0
-        _menu_cols = 0
+        avail_rows = self.page.body_avail_rows
+        avail_cols = self.tty.cols
         max_menu_cols = len(self.groups)  # init
         _col_list = sorted([g.cols for g in self.groups], reverse=True)
+        _menu_cols = 0
         for i in range(1, len(self.groups)):
             _menu_cols = sum(_col_list[:i])
             if _menu_cols > self.tty.cols:
@@ -1722,111 +1770,155 @@ class NewMenu:
                 break
         tot_rows = sum([g.rows for g in self.groups])
         max_group_rows = max([g.rows for g in self.groups])
-        avail_rows = self.page.body_avail_rows
-        avail_cols = self.tty.cols
+
         col_break = tot_rows / max_menu_cols
         min_rows_for_split = MIN_LINES_FOR_SPLIT_COL  # init
         pages = {}
         cur_page = 1
-        page_slices = {}
-        this_page_slices = []
-        col_slices = []
-        col_rows = 0
+
+        # TODO _ = None are for DEBUG and can be removed once done (line for breakpoint)
+        def write_col_to_page(page: MenuPage, col: MenuColumn, pages: dict = pages, cur_page: int = cur_page):
+            if page.cols + col.pad + col.cols <= avail_cols:
+                # -- // COL IS FULL PAGE HAS ROOM WRITE COL TO PAGE \\ --
+                # -- make page_lines and col_lines same len
+                if 0 < page.rows < col.rows:
+                    page.lines += [" " for _ in range(col.rows - page.rows)]
+                    _ = None
+                elif col.rows < page.rows:
+                    col.lines += [" " for _ in range(page.rows - col.rows)]
+                    _ = None
+
+                # -- Write first col to page or add col to page w. existing col(s)
+                if page.lines:
+                    page.lines = [f"{pline:{page.cols}}{' ':{col.pad}}{cline:{col.cols}}"
+                                  for pline, cline in zip(page.lines, col.lines)]
+                    _ = None
+                else:
+                    page.lines = [f"{line:{col.cols}}" for line in col.lines]
+                    _ = None
+
+                page(cols=(col.pad + col.cols), page_slices=col.col_slices)
+                # page.cols += (col_pad + col.cols)
+
+            else:
+                # COL IS FULL BUT PAGE IS FULL ADVANCE TO NEXT PAGE
+                pages[cur_page] = page
+                # page_slices[cur_page] = this_page_slices
+                cur_page += 1
+                page = MenuPage(lines=col.lines, cols=col.cols, page_slices=col.col_slices,
+                                min_rows_for_split=page.min_rows_for_split)
+
+            col = MenuColumn(lines=[], col_slices=[], col_break=col_break, pad=COL_PAD - self.left_offset)
+
+            return page, col, pages, cur_page
+                # this_page_slices = col_slices
+                # if cur_page == self.cur_page:
+                #     cur_page_width = page_width
+                # page_width = widest
+                # page_lines = col_lines
+            # widest, col_rows = 0, 0
+            # col_slices, col_lines = [], []
+            # do_write = False
+            # combined_rows = g.rows + col_rows
+
+
+        # col_pad = COL_PAD - self.left_offset
+        # col_lines = []
+        # page_lines = []
+        # widest = 0
+        # page_width = 0
+        # cur_page_width = 0
+
+        col = MenuColumn(col_break=col_break, pad=COL_PAD - self.left_offset)
+        page = MenuPage()
+        # page_slices = {}
+        # this_page_slices = []
+        # col_slices = []
+        # col_rows = 0
         do_write = False
         for i, g in enumerate(self.groups):
             if i == 0:
-                min_rows_for_split = len(g.slines) + MIN_LINES_FOR_SPLIT_COL
+                page.min_rows_for_split = len(g.slines) + MIN_LINES_FOR_SPLIT_COL
             # widest = g.cols if g.cols > widest else widest
-            combined_rows = g.rows + col_rows
-            combined_cols = page_width + col_pad + max([g.cols, widest])
+            combined_rows = g.rows + col.rows
+            # combined_cols = page_width + col_pad + max([g.cols, widest])
+            combined_cols = page.cols + col.pad + max([g.cols, col.cols])
             # COL IS FULL
-            if 0 < col_rows >= col_break or do_write:
-                if page_width + col_pad + widest <= avail_cols:
-                    # COL IS FULL PAGE HAS ROOM WRITE COL TO PAGE
-                    if 0 < len(page_lines) < col_rows:
-                        page_lines += [" " for _ in range(col_rows - len(page_lines))]
-                    elif col_rows < len(page_lines):
-                        col_lines += [" " for _ in range(len(page_lines) - col_rows)]
-                        _ = None
-
-                    if page_lines:
-                        page_lines = [f"{pline:{page_width}}{' ':{col_pad}}{cline:{widest}}"
-                                      for pline, cline in zip(page_lines, col_lines)]
-                        _ = None
-                    else:
-                        page_lines = [f"{line:{widest}}" for line in col_lines]
-                        _ = None
-
-                    this_page_slices += [col_slices]
-                    page_width += (col_pad + widest)
-                else:
-                    # COL IS FULL BUT PAGE IS FULL ADVANCE TO NEXT PAGE
-                    pages[cur_page] = page_lines
-                    page_slices[cur_page] = this_page_slices
-                    cur_page += 1
-                    this_page_slices = col_slices
-                    if cur_page == self.cur_page:
-                        cur_page_width = page_width
-                    page_width = widest
-                    page_lines = col_lines
-                widest, col_rows = 0, 0
-                col_slices, col_lines = [], []
+            if 0 < col.rows >= col.col_break or do_write:
+                page, col, pages, cur_page = write_col_to_page(page, col)
                 do_write = False
-                combined_rows = g.rows + col_rows
 
             # COL NOT FULL
             if combined_rows <= avail_rows:
-                col_rows = combined_rows
-                col_slices += [{i: slice(0, len(g.lines), 1)}]
-                col_lines += g[0:]
-                widest = max([g.cols, widest])
+                col(lines=g[0:], cols=g.cols, col_slices=[{i: slice(0, len(g.lines), 1)}])
+                # col_rows = combined_rows
+                # col_slices += [{i: slice(0, len(g.lines), 1)}]
+                # col_lines += g[0:]
+                # widest = max([g.cols, widest])
             else:
-                do_write = True
-                if combined_rows - avail_rows >= min_rows_for_split:
-                    pass
+                # do_write = True
+                # if combined_rows - avail_rows >= min_rows_for_split:
+                if avail_rows - col.rows >= page.min_rows_for_split:
+                    _end = avail_rows - col.rows
+                    # col_slices += [{i: slice(0, _end, 1)}]
+                    # col_lines += g[:_end]
+                    col(lines=g[:_end], cols=g.cols, col_slices=[{i: slice(0, _end, 1)}])
+                    page, col, pages, cur_page = write_col_to_page(page, col)
+                    while _end < g.rows:
+                        _end = avail_rows - len(g[_end:avail_rows])
+                        combined_rows = col.rows + len(g[_end:avail_rows])
+
+                        if 0 < col.rows >= col.col_break or do_write:
+                            page, col, pages, cur_page = write_col_to_page(page, col)
+
+                        col(lines=g[_end:avail_rows], cols=g.cols, col_slices=[{i: slice(_end, avail_rows, 1)}])
+                else:
+                    do_write = True
 
         # write final col to page
-        if col_rows:
-            if page_width + col_pad + widest <= avail_cols:
-                # COL IS FULL PAGE HAS ROOM WRITE COL TO PAGE
-                if 0 < len(page_lines) < col_rows:
-                    page_lines += [" " for _ in range(col_rows - len(page_lines))]
-                elif col_rows < len(page_lines):
-                    col_lines += [" " for _ in range(len(page_lines) - col_rows)]
-                    _ = None
+        if col.rows:
+            page, col, pages, cur_page = write_col_to_page(page, col)
+            # if page.cols + col.pad + col.cols <= avail_cols:
+            #     # COL IS FULL PAGE HAS ROOM WRITE COL TO PAGE
+            #     if 0 < page.rows < col.rows:
+            #         page.lines += [" " for _ in range(col.rows - page.rows)]
+            #     elif col.rows < page.rows:
+            #         col.lines += [" " for _ in range(page.rows - col.rows)]
+            #         _ = None
 
-                if page_lines:
-                    page_lines = [f"{pline:{page_width}}{' ':{col_pad}}{cline:{widest}}"
-                                    for pline, cline in zip(page_lines, col_lines)]
-                    _ = None
-                else:
-                    page_lines = [f"{line:{widest}}" for line in col_lines]
-                    _ = None
+            #     if page_lines:
+            #         page_lines = [f"{pline:{page_width}}{' ':{col_pad}}{cline:{widest}}"
+            #                         for pline, cline in zip(page_lines, col_lines)]
+            #         _ = None
+            #     else:
+            #         page_lines = [f"{line:{widest}}" for line in col_lines]
+            #         _ = None
 
-                this_page_slices += [col_slices]
-                page_width += (col_pad + widest)
-            else:
-                # COL IS FULL BUT PAGE IS FULL ADVANCE TO NEXT PAGE
-                pages[cur_page] = page_lines
-                page_slices[cur_page] = this_page_slices
-                if cur_page == self.cur_page:
-                    cur_page_width = page_width
-                cur_page += 1
-                this_page_slices = col_slices
-                page_width = widest
-                page_lines = col_lines
-            widest, col_rows = 0, 0
-            col_slices, col_lines = [], []
-            do_write = False
-            combined_rows = g.rows + col_rows
+            #     this_page_slices += [col_slices]
+            #     page_width += (col_pad + widest)
+            # else:
+            #     # COL IS FULL BUT PAGE IS FULL ADVANCE TO NEXT PAGE
+            #     pages[cur_page] = page_lines
+            #     page_slices[cur_page] = this_page_slices
+            #     if cur_page == self.cur_page:
+            #         cur_page_width = page_width
+            #     cur_page += 1
+            #     this_page_slices = col_slices
+            #     page_width = widest
+            #     page_lines = col_lines
+            # widest, col_rows = 0, 0
+            # col_slices, col_lines = [], []
+            # do_write = False
+            # combined_rows = g.rows + col_rows
+
         if not pages:
-            pages[cur_page] = page_lines
-            cur_page_width = page_width
+            pages[cur_page] = page
+            # cur_page_width = page_width
 
         self.page.body = MenuSection(
-                                    lines=pages[self.cur_page],
+                                    lines=pages[self.cur_page].lines,
                                     rows=len(pages[self.cur_page]),
-                                    cols=cur_page_width,
+                                    cols=pages[self.cur_page].cols,
                                     name="body"
                                     )
 
@@ -1835,7 +1927,6 @@ class NewMenu:
 
         # -- // PRINT THE MENU \\ --
         print(self.page)
-
 
         return {**self.def_actions, **self.actions}
                 # LOOP HERE
@@ -1858,7 +1949,6 @@ class NewMenu:
                     # page_lines = [f"{line:{g.cols}}" for line in g[:avail_rows]]
                     # page_width = page_width + col_pad + g.cols
                 # page_width = 0
-
 
                 # this_page_slices += {i: slice(0, avail_rows, 1)}
                 # # TODO Need a loop here

@@ -922,7 +922,7 @@ class ConsolePiMenu(Rename):
     def main_menu(self):
         cpi = self.cpi
         # menu = cpi.menu
-        menu = None
+        # menu = None
         # menu.name = "main_menu"
         loc = cpi.local.adapters
         pwr = cpi.pwr
@@ -1026,16 +1026,16 @@ class ConsolePiMenu(Rename):
             menu_actions['sp'] = self.toggle_show_ports
         foot_opts.append('refresh')
 
-        if not menu:
-            menu = Menu(outer_body, name="main_menu", header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
-                        legend={'opts': foot_opts}, legend_options=self.legend_options, subs=slines, actions=menu_actions,
-                        ignored_errors=self.ignored_errors)
+        if not self.cur_menu:
+            self.cur_menu = Menu(outer_body, name="main_menu", header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
+                                 legend={'opts': foot_opts}, legend_options=self.legend_options, subs=slines, actions=menu_actions,
+                                 ignored_errors=self.ignored_errors)
         else:
-            menu.groups = self._body_groups_init(outer_body, slines)
-            self.format_body()
+            self.cur_menu.groups = self.cur_menu._body_groups_init(outer_body, slines)
+            self.cur_menu.format_body()
 
-        self.cur_menu = menu
-        menu_actions = menu.actions
+        # self.cur_menu = menu
+        menu_actions = self.cur_menu.actions
 
         choice_c = self.wait_for_input(locs=locals(), terminate=True)
         choice = choice_c.lower

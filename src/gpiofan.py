@@ -1,6 +1,17 @@
 #!/etc/ConsolePi/venv/bin/python3
-# Author: Andreas Spiess
+
+# Original Author: Andreas Spiess
 # Modified by Wade ~ Pack3tL0ss
+#
+# Provided with ConsolePi but not a required part of ConsolePi
+# This script can be used to provide dynamic variable speed support
+# for a fan via GPIO
+#    currently the desired_temp GPIO pins and other variables are statically configured in this script
+#        I will probably add an option to configure it in ConsolePi.yaml so updates to this script
+#        don't revert your settings if you want to tweak them.
+#          To customize, you can copy this script, then modify the unit file
+#           to reference the new location
+#
 import logging
 import logging.handlers
 import os
@@ -11,8 +22,8 @@ from time import sleep
 import RPi.GPIO as GPIO
 
 # Not elegant, but until I figure out how to pass an env var into venv
-p = Path("/tmp/FANDEBUG")
-DEBUG = True if p.is_file() else False
+_fan_debug = os.getenv("FAN_DEBUG", "").lower()
+DEBUG = True if _fan_debug == "true" or _fan_debug == "1" or Path("/tmp/FAN_DEBUG").is_file() else False
 
 # -- // LOGGING \\ --
 log = logging.getLogger("gpiofand")
@@ -50,7 +61,7 @@ def get_temp():
         shell=True,
     )
     temp = temp.stdout.decode("UTF-8").replace("temp=", "").replace("'C\n", "")
-    log.debug(f"temp is {temp}'C    {round((float(temp) * 1.8), 2) + 32}'F")
+    log.debug(f"temp is {temp}'C    {round((float(temp) * 1.8), 1) + 32}'F")
     return temp
 
 
@@ -66,7 +77,7 @@ def handle_fan(myPWM):
     sum = sum + diff
     pDiff = diff * pTemp
     iDiff = sum * iTemp
-    fan_speed = pDiff + iDiff
+    fan_speed = round(pDiff + iDiff, 1)
     if fan_speed > 100:
         fan_speed = 100
     elif fan_speed < 15:
@@ -78,7 +89,7 @@ def handle_fan(myPWM):
         sum = -100
 
     if fan_speed != prev_fan_speed:
-        f_temp = round((actual_temp * 1.8) + 32, 2)
+        f_temp = round((actual_temp * 1.8) + 32, 1)
         # We increase the time between checks to 5 mins if the temp is 10+ over desired
         if not BATTERY_MON:
             interval = 320 if diff > 10 else DEFAULT_INTERVAL
@@ -91,7 +102,7 @@ def handle_fan(myPWM):
     log.debug(
         "actual_temp %4.2f desiredTemp %4.2f TempDiff %4.2f pDiff %4.2f iDiff %4.2f fan_speed %5d"
         % (
-            round(actual_temp * 1.8 + 32, 2),
+            round(actual_temp * 1.8 + 32, 1),
             desired_temp * 1.8 + 32,
             diff,
             pDiff,
@@ -135,7 +146,7 @@ def main():
             if BATTERY_MON:
                 handle_battery()
             sleep(interval)
-    except KeyboardInterrupt:  # trap a CTRL+C keyboard interrupt
+    except KeyboardInterrupt:
         fan_off(myPWM)  # type: ignore
         GPIO.cleanup()  # resets all GPIO ports used by this program
     log.info(f"--- GPIO Fan Monitor ShutDown Fan is off---")

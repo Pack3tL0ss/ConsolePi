@@ -487,6 +487,10 @@ get_pi_info_pretty() {
         hw_array["a03111"]="Raspberry Pi 4 Model B  hw rev 1.1  1 GB  (Mfg by Sony)"
         hw_array["b03111"]="Raspberry Pi 4 Model B  hw rev 1.1  2 GB  (Mfg by Sony)"
         hw_array["c03111"]="Raspberry Pi 4 Model B  hw rev 1.1  4 GB  (Mfg by Sony)"
+        hw_array["c03112"]="Raspberry Pi 4 Model B  hw rev 1.2  4 GB  (Mfg by Sony)"
+        hw_array["c03114"]="Raspberry Pi 4 Model B  hw rev 1.4  4 GB  (Mfg by Sony)"
+        hw_array["d03114"]="Raspberry Pi 4 Model B  hw rev 1.4  8 GB  (Mfg by Sony)"
+        hw_array["c03130"]="Raspberry Pi 400 hw rev 1.0  4 GB  (Mfg by Sony)"
     fi
     $compat_bash && echo ${hw_array["$1"]} || echo $1
 }
@@ -500,6 +504,7 @@ get_pi_info() {
     cpu=$(cat /proc/cpuinfo | grep 'Hardware' | awk '{print $3}')
     rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}') # | sed 's/^1000//')
     model_pretty=$(get_pi_info_pretty $rev)
+    [ -n "$model_pretty" ] && is_pi=true || is_pi=false
     # echo -e "$version running on $cpu Revision: $rev\n    $model_pretty"
     logit "$model_pretty"
     # logit "$version running on $cpu Revision: $rev"

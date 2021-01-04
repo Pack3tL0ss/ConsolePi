@@ -46,7 +46,7 @@ class MDNS_Browser:
                         properties = info.properties
 
                         mdns_data = {k.decode('UTF-8'):
-                                     v.decode('UTF-8') if not v.decode('UTF-8')[0] in ['[', '{'] else json.loads(v.decode('UTF-8'))  # NoQA
+                                     v.decode('UTF-8') if len(v) == 0 or not v.decode('UTF-8')[0] in ['[', '{'] else json.loads(v.decode('UTF-8'))  # NoQA
                                      for k, v in properties.items()}
 
                         hostname = mdns_data.get('hostname')

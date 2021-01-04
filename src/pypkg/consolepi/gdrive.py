@@ -61,9 +61,9 @@ class GoogleDrive:
             except (ConnectionError, TimeoutError, OSError) as e:
                 log.error('Exception Occurred Connecting to Gdrive {}'.format(e))
                 return False
-            else:
-                log.error('Google Drive is not reachable - Aborting')
-                return False
+        else:
+            log.error('Google Drive is not reachable - Aborting')
+            return False
 
     # Google sheets API credentials - used to update config on Google Drive
     def get_credentials(self):

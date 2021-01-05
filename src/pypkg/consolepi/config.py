@@ -185,7 +185,7 @@ class Config():
                     log.warning(f'Unable to load configuration from {yaml_file}\n\t{e}', show=True)
 
     def get_hosts(self):
-        '''Parse user defined hosts.json for inclusion in menu
+        '''Parse user defined hosts for inclusion in menu
 
         returns dict with formatted keys prepending /host/
         '''
@@ -198,7 +198,8 @@ class Config():
 
         # generate remote command used in menu
         for h in hosts:
-            if hosts[h].get('method', 'ssh').lower() == 'ssh':  # method defaults to ssh if not provided
+            hosts[h]["method"] = hosts[h].get('method', 'ssh').lower()
+            if hosts[h]["method"] == 'ssh':  # method defaults to ssh if not provided
                 port = 22 if ':' not in hosts[h]['address'] else hosts[h]['address'].split(':')[1]
                 _user_str = '' if not hosts[h].get('username') else f'{hosts[h].get("username")}@'
                 key_file = None

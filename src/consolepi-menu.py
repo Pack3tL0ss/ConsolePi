@@ -266,7 +266,10 @@ class ConsolePiMenu(Rename):
                             # _linked = ', '.join([k for k in this_linked if str(_port) in this_linked[k]])
                         _outlet = outlet['is_on'][_port]
                         _state = states[_outlet['state']]
-                        state_list.append(_outlet['state'])
+
+                        if not outlet.get("no_all", False):
+                            state_list.append(_outlet['state'])
+
                         # _state = menu.format_line(_state).text
                         _name = ' ' + _outlet['name'] if 'ON' in _state else _outlet['name']
                         if _name != r:
@@ -276,7 +279,7 @@ class ConsolePiMenu(Rename):
                         menu_actions[str(item)] = {
                             'function': pwr.pwr_toggle,
                             'args': [outlet['type'], outlet['address']],
-                            'kwargs': {'port': _port, 'desired_state': not _outlet['state']},
+                            'kwargs': {'port': _port},  # , 'desired_state': not _outlet['state']},
                             'key': r
                             }
                         menu_actions['c' + str(item)] = {
@@ -511,7 +514,7 @@ class ConsolePiMenu(Rename):
                     menu_actions[str(index)] = {
                         'function': pwr.pwr_toggle,
                         'args': ['dli', dli],
-                        'kwargs': {'port': port, 'desired_state': to_state},
+                        'kwargs': {'port': port},  # , 'desired_state': to_state},
                         'key': 'dli_pwr'
                         }
                     menu_actions['c' + str(index)] = {

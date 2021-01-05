@@ -190,7 +190,7 @@ class Local():
         if res[0] > 0:
             log.warning('Unable to get unique identifier for this pi (cpuserial)', show=True)
         else:
-            return res[1]
+            return res[1] or '0'
 
     def get_if_info(self):
         '''Build and return dict with interface info.'''

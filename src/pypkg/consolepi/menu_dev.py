@@ -1618,10 +1618,11 @@ class MenuGroup:
         mlines = [f"{line:{max_len}}" for line in mlines]
         return mlines, slines, slines_cont, max_len, len(mlines) + len(slines)
 
+
 class MenuColumn:
     def __init__(self, lines: list = [], cols: Union[int, list, tuple] = 0, col_slices: list = [],
-                    col_break: int = 0, pad: int = None):
-                    # col_break: int = col_break, pad: int = COL_PAD - self.left_offset):
+                 col_break: int = 0, pad: int = None):
+                 # col_break: int = col_break, pad: int = COL_PAD - self.left_offset):
         self.lines = lines
         self.col_slices = col_slices
         self.col_break = col_break
@@ -1636,7 +1637,7 @@ class MenuColumn:
         return len(self.lines)
 
     def __call__(self, lines: list = None, cols: Union[int, list, tuple] = 0, col_slices: list = None,
-                    col_break: int = None, pad: int = None):
+                 col_break: int = None, pad: int = None):
         if lines:
             self.lines += lines
         if col_slices:
@@ -1649,9 +1650,10 @@ class MenuColumn:
             self.cols = max([*cols, self.cols])
         self.rows = len(self)
 
+
 class MenuPage:
     def __init__(self, lines: list = [], cols: int = 0, page_slices: list = [],
-                    min_rows_for_split: int = None):
+                 min_rows_for_split: int = None):
         self.lines = lines
         self.cols = cols
         self.page_slices = page_slices
@@ -1667,6 +1669,7 @@ class MenuPage:
         self.min_rows_for_split = min_rows_for_split or self.min_rows_for_split
         self.cols += cols
         self.rows = len(self)
+
 
 class NewMenu:
     def __init__(self, body: list, subs: list = None, header: Union[str, list] = "---", subhead: Union[str, list] = None,

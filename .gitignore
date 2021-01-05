@@ -30,3 +30,6 @@ ztp/*!README
 # -- // device specific ssh key dir \\ --
 .ssh
 src/pypkg/consolepi/config_parser.py
+
+# Sphinx documentation
+docs/_build/

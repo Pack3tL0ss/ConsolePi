@@ -10,8 +10,8 @@
 #
 # . /etc/ConsolePi/ConsolePi.conf
 
-echo -e "\n         ConsolePi PushBullet Test"
-! $push && echo "!!! PushBullet Notifications are not enabled in the config !!!"
+echo -e "\n         ConsolePi PushBullet / dhcp fallback Test"
+# ! $push && echo "!!! PushBullet Notifications are not enabled in the config !!!"
 echo -e "Sending test data to simulate new DHCP address\n"
 sudo /etc/ConsolePi/src/dhcpcd.exit-hook test "$@"
 echo -e "Test Complete - You Should have a PushBullet Message\n"

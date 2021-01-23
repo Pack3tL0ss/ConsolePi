@@ -369,23 +369,9 @@ install_ovpn() {
     unset process
 }
 
-install_autohotspotn () {
+install_autohotspot () {
     process="AutoHotSpotN"
     logit "Install/Update AutoHotSpotN"
-
-    dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
-    if [[ -z "$dnsmasq_ver" ]]; then
-        process_cmds -apt-install dnsmasq
-        # disable dnsmasq only if we just installed it
-        systemctl stop dnsmasq 1>/dev/null 2>> $log_file &&
-            logit "dnsmasq stopped Successfully" ||
-                logit "An error occurred stopping dnsmasq - verify after install" "WARNING"
-        sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
-            logit "dnsmasq autostart disabled Successfully" ||
-                logit "An error occurred disabling dnsmasq autostart - verify after install" "WARNING"
-    else
-        logit "dnsmasq v${dnsmasq_ver} already installed"
-    fi
 
     systemd_diff_update autohotspot
     if ! head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
@@ -469,11 +455,31 @@ disable_autohotspot() {
     if systemctl is-active autohotspot >/dev/null 2>&1; then
         systemctl stop autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
     fi
-
+    # TODO remove except-interface=wlan0 or entire file from dnsmasq.d
     if systemctl is-enabled autohotspot >/dev/null 2>&1; then
         systemctl disable autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
     fi
     [[ $rc -eq 0 ]] && logit "Success Auto HotSpot Service is Disabled" || logit "Error Disabling Auto HotSpot Service" "WARNING"
+    unset process
+}
+
+check_install_dnsmasq() {
+    process dnsmasq
+    logit "Verify / Install dnsmasq"
+
+    dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')
+    if [[ -z "$dnsmasq_ver" ]]; then
+        process_cmds -apt-install dnsmasq
+        # disable dnsmasq only if we just installed it
+        systemctl stop dnsmasq 1>/dev/null 2>> $log_file &&
+            logit "dnsmasq stopped Successfully" ||
+                logit "An error occurred stopping dnsmasq - verify after install" "WARNING"
+        sudo systemctl disable dnsmasq 1>/dev/null 2>> $log_file &&
+            logit "dnsmasq autostart disabled Successfully" ||
+                logit "An error occurred disabling dnsmasq autostart - verify after install" "WARNING"
+    else
+        logit "dnsmasq v${dnsmasq_ver} already installed"
+    fi
     unset process
 }
 
@@ -969,14 +975,14 @@ update_main() {
     dhcp_run_hook
     ConsolePi_cleanup
     $ovpn_enable && install_ovpn
-    if $hotspot ; then
-        install_autohotspotn
+    # TODO new flow below needs to be tested (accomodate case where wired true hotspot false during install)
+    if $hotspot || $wired_dhcp; then
+        check_install_dnsmasq
         gen_dnsmasq_conf
         gen_dhcpcd_conf
-    else
-        disable_autohotspot
+        $hotspot && install_autohotspot || disable_autohotspot
+        $wired_dhcp && do_wired_dhcp
     fi
-    $wired_dhcp && do_wired_dhcp
     do_blue_config
     do_consolepi_api
     do_consolepi_mdns

@@ -529,7 +529,7 @@ gen_dhcpcd_conf () {
     process="dhcpcd.conf"
     logit "configure dhcp client and static fallback"
     [ -f /etc/sysctl.d/99-noipv6.conf ] && noipv6=true || noipv6=false
-    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip} wired_ip=${wired_ip} wired_dhcp=${wired_dhcp} noipv6=${noipv6}
+    convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip} wired_ip=${wired_ip} hotspot=${hotspot} wired_dhcp=${wired_dhcp} noipv6=${noipv6}
     unset process
 }
 

@@ -63,17 +63,29 @@ vendorclassid dhcpcd-ConsolePi
 #static domain_name_servers=192.168.0.1 8.8.8.8 fd51:42f8:caae:d92e::1
 
 # wlan static fallback profile
+# will only apply if hotspot enabled in config
 profile static_wlan0
-static ip_address={{wlan_ip}}/24
+{% if wlan_ip %}
+static ip_address={{ wlan_ip }}/24
+{% else %}
+static ip_address=10.110.0.1/24
+{% endif %}
 
 # wired static fallback profile
-# defined - will only apply if wired_dhcp enabled in config
+# will only apply if wired_dhcp enabled in config
 profile static_eth0
-static ip_address={{ wired_ip|default("192.168.25.1") }}/24
+{% if wired_ip %}
+static ip_address={{ wired_ip }}/24
+{% else %}
+static ip_address=10.30.110.1/24
+{% endif %}
 
-# Assign fallback to static profile on wlan0
 interface wlan0
+{% if hotspot %}
 fallback static_wlan0
+{% else %}
+# fallback static_wlan0
+{% endif %}
 vendorclassid "dhcpcd:ConsolePi"
 
 interface eth0

@@ -22,16 +22,18 @@ def get_config(cfg=cfg):
     '''
     for k, v in cfg.items():
         if isinstance(v, str):
-            if v.isdigit() and '.' not in v:
-                print(f'{k}={v}')
-            else:
-                print(f'{k}="{v}"')
+            # if v.isdigit() and '.' not in v:
+            #     print(f'{k}={v}')
+            # else:
+            print(f"{k}='{v}'")
         elif isinstance(v, list):
             v = ' '.join(v)
             print(f'{k}=({v})')
         elif isinstance(v, bool):
             v = 'true' if v else 'false'
             print(f'{k}={v}')
+        elif not v:
+            print(f'{k}=')
         else:
             print(f'{k}={v}')
 

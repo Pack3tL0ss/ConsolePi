@@ -32,7 +32,7 @@ warn_cnt=0
 #     [[ ! "${wlan_ifaces[@]}" =~ "${_iface}" ]] && [[ ! $_iface =~ "tun" ]] && wired_ifaces+=($_iface)
 # done
 
-_DEBUG_=${_DEBUG_:-false}
+_DEBUG_=${_DEBUG_:-false}  # verbose debugging for testing process_args
 # Terminal coloring
 _norm='\e[0m'
 _bold='\e[32;1m'
@@ -49,7 +49,7 @@ _cyan='\e[96m' # technically light cyan
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
 ( [[ -f $final_log ]] && [ -z $upgrade ] ) && upgrade=true || upgrade=false
 
-# log file is referenced thoughout the script.  During install changes from tmp to final after final log
+# log file is referenced thoughout the script.  During install dest changes from tmp to final
 # location is configured in install.sh do_logging
 $upgrade && log_file=$final_log || log_file=$tmp_log
 
@@ -204,17 +204,20 @@ logit() {
 
     local process=${process:-"UNDEFINED"}
     message="${1}"                                      # 1st arg = the log message
-    [ -z "${2}" ] && status="INFO" || status=${2^^} # 2nd Arg the log-lvl (to upper)
+
+    [ -z "${2}" ] && status="INFO" || status=${2^^}     # 2nd Arg the log-lvl (to upper); Default: INFO
+    [[ "${status}" == "DEBUG" ]] && ! $debug && return 0  # ignore / return if a DEBUG message & debug=false
+
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
     if [[ "${status}" == "ERROR" ]]; then
         $stop_on_error && fatal=true
         status="${_red}${status}${_norm}"
-    elif [[ ! "${status}" == "INFO" ]]; then
+    elif [[ "${status}" != "INFO" ]]; then
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
         status="${_yellow}${status}${_norm}"
     fi
 
-    log_msg="$(date +"%b %d %T") [$$][${status}][${process}] ${message}"
+    local log_msg="$(date +"%b %d %T") [$$][${status}][${process}] ${message}"
     if $log_only; then
         echo -e "$log_msg" >> $log_file
     elif $echo_only; then
@@ -645,7 +648,7 @@ process_cmds() {
                 local do_apt_install=true
                 shift
                 local go=true; while (( "$#" )) && $go ; do
-                    # echo -e "DEBUG apt-install ~ Currently evaluating: '$1'" # -- DEBUG LINE --
+                    $_DEBUG_ && echo -e "DEBUG apt -y install '$1'"
                     case "$1" in
                         --pretty=*)
                             local pname=${1/*=}

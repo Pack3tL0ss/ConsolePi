@@ -210,7 +210,7 @@ logit() {
 
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
     if [[ "${status}" == "ERROR" ]]; then
-        $stop_on_error && fatal=true
+        $stop_on_error && fatal=true || ((warn_cnt+=1))
         status="${_red}${status}${_norm}"
     elif [[ "${status}" != "INFO" ]]; then
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))

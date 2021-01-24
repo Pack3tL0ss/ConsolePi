@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 #   __author__: Wade Wells / github: Pack3tL0ss
+#   __version__: 1.6
 #
 # ConsolePi dhcpcd.exit-hook
 # System File @ /etc/dhcpcd.exit-hook symlinks to this file (makes updates via repo easier)

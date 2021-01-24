@@ -9,11 +9,15 @@
 #                       test
 #
 # . /etc/ConsolePi/ConsolePi.conf
+push_response_log="/var/log/ConsolePi/push_response.log"
 
-echo -e "\n         ConsolePi PushBullet / dhcp fallback Test"
+echo -e "\n         ConsolePi dhcpcd Exit Hook Test (test automations triggered by DHCP events)"
 # ! $push && echo "!!! PushBullet Notifications are not enabled in the config !!!"
-echo -e "Sending test data to simulate new DHCP address\n"
-sudo /etc/ConsolePi/src/dhcpcd.exit-hook test "$@"
-echo -e "Test Complete - You Should have a PushBullet Message\n"
-echo -e "The Notification will display a random IP in the Subject"
-echo -e "(used to trigger the push, your real IP details should be in the body)\n"
+echo -e "\nSending test data to simulate dhcpcd hook\n"
+sudo /etc/ConsolePi/src/dhcpcd.exit-hook test "$@" ||
+    echo -e "Script returned Error Code ("$?")  Check Logs"
+echo -e "\nTest Complete, if PB is enabled in the config you Should have received a msg."
+echo -e "The script sends PB msg to a background process and does not evaluate the result."
+echo -e "If you did not get a message check $push_response_log for response from PB api.\n"
+echo -e "The Notification will display a random IP in the Subject used to trigger"
+echo -e "the push, the body of the msg will still reflect your real IP\n"

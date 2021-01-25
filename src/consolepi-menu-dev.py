@@ -9,6 +9,7 @@ import itertools
 from os import system
 from pprint import pprint
 from collections import OrderedDict as od
+from typing import Union
 from halo import Halo
 
 # --// ConsolePi imports \\--
@@ -29,6 +30,21 @@ MAX_COLS = 5
 class Actions():
     def __init__(self, ):
         pass
+
+
+class MenuChoice:
+    def __init__(self, prompt: str = None) -> None:
+        self.lower = ''
+        self.orig = ''
+        if prompt:
+            ch = input(prompt)
+            self.lower = ch.lower()
+            self.orig = ch
+
+    def clear(self):
+        self.lower = ''
+        self.orig = ''
+        return self
 
 
 class ConsolePiMenu(Rename):
@@ -71,7 +87,7 @@ class ConsolePiMenu(Rename):
         self.cur_menu = None
         super().__init__(self.menu)
 
-    def print_attribute(self, ch: str, locs: dict = {}) -> bool:
+    def print_attribute(self, ch: str, locs: dict = {}) -> Union[bool, None]:
         '''Debugging Function allowing user to print class attributes / function returns.
 
         Params:
@@ -138,7 +154,7 @@ class ConsolePiMenu(Rename):
                         if _class_str:
                             _class_str += '.'
                         if isinstance(self.var, dict):
-                            var = {k: v if not callable(v) else f'{_class_str}{v.__name__}()' for k, v in self.var.items()}
+                            var: dict = {k: v if not callable(v) else f'{_class_str}{v.__name__}()' for k, v in self.var.items()}
                             for k in var:
                                 try:
                                     if 'function' in var[k]:
@@ -380,7 +396,7 @@ class ConsolePiMenu(Rename):
                     # with Halo(text='Refreshing Outlets', spinner='dots'):
                     #     outlets = self.cpiexec.outlet_update(refresh=True, upd_linked=True)
 
-    def wait_for_input(self, prompt: str = " >> ", terminate: bool = False, locs: dict = {}) -> object:
+    def wait_for_input(self, prompt: str = " >> ", terminate: bool = False, locs: dict = {}):
         '''Get input from user.
 
         User Can Input One of the following for special handling:
@@ -405,16 +421,6 @@ class ConsolePiMenu(Rename):
         '''
         menu = self.menu
 
-        class choice():
-            def __init__(self, clear=False):
-                if not clear:
-                    ch = input(prompt)
-                    self.lower = ch.lower()
-                    self.orig = ch
-                else:
-                    self.lower = ''
-                    self.orig = ''
-
         try:
             # if config.debug:
             #     prompt = f'pg[{menu.cur_page}] m[r:{menu.page.rows}, c:{menu.page.cols}] ' \
@@ -424,7 +430,7 @@ class ConsolePiMenu(Rename):
                          f'a[r:{self.cur_menu.tty.rows}, c:{self.cur_menu.tty.cols}]' \
                          f'{prompt}'
 
-            ch = choice()
+            ch = MenuChoice(prompt)
 
             # -- // toggle debug \\ --
             if ch.lower == 'debug':
@@ -432,7 +438,7 @@ class ConsolePiMenu(Rename):
                 config.debug = not config.debug
                 if config.debug:
                     log.setLevel(10)  # logging.DEBUG = 10
-                ch = choice(clear=True)
+                ch = ch.clear()
 
             # -- // always accept 'exit' \\ --
             elif ch.lower == 'exit':
@@ -440,7 +446,7 @@ class ConsolePiMenu(Rename):
 
             # -- // Menu Debugging Tool prints attributes/function returns \\ --
             elif '.' in ch.orig and self.print_attribute(ch.orig, locs):
-                ch = choice(clear=True)
+                ch = ch.clear()
 
             menu.menu_rows = 0  # TODO REMOVE AFTER SIMPLIFIED
 
@@ -453,7 +459,7 @@ class ConsolePiMenu(Rename):
             else:
                 log.show('Operation Aborted')
                 print('')  # prevents header and prompt on same line in debug
-                return choice(clear=True)
+                return MenuChoice()
 
     # ------ // DLI WEB POWER SWITCH MENU \\ ------ #
     def dli_menu(self, calling_menu: str = 'power_menu'):

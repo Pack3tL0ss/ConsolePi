@@ -19,7 +19,23 @@ L_OFFSET = 1  # Number of spaces the body of menu is offset from left.
 MIN_LINES_FOR_SPLIT_COL = 2  # Min number of item entries that need to be avail in col to split next group
 
 
-def format_line(line: Union[str, bool]) -> object:
+class MenuExec:
+    def __init__(self, function, args, kwargs, calling_menu: str = None):
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.calling_menu = calling_menu
+
+
+class Line:
+    """Constructor Class for line object"""
+
+    def __init__(self, line_len: int, line_text: str):
+        self.len = line_len
+        self.text = line_text
+
+
+def format_line(line: Union[str, bool]) -> Line:
     """Format line for display in menu.
 
     Args:
@@ -30,14 +46,6 @@ def format_line(line: Union[str, bool]) -> object:
         object: Line object with len and text attributes, where len is the effective printed len with
                 any ASCII formatting characters stripped, and line is formatted (with ASCII colors)
     """
-
-    class Line:
-        """Constructor Class for line object"""
-
-        def __init__(self, line_len, line_text):
-            self.len = line_len
-            self.text = line_text
-
     if isinstance(line, bool):
         line = "{{green}}ON{{norm}}" if line else "{{red}}OFF{{norm}}"
 
@@ -305,6 +313,7 @@ class MenuParts:
 
 class Menu:
     def __init__(self, name: str = None, left_offset: int = L_OFFSET):  # utils, debug=False, log=None, log_file=None):
+        self.name = name
         self.left_offset = left_offset
         self.go = True
         self.def_actions = {
@@ -673,8 +682,9 @@ class Menu:
         return {**self.def_actions, **self.actions}
 
     def dump_formatter_data(self):
-        diag_data = [f"    Total Rows(1 col): {self.tot_body_1col_rows}"]
-        print(self.page.diag(diag_data))
+        # diag_data = [f"    Total Rows(1 col): {self.tot_body_1col_rows}"]
+        print(f"    Total Rows(1 col): {self.tot_body_1col_rows}")
+        print(self.page.diag())
         input('Press Enter to Continue... ')
 
     def empty_menu(self) -> None:
@@ -725,10 +735,10 @@ class Menu:
                 self.cols = []
                 self.rows = []
                 self.pages = {}
-                self.col_width = 0
-                self.page_width = 0
-                self.vert_cols = 0
-                self.page = 1
+                self.col_width:int = 0
+                self.page_width: int = 0
+                self.vert_cols: int = 0
+                self.page: int = 1
                 self.body = body  # original unformatted data
                 self.subs = subs
                 self.addl_rows = None
@@ -1498,16 +1508,6 @@ class Menu:
         self.page.footer = _footer
 
         return _footer
-
-
-# This object is currently not used, but will be to simplify the logic in cpi_exec
-# Which currently is a functional but it's a Shit Show.
-class MenuExecute:
-    def __init__(self, function, args, kwargs, calling_menu: str = None):
-        self.function = function
-        self.args = args
-        self.kwargs = kwargs
-        self.calling_menu = calling_menu
 
 
 class MenuGroup:

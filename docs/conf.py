@@ -18,8 +18,11 @@
 # -- Project information -----------------------------------------------------
 
 project = 'ConsolePi'
-copyright = '2020, Wade Wells'
+copyright = '2021, Wade Wells'
 author = 'Wade Wells'
+
+# The full version, including alpha/beta/rc tags
+release = '2021-1.0'
 
 
 # -- General configuration ---------------------------------------------------

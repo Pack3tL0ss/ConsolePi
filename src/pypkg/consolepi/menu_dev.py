@@ -1797,7 +1797,7 @@ class NewMenu:
                                   for pline, cline in zip(page.lines, col.lines)]
                     _ = None
                 else:
-                    page.lines = [f"{line:{col.cols}}" for line in col.lines]
+                    page.lines = [f"{line}{' ' * (col.cols - len(line))}" for line in col.lines]
                     _ = None
 
                 page(cols=(col.pad + col.cols), page_slices=col.col_slices)

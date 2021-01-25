@@ -4,6 +4,9 @@ BETTER_EXCEPTIONS=1
 if [ ! -z $1 ] && [ "$1" = 'sh' ]; then
     echo "Launching -bash- ConsolePi Serial Console Menu"
     sudo /etc/ConsolePi/src/consolepi-menu.sh; rt=$?
+elif [ ! -z $1 ] && [ "$1" = 'cloud' ]; then
+    echo "Launching ConsolePi Menu for cloud Authorization"
+    /etc/ConsolePi/src/consolepi-menu.py; rt=$?
 elif [ ! -z $1 ] && [ "$1" = 'dev' ]; then
     echo "Launching ConsolePi Development Menu"
     sudo /etc/ConsolePi/src/consolepi-menu-dev.py "${@:2}"; rt=$?
@@ -20,7 +23,7 @@ else
 fi
 
 if [[ ${rt} != 0 ]] && [[ "$1" != 'sh' ]] ; then
-    echo -e  "\n\n\nIt appears an error occured in the primary menu\n"
+    echo -e  "\n\n\nIt appears an error occurred in the primary menu\n"
     echo "The shell based menu acts as a backup menu in the unlikely event"
     echo "something breaks with the fully functional python based menu."
     echo
@@ -28,10 +31,10 @@ if [[ ${rt} != 0 ]] && [[ "$1" != 'sh' ]] ; then
     echo
     echo "Please report the error above @ https://github.com/Pack3tL0ss/ConsolePi"
     echo
-    read -ep "Would you like to launch the (backup) shell menu (y/n)? " ch
+    read -ep "Enter y/yes to launch the backup shell menu, or enter to exit. " ch
     case "${ch,,}" in
         y|yes)
-        sudo /etc/ConsolePi/src/consolepi-menu.sh
+        /etc/ConsolePi/src/consolepi-menu.sh
         ;;
     esac
 fi

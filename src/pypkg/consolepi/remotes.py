@@ -6,7 +6,7 @@ import socket
 from halo import Halo
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
-from consolepi import utils, log, config, json, requests
+from consolepi import utils, log, config, json, requests  # type: ignore
 # from consolepi.gdrive import GoogleDrive  !!--> Import burried in refresh method to speed menu load times on older platforms
 
 
@@ -93,49 +93,51 @@ class Remotes:
             data = config.remotes  # remotes from local cloud cache
 
         if not data:
-            print(self.log_sym_warn + " No Remotes in Local Cache")
+            # print(self.log_sym_warn + " No Remotes in Local Cache")
+            log.info("No Remotes found in Local Cache")
             data = {}  # convert None type to empy dict
-
-        if socket.gethostname() in data:
-            del data[socket.gethostname()]
-            log.show(
-                "Local cache included entry for self - do you have other ConsolePis using the same hostname?"
-            )
-
-        # Verify Remote ConsolePi details and reachability
-        if stdin.isatty():
-            spin.start(
-                "Querying Remotes via API to verify reachability and adapter data"
-            )
-        for remotepi in data:
-            # -- // Launch Threads to verify all remotes in parallel \\ --
-            threading.Thread(
-                target=verify_remote_thread,
-                args=(remotepi, data, rename),
-                name=f"vrfy_{remotepi}",
-            ).start()
-            # verify_remote_thread(remotepi, data)  # Non-Threading DEBUG
-
-        # -- wait for threads to complete --
-        if not self.cpiexec.wait_for_threads(name="vrfy_", thread_type="remote"):
-            if config.remotes:
-                if stdin.isatty():
-                    spin.succeed(
-                        "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
-                        f"Found {len(config.remotes)} Remote ConsolePis"
-                    )
-            else:
-                if stdin.isatty():
-                    spin.warn(
-                        "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
-                        "No Reachable Remote ConsolePis Discovered"
-                    )
         else:
-            log.error(
-                "[GET REM] Remote verify threads Still running / exceeded timeout"
-            )
+            # if self is in the remote-data remove and warn user (can occur in rare scenarios i.e. hostname changes)
+            if socket.gethostname() in data:
+                del data[socket.gethostname()]
+                log.show(
+                    "Local cache included entry for self - do you have other ConsolePis using the same hostname?"
+                )
+
+            # Verify Remote ConsolePi details and reachability
             if stdin.isatty():
-                spin.stop()
+                spin.start(
+                    "Querying Remotes via API to verify reachability and adapter data"
+                )
+            for remotepi in data:
+                # -- // Launch Threads to verify all remotes in parallel \\ --
+                threading.Thread(
+                    target=verify_remote_thread,
+                    args=(remotepi, data, rename),
+                    name=f"vrfy_{remotepi}",
+                ).start()
+                # verify_remote_thread(remotepi, data)  # Non-Threading DEBUG
+
+            # -- wait for threads to complete --
+            if not self.cpiexec.wait_for_threads(name="vrfy_", thread_type="remote"):
+                if config.remotes:
+                    if stdin.isatty():
+                        spin.succeed(
+                            "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
+                            f"Found {len(config.remotes)} Remote ConsolePis"
+                        )
+                else:
+                    if stdin.isatty():
+                        spin.warn(
+                            "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
+                            "No Reachable Remote ConsolePis Discovered"
+                        )
+            else:
+                log.error(
+                    "[GET REM] Remote verify threads Still running / exceeded timeout"
+                )
+                if stdin.isatty():
+                    spin.stop()
 
         # update local cache if any ConsolePis found UnReachable
         if self.cache_update_pending:
@@ -188,7 +190,7 @@ class Remotes:
             if cloud_svc == "gdrive" and self.cloud is None:
                 # burried import until I find out why this import takes so @#%$@#% long.  Not imported until 1st refresh is called
                 with Halo(text="Loading Google Drive Library", spinner="dots1"):
-                    from consolepi.gdrive import GoogleDrive
+                    from consolepi.gdrive import GoogleDrive  # type: ignore
                 self.cloud = GoogleDrive(hostname=local.hostname)
                 log.info("[MENU REFRESH] Gdrive init")
 
@@ -453,22 +455,25 @@ class Remotes:
 
         return response
 
-    def get_adapters_via_api(self, ip: str, rename: bool = False):
+    def get_adapters_via_api(self, ip: str, rename: bool = False, log_host: str = None):
         """Send RestFul GET request to Remote ConsolePi to collect adapter info
 
         params:
         ip(str): ip address or FQDN of remote ConsolePi
+        rename(bool): TODO
+        log_host(str): friendly string for logging purposes "hostname(ip)"
 
         returns:
-        adapter dict for remote if successful
-        Falsey or response status_code if an error occured.
+        adapter dict for remote if successful and adapters exist
+        status_code 200 if successful but no adapters or Falsey or response status_code if an error occurred.
         """
-        # log = self.config.log
+        if not log_host:
+            log_host = ip
+        url = f"http://{ip}:5000/api/v1.0/adapters"
         if rename:
-            url = f"http://{ip}:5000/api/v1.0/adapters?refresh=true"
-        else:
-            url = f"http://{ip}:5000/api/v1.0/adapters"
-        log.info(url)  # DEBUG
+            url = f"{url}?refresh=true"
+
+        log.debug(url)
 
         headers = {
             "Accept": "*/*",
@@ -480,23 +485,15 @@ class Remotes:
         }
 
         try:
-            response = requests.request(
-                "GET", url, headers=headers, timeout=config.remote_timeout
-            )
+            response = requests.request("GET", url, headers=headers, timeout=config.remote_timeout)
         except (OSError, TimeoutError):
-            log.warning(
-                "[API RQST OUT] Remote ConsolePi @ {} TimeOut when querying via API - Unreachable.".format(
-                    ip
-                )
-            )
+            log.warning(f"[API RQST OUT] Remote ConsolePi: {log_host} TimeOut when querying via API - Unreachable.")
             return False
 
         if response.ok:
             ret = response.json()
             ret = ret["adapters"] if ret["adapters"] else response.status_code
-            _msg = "Adapters Successfully retrieved via API for Remote ConsolePi @ {}".format(
-                ip
-            )
+            _msg = f"Adapters Successfully retrieved via API for Remote ConsolePi: {log_host}"
             log.info("[API RQST OUT] {}".format(_msg))
             log.debugv(
                 "[API RQST OUT] Response: \n{}".format(
@@ -506,9 +503,7 @@ class Remotes:
         else:
             ret = response.status_code
             log.error(
-                "[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi @ {}\n{}:{}".format(
-                    ip, ret, response.text
-                )
+                f"[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi: {log_host}\n{ret}:{response.text}"
             )
         return ret
 
@@ -551,13 +546,13 @@ class Remotes:
                     rem_ip_list.remove(_ip)
                     rem_ip_list.insert(0, _ip)
 
-        rem_ip = None
+        rem_ip = _adapters = None
         for _ip in rem_ip_list:
             log.debug(f"[API_REACHABLE] verifying {remote_host}")
-            _adapters = self.get_adapters_via_api(_ip, rename=rename)
+            _adapters = self.get_adapters_via_api(_ip, rename=rename, log_host=f"{remote_host}({_ip})")
             if _adapters:
                 rem_ip = _ip  # Remote is reachable
-                if not isinstance(_adapters, int):  # indicates an html error code was returned
+                if not isinstance(_adapters, int):  # indicates status_code returned (error or no adapters found)
                     if isinstance(_adapters, list):  # indicates need for conversion from old api format
                         _adapters = self.convert_adapters(_adapters)
                         if not self.old_api_log_sent:
@@ -593,9 +588,7 @@ class Remotes:
 
         if cache_data.get("rem_ip") != rem_ip:
             cache_data["rem_ip"] = rem_ip
-            update = (
-                True  # --> Update if rem_ip didn't match (was previously unreachable)
-            )
+            update = True  # --> Update if rem_ip didn't match (was previously unreachable)
 
         if not _adapters:
             reachable = False

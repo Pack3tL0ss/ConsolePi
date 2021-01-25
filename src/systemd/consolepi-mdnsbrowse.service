@@ -1,12 +1,17 @@
 [Unit]
 Description=Browse for remote ConsolePis via mdns and update local cache
+Documentation=https://github.com/Pack3tL0ss/ConsolePi
 DefaultDependencies=no
-After=network-online.target
-Wants=network-online.target
+Wants=consolepi-mdnsreg.service
+After=consolepi-mdnsreg.service
+StartLimitInterval=200
+StartLimitBurst=5
 
 [Service]
 Type=simple
 ExecStart=/etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/src/mdns_browser.py
+Restart=on-failure
+RestartSec=30
 
 [Install]
 WantedBy=multi-user.target

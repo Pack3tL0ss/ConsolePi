@@ -90,10 +90,12 @@ do_git_pull() {
         branch=$(git rev-parse --abbrev-ref HEAD)
         echo -e "\n -- Performing git pull"
         dots "git pull ConsolePi (${branch})"
-        git pull >/dev/null 2>>$log_file ; local rc=$?
+        res=$(git pull 2>>$log_file) ; local rc=$?
         popd >/dev/null
         if [[ $rc -eq 0 ]] ; then
-            echo OK
+            # echo OK
+            # echo $res | grep -q "file\? changed" && echo $res | sed -n "/Updating /,/^$/p"
+            echo -e "OK\n --\n$res\n --"
             break
         else
             if tail $log_file | grep -q "error: insufficient permission\|Permission denied" ; then
@@ -128,7 +130,6 @@ do_loc_pull() {
           sftp $rem_user@$loc_pull_host:${consolepi_dir}/${f} >/dev/null 2>&1 ; local rc=$?
           popd >/dev/null
           do_error $rc
-          # [[ $rc -gt 0 ]] && echo "Error returned - sftp $rem_user@$loc_pull_host:${consolepi_dir}/${f} exitting..." && exit 1
       done
       IFS=$orig_IFS
   else
@@ -139,8 +140,7 @@ do_loc_pull() {
 do_stash_local() {
   if [[ -f $log_file ]] ; then
       echo -e "\n -- Stashing files in conflict due to local pull to $home_dir/.local_pull_stash"
-      loc_changes=$(grep 'overwritten by merge' -A 1 /tmp/consolepi-sync.log | grep -v 'overwritten by merge')
-      loc_changes=$(sed -n '/error:.*local changes.*$/,/Please commit.*stash/p' $log_file | tail -n +2 | head -n -1)
+      loc_changes=$(sed -n '/error:.*overwritten by merge.*$/,/Please.*before you merge/p' $log_file | tail -n +2 | head -n -1)
       loc_changes=($loc_changes)
       mkdir -p $home_dir/.local_pull_stash
       dots_done=false
@@ -150,7 +150,9 @@ do_stash_local() {
           pushd /etc/ConsolePi >/dev/null
           branch=$(git rev-parse --abbrev-ref HEAD)
           dots "git checkout $f"
-          git_output=$(git checkout "$f" >/dev/null 2>>$log_file) ; do_error $?
+          git_output=$(git checkout "$f" 2>&1); rc=$?
+          echo "$git_output" >> $log_file
+          [[ "$git_output" =~ "did not match any file" ]] && do_error 0 || do_error $rc
           popd >/dev/null
       done
   else
@@ -187,6 +189,9 @@ do_reload_svcs() {
         if systemctl is-active $svc >/dev/null 2>&1 ; then
             dots "restart $svc"
             sudo systemctl restart $svc ; do_error $?
+        elif systemctl is-failed $svc >/dev/null 2>&1 ; then
+            dots "Starting Previously Failed $svc"
+            sudo systemctl start $svc ; do_error $?
         else
             dots "$svc is not active"; echo "SKIP"
         fi

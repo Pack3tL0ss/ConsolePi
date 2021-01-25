@@ -2,14 +2,22 @@
 import os
 import yaml
 import json
+import shutil
+from pathlib import Path
 
-from consolepi import utils, log
+from consolepi import utils, log  # type: ignore
 LOG_FILE = '/var/log/ConsolePi/consolepi.log'
+
+# overridable defaults (via OVERRIDES section of ConsolePi.yaml)
 DEFAULT_BAUD = 9600
 DEFAULT_DBITS = 8
 DEFAULT_PARITY = 'n'
 DEFAULT_FLOW = 'n'
 DEFAULT_SBITS = 1
+DEFAULT_REMOTE_TIMEOUT = 3
+DEFAULT_DLI_TIMEOUT = 7
+DEFAULT_SO_TIMEOUT = 3  # smart outlets
+DEFAULT_CYCLE_TIME = 3
 
 
 class Config():
@@ -22,6 +30,7 @@ class Config():
         self.cfg_yml = self.get_config_all(yaml_cfg=self.static.get('CONFIG_FILE_YAML'),
                                            legacy_cfg=self.static.get('CONFIG_FILE'))
         self.cfg = self.cfg_yml.get('CONFIG')
+        self.ztp = self.cfg_yml.get('ZTP', {})
         self.ovrd = self.cfg_yml.get('OVERRIDES', {})
         self.do_overrides()
         self.debug = self.cfg.get('debug', False)
@@ -49,6 +58,7 @@ class Config():
         '''Parse bash style cfg vars from cfg file convert to class attributes.'''
         # prefer yaml file for all config items if it exists
         do_legacy = True
+        yml = {}
         if yaml_cfg and utils.valid_file(yaml_cfg):
             yml = self.get_yaml_file(yaml_cfg)
             cfg = yml.get('CONFIG', yml)
@@ -64,7 +74,7 @@ class Config():
             if utils.valid_file(legacy_cfg):
                 with open(legacy_cfg, 'r') as config:
                     for line in config:
-                        if not line.startswith('#'):
+                        if line.strip() and not line.startswith('#'):
                             var = line.split("=")[0]
                             value = line.split('#')[0]
                             value = value.replace('{0}='.format(var), '')
@@ -89,18 +99,21 @@ class Config():
         self.default_dbits = ovrd.get('default_dbits', DEFAULT_DBITS)
         self.default_parity = ovrd.get('default_parity', DEFAULT_PARITY)
         self.default_flow = ovrd.get('default_flow', DEFAULT_FLOW)
-        self.default_sbits = ovrd.get('default_flow', DEFAULT_SBITS)
+        self.default_sbits = ovrd.get('default_sbits', DEFAULT_SBITS)
         self.cloud_pull_only = ovrd.get('cloud_pull_only', False)
         self.compact_mode = ovrd.get('compact_mode', False)
-        self.remote_timeout = int(ovrd.get('remote_timeout', 3))
+        self.remote_timeout = int(ovrd.get('remote_timeout', DEFAULT_REMOTE_TIMEOUT))
+        self.dli_timeout = int(ovrd.get('dli_timeout', DEFAULT_DLI_TIMEOUT))
+        self.so_timeout = int(ovrd.get('smartoutlet_timeout', DEFAULT_SO_TIMEOUT))
+        self.cycle_time = int(ovrd.get('cycle_time', DEFAULT_CYCLE_TIME))
 
     def get_outlets_from_file(self):
-        '''Get outlets defined in power.json
+        '''Get outlets defined in config
 
         returns:
             dict: with following keys (all values are dicts)
-                linked: linked outlets from power.json (linked to serial adapters- auto pwr-on)
-                dli_power: dict any dlis in power.json have all ports represented here
+                linked: linked outlets from config (linked to serial adapters- auto pwr-on)
+                dli_power: dict any dlis in config have all ports represented here
                 failures: failure to connect to any outlets will result in an entry here
                     outlet_name: failure description
         '''
@@ -123,8 +136,14 @@ class Config():
                                                                  hosts=self.hosts, with_path=True)
                 self.linked_exists = True
                 for dev in outlet_data[k]['linked_devs']:
-                    _this = [k] if outlet_data[k].get('type').lower() != 'dli' \
-                        else [f"{k}:{[int(p) for p in outlet_data[k]['linked_devs'][dev]]}"]
+                    _type = outlet_data[k].get('type').lower()
+                    if _type == 'dli':
+                        _this = [f"{k}:{[int(p) for p in utils.listify(outlet_data[k]['linked_devs'][dev])]}"]
+                    elif _type == 'esphome':
+                        _linked = utils.listify(outlet_data[k]['linked_devs'][dev])
+                        _this = [f'{k}:{[p for p in _linked]}']
+                    else:
+                        _this = [k]
                     by_dev[dev] = _this if dev not in by_dev else by_dev[dev] + _this
             else:
                 outlet_data[k]['linked_devs'] = []
@@ -160,12 +179,13 @@ class Config():
         if os.path.isfile(yaml_file) and os.stat(yaml_file).st_size > 0:
             with open(yaml_file) as f:
                 try:
-                    return yaml.load(f, Loader=yaml.BaseLoader)
+                    # return yaml.load(f, Loader=yaml.BaseLoader)
+                    return yaml.load(f, Loader=yaml.FullLoader)
                 except ValueError as e:
                     log.warning(f'Unable to load configuration from {yaml_file}\n\t{e}', show=True)
 
     def get_hosts(self):
-        '''Parse user defined hosts.json for inclusion in menu
+        '''Parse user defined hosts for inclusion in menu
 
         returns dict with formatted keys prepending /host/
         '''
@@ -178,10 +198,38 @@ class Config():
 
         # generate remote command used in menu
         for h in hosts:
-            if hosts[h].get('method').lower() == 'ssh':
+            hosts[h]["method"] = hosts[h].get('method', 'ssh').lower()
+            if hosts[h]["method"] == 'ssh':  # method defaults to ssh if not provided
                 port = 22 if ':' not in hosts[h]['address'] else hosts[h]['address'].split(':')[1]
                 _user_str = '' if not hosts[h].get('username') else f'{hosts[h].get("username")}@'
-                hosts[h]['cmd'] = f"sudo -u {self.loc_user} ssh -t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
+                key_file = None
+                if hosts[h].get("key") and self.loc_user is not None:
+                    if utils.valid_file(f"/home/{self.loc_user}/.ssh/{hosts[h]['key']}"):
+                        user_key = Path(f"/home/{self.loc_user}/.ssh/{hosts[h]['key']}")
+                        if utils.valid_file(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}"):
+                            mstr_key = Path(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}")
+                            if mstr_key.stat().st_mtime > user_key.stat().st_mtime:
+                                shutil.copy(mstr_key, user_key)
+                                shutil.chown(user_key, user=self.loc_user, group=self.loc_user)
+                                user_key.chmod(0o600)
+                                log.info(f"{hosts[h]['key']} Updated from ConsolePi global .ssh key_dir to "
+                                         f"{str(user_key.parent)} for use with {h}...", show=True)
+                            key_file = str(user_key)
+                    elif utils.valid_file(hosts[h]['key']):
+                        key_file = hosts[h]['key']
+                    elif utils.valid_file(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}"):
+                        user_ssh_dir = Path(f"/home/{self.loc_user}/.ssh/")
+                        if user_ssh_dir.is_dir:
+                            shutil.copy(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}", user_ssh_dir)
+                            user_key = Path(f"{user_ssh_dir}/{hosts[h]['key']}")
+                            shutil.chown(user_key, user=self.loc_user, group=self.loc_user)
+                            user_key.chmod(0o600)
+                            log.info(f"{hosts[h]['key']} imported from ConsolePi global .ssh key_dir to "
+                                     f"{str(user_ssh_dir)} for use with {h}...", show=True)
+                            key_file = str(user_key)
+                hosts[h]['cmd'] = f"sudo -u {self.loc_user} ssh{' ' if not key_file else f' -i {key_file} '}" \
+                                  f"-t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
+                # hosts[h]['cmd'] = f"sudo -u {self.loc_user} ssh -t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
             elif hosts[h].get('method').lower() == 'telnet':
                 port = 23 if ':' not in hosts[h]['address'] else hosts[h]['address'].split(':')[1]
                 _user_str = '' if not hosts[h].get('username') else f'-l {hosts[h].get("username")}'
@@ -200,7 +248,7 @@ class Config():
             if not host_dict['rshell'][g]:
                 del host_dict['rshell'][g]
 
-        host_dict['_methods'] = utils.unique([hosts[h]['method'] for h in hosts])
+        host_dict['_methods'] = utils.unique([hosts[h].get('method', 'ssh') for h in hosts])
         host_dict['_host_list'] = [f'/host/{h.split("/")[-1]}' for h in hosts]
 
         return host_dict
@@ -258,6 +306,7 @@ class Config():
                 log_ptr = None
 
                 connect_params = line[4].replace(',', ' ').split()
+                baud = None
                 for option in connect_params:
                     if option in self.static.get('VALID_BAUD',
                                                  ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']):

@@ -5,7 +5,7 @@ import socket
 import netifaces as ni
 import os
 import time
-from consolepi import utils, log, config
+from consolepi import utils, log, config  # type: ignore
 
 
 class Local():
@@ -21,7 +21,7 @@ class Local():
         self.ip_list = self.get_ip_list()
         self.data = self.build_local_dict()
         self.user = config.loc_user
-        self.loc_home = os.getenv('HOME')
+        self.loc_home = os.path.expanduser(f'~{self.user}')
 
     def build_local_dict(self, rem_ip=None, refresh=False):
         '''Display representation of all local data in combined dict.'''
@@ -56,22 +56,29 @@ class Local():
         devs = {'_dup_ser': {}}
         usb_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='usb', subsystem='tty')]
         pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
-        root_dev_list = usb_list + pci_list
+        ama_list = [dev.replace('/dev/', '') for dev in config.cfg_yml.get('TTYAMA', {})]
+        root_dev_list = usb_list + pci_list + ama_list
 
         for root_dev in root_dev_list:
             # determine if the device already has a udev alias & collect available path options for use on lame adapters
             dev_name = by_path = by_id = None
-            _dev = pyudev.Devices.from_name(context, 'tty', root_dev)
+            try:
+                _dev = pyudev.Devices.from_name(context, 'tty', root_dev)
+            except pyudev._errors.DeviceNotFoundByNameError:
+                log.error(f'pyudev Ubable to find {root_dev}')
+                continue  # TODO Catching error as have seen it in consolepi-mdnsreg not sure if continue is appropriate
             _devlinks = _dev.get('DEVLINKS', '').split()
-            if not _devlinks:   # skip occurs on non rpi
-                continue
-            for _d in _devlinks:
-                if '/dev/serial/by-' not in _d:
-                    dev_name = _d.replace('/dev/', '')
-                elif '/dev/serial/by-path/' in _d:
-                    by_path = _d
-                elif '/dev/serial/by-id/' in _d:
-                    by_id = _d
+            if not _devlinks:   # skip occurs on non rpi and ttyAMA
+                if not root_dev.startswith('ttyAMA'):
+                    continue
+            else:
+                for _d in _devlinks:
+                    if '/dev/serial' not in _d:
+                        dev_name = _d.replace('/dev/', '')
+                    elif '/dev/serial/by-path/' in _d:
+                        by_path = _d
+                    elif '/dev/serial/by-id/' in _d:
+                        by_id = _d
 
             dev_name = f'/dev/{root_dev}' if not dev_name else f'/dev/{dev_name}'
             devs[dev_name] = {'by_path': by_path, 'by_id': by_id}
@@ -82,10 +89,36 @@ class Local():
                       for p in _dev.properties}
             devs[dev_name] = {**devs[dev_name], **_props}
 
+            # -- no need for remaining logic on ttyAMA adapters (local UART)
+            if 'ttyAMA' in root_dev:
+                # TODO clean up logic this is copy paste from below
+                # clean up some redundant or less useful properties
+                rm_list = ['devlinks', 'id_mm_candidate', 'id_model_enc', 'id_path_tag', 'tags', 'major', 'minor',
+                           'usec_initialized', 'id_vendor_enc', 'id_pci_interface_from_database', 'id_revision']
+
+                devs[dev_name] = {k: v for k, v in devs[dev_name].items() if k not in rm_list}
+
+                continue
+
             # with some multi-port adapters the model_id and vendor_id need to be pulled from higher in stack
             this_dev = _dev
             while '0x' in this_dev.properties.get('ID_MODEL_ID', '0x') and hasattr(this_dev, 'parent'):
                 this_dev = this_dev.parent
+
+            # -- Collect path for mapping to specific USB port
+            # TODO clean this up not efficient could combine search for ID_MODEL_ID and devpath
+            lame_devpath = this_dev.attributes.get('devpath')
+            if lame_devpath and isinstance(lame_devpath, bytes):
+                lame_devpath = lame_devpath.decode('UTF-8')
+            else:
+                for p in _dev.ancestors:
+                    if 'devpath' in p.attributes.available_attributes:
+                        lame_devpath = p.attributes.get('devpath')
+                        if lame_devpath and isinstance(lame_devpath, bytes):
+                            lame_devpath = lame_devpath.decode('UTF-8')
+                            break
+
+            devs[dev_name]['lame_devpath'] = lame_devpath
 
             fallback_ser = this_dev.properties.get('ID_SERIAL_SHORT')
             devs[dev_name]['id_model_id'] = this_dev.properties['ID_MODEL_ID']
@@ -118,7 +151,7 @@ class Local():
 
         return devs if key is None else devs[key]
 
-    def default_ser_config(self, tty_dev, tty_port=0000):
+    def default_ser_config(self, tty_dev, tty_port=0):
         '''Return default serial parameters when no match found in ser2net'''
         return {
                 'port': tty_port,
@@ -157,7 +190,7 @@ class Local():
         if res[0] > 0:
             log.warning('Unable to get unique identifier for this pi (cpuserial)', show=True)
         else:
-            return res[1]
+            return res[1] or '0'
 
     def get_if_info(self):
         '''Build and return dict with interface info.'''

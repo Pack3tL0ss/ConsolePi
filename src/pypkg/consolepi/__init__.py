@@ -2,8 +2,16 @@
 
 import json
 import logging
+import os
 import requests  # NoQA
-from consolepi.utils import Utils  # NoQA
+from consolepi.utils import Utils  # type: ignore # NoQA
+
+try:
+    import better_exceptions  # type: ignore
+    better_exceptions.MAX_LENGTH = None
+    os.environ['BETTER_EXCEPTIONS'] = '1'
+except ImportError:
+    pass
 
 LOG_FILE = '/var/log/ConsolePi/consolepi.log'
 
@@ -15,11 +23,27 @@ class Response():
         self.error = error
         self.state = state
         self.status_code = status_code
-        self.json = None if not do_json else json.dumps(output)
+        if 'json' in kwargs:
+            self.json = kwargs['json']
+        else:
+            self.json = None if not do_json else json.dumps(output)
+
+
+class ConsolePiAction():
+    def __init__(self, *args, function=None, callback=None, calling_menu=None, update_attribute=None,
+                 spin=False, confirm=False, **kwargs):
+        self.function = function
+        self.args = args
+        self.callback = callback
+        self.calling_menu = calling_menu
+        self.update_attribute = update_attribute
+        self.spin = spin
+        self.confirm = confirm
+        self.kwargs = kwargs
+        self.available = self.__dict__.keys()
 
 
 class ConsolePiLog:
-
     def __init__(self, log_file, debug=False):
         self.error_msgs = []
         self.DEBUG = debug
@@ -94,12 +118,15 @@ class ConsolePiLog:
     def setLevel(self, level):
         getattr(self._log, 'setLevel')(level)
 
+    def clear(self):
+        self.error_msgs = []
+
 
 utils = Utils()
 
 log = ConsolePiLog(LOG_FILE)
 
-from consolepi.config import Config  # NoQA
+from consolepi.config import Config  # type: ignore # NoQA
 
 config = Config()  # NoQA
 if config.debug:

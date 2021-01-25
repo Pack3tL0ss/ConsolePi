@@ -22,7 +22,7 @@ get_util_status () {
     UTIL_VER['ansible']=$(head -1 /tmp/ansible_ver | awk '{print $2}')
     PKG_EXPLAIN['ansible']="open source automation framework/engine."
 
-    a_role="${home_dir}.ansible/roles/arubanetworks.aoscx_role"
+    a_role="${home_dir}/.ansible/roles/arubanetworks.aoscx_role"
     aoss_dir=$(grep "ansible python module location" /tmp/ansible_ver | cut -d'=' -f 2 | cut -d' ' -f 2)/modules/network/arubaoss
     pycmd=python$(tail -1 /tmp/ansible_ver | awk '{print $4}' | cut -d'.' -f 1)
     which $pycmd >/dev/null 2>&1 || ( logit "Failed to determine Ansible Python Ver" "WARNING" && pycmd=python)
@@ -68,9 +68,6 @@ get_util_status () {
     # PKG_EXPLAIN['wireshark~tshark']="packet capture software"
     util_list_i=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort))
     util_list_f=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort -rn))
-    sudo rm /tmp/ansible_ver 2>/dev/null
-
-
 
     sep=': '; i=0; for u in ${util_list_i[@]}; do
         pretty=${u//_/ }
@@ -91,6 +88,9 @@ get_util_status () {
         fi
     done
     # echo -e "---\nDEBUG\n${ASK_OPTIONS[@]}\n---" # -- DEBUG LINE --
+
+    # -- CLEANUP --
+    [ -f /tmp/ansible_ver ] && rm /tmp/ansible_ver 2>>$log_file
 }
 
 do_ask() {
@@ -190,21 +190,21 @@ util_exec() {
                 fi
 
                 if [[ $1 == "aruba_ansible_modules" ]] || [[ $1 == "aruba_ansible_sw_mod" ]] ; then
-                    if [[ ! -d "${home_dir}aruba-ansible-modules" ]]; then
-                        cmd_list+=('-stop' '-pf' "Clone aruba-ansible-modules from Git Repo" "-u" "git clone https://github.com/aruba/aruba-ansible-modules.git ${home_dir}aruba-ansible-modules")
+                    if [[ ! -d "${home_dir}/aruba-ansible-modules" ]]; then
+                        cmd_list+=('-stop' '-pf' "Clone aruba-ansible-modules from Git Repo" "-u" "git clone https://github.com/aruba/aruba-ansible-modules.git ${home_dir}/aruba-ansible-modules")
                     else
                         cmd_list+=('-logit' 'Aruba Ansible Modules repo appears to exist already, Updating (git pull)'
-                                '-s' "pushd ${home_dir}aruba-ansible-modules" \
+                                '-s' "pushd ${home_dir}/aruba-ansible-modules" \
                                 '-stop' '-u' '-pf' 'Update aruba-ansible-modules (Git)' 'git pull' \
                                 '-s' 'popd')
                     fi
-                    cmd_list+=("-pf" "execute aruba_module_installer.py" "sudo python ${home_dir}aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py")
+                    cmd_list+=("-pf" "execute aruba_module_installer.py" "sudo python ${home_dir}/aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py")
                 fi
 
             elif [[ $2 == "remove" ]]; then
                 cmd_list=('-stop' '-u' '-pf' 'remove aoscx_role from ansible roles path' "ansible-galaxy remove arubanetworks.aoscx_role")
-                if [[ -f ${home_dir}aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py ]]; then
-                    cmd_list+=("-pf" "remove everything deployed by aruba_module_installer.py" "sudo $pycmd ${home_dir}aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py -r")
+                if [[ -f ${home_dir}/aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py ]]; then
+                    cmd_list+=("-pf" "remove everything deployed by aruba_module_installer.py" "sudo $pycmd ${home_dir}/aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py -r")
                 else
                     cmd_list+=('-logit' "Unable to find aruba_module_installer exec to remove modules installed via script - Ensure you are logged in w/ the same user used to install" "WARNING")
                 fi
@@ -213,17 +213,17 @@ util_exec() {
         speed_test)
             if [[ $2 == "install" ]]; then
                 cmd_list=(
-                    "-stop" "-u" "-s" "-f" "failed to created directory .git_repos" "mkdir -p ${home_dir}.git_repos"
+                    "-stop" "-u" "-s" "-f" "failed to created directory .git_repos" "mkdir -p ${home_dir}/.git_repos"
                 )
 
-                if [ ! -d ${home_dir}.git_repos/speedtest/.git ] ; then
+                if [ ! -d ${home_dir}/.git_repos/speedtest/.git ] ; then
                     cmd_list+=(
                         "-stop" "-pf" "Clone speedtest from GitHub" "-u"
-                            "git clone https://github.com/librespeed/speedtest.git ${home_dir}.git_repos/speedtest"
+                            "git clone https://github.com/librespeed/speedtest.git ${home_dir}/.git_repos/speedtest"
                     )
                 else
                     cmd_list+=(
-                        "-s" "pushd ${home_dir}.git_repos/speedtest"
+                        "-s" "pushd ${home_dir}/.git_repos/speedtest"
                         "-stop" "-u" "-pf" "Update speedtest (GitHub)" "git pull"
                         "-s" "popd"
                         )
@@ -232,7 +232,7 @@ util_exec() {
                 cmd_list+=(
                     "-logit" 'Configuring SpeedTest...'
                     "-s" "mkdir -p /var/www/speedtest"
-                    "-s" "pushd ${home_dir}.git_repos/speedtest"
+                    "-s" "pushd ${home_dir}/.git_repos/speedtest"
                     "-stop" "-s" "cp -R backend example-singleServer-*.html *.js /var/www/speedtest"
                     "-s" "pushd /var/www/speedtest"
                     "-s" "cp example-singleServer-gauges.html index.html"
@@ -290,7 +290,7 @@ util_exec() {
     else
         ch=true
     fi
-    $ch && process_cmds "${cmd_list[@]}" && logit "Done - $2 $process Completed without Issue."
+    $ch && process_cmds "${cmd_list[@]}" && logit "Done - $2 $process Completed without issue." || logit "Done - $2 $process Completed WARNINGS Occurred." "WARNING"
 }
 
 # translate menu tag to pkg name when a prettier name is used in the menu
@@ -402,7 +402,7 @@ util_main() {
 }
 
 # -- // SCRIPT ROOT \\ --
-if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"utilities.sh"* ]] &&  [[ ! "$0" =~ "install2.sh" ]]; then
+if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"utilities.sh"* ]] &&  [[ ! "$0" =~ "update.sh" ]]; then
     backtitle="ConsolePi Extras"
     util_main ${@}
 else

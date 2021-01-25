@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 
-SVCS=("autohotspot" "consolepi-mdnsbrowse" "consolepi-mdnsreg" "consolepi-api" "consolepi-wired-dhcp" "consolepi-autohotspot-dhcp" "dnsmasq" "hostapd" "ser2net" "rfcomm")
+SVCS=(autohotspot consolepi-mdnsbrowse consolepi-mdnsreg consolepi-api consolepi-wired-dhcp consolepi-autohotspot-dhcp dnsmasq hostapd ser2net rfcomm bluetooth.service)
+systemctl is-enabled consolepi-gpiofan >/dev/null 2>&1 && SVCS+=('consolepi-gpiofan')
+
+_norm='\e[0m'
+_cyan='\e[96m' # technically light cyan
 
 for svc in "${SVCS[@]}" ; do
-  echo -e "\n---------------- // STATUS OF ${svc}.service \\\\\ ---------------"
-  systemctl status $svc
+  echo -e "\n---------------- // STATUS OF ${_cyan}${svc}.service${_norm} \\\\\ ---------------"
+  systemctl status $svc --no-pager
 done
 
-if [ ! -z $1 ] && [ $1 == 'log' ] ; then
+if [ ! -z $1 ] && [[ $1 =~ 'log' ]] ; then
   echo "---------------- // ERRORS from log file \\\\\ ---------------"
   if [[ -f /var/log/ConsolePi/consolepi.log ]] ; then
     cat /var/log/ConsolePi/consolepi.log | grep -v INFO | grep -v DEBUG
@@ -22,9 +26,9 @@ echo "------------------             -------   ------     -------"
 for svc in "${SVCS[@]}" ; do
   if [[ ! $(systemctl is-enabled ${svc} 2>&1) =~ "No such file or directory" ]]; then
     ena=$(systemctl is-enabled $svc 2>/dev/null)
-    printf "%-30s %-10s" $svc $ena
+    printf "%-30s %-10s" ${svc%%.service} $ena
     if systemctl is-active $svc > /dev/null; then
-      systemctl -a | grep "^ *${svc}\." |sed s/'● '//g | awk '{printf "%-10s %-10s \n", $3,$4}'
+      systemctl -a | grep "^ *${svc}[[:space:]|\.]*" |sed s/'● '//g | awk '{printf "%-10s %-10s \n", $3,$4}'
     else
       printf "%-10s %-10s \n" $(systemctl is-active $svc) "not-running"
     fi

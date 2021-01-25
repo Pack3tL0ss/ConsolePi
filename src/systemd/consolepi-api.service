@@ -1,12 +1,18 @@
 [Unit]
 Description=ConsolePi API: facilitates ConsolePis sharing info in Cluster
+Documentation=https://github.com/Pack3tL0ss/ConsolePi
 DefaultDependencies=no
-After=networking.service
+After=network-online.target
+Wants=network-online.target
+StartLimitInterval=200
+StartLimitBurst=5
 
 
 [Service]
 Type=simple
 ExecStart=/etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/src/consolepi-api.py
+Restart=on-failure
+RestartSec=30
 
 
 [Install]

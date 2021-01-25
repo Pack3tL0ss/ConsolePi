@@ -4,22 +4,16 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-INSTALLER_VER=45
-CFG_FILE_VER=8
+# wired_dhcp=false  # temp until a config option
 cur_dir=$(pwd)
-iam=$(who -m |  awk '{print $1}')
-[ -z $iam ] && iam=$SUDO_USER # cockpit shell
-tty_cols=$(stty -a | grep -o "columns [0-9]*" | awk '{print $2}')
+iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
+tty_cols=$(stty -a 2>/dev/null | grep -o "columns [0-9]*" | awk '{print $2}')
 consolepi_dir="/etc/ConsolePi/"
 src_dir="${consolepi_dir}src/"
 bak_dir="${consolepi_dir}bak/"
-if [ "$iam" = "root" ]; then
-    home_dir="/${iam}/"
-else
-    home_dir="/home/${iam}/"
-fi
-stage_dir="${home_dir}ConsolePi_stage/"
-default_config="/etc/ConsolePi/ConsolePi.conf"
+home_dir=$(grep "^${iam}:" /etc/passwd | cut -d: -f6)  # TODO NO TRAILING / make others that way
+stage_dir="${home_dir}/consolepi-stage"                # TODO NO TRAILING / make others that way
+default_config="/etc/ConsolePi/ConsolePi.conf"      # TODO Double check, should be able to remove
 wpa_supplicant_file="/etc/wpa_supplicant/wpa_supplicant.conf"
 tmp_log="/tmp/consolepi_install.log"
 final_log="/var/log/ConsolePi/install.log"
@@ -30,9 +24,18 @@ yml_script="/etc/ConsolePi/src/yaml2bash.py"
 tmp_src="/tmp/consolepi-temp"
 warn_cnt=0
 
+# Unused for now interface logic
+# _gw=$(ip route get 8.8.8.8 | awk -- '{printf $5}')
+# all_ifaces=($(ls /sys/class/net | grep -v lo))
+# wlan_ifaces=($(cat /proc/net/wireless | tail +3 | cut -d':' -f1))
+# wired_ifaces=();for _iface in "${all_ifaces[@]}"; do
+#     [[ ! "${wlan_ifaces[@]}" =~ "${_iface}" ]] && [[ ! $_iface =~ "tun" ]] && wired_ifaces+=($_iface)
+# done
+
+_DEBUG_=${_DEBUG_:-false}  # verbose debugging for testing process_args
 # Terminal coloring
 _norm='\e[0m'
-_bold='\033[1;32m'
+_bold='\e[32;1m'
 _blink='\e[5m'
 _red='\e[31m'
 _blue='\e[34m'
@@ -44,22 +47,23 @@ _cyan='\e[96m' # technically light cyan
 # vpn_dest=$(sudo grep -G "^remote\s.*" /etc/openvpn/client/ConsolePi.ovpn | awk '{print $2}')
 
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
-[[ -f $final_log ]] && upgrade=true || upgrade=false
+( [[ -f $final_log ]] && [ -z $upgrade ] ) && upgrade=true || upgrade=false
 
-# log file is referenced thoughout the script.  During install changes from tmp to final after final log
+# log file is referenced thoughout the script.  During install dest changes from tmp to final
 # location is configured in install.sh do_logging
 $upgrade && log_file=$final_log || log_file=$tmp_log
 
 
 # -- External Sources --
 # ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download" ## now points to gensio not ser2net
-ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-3.5.1.tar.gz/download"
-ser2net_source_version="3.5.1"
+# ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-3.5.1.tar.gz/download"
+# ser2net_source_version="3.5.1"
 # ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-4.0.tar.gz/download"
 consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 # header reqs 144 cols to display properly
 header() {
+    $silent && return 0 # No Header for silent install
     [ -z $1 ] && clear # pass anything as an argument to prevent screen clear
     if [ $tty_cols -gt 144 ]; then
         echo "                                                                                                                                                ";
@@ -93,31 +97,145 @@ header() {
     fi
 }
 
-# -- Logging function prints to terminal and log file assign value of process prior to calling logit --
+
+menu_print() {
+    # -- send array of strings to function and it will print a formatted menu
+    # Args: -L|-len: set line length, this needs to be the first Argument in the first call to this function default: 121
+    #            line_len is unset if you use -foot, needs to be handled by calling function if not using foot
+    #       -head: str that follows is header
+    #       -foot: str that follows is footer (Also unsets line_len)
+    #       -li: list item 'str' becomes '  - str'
+    #       -nl: new line (echo a blank line)
+    #
+    # Used to print post-install message
+    line_len=${line_len:=121}
+    while (( "$#" )); do
+        case "$1" in
+            -c)
+                style="$2"
+                shift 2
+                ;;
+            -L|-len)
+                line_len=$2
+                shift 2
+                ;;
+            -head)
+                style=${style:-'*'}
+                str=" $2 "
+                len=${#str}
+                [[ "$str" =~ "\e[" ]] && ((len-=11))
+                [[ "$str" =~ ';1m' ]] && ((len-=2))
+                left=$(( ((line_len-len))/2 ))
+                [[ $((left+len+left)) -eq $line_len ]] && right=$left || right=$((left+1))
+                printf -v pad_left "%*s" $left && pad_left=${pad_left// /$style}
+                printf -v pad_right "%*s" $right && pad_right=${pad_right// /$style}
+                printf "%s%b%s\n" "$pad_left" "$str" "$pad_right"
+                shift 2
+                ;;
+            -foot)
+                str="${style}${style}$2"
+                len=${#str}
+                right=$(( ((line_len-len)) ))
+                printf -v pad_right "%*s" $right && pad_right=${pad_right// /$style}
+                printf "%s%s\n" "$str" "$pad_right"
+                shift 2
+                unset line_len; unset style
+                ;;
+            -nl|-li|*)
+                if [[ "$1" == "-nl" ]]; then
+                    str=" "
+                elif [[ "$1" == "-li" ]]; then
+                    str="  - ${2}"
+                    shift
+                else
+                    str="$1"
+                fi
+                len=${#str}
+                [[ "$str" =~ "\e[" ]] && ((len-=11))
+                [[ "$str" =~ ';1m' ]] && ((len-=2))
+                pad_len=$(( ((line_len-len-5)) ))
+                printf -v pad "%*s" $pad_len # && pad=${pad// /-}
+                printf '%s %b %s %s\n' "$style" "$str" "$pad" "$style"
+                shift
+                ;;
+        esac
+    done
+}
+
 logit() {
-    # Logging Function: logit <message|string> [<status|string>]
+    # Logging Function: logit <message|string> [<status|string>] [Flags (can be anywhere)]
     # usage:
-    #   process="Install ConsolePi"  # Define prior to calling or UNDEFINED or last used will be displayed in the log
-    #   logit "building package" <"WARNING">
+    #   process="Install ConsolePi"  # Define prior to calling this func otherwise it will display UNDEFINED
+    #   logit "building package" "WARNING"
+    #
+    #   FLAGS:
+    #      -L    Log Only don't echo to stdoud
+    #      -E    Echo formatted log don't log
+    #      -t <process> set tag($cprocess) (does not change process in global scope)
+    #
     # NOTE: Sending a status of "ERROR" results in the script exiting
     #       default status is INFO if none provided.
-    [ -z "$process" ] && process="UNDEFINED"
-    message=$1                                      # 1st arg = the log message
-    [ -z "${2}" ] && status="INFO" || status=${2^^} # to upper
+    [[ $(basename "$0" 2>/dev/null) == 'dhcpcd.exit-hook' ]] && stop_on_error=false || stop_on_error=true
+    local args=()
+    while (( "$#" )); do
+        case "$1" in
+            -L)
+                local log_only=true
+                shift
+            ;;
+            -E)
+                local echo_only=true
+                shift
+            ;;
+            -t)
+                local process="$2"
+                shift 2
+            ;;
+            *)
+                local args+=("$1")
+                shift
+            ;;
+        esac
+    done
+    set -- "${args[@]}"
+
+    log_only=${log_only:-false}
+    echo_only=${echo_only:-false}
+
+    local process=${process:-"UNDEFINED"}
+    message="${1}"                                      # 1st arg = the log message
+
+    [ -z "${2}" ] && status="INFO" || status=${2^^}     # 2nd Arg the log-lvl (to upper); Default: INFO
+    [[ "${status}" == "DEBUG" ]] && ! $debug && return 0  # ignore / return if a DEBUG message & debug=false
+
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
     if [[ "${status}" == "ERROR" ]]; then
-        fatal=true
+        $stop_on_error && fatal=true || ((warn_cnt+=1))
         status="${_red}${status}${_norm}"
-    elif [[ ! "${status}" == "INFO" ]]; then
-        status="${_yellow}${status}${_norm}"
+    elif [[ "${status}" != "INFO" ]]; then
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
+        status="${_yellow}${status}${_norm}"
     fi
 
-    # Log to stdout and log-file
-    echo -e "$(date +"%b %d %T") [${status}][${process}] ${message}" | tee -a $log_file
+    local log_msg="$(date +"%b %d %T") [$$][${status}][${process}] ${message}"
+    if $log_only; then
+        echo -e "$log_msg" >> $log_file
+    elif $echo_only; then
+        echo -e "$log_msg"
+    else
+        echo -e "$log_msg" | tee -a $log_file
+    fi
+
+    # grabs the formatted date of the first log created during this run - used to parse log and re-display warnings after the install
+    [ -z "$log_start" ] && log_start=$(echo "$log_msg" | cut -d'[' -f1)
+
     # if status was ERROR which means FATAL then log and exit script
     if $fatal ; then
-        echo -e "$(date +'%b %d %T') [${status}][${process}] Last Error is fatal, script exiting Please review log ${log_file}" && exit 1
+        echo -e "$(date +'%b %d %T') [$$][${status}][${process}] Last Error is fatal, script exiting Please review log ${log_file}"
+        echo -e "\n${_red}---- Error Detail ----${_norm}"
+        grep -A 999 "${log_start}" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "ERROR" -B 10 | grep -v "INFO"
+        echo '--'
+        exit 1
     fi
 }
 
@@ -204,6 +322,16 @@ user_input_bool() {
     echo $response
 }
 
+ask_pass(){
+    match=false; while ! $match; do
+        read -sep "New password: " _pass && echo "$_pass" | echo  # sed -r 's/./*/g'
+        read -sep "Retype new password: " _pass2 && echo "$_pass2" | echo  # sed -r 's/./*/g'
+        [[ "${_pass}" == "${_pass2}" ]] && match=true || match=false
+        ! $match && echo -e "ERROR: Passwords Do Not Match\n"
+    done
+    unset _pass2
+}
+
 # arg1 = systemd file without the .service suffix
 systemd_diff_update() {
     # -- If both files exist check if they are different --
@@ -239,7 +367,7 @@ systemd_diff_update() {
                 #  installer will disable / enable after if necessary, but this would retain user customizations
                 if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
                     if [[ -f /etc/systemd/system/${1}.service ]]; then
-                        sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file
+                        # sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file  # TODO this seems unnecessary reason for it or just copy / paste error?
                         sudo systemctl enable ${1}.service 1>/dev/null 2>> $log_file ||
                             logit "FAILED to enable ${1} systemd service" "WARNING"
                     else
@@ -249,10 +377,11 @@ systemd_diff_update() {
                 # -- if the service is enabled and active currently restart the service --
                 if systemctl is-enabled ${1}.service >/dev/null ; then
                     if systemctl is-active ${1}.service >/dev/null ; then
-                        sudo systemctl daemon-reload 2>>$log_file
-                        sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file &&
-                        ( [[ ! "${1}" =~ "autohotspot" ]] &&
-                            logit "FAILED to restart ${1} systemd service" "WARNING" )
+                        # sudo systemctl daemon-reload 2>>$log_file # redundant
+                        if [[ ! "${1}" =~ "autohotspot" ]] ; then
+                            sudo systemctl restart ${1}.service 1>/dev/null 2>> $log_file ||
+                                logit "FAILED to restart ${1} systemd service" "WARNING"
+                        fi
                     fi
                 fi
             else
@@ -298,7 +427,7 @@ file_diff_update() {
                     logit "${2} Updated" ||
                     logit "FAILED to create/update ${2}" "WARNING"
             else
-                logit "${1} file not found in src directory.  git pull failed?" "WARNING"
+                logit "file_diff_update src file ${1} not found. You should verify contents of $2. (Please Report this eror on GitHub)" "WARNING"
             fi
         else
             logit "${2} is current"
@@ -361,6 +490,10 @@ get_pi_info_pretty() {
         hw_array["a03111"]="Raspberry Pi 4 Model B  hw rev 1.1  1 GB  (Mfg by Sony)"
         hw_array["b03111"]="Raspberry Pi 4 Model B  hw rev 1.1  2 GB  (Mfg by Sony)"
         hw_array["c03111"]="Raspberry Pi 4 Model B  hw rev 1.1  4 GB  (Mfg by Sony)"
+        hw_array["c03112"]="Raspberry Pi 4 Model B  hw rev 1.2  4 GB  (Mfg by Sony)"
+        hw_array["c03114"]="Raspberry Pi 4 Model B  hw rev 1.4  4 GB  (Mfg by Sony)"
+        hw_array["d03114"]="Raspberry Pi 4 Model B  hw rev 1.4  8 GB  (Mfg by Sony)"
+        hw_array["c03130"]="Raspberry Pi 400 hw rev 1.0  4 GB  (Mfg by Sony)"
     fi
     $compat_bash && echo ${hw_array["$1"]} || echo $1
 }
@@ -371,31 +504,21 @@ get_pi_info() {
     [ ! -z $branch ] && [ $branch != "master" ] && logit "Running alternate branch: ${_green}$branch${_norm}"
     git_rem=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git remote -v | head -1 | cut -d '(' -f-1 ; popd >/dev/null 2>&1)
     [[ ! -z $git_rem ]] && [[ $(echo $git_rem | awk '{print $2}') != $consolepi_source ]] && logit "Using alternative repo: ${_green}$git_rem${_norm}"
-    # cat /etc/os-release
-    ver_full=$(head -1 /etc/debian_version)
-    ver=$(echo $ver_full | cut -d. -f1)
-
-    if [ $ver -eq 10 ]; then
-        version="Raspbian $ver_full (Buster)"
-    elif [ $ver -eq 9 ]; then
-        version="Raspbian $ver_full (Stretch)"
-    elif [ $ver -eq 8 ]; then
-        version="Raspbian $ver_full (Jessie)"
-    else
-        version="Raspbian $ver_full (Wheezy)"
-    fi
-
     cpu=$(cat /proc/cpuinfo | grep 'Hardware' | awk '{print $3}')
-    rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}' | sed 's/^1000//')
+    rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}') # | sed 's/^1000//')
     model_pretty=$(get_pi_info_pretty $rev)
+    [ -n "$model_pretty" ] && is_pi=true || is_pi=false
     # echo -e "$version running on $cpu Revision: $rev\n    $model_pretty"
     logit "$model_pretty"
-    logit "$version running on $cpu Revision: $rev"
+    # logit "$version running on $cpu Revision: $rev"
+    [ -f /etc/os-release ] && . /etc/os-release && logit "$NAME $(head -1 /etc/debian_version) ($VERSION_CODENAME) running on $cpu Revision: $rev"
+    # _mem=$(free -h |grep "^Mem:" | awk '{print $2}');_mem=$(echo "$((${_mem:0:1}+1))${_mem:3:1}")
+    # logit "$(grep '^Model' /proc/cpuinfo | cut -d: -f2 |cut -d' ' -f2-) $_mem"
     logit "$(uname -a)"
-    dpkg -l | grep -q raspberrypi-ui && logit "Raspbian with Desktop" || logit "Raspbian Lite"
+    dpkg -l | grep -q raspberrypi-ui && (desktop=true && logit "RaspiOS with Desktop") || (desktop=false && logit "RaspiOS Lite")
     logit "Python 3 Version $(python3 -V)"
     [ $py3ver -lt 6 ] && logit "${_red}DEPRICATION WARNING:${_norm} Python 3.5 will no longer be supported by ConsolePi in a future release." "warning" &&
-        logit "You should re-image ConsolePi using the current Raspbian release" "warning"
+        logit "You should re-image ConsolePi using the current RaspiOS release" "warning"
     unset process
 }
 
@@ -406,11 +529,12 @@ convert_template() {
 }
 
 process_yaml() {
-    $yml_script "${@}" > $tmp_src 2>>$log_file && . $tmp_src && rm $tmp_src ||
+    . <($yml_script "${@}" 2>>$log_file) ||
         logit "Error returned from yaml config import ($yml_script ${@}), check $log_file" "ERROR"
 }
 
 do_systemd_enable_load_start() {
+    # provide a single argument the systemd service name without the .service extension
     if [[ ! -f "${override_dir}/${1}.service" ]] ; then
         status=$(systemctl is-enabled $1 2>&1)
         if [ "$status" == "disabled" ]; then
@@ -430,17 +554,35 @@ do_systemd_enable_load_start() {
     fi
 }
 
-# -- Find path for any files pre-staged in user home or ConsolePi_stage subdir --
+# -- Find path for any files pre-staged in user home or consolepi-stage subdir --
 get_staged_file_path() {
     [[ -z $1 ]] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
-    if [[ -f "${home_dir}${1}" ]]; then
-        found_path="${home_dir}${1}"
-    elif [[ -f ${stage_dir}$1 ]]; then
-        found_path="${home_dir}ConsolePi_stage/${1}"
+    if [[ -f "${home_dir}/${1}" ]]; then
+        found_path="${home_dir}/${1}"
+    elif [[ -f ${stage_dir}/$1 ]]; then
+        found_path="${stage_dir}/${1}"
     else
         found_path=
     fi
     echo $found_path
+}
+
+check_perms() {
+    check_list=("$@")
+    [[ "${check_list[@]}" =~ "-s" ]] && local silent=true || local silent=false
+    for d in "${check_list[@]}"; do
+        [[ "$d" == "-s" ]] && continue
+        [ "$(stat -c '%G' $d)" == "consolepi" ] && grpok=true || grpok=false
+        stat -c %A $d |grep -q "^....rw....$" && modok=true || modok=false
+        if ! $grpok || ! $modok; then
+            chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?
+            chmod g+w -R ${d} 2>> $log_file ; ((rc+=$?))
+            [[ $rc > 0 ]] && logit "Error Returned while setting perms for $d" "WARNING" ||
+                logit "Success ~ Update Permissions for $d"
+        elif ! $silent; then
+            logit "Permissions for $d already OK"
+        fi
+    done
 }
 
 dots() {
@@ -456,31 +598,34 @@ spaces() {
 }
 
 process_cmds() {
-    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' 'silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
-    ret=0
-    # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
+    reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' '_silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')
+    local do_autoremove=false  # TODO check if the return is necessary may be relic from early testing
+    $_DEBUG_ && echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     while (( "$#" )); do
-        # echo -e "DEBUG:\n\tcmd=${cmd}\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
-        # echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
+        if $_DEBUG_; then
+            echo -e "DEBUG:\n\tcmd=${cmd}\n\t_silent=$_silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl"
+            echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
+        fi
         case "$1" in
             -stop) # will stop function from exec remaining commands on failure (witout exit 1)
-                stop=true
+                local stop=true
                 shift
                 ;;
             -e) # will result in exit 1 if cmd fails
-                fail_lvl="ERROR"
+                local fail_lvl="ERROR"
                 shift
                 ;;
             -s) # only show msg if cmd fails
-                silent=true
+                local _silent=true
                 shift
                 ;;
             -u) # Run Command as logged in User
-                cmd_pfx="sudo -u $iam"
+                [ -z "$iam" ] && iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')} && logit "iam had no value" "DEV-WARNING"
+                local cmd_pfx="sudo -u $iam"
                 shift
                 ;;
             -nolog) # Don't log stderr anywhere default is to log_file
-                err="/dev/null"
+                local err="/dev/null"
                 shift
                 ;;
             -logit|-l) # Used to simply log a message
@@ -496,64 +641,64 @@ process_cmds() {
                 esac
                 ;;
             -nostart) # elliminates the process start msg
-                showstart=false
+                local showstart=false
                 shift
                 ;;
             -apt-install) # install pkg via apt
                 local do_apt_install=true
                 shift
-                go=true; while (( "$#" )) && $go ; do
-                    # echo -e "DEBUG apt-install ~ Currently evaluating: '$1'" # -- DEBUG LINE --
+                local go=true; while (( "$#" )) && $go ; do
+                    $_DEBUG_ && echo -e "DEBUG apt -y install '$1'"
                     case "$1" in
                         --pretty=*)
-                            pname=${1/*=}
+                            local pname=${1/*=}
                             shift
                             ;;
                         --exclude=*)
-                            pexclude=${1/*=}
+                            local pexclude=${1/*=}
                             shift
                             ;;
                         *)
                             if [[ -z $pkg ]] ; then
-                                pkg=$1
-                                [[ -z $pname ]] && pname=$1
+                                local pkg=$1
+                                [[ -z $pname ]] && local pname=$1
                                 shift
                             else
-                                go=false
+                                local go=false
                             fi
                             ;;
                     esac
                 done
-                pmsg="Success - Install $pname (apt)"
-                fmsg="Error - Install $pname (apt)"
-                stop=true
-                [[ ! -z $pexclude ]] && cmd="sudo apt-get -y install $pkg ${pexclude}-" ||
-                    cmd="sudo apt-get -y install $pkg"
-                # shift $_shift
+                [ -z pmsg ] && local pmsg="Success - Install $pname (apt)"
+                [ -z fmsg ] && local fmsg="Error - Install $pname (apt)"
+                local stop=true
+                [[ ! -z $pexclude ]] && local cmd="sudo apt -y install $pkg ${pexclude}-" ||
+                    local cmd="sudo apt -y install $pkg"
                 ;;
             -apt-purge) # purge pkg followed by autoremove
                 case "$3" in
                     --pretty=*)
-                        pname=${3/*=}
+                        local pname=${3/*=}
                         _shift=3
                         ;;
                     *)
-                        pname=$2
+                        local pname=$2
                         _shift=2
                         ;;
                 esac
-                pmsg="Success - Remove $pname (apt)"
-                fmsg="Error - Remove $pname (apt)"
-                cmd="sudo apt-get -y purge $2"
+                [ -z pmsg ] && local pmsg="Success - Remove $pname (apt)"
+                [ -z fmsg ] && local fmsg="Error - Remove $pname (apt)"
+                local cmd="sudo apt -y purge $2"
+                local do_autoremove=true
                 shift $_shift
                 ;;
             -o) # redirect stdout default is /dev/null
-                out="$2"
+                local out="$2"
                 shift 2
                 ;;
             -pf|-fp) # msg template for both success and failure in 1
-                pmsg="Success - $2"
-                fmsg="Error - $2"
+                local pmsg="Success - $2"
+                local fmsg="Error - $2"
                 shift 2
                 ;;
             -p) # msg displayed if command successful
@@ -569,52 +714,52 @@ process_cmds() {
                 exit 1
                 ;;
             *) # The command to execute, all flags should precede the commands otherwise defaults for those items
-                cmd="$1"
+                local cmd="$1"
                 shift
                 ;;
         esac
         # if cmd is set process cmd
         # use defaults if flag not set
         if [[ ! -z $cmd ]]; then
-            [[ -z $pmsg ]] && pmsg="Success - $cmd"
-            [[ -z $fmsg ]] && fmsg="Error - $cmd  See details in $log_file"
-            [[ -z $fail_lvl ]] && fail_lvl="WARNING"
-            [[ -z $silent ]] && silent=false
-            [[ -z $stop ]] && stop=false
-            [[ -z $err ]] && err=$log_file
-            [[ ! -z $cmd_pfx ]] && cmd="$cmd_pfx $cmd"
-            [[ -z $out ]] && out='/dev/null'
-            [[ -z $showstart ]] && showstart=true
-            [[ -z $do_apt_install ]] && do_apt_install=false
-            # echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\tsilent=$silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
-            # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
+            local pcmd=${cmd/sudo /} ; local pcmd=${pcmd/-y /}
+            local pmsg=${pmsg:-"Success - $pcmd"}
+            unset pcmd
+            # local pmsg=${pmsg:-"Success - ${cmd/-y /}"}
+            local fmsg=${fmsg:-"Error - $cmd  See details in $log_file"}
+            local fail_lvl=${fail_lvl:-"WARNING"}
+            local _silent=${_silent:-false}
+            local stop=${stop:-false}
+            local err=${err:-$log_file}
+            local out=${out:-'/dev/null'}
+            local showstart=${showstart:-true}
+            local do_apt_install=${do_apt_install:-false}
+            [[ ! -z $cmd_pfx ]] && local cmd="$cmd_pfx $cmd"
+            if $_DEBUG_; then
+                echo -e "DEBUG:\n\tcmd=$cmd\n\tpname=$pname\n\t_silent=$_silent\n\tpmsg=${pmsg}\n\tfmsg=${fmsg}\n\tfail_lvl=$fail_lvl\n\tout=$out\n\tstop=$stop\n\tret=$ret\n"
+                echo "------------------------------------------------------------------------------------------"
+            fi
             # -- // PROCESS THE CMD \\ --
-            ! $silent && $showstart && logit "Starting ${pmsg/Success - /}"
-            if eval "$cmd" >>"$out" 2>>"$err"; then
-                cmd_failed=false
-                ! $silent && logit "$pmsg"
-                # if cmd was an apt-get purge - automatically issue autoremove to clean unnecessary deps
-                # TODO re-factor to only do purge at the end of all other proccesses
-                if [[ "$cmd" =~ "purge" ]]; then
-                    logit "Tidying Up packages that are no longer in use (apt autoremove)"
-                    sudo apt-get -y autoremove >/dev/null 2>>$log_file &&
-                        logit "Success - All Tidy Now" ||
-                        logit "Error - apt autoremove returned error-code" "WARNING"
-                fi
+            ! $_silent && $showstart && logit -E "Starting ${pmsg/Success - /}"
+            logit -L "process_cmds executing: $cmd"
+            if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
+                local cmd_failed=false
+                ! $_silent && logit "$pmsg"
+                unset cmd
             else
-                cmd_failed=true
+                local cmd_failed=true
                 if $do_apt_install ; then
-                    x=1
-                    while [[ $(tail -2 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
+                    local x=1; while [[ $(tail -2 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
                         logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
                         sleep 5
                         logit "Starting ${pmsg/Success - /} ~ retry $x"
-                        if eval "$cmd" >>"$out" 2>>"$err"; then
-                            cmd_failed=false
-                            ! $silent && logit "$pmsg"
+                        # if eval "$cmd" >>"$out" 2>>"$err"; then
+                        logit -L "process_cmds executing: $cmd"
+                        if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err"); then
+                            local cmd_failed=false
+                            ! $_silent && logit "$pmsg"
                         fi
                         ((x+=1))
-                        done
+                    done
                 fi
             fi
 
@@ -622,13 +767,23 @@ process_cmds() {
                 logit "$fmsg" "$fail_lvl" && ((ret+=1))
                 $stop && logit "aborting remaining tasks due to previous failure" && cd $cur_dir && break
             fi
-            # echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
-            # -- // unset all flags \\ --
+            $_DEBUG_ && echo "------------------------------------------------------------------------------------------" # -- DEBUG Line --
+
+            # -- // unset all flags so none are passed to next cmd if sent in one big array \\ --
             for c in "${reset_vars[@]}"; do
                 unset ${c}
             done
         fi
 
     done
-    return $ret
+
+    # if apt purge was in cmd list -->apt autoremove
+    if $do_autoremove; then
+        logit "Tidying Up packages that are no longer in use (apt autoremove)"
+        sudo apt autoremove -y >/dev/null 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>$log_file) &&
+            logit "Success - All Tidy Now" ||
+            logit "Error - apt autoremove returned error-code" "WARNING"
+    fi
+
+    ! $cmd_failed && return 0 || return 1
 }

@@ -2,7 +2,7 @@
 # ** dynamically by install script.  For customization touch dhcpcd.conf in
 # ** in the overrides dir, then customize /etc/dhcpcd.conf as desired.
 # ** The existence of the file in the overrides dir causes the upgrade script
-# ** to bypass validation of the file ... consolepi-upgrade won't make any changes
+# ** to bypass validation of the file (consolepi-upgrade won't make any changes)
 #
 # A sample configuration for dhcpcd.
 # See dhcpcd.conf(5) for details.
@@ -46,6 +46,12 @@ slaac private
 # Disable RFC3927 ipv4LL (169.) automatic addressing on dhcp failure
 noipv4ll
 
+{% if noipv6 %}
+# Disable IPv6
+noipv6rs
+noipv6
+{% endif %}
+
 # ConsolePi vendorclassid
 vendorclassid dhcpcd-ConsolePi
 
@@ -57,23 +63,37 @@ vendorclassid dhcpcd-ConsolePi
 #static domain_name_servers=192.168.0.1 8.8.8.8 fd51:42f8:caae:d92e::1
 
 # wlan static fallback profile
+# will only apply if hotspot enabled in config
 profile static_wlan0
-static ip_address={{wlan_ip}}/24
+{% if wlan_ip %}
+static ip_address={{ wlan_ip }}/24
+{% else %}
+static ip_address=10.110.0.1/24
+{% endif %}
 
 # wired static fallback profile
-# defined - currently commented out/disabled below
+# will only apply if wired_dhcp enabled in config
 profile static_eth0
-static ip_address=192.168.25.10/24
-static routers=192.168.25.1
-static domain_name_servers=1.0.0.1 8.8.8.8
+{% if wired_ip %}
+static ip_address={{ wired_ip }}/24
+{% else %}
+static ip_address=10.30.110.1/24
+{% endif %}
 
-# Assign fallback to static profile on wlan0
 interface wlan0
+{% if hotspot %}
 fallback static_wlan0
+{% else %}
+# fallback static_wlan0
+{% endif %}
 vendorclassid "dhcpcd:ConsolePi"
 
 interface eth0
+{% if wired_dhcp %}
+fallback static_eth0
+{% else %}
 # fallback static_eth0
+{% endif %}
 vendorclassid "dhcpcd:ConsolePi"
 
 # For AutoHotSpotN

@@ -1,0 +1,8 @@
+# Run autohotspot script every 5 minutes
+# Looks for ssids defined in /etc/wpa_supplicant.conf
+# if no defined ssids are found to connect to as client
+# a hotspot is created as defined by consolepi installer
+#   /etc/hostapd/hostapd.conf 
+#   serving dhcp based on configuration in /etc/ConsolePi/dnsmasq.d/autohotspot
+# 
+*/5 * * * * root /etc/ConsolePi/src/autohotspotN

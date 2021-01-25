@@ -76,18 +76,24 @@ class ConsolePiExec:
         # -- // Perform Auto Power On (if not already on) \\ --
         for o in outlets["linked"][pwr_key]:
             outlet = outlets["defined"].get(o.split(":")[0])
-            ports = [] if ":" not in o else json.loads(o.split(":")[1])
+            ports = [] if ":" not in o else json.loads(o.replace("'", '"').split(":")[1])
             _addr = outlet["address"]
 
             # -- // DLI web power switch Auto Power On \\ --
+            #
+            # TODO combine all ports from same pwr_key and sent to pwr_toggle once
+            # TODO Update outlet if return is OK, then run refresh in the background to validate
+            # TODO Add class attribute to cpi_menu ~ cpi_menu.new_data = "power", "main", etc
+            #      Then in wait_for_input run loop to check for updates and re-display menu
+            # TODO power_menu and dli_menu wait_for_threads auto power ... check cpiexec.autopwr_wait first
+            #
             if outlet["type"].lower() == "dli":
                 for p in ports:
                     log.debug(
                         f"[Auto PwrOn] Power ON {pwr_key} Linked Outlet {outlet['type']}:{_addr} p{p}"
                     )
-                    if not outlet["is_on"][p][
-                        "state"
-                    ]:  # This is just checking what's in the dict not querying the DLI
+
+                    if not outlet["is_on"][p]["state"]:  # This is just checking what's in the dict not querying the DLI
                         r = self.pwr.pwr_toggle(
                             outlet["type"], _addr, desired_state=True, port=p
                         )
@@ -100,6 +106,25 @@ class ConsolePiExec:
                                 ).start()
                                 self.autopwr_wait = True
                         else:
+                            log.warning(
+                                f"{pwr_key} Error operating linked outlet @ {o}",
+                                show=True,
+                            )
+
+            # -- // esphome Auto Power On \\ --
+            elif outlet["type"].lower() == "esphome":
+                for p in ports:
+                    log.debug(
+                        f"[Auto PwrOn] Power ON {pwr_key} Linked Outlet {outlet['type']}:{_addr} p{p}"
+                    )
+                    if not outlet["is_on"][p]["state"]:  # This is just checking what's in the dict
+                        r = self.pwr.pwr_toggle(
+                            outlet["type"], _addr, desired_state=True, port=p
+                        )
+                        if isinstance(r, bool):
+                            self.pwr.data['defined'][o.split(':')[0]]['is_on'][p]['state'] = r
+                        else:
+                            log.show(r)
                             log.warning(
                                 f"{pwr_key} Error operating linked outlet @ {o}",
                                 show=True,
@@ -147,6 +172,7 @@ class ConsolePiExec:
         s = subprocess
         c = cmd.replace("-u", "").replace("sudo", "").strip()
         p = "PATH=$PATH:/etc/ConsolePi/src/consolepi-commands && "
+        # TODO if shutil.which(c.split()[0]):
         r = s.run(f"{p}which {c.split()[0]}", shell=True, stderr=s.PIPE, stdout=s.PIPE)
         if r.returncode == 0:
             try:
@@ -155,10 +181,12 @@ class ConsolePiExec:
                 elif "sudo -u " not in cmd:
                     cmd = cmd.replace("sudo ", "")
                 subprocess.run(cmd, shell=True)
+                print("")
+                input("Press Enter to Continue... ")
             except (KeyboardInterrupt, EOFError):
-                pass
-            print("")
-            input("Press Enter to Continue... ")
+                log.show('Operation Aborted')
+                print('')  # prevents header and prompt on same line in debug
+
             return True
 
     def wait_for_threads(self, name="init", timeout=10, thread_type="power"):
@@ -168,7 +196,6 @@ class ConsolePiExec:
             bool: True if threads are still running indicating a timeout
                   None indicates no threads found ~ they have finished
         """
-        # log = self.config.log
         start = time.time()
         do_log = False
         found = False
@@ -181,7 +208,7 @@ class ConsolePiExec:
 
             if not found:
                 if name == "init" and thread_type == "power":
-                    if self.pwr and not self.pwr.data.get("dli_power"):
+                    if self.pwr and not self.pwr.data or not self.pwr.data.get("dli_power"):
                         self.pwr.dli_exists = False
                     self.pwr_init_complete = True
                 if do_log:
@@ -204,6 +231,7 @@ class ConsolePiExec:
                 )
                 return True
 
+    # TODO REMOVE - Depricated
     def launch_shell(self):
         iam = config.loc_user
         os.system(
@@ -219,7 +247,7 @@ class ConsolePiExec:
         self, upd_linked=False, refresh=False, key="defined", outlets=None
     ):
         """
-        Called by consolepi-menu refresh
+        Called by consolepi-menu refresh and exec_auto_pwron (to update outlets in menu)
         """
         pwr = self.pwr
         if config.power:
@@ -258,10 +286,11 @@ class ConsolePiExec:
         loc_home = self.local.loc_home
 
         # -- generate local key file if it doesn't exist
+        # TODO pathlib
         if not os.path.isfile(loc_home + "/.ssh/id_rsa"):
             print("\nNo Local ssh cert found, generating...\n")
             utils.do_shell_cmd(
-                f'sudo -u {loc_user} ssh-keygen -m pem -t rsa -C "{loc_user}@{hostname}"'
+                f'sudo -u {loc_user} ssh-keygen -m pem -t rsa -C "{loc_user}@{hostname}"', timeout=360
             )
 
         # -- copy keys to remote(s)
@@ -270,12 +299,15 @@ class ConsolePiExec:
         return_list = []
         for _rem in rem_data:
             rem, rem_ip, rem_user = _rem
-            print(f"Attempting to copy ssh cert to {rem}")
-            ret = utils.do_shell_cmd(
-                f"sudo -u {loc_user} ssh-copy-id {rem_user}@{rem_ip}", timeout=360
-            )
-            if ret is not None:
-                return_list.append("{}: {}".format(rem, ret))
+            print(self.menu.format_line("{{magenta}}Attempting to copy ssh cert to " + rem + "{{norm}}").text)
+            if not utils.is_reachable(rem_ip, 22, timeout=5, silent=True):
+                return_list.append(f"{rem}: is not reachable... Skipped")
+            else:
+                ret = utils.do_shell_cmd(
+                    f"sudo -u {loc_user} ssh-copy-id {rem_user}@{rem_ip}", timeout=60  # 360
+                )
+                if ret is not None:
+                    return_list.append("{}: {}".format(rem, ret))
         return return_list
 
     def show_adapter_details(self, adapters):
@@ -284,13 +316,20 @@ class ConsolePiExec:
             for k in sorted(adapters[a]["udev"].keys()):
                 print(f'{k}: {adapters[a]["udev"][k]}')
             print("")
-            this_ser2net = config.ser2net_conf.get(a, {})
-            print(f"ser2net config: {this_ser2net.get('line', '!! Not Found !!')}")
+            # this_ser2net = config.ser2net_conf.get(a, {})
+            # print(f"ser2net config: {this_ser2net.get('line', '!! Not Found !!')}")
+            print(f'ser2net config: {adapters[a]["config"].get("line", "Not Defined")}')
 
-        input("\nPress Any Key To Continue\n")
+        input("\nPress Enter To Continue\n")
 
     # ------ // EXECUTE MENU SELECTIONS \\ ------ #
     def menu_exec(self, choice, menu_actions, calling_menu="main_menu"):
+        '''Execute Menu Selection.  This method needs to be overhauled.
+
+        The ConsolePiAction object defined but not used in __init__ is part of the plan for overhaul
+        menu will build insance of the object for each selection. That will be used to determine what
+        action to perform and what to do after etc.
+        '''
         pwr = self.pwr
 
         if not config.debug and calling_menu not in ["dli_menu", "power_menu"]:
@@ -311,7 +350,7 @@ class ConsolePiExec:
 
         else:
             ch = choice.lower
-            try:  # Invalid Selection
+            try:  # Invalid Selection, Keyboard Interupt
                 if isinstance(menu_actions[ch], dict):
                     if menu_actions[ch].get("cmd"):
                         # TimeStamp for picocom session log file if defined
@@ -339,6 +378,7 @@ class ConsolePiExec:
                                 )
                                 if _error and self.autopwr_wait:
                                     # TODO simplify this after moving to action object
+                                    _h = None
                                     _method = "ssh -t" if "ssh" in c else "telnet"
                                     if "ssh" in _method:
                                         _h = (
@@ -359,22 +399,23 @@ class ConsolePiExec:
                                                     break
                                                 else:
                                                     time.sleep(3)
-                                            except KeyboardInterrupt:
+                                            except (KeyboardInterrupt, EOFError):
                                                 self.autopwr_wait = False
                                                 log.show("Connection Aborted")
                                                 break
 
-                                    print(
-                                        "\nInitial Attempt Failed, but host is linked to an outlet that was"
-                                    )
-                                    print("off. Host may still be booting\n")
-                                    utils.spinner(
-                                        f"Waiting for {_h} to boot, CTRL-C to Abort",
-                                        wait_for_boot,
-                                    )
-                                    if self.autopwr_wait:
-                                        _error = utils.do_shell_cmd(c, **menu_actions[ch]["exec_kwargs"])
-                                        self.autopwr_wait = False
+                                    if _h:
+                                        print(
+                                            "\nInitial Attempt Failed, but host is linked to an outlet that was"
+                                        )
+                                        print("off. Host may still be booting\n")
+                                        utils.spinner(
+                                            f"Waiting for {_h} to boot, CTRL-C to Abort",
+                                            wait_for_boot,
+                                        )
+                                        if self.autopwr_wait:
+                                            _error = utils.do_shell_cmd(c, **menu_actions[ch]["exec_kwargs"])
+                                            self.autopwr_wait = False
                             else:
                                 c = shlex.split(menu_actions[ch]["cmd"])
                                 result = subprocess.run(c, stderr=subprocess.PIPE)
@@ -386,13 +427,12 @@ class ConsolePiExec:
                                 log.show(_error)
 
                             # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
-                            c = " ".join([str(i) for i in c])
-                            if "picocom" in c:
+                            if "picocom" in menu_actions[ch]["cmd"] or "telnet" in menu_actions[ch]["cmd"]:
                                 os.system(
                                     "/etc/ConsolePi/src/consolepi-commands/resize >/dev/null"
                                 )
 
-                        except KeyboardInterrupt:
+                        except (KeyboardInterrupt, EOFError):
                             log.show("Aborted last command based on user input")
 
                     elif "function" in menu_actions[ch]:
@@ -507,7 +547,7 @@ class ConsolePiExec:
                                                 and not response
                                             ):
                                                 log.show(
-                                                    f"{host_short} Port {_port} if Off.  Cycle is not valid"
+                                                    f"{host_short} Port {_port} is Off.  Cycle is not valid"
                                                 )
                                             elif (
                                                 menu_actions[ch]["function"].__name__
@@ -568,6 +608,26 @@ class ConsolePiExec:
                                                         f"Error returned from dli {host_short} when "
                                                         f"attempting to {_action} port {_port}"
                                                     )
+                                    # --// EVAL responses for espHome outlets \\--
+                                    elif _type == "esphome":
+                                        host_short = utils.get_host_short(_addr)
+                                        _port = menu_actions[ch]["kwargs"]["port"]
+                                        # --// Operations performed on ALL outlets \\--
+                                        if (isinstance(response, bool) and _port is not None):
+                                            pwr.data['defined'][_grp]['is_on'][_port]['state'] = response
+                                            if (
+                                                menu_actions[ch]["function"].__name__
+                                                == "pwr_cycle"
+                                                and not response
+                                            ):
+                                                _msg = f"{_grp}({host_short})" if _grp != host_short else f"{_grp}"
+                                                if _msg != _port:
+                                                    _msg = f"{_msg} Port {_port} is Off. Cycle is not valid"
+                                                else:
+                                                    _msg = f"{_msg} is Off. Cycle is not valid"
+                                                log.show(_msg)
+                                        elif (isinstance(response, str) and _port is not None):
+                                            log.show(response)
 
                                     # --// EVAL responses for GPIO and tasmota outlets \\--
                                     else:
@@ -613,17 +673,20 @@ class ConsolePiExec:
             except KeyError as e:
                 if len(choice.orig) <= 2 or not self.exec_shell_cmd(choice.orig):
                     log.show(f"Invalid selection {e}, please try again.")
+            except (KeyboardInterrupt, EOFError):
+                log.show('Operation Aborted')
+                print('')  # prevents header and prompt on same line in debug
         return True
 
-    def confirm_and_spin(self, action_dict, *args, **kwargs):
+    def confirm_and_spin(self, action_dict: dict, *args, **kwargs):
         """
-        called by the exec menu.
+        called by menu_exec.
         Collects user Confirmation if operation warrants it (Powering off or cycle outlets)
         and Generates appropriate spinner text
 
         returns tuple
-            0: Bool True if user confirmed False if aborted (set to True when no confirmation reqd)
-            1: str spinner_text used in exec_menu while function runs
+            0: Bool False indicates user abort otherwise True should be returned
+            1: str spinner_text used in menu_exec while function runs
             3: str name (for rename operation)
         """
         pwr = self.pwr
@@ -633,8 +696,7 @@ class ConsolePiExec:
         _on_str = "{{green}}ON{{norm}}"
         _cycle_str = "{{red}}C{{green}}Y{{red}}C{{green}}L{{red}}E{{norm}}"
         _type = _addr = None
-        if "desired_state" in kwargs:
-            to_state = kwargs["desired_state"]
+        to_state = kwargs.get("desired_state")
         if _func in ["pwr_toggle", "pwr_cycle", "pwr_rename"]:
             _type = args[0].lower()
             _addr = args[1]
@@ -644,6 +706,10 @@ class ConsolePiExec:
                 if not port == "all":
                     port_name = pwr.data["dli_power"][_addr][port]["name"]
                     to_state = not pwr.data["dli_power"][_addr][port]["state"]
+            elif _type == "esphome":
+                port = port_name = kwargs["port"]
+                if not port == "all":
+                    to_state = not pwr.data['defined'][_grp]['is_on'][port]['state']
             else:
                 port = f"{_type}:{_addr}"
                 port_name = _grp
@@ -680,6 +746,8 @@ class ConsolePiExec:
             elif not to_state:
                 if _type == "dli":
                     prompt = f"Power {_off_str} {host_short} Outlet {port}({port_name})"
+                elif _type == "esphome":
+                    prompt = f"Power {_off_str} {host_short} Outlet {port}"
                 else:  # GPIO or TASMOTA
                     prompt = f"Power {_off_str} Outlet {_grp}({_type}:{_addr})"
 
@@ -698,7 +766,7 @@ class ConsolePiExec:
                         else str(port) + "(" + port_name + ")",
                     )
                 )
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, EOFError):
                 name = None
                 confirmed = False
                 print("")  # So header doesn't print on same line as aborted prompt when DEBUG is on
@@ -730,6 +798,9 @@ class ConsolePiExec:
                 prompt = "Cycle Power on {} Outlet {}({})".format(
                     host_short, port, port_name
                 )
+            elif _type == "esphome":
+                _msg = f"{_grp}({host_short})" if _grp != host_short else f"{_grp}"
+                prompt = f"Cycle Power on {_msg} Outlet {port}"
             else:  # GPIO or TASMOTA
                 prompt = "Cycle Power on Outlet {}({})".format(port_name, port)
             spin_text = "Cycling {}Outlet{}".format(

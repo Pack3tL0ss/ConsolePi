@@ -1,0 +1,17 @@
+[Unit]
+Description=Variable Speed GPIO fan daemon
+StartLimitInterval=200
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=/etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/src/gpiofan.py
+ExecReload=/usr/bin/pkill -f gpiofan.py ; /bin/ps | /bin/grep -v grep| /bin/grep -q gpiofan.py || /usr/bin/bash -c "( /etc/ConsolePi/src/gpiofan.py && exit 0 )"
+Restart=on-failure
+RestartSec=30
+SyslogIdentifier=gpiofand
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

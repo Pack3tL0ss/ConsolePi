@@ -14,7 +14,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient import discovery
 
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import config, log, utils  # NoQA
+from consolepi import config, log, utils  # type: ignore # NoQA
 
 
 # -- GLOBALS --
@@ -59,11 +59,11 @@ class GoogleDrive:
                         self.file_id = self.create_sheet()
                 return True
             except (ConnectionError, TimeoutError, OSError) as e:
-                log.error('Exception Occured Connecting to Gdrive {}'.format(e))
+                log.error('Exception Occurred Connecting to Gdrive {}'.format(e))
                 return False
-            else:
-                log.error('Google Drive is not reachable - Aborting')
-                return False
+        else:
+            log.error('Google Drive is not reachable - Aborting')
+            return False
 
     # Google sheets API credentials - used to update config on Google Drive
     def get_credentials(self):
@@ -206,7 +206,7 @@ class GoogleDrive:
 
 if __name__ == '__main__':
     print('-- Syncing Data With Google Drive --')
-    from consolepi.local import Local
+    from consolepi.local import Local  # type: ignore
     local = Local()
     gdrive = GoogleDrive()
     data = gdrive.update_files(local.data)

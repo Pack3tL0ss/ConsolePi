@@ -4,19 +4,19 @@
 argv1 is the process menu currently uses picocom
 argv2 is the device
 '''
-
-import psutil
-import sys
-import subprocess
-from time import sleep
-sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import config, utils  # NoQA
-from consolepi.consolepi import ConsolePi  # NoQA
-cpi = ConsolePi(bypass_remotes=True)
-# from consolepi.common import user_input_bool
-# from consolepi.common import ConsolePi_data
-
-# config = ConsolePi_data(do_print=False)
+# imports in try/except in case user aborts after ssh session established
+try:
+    import psutil
+    import sys
+    import subprocess
+    from time import sleep
+    sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
+    from consolepi import config, utils  # type: ignore # NoQA
+    from consolepi.consolepi import ConsolePi  # type: ignore # NoQA
+    cpi = ConsolePi(bypass_remotes=True)
+except (KeyboardInterrupt, EOFError):
+    print("Operation Aborted")
+    exit(0)
 
 
 def find_procs_by_name(name, dev):
@@ -66,6 +66,7 @@ if __name__ == '__main__':
 
         if ppid is None:
             # if power feature enabled and adapter linked - ensure outlet is on
-            if config.power:  # pylint: disable=maybe-no-member
+            # TODO try/except block here
+            if config.power:
                 cpi.cpiexec.exec_auto_pwron(sys.argv[2])
             subprocess.run(_cmd)

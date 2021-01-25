@@ -1,9 +1,8 @@
-# dnsmasq configuration created by ConsolePi installer
-# modifications should not be made to this file add additional options
-# in new files in this directory.
+####
+# ConsolePi eth0 specific dnsmasq instance
+####
 dhcp-script=/etc/ConsolePi/src/dhcp-trigger.py
 interface=eth0
-except-interface=lo
 bogus-priv
 domain-needed
 dhcp-range={{dhcp_start}},{{dhcp_end}},255.255.255.0,12h

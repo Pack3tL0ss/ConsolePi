@@ -10,8 +10,9 @@ import socket
 import requests
 from dlipower import PowerSwitch
 from requests.auth import HTTPDigestAuth
+from requests.models import ChunkedEncodingError
 
-DLI_TIMEOUT = 5
+DLI_TIMEOUT = 7
 SEQUENCE_DELAY = 1
 DEBUG = False
 TIMING = False
@@ -36,7 +37,8 @@ class Dli_Logger:
 
 class DLI:
 
-    def __init__(self, fqdn, username='admin', password='admin', use_https=False, timeout=DLI_TIMEOUT, log=Dli_Logger().log):
+    def __init__(self, fqdn: str, username: str = 'admin', password: str = 'admin',
+                 use_https: bool = False, timeout: int = DLI_TIMEOUT, log=Dli_Logger().log):
         self.timeout = timeout
         self.log = log
         self.scheme = 'http://' if not use_https else 'https://'
@@ -45,11 +47,15 @@ class DLI:
         self.base_url = self.scheme + str(self.ip)
         self.outlet_url = self.base_url + '/restapi/relay/outlets/'
         self.username = username
-        self.passwword = password
+        self.password = password
         self.rest = None
         if self.reachable:
-            self.dli = self.get_session(username, password)
-            self.outlets = self.get_dli_outlets()
+            try:
+                self.dli = self.get_session(username, password)
+                self.outlets = self.get_dli_outlets()
+            except ConnectionError:
+                log.warning(f"DLI @ {self.ip} ware reachable, but an exception occured while trying to establish a session")
+                self.dli = self.outlets = {}
         else:
             self.dli = self.outlets = {}
         self.pretty = {
@@ -90,12 +96,10 @@ class DLI:
                 ret_val = {}
                 for o in outlets:
                     if o >= index.start and o <= index.stop:
-                        # ret_val[o] = outlets[o]
                         ret_val[o] = {'state': self.state(o), 'name': outlets[o]['name']}
             elif isinstance(index, list):
                 ret_val = {}
                 for o in index:
-                    # ret_val[o] = outlets[o]
                     ret_val[o] = {'state': self.state(o), 'name': outlets[o]['name']}
             else:
                 ret_val = {index: {'state': self.state(index), 'name': outlets[index]['name']}}
@@ -128,7 +132,7 @@ class DLI:
 
         return reachable, _ip
 
-    def get_session(self, username, password, fqdn=None):
+    def get_session(self, username: str, password: str, fqdn: str = None):
         '''Get or Renew a session with the dli from requests module.'''
         log = self.log
         fqdn = self.fqdn if fqdn is None else fqdn
@@ -142,11 +146,16 @@ class DLI:
         _session.headers = headers
         r = _session.get(f_url, headers=headers)
         if TIMING:
-            print('[TIMING] check api ({}): return: {}, {}'.format(fqdn, r.status_code, time.time() - start))  # TIMING
+            print('[TIMING] check api ({}): return: {}, {}'.format(fqdn, r.status_code, time.time() - start))  # type: ignore
         if r.headers['Content-Type'] != 'application/json':  # determine if old screen-scrape method is required for older dlis
             log.debug("[DLI] Using webui scraping method for {}, it doesn't appear to support the new rest API".format(fqdn))
             self.rest = False
-            switch = PowerSwitch(hostname=self.ip, userid=username, password=password, timeout=self.timeout)
+            try:
+                switch = PowerSwitch(hostname=self.ip, userid=username, password=password, timeout=self.timeout)
+            except (ConnectionError, ConnectionResetError, ChunkedEncodingError) as e:
+                log.error(f"Exception Connecting to {fqdn}. {e}")
+                self.dli = self.outlets = {}
+                return  # TODO verify calling method handles None
             return switch
         else:   # web power switch pro - use rest API
             log.debug("[DLI] Using rest API method for {}".format(fqdn))
@@ -174,7 +183,7 @@ class DLI:
         else:
             ret = self.dli.set_outlet_name(outlet=port, name=new_name)
         if TIMING:
-            print('[TIMING] {} rename {}: {}'.format(self.fqdn, port, time.time() - start))  # TIMING
+            print('[TIMING] {} rename {}: {}'.format(self.fqdn, port, time.time() - start))  # type: ignore
         if ret:
             self.outlets[port]['name'] = self.name(port)
             return self.outlets[port]['name'] == new_name
@@ -199,12 +208,14 @@ class DLI:
             print('[GET OUTLETS] hit {}'.format(self.hit))
             start = time.time()  # TIMING
         outlet_dict = {}
+        outlet_list = []
         if self.rest:
             # New dli API takes about 5 seconds to retrieve the outlet data
             timeout = self.timeout + 3 if self.timeout < 6 else self.timeout
             try:
                 r = self.dli.get(self.outlet_url, timeout=timeout)
-                outlet_list = json.loads(r.content.decode('UTF-8'))
+                # outlet_list = json.loads(r.content.decode('UTF-8'))
+                outlet_list = r.json()
             except (socket.error, TimeoutError):
                 self.reachable = False
                 self.dli = self.outlets = {}
@@ -214,7 +225,7 @@ class DLI:
                     # for _ in ["critical", "cycle_delay", "locked", "physical_state", "transient_state"]:
                     #     # nul = outlet.pop(_)
                     #     del outlet[_]
-                    if not outlet.get('error'):
+                    if not (isinstance(outlet, str) and outlet == "error") and not (isinstance(outlet, dict) and outlet.get('error')):
                         outlet_dict[idx] = {'name': outlet['name'], 'state': outlet['state']}
                         idx += 1
                     else:
@@ -223,24 +234,31 @@ class DLI:
         else:
             self.reachable = self.check_reachable(self.fqdn, port=443 if 'https' in self.scheme else 80)[0]
             if self.reachable:
-                retry = 0
-                while retry <= 2:
-                    outlet_list = self.dli.statuslist()
+                # retry = 0
+                for retry in range(0, 1):
+                    try:
+                        outlet_list = self.dli.statuslist()
+                        if outlet_list is None:  # indicates session has timed out.
+                            self.verify_legacy()
+                            outlet_list = self.dli.statuslist()
+                    except AttributeError as e:
+                        log.error(f'dlirest.py, get_dli_outlets exceptions occurred attempting to get outlet_list: {e}')
+                        continue
                     if outlet_list:  # can be None if dli suffers transient issue
                         for outlet in outlet_list:
                             outlet_dict[outlet[0]] = {'name': outlet[1], 'state': True if outlet[2].upper() == 'ON' else False}
                         break
-                    retry += 1
+                    # retry += 1
                 if not outlet_list:
                     log.error(f'[DLI GET OUTLETS] dli @ {self.fqdn} reachable, but failed to fetch statuslist (outlet_list)')
                     self.reachable = False
-                    self.dli = self.outlets = {}
+                    self.dli = self.outlets = {}  # TODO maybe update outlets in defined... see error in exec
             else:
                 self.reachable = False
                 self.dli = self.outlets = {}
         if TIMING:
-            print('[TIMING] {} get_dli_outlets: {}'.format(self.fqdn, time.time() - start))
-        return outlet_dict  # if len(outlet_dict) > 0 else None
+            print('[TIMING] {} get_dli_outlets: {}'.format(self.fqdn, time.time() - start))  # type: ignore
+        return outlet_dict
 
     def operate_port(self, port, toState=None, func='toggle'):
         '''Toggle or cycle Power on all or a specified port.
@@ -253,6 +271,9 @@ class DLI:
             'ON': True,
             'OFF': False
         }
+
+        if not self.rest:
+            self.verify_legacy()
 
         # --// SUB Toggle or Cycle Power On Specified Port \\--
         def toggle_sub(port, toState):
@@ -290,6 +311,7 @@ class DLI:
                     if not r:  # dlipower.PowerSwitch returns False if operation Success
                         return toState
                     else:
+                        # TODO need to get_session and retry, or put logic in to verify prior to ops
                         return '{} Port {} dlipower library gave an unexpected response: {}'.format(
                             self.fqdn, port, r)
                 elif func == 'cycle':
@@ -298,10 +320,10 @@ class DLI:
                             start = time.time()
                         r = self.dli.cycle(port)
                         if TIMING:
-                            print('[TIMING] {} cycle {}: {}'.format(self.fqdn, port, time.time() - start))
+                            print('[TIMING] {} cycle {}: {}'.format(self.fqdn, port, time.time() - start))  # type: ignore
                         return not r
                     else:
-                        return False  # a False response from cycle indicates port was already off nothing occured
+                        return False  # a False response from cycle indicates port was already off nothing occurred
             # -- END TOGGLE SUB --
 
         # --// Determine what the new powered state should be \\--
@@ -338,11 +360,12 @@ class DLI:
         # -- single port passed into method --
         if TIMING:
             start = time.time()
+        ret_val = []
         if isinstance(port, int):
             ret_val = toggle_sub(port, toState)
             if TIMING:
                 print('[TIMING {}] {} {} {}: {}'.format('rest' if self.rest else 'webui',
-                                                        self.fqdn, func, port, time.time() - start))  # TIMING
+                                                        self.fqdn, func, port, time.time() - start))  # type: ignore
         # -- keyword 'all' passed into method --
         elif (isinstance(port, str) and port == 'all'):
             if func.lower() == 'toggle':
@@ -364,7 +387,7 @@ class DLI:
             else:
                 print('Invalid value for func argument')  # TODO logging exception
             if TIMING:
-                print('[TIMING] {} {} {}: {}'.format(self.fqdn, func, port, time.time() - start))  # TIMING
+                print('[TIMING] {} {} {}: {}'.format(self.fqdn, func, port, time.time() - start))  # type: ignore
         # -- something else (should be list or slice) passed in --
         else:
             ret_val = []
@@ -374,7 +397,7 @@ class DLI:
                 r = toggle_sub(p, toState)
                 if TIMING:
                     print('[TIMING {}] {} {} {}: {}'.format('rest' if self.rest else 'webui',
-                                                            self.fqdn, func, p, time.time() - start))  # TIMING
+                                                            self.fqdn, func, p, time.time() - start))  # type: ignore
                 if isinstance(r, tuple):
                     ret_val.append(r[0])
                 else:
@@ -391,18 +414,35 @@ class DLI:
 
         if isinstance(ret_val, bool):
             return ret_val
-        elif ret_val <= 204:    # toggle power
+        elif isinstance(ret_val, int) and ret_val <= 204:    # toggle power
             return toState if isinstance(toState, bool) else bool_state[toState]
         else:
-            return 'An Error occured {}'.format(ret_val)
+            return 'An Error occurred {}'.format(ret_val)
 
-    def verify_session(self, url):
+    def verify_legacy(self):
+        '''Verify session is not expired for non-rest dli
+
+        For DLI lpc 7 and prior which uses the dlipower library (screen scrape), this will check if the original session
+        is expired and create a new one if it is.  It's called by the 2 methods that perform actions against the outlets
+        (operate_port, get_port_info)
+        '''
+        if not self.dli.statuslist():
+            self.dli = self.get_session(self.username,
+                                        self.password,
+                                        fqdn=self.fqdn)
+            self.log.info(f"Session with {self.fqdn} was expired. Renewed Session")
+            # TODO validate and log if still error
+
+    def verify_session(self, url: str):
         '''perform http get operation against dli if the response indicates the session is expired get a new session and retry.
 
-        Used by new rest capable dli web power switches, for all operations, given no API method is available for all operations.
+        Used by new rest capable dli web power switches (only), for operations against "all" outlets, given no API method
+        is available for all operations.
         '''
         log = self.log
         retry = 0
+        ret_val = 400
+        r = None
         while retry < 3:
             # -- attempt to perform the action --
             r = self.dli.get(url)
@@ -419,17 +459,18 @@ class DLI:
                 break
             retry += 1
 
-        if r.content.decode('UTF-8').split('URL=')[1].split('"')[0] != '/index.htm':
+        if r and r.content.decode('UTF-8').split('URL=')[1].split('"')[0] != '/index.htm':
             log.warn('[DLI VRFY SESSION] Unable to Renew Session for {}'.format(self.fqdn))
             ret_val = 400
 
         return ret_val
 
-    def get_port_info(self, port, fetch='state'):
+    def get_port_info(self, port: int, fetch: str = 'state'):
         '''
         returns Bool Representing current port state ~ True = ON
         '''
         log = self.log
+        _return = None
         if self.outlets is not None:
             if isinstance(port, int) and port <= len(self.outlets):
                 if self.rest:
@@ -447,6 +488,7 @@ class DLI:
                         log.error('[DLI] {} appears to be unreachable now'.format(_url))
                         _return = 'Error: [DLI] {} appears to be unreachable now'.format(_url)
                 else:
+                    self.verify_legacy()
                     if fetch == 'state':
                         _return = self.dli.status(port)
                         if _return.upper() == 'ON':
@@ -500,28 +542,3 @@ class DLI:
 
 if __name__ == '__main__':
     pass
-    fqdn = 'labpower1.kabrew.com'
-    # start = time.time() # TIMING
-    l1 = DLI(fqdn, username='admin', password='hpIMC!!!')
-    # print('[TIMING] get l1 session time: {}'.format(time.time() - start)) # TIMING
-    # # print(l1.s.auth)
-    # # print(l1.outlets)
-    # # print('l1-toggle', l1.toggle('all', 'off'))
-    # # range = slice(3, 7)
-    print(l1[5])
-    # # print('l1-cycle', l1.cycle(8))
-    # print('l1-toggle', l1.toggle([1, 5], 'off'))
-    # print('l1-cycle-all', l1.cycle('all'))
-    # print('l1-rename', l1.rename(1, 'Digi'))
-    l1.close()
-    # # print(l1.s.auth)
-    fqdn = 'labpower2.kabrew.com'
-    l2 = DLI(fqdn, username='admin', password='hpIMC!!!')
-    print(l2[5])
-    # # print(l2.switch.session.auth)
-    # # print(l2.outlets)
-    # print('l2-toggle', l2.toggle([1, 4]))
-    # print('l2-cycle', l2.cycle('all'))
-    # print('l2-rename', l2.rename(7, 'VACANT'))
-    l2.close()
-    # print(l2.switch.session.auth)

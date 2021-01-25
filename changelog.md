@@ -1,16 +1,19 @@
 # CHANGELOG
+***Most recent @ end of Log***
 
 - ConsolePi remote discovery via mdns, or sync to Google Drive
 - Power Outlet Control, via relay attached to GPIO or network connected tasmota flashed wifi smart-outlet.  Power on automatically when attempting to connect to console session (via `consolepi-menu`), or toggle via power sub-menu (`consolepi-menu`)
 - consolepi-menu adapter connection parameters (baud, flow, parity, data-bits) are now extracted from the associated definition in ser2net.conf if one exists, if it doesn't defaults are used (which can be changed via menu option c)
 - Added new option 's' to menu which allows you to connect to the shell on any reachable remote ConsolePis
 - Added new quick commands and an option to delete a remote ConsolePi from the local cloud cache via ```consolepi-remotes```
-    <br>**8/19/2019**
+
+### AUG 2019 *Major Update*
 - remote connections are now established through proxy script, which will prompt/kill a previous hung session.
     - Bonus, the proxy script also adds support for auto-power-on for devices linked to outlets on the remote system (having them appear in a power sub-menu will come later once I build out the API further)
 -  Added override function for most system files involved... So Custom system files won't be backed up and replaced during `consolepi-upgrade`
 -  Added option to install and configure a tftp server.
-    <br>**9/10/2019 ~ MAJOR UPDATE**
+
+### Sept 2019 *Major Update*
 -  Menu will now allow user to purge host key from known hosts and retry connection when connecting to a remote ConsolePi who's SSH key has changed.
 -  Menu Auto-sizing with multiple cols based on terminal size.  Currently will place multiple remotes in different Cols if warranted (still 1 col if enough space vertically).
 - Added Support for Digital Loggers Web Power Switches (both the newer ones with API and older models).  Separate menu for DLI outlets, the existing power menu remains for linked outlets (The existing power menu will evolve, still considering best options for how to display defined but not linked, different types, etc.)
@@ -18,7 +21,8 @@
 - Any information or error messages now display in an information pane that populates the bottom of the menu if any errors are encountered
 - Changed URI for a couple of API methods (so all match the key field in the dict they reference)
 - lots of other little tweaks
-<br>**11/07/2019**
+
+### NOV 2019
 - New rename function directly from menu.  Rename adapters already defined by `consolepi-addconsole` (or manually) or adapters that have never been defined.
 
 ### DEC 2019 *Major Update*
@@ -36,7 +40,7 @@
         - lldpd: this is useful as another mechansim to get the IP of the ConsolePi by querying the switch you've plugged it into.
         - ansible: Useful if you want to tinker with Ansible.  Not configured yet, the script just installs it.
 
-### JAN 2019 *MONSTER Update*
+### JAN 2020 *MONSTER Update*
 - Additional improvements to in menu rename function / `consolepi-addconsole`
     - Added support for adapters that don't have a serial #, this was added prior, but would actually crash the menu (oops), I finally found a crappy adapter that lacks a serial # to test with as a result that function should now work.  It will be a compromise, essentially it will either need to be the only adapter of that kind (modelid/vendorid) or always be plugged into the same USB port.
     - Added a connect option in the rename menu (So you can connect to the adapter directly from that menu... useful if you need to verify what's what.)
@@ -55,3 +59,80 @@
 - Added support for manually configured hosts (additional TELNET or ssh hosts you want to show up in the menu).  These are configured in hosts.json and support outlet linkage in the same way serial adapters do.  Just be sure the all names are unique.  This works, but needs some minor tweaks, when ssh to some devices the banner text is actually sent via stderr which is hidden until you exit the way it's setup currently.
 - The **major** part of the work in this build was to make menu-load more async.  Verification of remote connectivity is now done asynchronously each remote is verified in parallel, then the menu loads once they are all finished.  The same for power control if tasmota or dli outlets need to be queried for outlet state, this is done in the background, the menu will load and allow those threads to run in the background.  If you go to the power menu prior to them being complete, you'll get a spinner while they finish.  All of this results in a much faster menu-load.  Auto Power On when connecting to devices/hosts with linked outlets also occurs in the background on launch.
 - Plenty of other various tweaks.
+
+### APR 2020 *Biggest Update since original Posting*
+- This update was primarily an exercise in code organization (more work needs to be done here, learning on the fly a bit), breaking things up, but a lot of features were added in the process
+- Configuration File format/file changed from ConsolePi.conf to ConsolePi.yaml all configuration including optional outlets and manually defined hosts should be configured in ConsolePi.yaml
+    - During the upgrade ConsolePi.conf settings are converted for you.  power.json and hosts.json if they exist are not converted, those settings *should* still work, but very little testing is done with the old file formats so user is warned during upgrade and should change to the new format
+- The rename function for adding / changing adapter names (udev rules and connection settings) overhauled, and now works for remote adapters.
+- hosts function has additional features, you can group hosts, and determine what menu they will display in:  show_in_main: true and they will show in the main menu along with available adapters discovered locally and/or on remotes otherwise they will show in the rshell menu.
+- Outlet auto-pwr-on shows more detail about linked outlets when auto-pwr-on is invoked for a remote
+- Auto-Pwr-on works for manually defined hosts.  If it fails the initial connection it will check-wait-repeat to see if the host has booted if the initial state of the outlet was OFF, then attempt to re-connect automatically.
+- The power menu has a toggle option to show/hide associated linked devices/hosts (only connected linked devices show up, but any defined host linkage will show)
+- AutoHotSpot now runs it's own instance of dnsmasq and does not get it's config from dnsmasq.conf or /etc/dnsmasq.d - allows custom dnsmasq setup for other interfaces without conflict
+- The I broke shit fallback:  consolepi-menu will provide a prompt to launch into the simplified backup menu if the menu crashes.  I catch most exceptions, but occasionally a scenario comes up I failed to accomodate, if that happens so you're not dead in the water re the menu it will offer to launch the backup... The backup is fast and simple, and has essentially no dependencies, but it only supports local adapters (not remotes, hosts, outlets, etc)
+- The local shell option is no longer.  The menu now directly supports valid shell commands, so if you want to ping a device without exiting and re-launching you can just type `ping 10.0.30.51` from the menu prompt and it will work.
+- Added support for more OVERRIDE options in ConsolePi.yaml.  These options change the default behavior of ConsolePi i.e. 'cloud_pull_only: true'.  Will retrieve from cloud but won't update the cloud with it's information... That one is useful for the feature below:
+- ConsolePi can now be deployed to non RaspberryPis with minimal effort, including Windows Subsystem for Linux (because why not).  See more detailed explanation and install options below.
+- There is more stuff but I can't recall all of it... the [picture](#feature-summary-image) below hightlights the bulk of the feature set.
+
+### APR 2020.2.1 minor release
+- Most Significant Change is addition of support for espHome flashed outlets
+- Added Support for local UARTs.  The Pi4 actually has 6 UARTs (5 are useable), ConsolePi now supports those onboard UARTS (they will show in the menu).  See the [Local UART support (GPIO)](#local-uart-support) section for details.
+- Fixed minor issue with keyboard update to US when regulatory domain for hotspot for WLAN is set to US, issue was if user opted to not enable AutoHotSpot (a new option in last release), reg domain wasn't used but was defaulted to US.
+- Fixed Show/Hide Linked devices toggle in Power Menu for dli and espHome.  Now correctly displays just what is linked to that specific port (was showing all linked to any port on that dli/espHome device).  Also fixed display of locally defined hosts (TELNET/SSH hosts defined in ConsolePi.yaml), so they appear if linked as well.
+- Enhanced the Show/Hide Linked devices toggle to show any adapters defined, vs. previously only showing if the adapter was actually connected. If your terminal client is configured to honor ASCII coloring linked adapters that are disconnected will appear in red (Only applies to adapters, connevtivity is not verified for TELNET/SSH hosts configured in ConsolePi.yaml).
+- Fixed issue with rename function for adapters that don't present a serial #
+
+### May 2020 v2020.2.2 minor release
+  - The feature was fixed for many use-cases in v2020.2.1, but I discovered issues in some scenarios when a hub was used.  That logic was improved so mapping "lame" adapters to a specific port should now work consistently regardless of the use of hub(s).
+
+### May 2020 v2020.2.3 minor release
+  - Fix consolepi-details in some scnearios relaating to existence of outlets in config.
+  - Fix configuration parsing of yaml for bools, and related nooff setting for outlets
+  - Minor Formatting improvements to consolepi-showaliases
+
+### June 2020 v2020.2.4+ (current master ~ not pkgd into a release) significant installer improvements
+  - Support silent install facilitating automated deployment via Ansible
+  - installer creates consolepi user and offers to make it auto-launch menu on login (prev ver created a consolepi group)
+    - This is only for new installs Upgrades are not impacted.
+  - consolepi-image-creator supports mass import if ran from a ConsolePi
+
+### Sept 2020 (v2020-4.0) Sept 2020 *Major Update*
+- Major Feature add is ZTP-Orchestration and wired DHCP (fallback if no address recieved from any DHCP servers)
+  - ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DHCP.  The feature uses DHCP to trigger ZTP, and supports config file generation using jinja2 templates.  For more details see [`ConsolePi ZTP Orchestration`](reademe_content/ztp.md).
+- Fix bug with legacy digital loggers power controllers, failures would occur after the session expired, session is now being renewed when necessary.  This did not impact newer dli power controllers that support REST API.
+- Removed `apt upgrade` from `consolepi-upgrade`.  ConsolePi will only install/verify/upgrade packages related to it's operation.  Up to the user beyond that.
+
+### Sept 2020 (v2020-4.1) Sept 2020 Bug Fix
+- Fixes a bug that would result in all the optional sections from the example config being populated in the resulting default config.  If You've done a recent install this is why there were some hosts in the menu that you didn't configure.
+
+> If you've installed in the last few months, you can clean out the results of the bug by checking your ConsolePi.yaml and deleting everything below the CONFIG: section (OVERRIDES, POWER, HOSTS... essentially anything past the 'debug:' line)
+
+### Sept 2020 (v2020-4.2) Sept 2020 Bug Fix
+- Fixes issue introduced with changes made in v2020-2.4 (technically it was a merge after v2020-2.4)
+- That release introduced a change where a consolepi user is created vs. just a consolepi group. You were to be given the option to auto-launch menu for that user.
+  - Neither prompt was shown, but the user was created, and auto-launch enabled.  The bug resulted in no user input being requested.
+  - Additionally AutoHotSpot was added as a configurable option, but the prompt didn't display.  All of these worked via cmd-line option/silent install.
+  > If you did a fresh install w/ any version from v2020-2.4 - v2020-4.2 you are likely impacted.  Just use `sudo passwd consolepi` to set the password as desired.
+
+### Sept 2020 (v2020-4.3) Installer Version 53 Sept 2020 Lots of Installer Tweaks
+- This effort was primarily around the Installer and the Image Creator.
+- Installer: Tested, re-tested, made enhancements/improvements, added more imports
+- Place home/pi home/your-user /root etc. in consolepi-stage dir and run image-creator...
+  - Image Creator will import home/pi into home/pi on the image, entire directory structure.  Same for /root.
+  - Once the installer runs on the image it will also import /home/pi (redundant, but useful if you don't use the image-creator)
+  - Installer also prompts to see if you want to create new users, once created if in the consolepi-stage dir it's structure will be imported
+> So you can import .ssh keys / known_hosts and any other files/dirs you want in the users home.
+
+### Sept 2020 (v2020-4.4)
+- Added support for host specific ssh private key for [Manual Host Entries](#configuring-manual-host-entries).
+- Added gpiofan and associated systemd unit file for Variable Speed fan control
+  - I'll document the optional scripts in the near future.
+- minor typo fixes, linter clean-up, etc
+- more error prevention in rename (no rename to alias that's aready in use, no rename to alias that starts with sys root_dev prefix)
+
+### Sept 2020 (v2020-4.5)
+- Bypass ssh private key import logic for daemons
+- mv ttyAMA rules to common rules file (initially deployed to it's own rules file)
+- Additional rename error prevention (don't add new alias to ser2net if already mapped)

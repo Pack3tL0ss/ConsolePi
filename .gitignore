@@ -1,6 +1,6 @@
 # /readme_content/*.png
 # /readme_content/*.jpg
-/bak
+/bak/*
 ConsolePi.conf
 ConsolePi.yaml
 ConsolePi.cloud
@@ -19,3 +19,17 @@ cloud.data
 # venv
 .venv
 venv/
+
+# -- // ztp dir \\ --
+# ignore everything in ztp dir other than the readme
+ztp/*
+# Except this file and the readme
+# !.gitignore
+ztp/*!README
+
+# -- // device specific ssh key dir \\ --
+.ssh
+src/pypkg/consolepi/config_parser.py
+
+# Sphinx documentation
+docs/_build/

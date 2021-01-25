@@ -105,6 +105,13 @@ class MDNS_Register:
     def try_build_info(self):
         # Try sending with all data
         local = self.cpi.local
+
+        info = ServiceInfo(
+            "_consolepi._tcp.local.",
+            local.hostname + "._consolepi._tcp.local.",
+            server=f'{local.hostname}.local.'
+        )
+
         try:
             info = self.build_info()
         except struct.error as e:
@@ -139,10 +146,11 @@ class MDNS_Register:
 
         log.debug(f'[MDNS REG] Final Data set collected for {local.hostname}: \n{json.dumps(data)}')
 
+        remote_consoles = {}
         if config.cloud_svc == 'gdrive':  # pylint: disable=maybe-no-member
             cloud = GoogleDrive(local.hostname)
 
-        remote_consoles = cloud.update_files(data)
+            remote_consoles = cloud.update_files(data)
 
         # Send remotes learned from cloud file to local cache
         if len(remote_consoles) > 0 and 'Gdrive-Error' not in remote_consoles:

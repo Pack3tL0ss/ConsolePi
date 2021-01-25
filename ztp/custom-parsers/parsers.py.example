@@ -1,0 +1,67 @@
+import sys
+sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
+from consolepi import utils  # NoQA
+
+
+class Parsers:
+    def __init__(self, data):
+        self._in = data
+        self.warnings = []
+        self.error = ''
+        self.ok = True
+        self.out = self.parse()
+
+    def parse(self):
+        self.out = self._in
+        if self._in.get('interfaces', {}):
+            self.out = self.do_interfaces()
+            if not self.out['interfaces']:
+                self.ok = False
+                self.error = "No Interface data found after parse"
+        return self.out
+
+    def do_interfaces(self):
+        config_data = self._in
+        interfaces = {}
+        for cfg in config_data['interfaces']:  # should be a list of dicts
+            # TODO try except provide port that caused the issue
+            if ',' in cfg.get('port', ''):
+                ports = [x.rstrip(',') for x in cfg.get('port').replace(' - ', '-').replace(',', ', ').split()]
+                ports = utils.listify(ports)
+            else:
+                ports = utils.listify(cfg.get('port', {}))
+
+            # process range
+            for p in ports:
+                if '-' in p:
+                    if 'lag' not in p:
+                        pfx = f"{'/'.join(p.split('-')[0].split('/')[0:-1])}/"
+                        s = p.split('-')[0].split('/')[-1].strip()
+                        e = p.split('-')[1].split('/')[-1].strip()
+                    else:  # lag
+                        pfx = 'lag '
+                        s = p.split('-')[0].replace('lag', '').strip()
+                        e = p.split('-')[1].replace('lag', '').strip()
+                    for _port in range(int(s), int(e) + 1):
+                        for line in cfg.get('lines', {}):
+                            if f"{pfx}{_port}" not in interfaces:
+                                interfaces[f"{pfx}{_port}"] = [line]
+                            else:
+                                interfaces[f"{pfx}{_port}"].append(line)
+                # process single port
+                else:
+                    for line in cfg.get('lines', {}):
+                        if p not in interfaces:
+                            interfaces[p] = [line]
+                        else:
+                            interfaces[p].append(line)
+
+        # Separate lags from phy interfaces for sorting - not necessary but resulting config is in order
+        lags = {k: v for k, v in interfaces.items() if 'lag' in k}
+        for k in lags.keys():
+            del interfaces[k]
+        config_data['interfaces'] = {
+            **{i: lags[i] for i in sorted(lags, key=lambda k: int(k.split()[-1]))},
+            **{i: interfaces[i] for i in sorted(interfaces, key=lambda k: (tuple(int(_k) for _k in k.split('/'))))}
+            }
+        return config_data

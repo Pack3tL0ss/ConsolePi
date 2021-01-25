@@ -3,12 +3,12 @@
 # ConsolePi ~ Get Configuration details from user (stage 2 of install)
 # Author: Wade Wells
 
-wired_dhcp=false  # Temp until this is added as config option
+# wired_dhcp=false  # Temp until this is added as config option
 
 get_static() {
     process="get static vars"
     process_yaml static
-    [[ -z $CONFIG_FILE_YAML ]] && logit "Unable to load static variables" "ERROR" ||
+    [ -z "$CONFIG_FILE_YAML" ] && logit "Unable to load static variables" "ERROR" ||
         logit "load static vars from .static.yaml Successful"
 }
 
@@ -17,10 +17,10 @@ get_config() {
     bypass_verify=false
     selected_prompts=false
     logit "Starting get/build Configuration"
-    if [[ ! -f $CONFIG_FILE ]] && [[ ! -f $CONFIG_FILE_YAML ]]; then
+    if [ ! -f "$CONFIG_FILE" ] && [ ! -f "$CONFIG_FILE_YAML" ]; then
         found_path=$(get_staged_file_path "ConsolePi.yaml")
-        [[ -z $found_path ]] && found_path=$(get_staged_file_path "ConsolePi.conf")
-        if [[ ! -z $found_path ]] ; then
+        [ -z "$found_path" ] && found_path=$(get_staged_file_path "ConsolePi.conf")
+        if [ ! -z "$found_path" ] ; then
             logit "using provided config: ${found_path}"
             mv $found_path $consolepi_dir 2>>$log_file || logit "Error Moving staged config @ $found_path to $consolepi_dir" "WARNING"
         else
@@ -28,21 +28,23 @@ get_config() {
         fi
     fi
     process_yaml
-    if [ -z $cfg_file_ver ] || [ $cfg_file_ver -lt $CFG_FILE_VER ]; then
+    if [ -z "$cfg_file_ver" ] || [ "$cfg_file_ver" -lt "$CFG_FILE_VER" ]; then
         bypass_verify=true         # bypass verify function
         input=false                # so collect function will run (while loop in main)
         selected_prompts=true
         echo "-- NEW OPTIONS HAVE BEEN ADDED DATA COLLECTION PROMPTS WILL DISPLAY --"
     fi
     hotspot_dhcp_range
+    wired_dhcp_range
     unset process
 }
 
 do_default_config() {
     echo -e "%YAML 1.2\n---\nCONFIG:" > "$CONFIG_FILE_YAML"
     echo "  cfg_file_ver: ${CFG_FILE_VER} # ---- Do Not Delete or modify this line ---- #" >> "$CONFIG_FILE_YAML"
-    [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/cfg_file_ver/,/# --- The Remaining/p' $CONFIG_FILE_YAML.example | tail -n +2 | head -n -1 >> $CONFIG_FILE_YAML
-    [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/OVERRIDES:/,/^#.*$/p' $CONFIG_FILE_YAML.example | head -n -1 >> $CONFIG_FILE_YAML
+    # TODO remove the btmode exclusion after btmode implemented
+    [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/cfg_file_ver/,/^ *$/p' $CONFIG_FILE_YAML.example | tail -n +2 | grep -v btmode >> $CONFIG_FILE_YAML
+    [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/OVERRIDES:/,/^ *$/p' $CONFIG_FILE_YAML.example >> $CONFIG_FILE_YAML
     # -- // Prompt for interactive Mode \\ --
     header
     echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
@@ -87,6 +89,9 @@ update_config() {
     spaces "wlan_ssid: ${wlan_ssid}" "# SSID used in hotspot mode" >> $yml_temp
     spaces "wlan_psk: ${wlan_psk}" "# psk used for hotspot SSID" >> $yml_temp
     spaces "wlan_country: ${wlan_country}" "# regulatory domain for hotspot SSID" >> $yml_temp
+    spaces "wired_dhcp: ${wired_dhcp}" "# Run dhcp on eth interface (after trying as client)" >> $yml_temp
+    spaces "wired_ip: ${wired_ip}" "# Fallback IP for eth interface" >> $yml_temp
+    # spaces "btmode: ${btmode}" "# Bluetooth Mode: 'serial' or 'pan'" >> $yml_temp  # Not Implemented yet
     spaces "cloud: ${cloud}" "# enable ConsolePi cloud sync for Clustering (mdns enabled either way)" >> $yml_temp
     spaces "cloud_svc: ${cloud_svc}" "# must be gdrive (all that is supported now)" >> $yml_temp
     spaces "rem_user: ${rem_user}" "# The user account remotes should use to access this ConsolePi" >> $yml_temp
@@ -94,21 +99,31 @@ update_config() {
     spaces "debug: ${debug}" "# Turns on additional debugging" >> $yml_temp
     # echo "" >> $yml_temp
     if [[ -f $CONFIG_FILE_YAML ]] ; then
-        sed -n '/debug:/,//p' $CONFIG_FILE_YAML | tail -n +2 >> $yml_temp
-    fi
-    if [[ -f $CONFIG_FILE_YAML ]] ; then
-        cp $CONFIG_FILE_YAML $bak_dir && logit "Backed up existing ConsolePi.yaml to bak dir" ||
-            logit "Failed to Back up existing ConsolePi.yaml to bak dir"
 
+        # get all other optional config sections from existing config (POWER, HOSTS, TTYAMA)
+        awk 'matched; /^  debug:/ { matched = 1 } ' $CONFIG_FILE_YAML | awk '/^[A-Z]*$/ { matched = 1 } matched' >> $yml_temp
     fi
-    # -- // Move updated yaml to Config.yaml \\ --
-    if cat $yml_temp > $CONFIG_FILE_YAML ; then
-        chgrp consolepi $CONFIG_FILE_YAML 2>>$log_file || logit "Failed to chg group for ConsolePi.yaml to consolepi group" "WARNING"
-        chmod g+w $CONFIG_FILE_YAML 2>>$log_file || logit "Failed to make ConsolePi.yaml group writable" "WARNING"
-        rm $yml_temp
+
+    file_diff_update $yml_temp $CONFIG_FILE_YAML
+    rm $yml_temp
+
+    # TODO Move this to common as a function
+    group=$(stat -c '%G' $CONFIG_FILE_YAML)
+    if [ ! $group == "consolepi" ]; then
+        sudo chgrp consolepi $CONFIG_FILE_YAML 2>> $log_file &&
+            logit "Successfully Updated Config File Group Ownership" ||
+            logit "Failed to Update Config File Group Ownership (consolepi)" "WARNING"
     else
-        logit "Failed to Copy updated yaml Config to ConsolePi.yaml" "ERROR"
+        logit "Config File Group ownership already OK"
     fi
+    if [ ! $(stat -c "%a" $CONFIG_FILE_YAML) == 664 ]; then
+        sudo chmod g+w $CONFIG_FILE_YAML &&
+            logit "Config File Permissions Updated (group writable)" ||
+            logit "Failed to make Config File group writable" "WARNING"
+    else
+        logit "Config File Group Permissions already OK"
+    fi
+
 
     if [[ -f $CONFIG_FILE ]] ; then
         echo "ConsolePi now supports a new Configuration format and is configured via ConsolePi.yaml"
@@ -149,9 +164,16 @@ hotspot_dhcp_range() {
     wlan_dhcp_end=$baseip".150"
 }
 
+# -- Automatically set the DHCP range based on the eth IP provided --
+wired_dhcp_range() {
+    baseip=`echo $wired_ip | cut -d. -f1-3`   # get first 3 octets of wired_ip
+    wired_dhcp_start=$baseip".101"
+    wired_dhcp_end=$baseip".150"
+}
+
 collect() {
     # -- PushBullet  --
-    if ! $selected_prompts || [ -z $push ]; then
+    if ! $selected_prompts || [ -z "$push" ]; then
         header
         prompt="Configure ConsolePi to send notifications via PushBullet"
         user_input $push "${prompt}"
@@ -188,7 +210,7 @@ collect() {
 
 
     # -- OpenVPN --
-    if ! $selected_prompts || [ -z $ovpn_enable ]; then
+    if ! $selected_prompts || [ -z "$ovpn_enable" ]; then
         header
         prompt="Enable Auto-Connect OpenVPN"
         user_input $ovpn_enable "${prompt}"
@@ -222,13 +244,14 @@ collect() {
     fi
 
     # -- HotSpot  --
-    if ! $selected_prompts || [ -z $hotspot ]; then
+    if ! $selected_prompts || [ -z "$hotspot" ]; then
         header
         echo -e "\nWith the Auto HotSpot Feature Enabled ConsolePi will do the following on boot:"
         echo "  - Scan for configured SSIDs and attempt to connect as a client."
         echo -e "  - If no configured SSIDs are found, it will Fallback to HotSpot Mode and act as an AP.\n"
         prompt="Enable Automatic Fallback to HotSpot on wlan0"
-        [[ -z $hotspot ]] && hotspot=true
+        # [[ -z "$hotspot" ]] && hotspot=true
+        hotspot=${hotspot:-true}
         user_input $hotspot "${prompt}"
         hotspot=$result
 
@@ -251,34 +274,81 @@ collect() {
             prompt="Enter the psk used for the HotSpot SSID"
             user_input $wlan_psk "${prompt}"
             wlan_psk=$result
-
-            # -- HotSpot country --
-            header
-            prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
-            user_input "US" "${prompt}"
-            wlan_country=$result
         fi
     fi
 
-    # -- cloud --
-    if ! $selected_prompts || [ -z $cloud ]; then
+    # -- wifi/hotspot country --
+    if ! $selected_prompts || [ -z "$wlan_country" ]; then
         header
-        [ -z $cloud ] && cloud=false
+        prompt="Enter the 2 character regulatory domain (country code) used for the HotSpot SSID"
+        user_input "US" "${prompt}"
+        wlan_country=$result
+    fi
+
+    # -- Enable DHCP on eth interface --
+    if ! $selected_prompts || [ -z "$wired_ip" ]; then
+        header
+        echo -e "\nWith the ${_green}Wired fallback to DHCP Server${_norm} Feature Enabled ConsolePi will do the following when the wired interface is connected (eth0):"
+        echo -e "  - Use native dhcpcd mechanism to fallback to Static IP if no address is recieved from a DHCP Server"
+        echo -e "  - Start a DHCP Server on the wired interface (ConsolePi will act as a DHCP server for other clients on the network)"
+        echo -e "  - If WLAN is connected and has internet access, wired traffic will NAT out the wlan interface.\n"
+        echo
+        echo -e "  This feature is intented to aid the configuration of Factory Default hardware or via oobm/isolated network."
+        echo -e "\n  *** ${_lred}${_blink}Use with caution${_norm} ***\n"
+        echo -e "  Running a DHCP server on a production network can lead to client connectivity issues."
+        echo -e "  This function relies on a fall-back mechanism, only enabling the DHCP server after failure to receive an address"
+        echo -e "  as a client.  However care should still be taken.\n"
+        echo -e "  * The current behavior is once it has fallen back, and the DHCP Server is started, it stays that way until reboot"
+        echo -e "    or you disable it manually ${_cyan}sudo systemctl stop consolepi-wired-dhcp${_norm}\n"
+        # echo -e "  - If an openvpn tunnel is established, The Tunnel network will be shared with wired clients."
+        prompt="Do you want to run DHCP Server on eth0 (Fallback if no address as client)"
+        wired_dhcp=${wired_dhcp:-false}
+        user_input $wired_dhcp "${prompt}"
+        wired_dhcp=$result
+        if $wired_dhcp; then
+            prompt="What IP do you want to assign to eth0"
+            user_input ${wired_ip:-"10.12.0.1"} "${prompt}"
+            wired_ip=$result
+            wired_dhcp_range
+        fi
+    fi
+
+    # -- Bluetooth Mode --
+    # if ! $selected_prompts || [ -z "$btmode" ]; then
+    #     header
+    #     echo -e "\nBluetooth Configuration Options:\n"
+    #     echo -e "  1. Serial: BT client would connect to ConsolePi via rfcomm/virtual com port"
+    #     echo -e "  2. PAN (personal area network): BT Client would connect to ConsolePi via SSH"
+    #     echo
+    #     [ -z "$btmode" ] && btmode=serial
+    #     while [ "$result" != "1" ] && [ "$result" != "2" ]; do
+    #         prompt="How do you want BlueTooth Configured (1/2)"
+    #         user_input "NUL" "${prompt}"
+    #         [ "$result" != "1" ] && [ "$result" != "2" ] &&
+    #             echo -e "\n${_lred}Invalid Response $result${_norm}: Enter 1 for Serial or 2 for PAN\n"
+    #     done
+    #     [ $result == "1" ] && btmode=serial || btmode=pan
+    # fi
+
+    # -- cloud --
+    if ! $selected_prompts || [ -z "$cloud" ]; then
+        header
+        # [ -z "$cloud" ] && cloud=false
+        cloud=${cloud:-false}
         user_input $cloud "Do you want to enable ConsolePi Cloud Sync with Gdrive"
         cloud=$result
         cloud_svc="gdrive" # only supporting gdrive for cloud sync
     fi
 
     # -- rem_user --
-    if ! $selected_prompts || [ -z $rem_user ]; then
+    if ! $selected_prompts || [ -z "$rem_user" ]; then
         header
-        [ -z $rem_user ] && rem_user=$iam
-        echo
+        [ -z "$rem_user" ] && rem_user=$iam
         echo "If you have multiple ConsolePis they can discover each other over the network via mdns"
         echo "and if enabled can sync via Google Drive."
         echo
         echo "The Remote User is typically pi but can be any user given they are members of"
-        echo "the dialout and consolepi groups.  Remotes connect via ssh"
+        echo "the dialout and consolepi groups.  Remotes connect via ssh."
         echo
         user_input $rem_user "What user should remote ConsolePis use to connect to this ConsolePi"
         rem_user=$result
@@ -288,17 +358,18 @@ collect() {
     fi
 
     # -- power Control --
-    if ! $selected_prompts || [ -z $power ]; then
+    if ! $selected_prompts || [ -z "$power" ]; then
         header
         prompt="Do you want to enable ConsolePi Power Outlet Control"
-        [ -z $power ] && power=false
+        # [ -z "$power" ] && power=false
+        power=${power:-false}
         user_input $power "${prompt}"
         power=$result
         if $power; then
-            echo -e "\nTo Complete Power Control Setup you need to populate the power section of /etc/ConsolePi/ConsolePi.yaml"
-            echo -e "You can copy and edit ConsolePi.yaml.example.  Ensure you follow proper yaml format"
+            echo -e "\nTo Complete Power Control Setup you need to populate the ${_cyan}POWER:${_norm} section of /etc/ConsolePi/ConsolePi.yaml"
+            echo -e "Refer to GitHub or ConsolePi.yaml.example for examples.  Ensure you follow proper yaml format"
             echo -e "\nConsolePi currently supports Control of GPIO controlled Power Outlets (relays), IP connected"
-            echo -e "outlets running tasmota firmware, and digital-loggers web/ethernet Power Switches."
+            echo -e "outlets flashed with espHome or tasmota firmware, and digital-loggers web/ethernet Power Switches."
             echo -e "See GitHub for more details.\n"
             read -n 1 -p "Press any key to continue"
         fi
@@ -330,7 +401,12 @@ verify() {
         dots " *hotspot DHCP Range" "${wlan_dhcp_start} to ${wlan_dhcp_end}"
         dots "ConsolePi HotSpot SSID" "$wlan_ssid"
         dots "ConsolePi HotSpot psk" "$wlan_psk"
-        dots "ConsolePi HotSpot regulatory domain" "$wlan_country"
+    fi
+    dots "ConsolePi WLAN regulatory domain" "$wlan_country"
+    dots "Wired ~ Fallback to DHCP Server" "$wired_dhcp"
+    if $wired_dhcp; then
+        dots "Wired Fallback IP" "$wired_ip"
+        dots " *Wired DHCP Range" "${wired_dhcp_start} to ${wired_dhcp_end}"
     fi
     dots "ConsolePi Cloud Support" "$cloud"
     $cloud && dots "ConsolePi Cloud Service" "$cloud_svc"
@@ -348,10 +424,12 @@ verify() {
 config_main() {
     get_static
     get_config
-    ! $bypass_verify && verify
-    while ! $input; do
-        collect
-        verify
-    done
+    if ! $silent; then
+        ! $bypass_verify && verify
+        while ! $input; do
+            collect
+            verify
+        done
+    fi
     update_config
 }

@@ -1,0 +1,341 @@
+#!/usr/bin/env bash
+
+DEBUG=${DEBUG:-false}  # export DEBUG=true prior to running to enable.  Currently just prevents deletion of states file
+state_file=/tmp/pre-ztp-states
+
+print_msgs() {
+    for msg in "${@}"; do
+        echo -e "$msg" |  cut -d']' -f 3- | sed -e 's/^[[:space:]]*//'
+    done
+}
+
+ztp_check_old_dnsmasq() {
+    # ConsolePi-ztp utilizes the newer interface speciffic dhcp if they are using the older method using dnsmasq.conf stop
+    if head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
+        echo "Changes were made to the way ConsolePi implements DHCP for the hotspot since you installed your ConsolePi"
+        echo "That implementation was left as is during upgrades.  for ZTP you need to transition to the new method"
+        echo "To do so:"
+        echo ' ~ restore the original /etc/dnsmasq.conf configuration with (the default) which was backed up to /etc/ConsolePi/bak'
+        echo ' ~ Alternatively you can just delete /etc/dnsmasq.conf'
+        echo " ~ Stop/disable dnsmasq if it's running/enabled: sudo systemctl stop dnsmasq && sudo systemctl disable dnsmasq"
+        echo " ~ Then run consolepi-upgrade which will prep the system with the new dnsmasq setup required for ZTP"
+        echo -e "\nScript will now exit..."
+        return 1
+    else
+        return 0
+    fi
+}
+
+ztp_do_imports() {
+    rc=0
+    . /etc/ConsolePi/installer/common.sh ; ((rc+=$?))
+    . /etc/ConsolePi/installer/config.sh ; ((rc+=$?))
+    . /etc/ConsolePi/installer/update.sh ; ((rc+=$?))
+    if [ "$rc" = 0 ]; then
+        get_static >/dev/null
+        get_config >/dev/null
+        wired_dhcp=${wired_dhcp:-false}
+        if [ ! -z "$LOG_FILE" ]; then
+            log_file=$LOG_FILE
+        else
+            ((rc+=$?))
+        fi
+    fi
+    return $rc
+}
+
+ztp_prep() {
+    process="PREP ZTP"
+
+    systemctl is-active consolepi-wired-dhcp >/dev/null && word=Restart || word=Start
+    [[ "$1" == "y" ]] && result=true ||
+        user_input true "$word DHCP for ZTP Now"
+    if $result; then
+
+        [ -f "$state_file" ] && . "${state_file}"
+        echo -e "# -- Pre ZTP States $(date +"%b %d %T") -- " > $state_file
+
+        if which in.tftpd >/dev/null 2>&1; then
+            if [[ "$(systemctl is-active tftpd-hpa 2>/dev/null)" == "active" ]]; then
+                echo "tftp_hpa_active=${tftp_hpa_active:-true}" >> $state_file
+                print_msgs "$(logit "Stopping tftpd-hpa ZTP utilizes dnsmasq tftpd")"
+                sudo systemctl stop tftpd-hpa 2>/dev/null
+            else
+                echo "tftp_hpa_active=${tftp_hpa_active:-false}" >> $state_file
+            fi
+
+            if [[ "$(systemctl is-enabled tftpd-hpa 2>/dev/null)" == "enabled" ]]; then
+                echo "tftp_hpa_enabled=${tftp_hpa_enabled:-true}" >> $state_file
+                print_msgs "$(logit "Disabling tftpd-hpa ZTP utilizes dnsmasq tftpd")"
+                sudo systemctl disable tftpd-hpa 2>/dev/null
+            else
+                echo "tftp_hpa_enabled=${tftp_hpa_enabled:-false}" >> $state_file
+            fi
+        fi
+
+        if ! $wired_dhcp; then
+            echo "wired_dhcp=false" >> $state_file
+            wired_dhcp=true
+            print_msgs "$(logit "wired-dhcp Enabled in Config")"
+        fi
+
+        if [ -z "$wired_ip" ]; then
+            prompt="What IP do you want to assign to eth0"
+            user_input ${wired_ip:-"10.12.0.1"} "${prompt}"
+            wired_ip=$result
+            wired_dhcp_range
+        fi
+
+        update_config
+        do_wired_dhcp
+        gen_dhcpcd_conf
+        return 0
+    else
+        echo
+        msg=()
+        if $wired_dhcp; then
+            _word=restart
+            _tftp=$(sudo netstat -lnpu | grep "$eth_ip:69\s.*" | awk '{print $6}')
+            _tftp_proc=$(echo "$_tftp" | cut -d'/' -f2)
+            _tftp_pid=$(echo "$_tftp" | cut -d'/' -f1)
+            [ -z "$_tftp" ] && warn=false || warn=true
+            [[ $_tftp_proc =~ "dnsmasq" ]] && ps aux | grep -v grep |grep -q "$_tftp_pid.*ConsolePi.*wired-dhcp.*" && warn=false
+            if $warn; then
+                msg+=("$(logit "Warning wired-dhcp was already enabled but $_tftp_proc is using the tftp port" "WARNING")")
+                msg+=("$(logit "This will likely cause a conflict when the ConsolePi wired-dhcp config for ZTP tries to start")")
+            fi
+        else
+            _word=start
+        fi
+        msg+=("\nUse 'consolepi-ztp -start' to $_word DHCP with ztp configuration")
+        $warn && msg+=("  This will handle temporarily stopping $_tftp_proc to prevent conflict with the dnsmasq tftp process")
+        print_msgs "${msg[@]}"
+        echo
+        $warn && return 1 || return 0
+    fi
+}
+
+check_ssh() {
+    ssh_ip=$(echo "$SSH_CONNECTION" | awk '{print $3}')
+    eth_ip="$(ip -br a | grep eth0 | awk '{print $3}'| cut -d'/' -f1)"
+    if [[ "$eth_ip" != "$wired_ip" ]] && [[ "$ssh_ip" == "$eth_ip" ]]; then
+        echo "You appear to be accessing this ConsolePi via eth0"
+        user_input false "Continue (may lose the session)"
+    else
+        result=true
+    fi
+    $result && return 0 || return 1
+}
+
+ztp_start   () {
+    echo -e "\nStarting DHCP configured for ZTP on eth0..."
+    if [[ "$eth_ip" != "$wired_ip" ]]; then
+        echo -e "Release ~ Renew dhcp on eth0: DHCP Server for ZTP will start when eth0 falls-back to static"
+        echo -e "${_bold}NOTE: ${_cyan}As a safety precation the DHCP server will only start if eth0 fails to get an IP from DHCP as a client${_norm}"
+        sudo dhcpcd -k eth0 >/dev/null && sudo dhcpcd -n eth0 >/dev/null
+    fi
+
+    if [[ "$(systemctl is-active consolepi-wired-dhcp)" != "active" ]]; then
+        sudo systemctl daemon-reload && sudo systemctl start consolepi-wired-dhcp &&
+        echo -e "\n${_bold}dhcp/ztp is now running waiting for devices to deploy${_norm}\n"
+    else
+        sudo systemctl daemon-reload && sudo systemctl restart consolepi-wired-dhcp &&
+        echo -e "\n${_bold}dhcp/ztp is now running waiting for devices to deploy${_norm}\n"
+    fi
+
+    echo -e "# -- consolepi-ztp STARTING $(date +"%b %d %T") -- " >> $log_file ||
+        echo -e '!! Error echoing ZTP start to log file'
+
+    # echo -e "To see pcaps for DHCP/TFTP you can also use 'sudo tcpdump -vnes0 -i eth0 port 67 or port 68 or tftp'\n"
+    echo
+    echo -e "Re-Run 'consolepi-ztp' to reset ZTP/dhcp configuration (start-over, fresh run)"
+    echo -e "Use 'consolepi-ztp -c' to rebuild cfg files based on template without resetting DHCP configuration"
+    echo -e "Use 'consolepi-ztp -show' to to display the current ZTP/dhcp configuration"
+    echo -e "Use 'consolepi-ztp -end' to disable ztp and restore pre-ztp state.\n"
+    echo -e "Use 'consolepi-logs -f' to monitor progress or 'consolepi-ztp -watch' for split screen logs/pcaps (DHCP & tftp)\n"
+}
+
+ztp_end(){
+    # -- Gather pre-ZTP states for restore
+    process="ZTP Remove ZTP DHCP Configuration"
+
+    # remove ztp_cli config file to ztp config dict mapping file
+    [ -f "$ZTP_CLI_FILE" ] && sudo rm "$ZTP_CLI_FILE" 2>> $log_file
+
+    # -- Backup ztp specific DHCP configs - remove from dnsmasq
+    if ls -1 /etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp* >/dev/null 2>&1; then
+        _bak="${bak_dir}ztp_$(date +%F_%H%M)"
+        mkdir -p "$_bak"
+        mv /etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp* "$_bak" 2>> $log_file &&
+            logit "DHCP rules for ZTP backed up to $_bak" ||
+            logit "Error moving DHCP rules for ZTP to $_bak check $log_file" "WARNING"
+    fi
+
+    # -- Restore pre-ztp states if state file exists
+    process="ZTP restore pre-ztp States"
+    [ -f "$state_file" ] && . "${state_file}"
+    wired_dhcp=${wired_dhcp:-false}
+    tftp_hpa_active=${tftp_hpa_active:-false}
+    tftp_hpa_enabled=${tftp_hpa_enabled:-false}
+    echo "-- consolepi ztp state file prior to removal via -end flag --" >> $log_file
+    if ! cat $state_file >> $log_file 2>&1; then
+        echo -e "\ncannot restore pre-ztp states State File ($state_file) not found\n"
+        return 1
+    fi
+    ! $DEBUG && rm $state_file
+
+    if ! $wired_dhcp; then
+        [[ "$(systemctl is-active consolepi-wired-dhcp)" == "active" ]] &&
+            sudo systemctl stop consolepi-wired-dhcp 2>>$log_file &&
+            logit "Stopped wired-dhcp (restored to pre-ztp state)"
+        [[ "$(systemctl is-enabled consolepi-wired-dhcp)" == "enabled" ]] &&
+            sudo systemctl disable consolepi-wired-dhcp 2>>$log_file &&
+            logit "Disabled wired-dhcp"
+        update_config
+        process="ZTP restore pre-ztp States"
+        logit "Set wired-dhcp back to false in config Success"
+        gen_dhcpcd_conf
+    else
+        [[ "$(systemctl is-active consolepi-wired-dhcp)" == "active" ]] &&
+            sudo systemctl daemon-reload
+            sudo systemctl restart consolepi-wired-dhcp 2>>$log_file &&
+            logit "Restarted wired-dhcp with pre-ztp config"
+    fi
+
+
+    if $tftp_hpa_enabled; then
+        [[ "$(systemctl is-enabled tftpd-hpa 2>/dev/null)" != "enabled" ]] &&
+            sudo systemctl enable tftpd-hpa >/dev/null 2>>$log_file &&
+            logit "Enabled tftpd-hpa"
+    fi
+
+    if $tftp_hpa_active; then
+        if [[ "$(systemctl is-active tftpd-hpa)" != "active" ]]; then
+            sudo systemctl start tftpd-hpa >/dev/null 2>>$log_file &&
+            logit "Started tftpd-hpa" ||
+            logit "Failed to Start tftp-hpa Check $log_file" "WARNING"
+        fi
+    fi
+    unset process
+    return 0
+}
+
+is_active() {
+    [[ ! "$1" =~ ".service" ]] && _s=$1.service || _s=$1
+    _t=$(systemctl list-unit-files "$_s")
+    if [[ "$_t" =~ "$_s" ]]; then
+        systemctl is-active "$_s" > /dev/null &&
+            _state="${_green}active${_norm}" ||
+            _state="${_lred}inactive${_norm}"
+            echo -e "${_state}"
+    else
+        echo -e "${_lred}not${_norm} installed"
+    fi
+}
+
+ztp_show() {
+    _cr=false
+    _good=${_green}+${_norm}
+    _bad=${_lred}-${_norm}
+    for _file in "$state_file" \
+                 /etc/ConsolePi/dnsmasq.d/wired-dhcp/wired-dhcp.conf \
+                 /etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp.conf \
+                 /etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-opts/ztp-opts.conf \
+                 /etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-hosts/ztp-hosts.conf
+        do
+            if [ -f "$_file" ]; then
+                echo -e "\n $_good ---- Contents of $_file ---- " && cat "$_file" && echo -e " ---\n"
+            else
+                ! $_cr && echo && _cr=true
+                ( [[ $_file =~ "ztp.conf" ]] || [[ $_file =~ "wired-dchp.conf" ]] ) &&
+                    msg="${_lred}ZTP does not appear to be ready,${_norm} run ${_cyan}'consolepi-ztp'${_norm} (with no arguments)"
+                echo -e " $_bad $_file does not exist"
+            fi
+        done
+    # echo -e "\nWired DHCP is currently $(systemctl is-active consolepi-wired-dhcp.service)"
+    systemctl is-active consolepi-wired-dhcp.service > /dev/null && tik=$_good || tik=$_bad
+    echo -e "\n $tik Wired DHCP is $(is_active consolepi-wired-dhcp.service)"
+
+    _tftp=$(sudo netstat -lnpu | grep "$eth_ip:69\s.*" | awk '{print $6}')
+    if [[ $_tftp =~ "dnsmasq" ]]; then
+        echo -e " $_good dnsmasq tftp process is listening on wired interface"
+    elif systemctl is-active tftpd-hpa >/dev/null; then
+        echo -e " $_bad tftpd-hpa is $(is_active tftpd-hpa)"
+        echo -e "    tftpd-hpa is currently running which will interfere with the ConsolePi ZTP orchistrator"
+        echo -e "    'consolepi-ztp' will stop tftpd-hpa when DHCP is started\n"
+    else
+        echo -e " $_bad dnsmasq tftp process is ${_lred}not${_norm} listening on wired interface"
+        echo -e "   This is required for ConsolePi ZTP orchestration"
+    fi
+
+    [ ! -z "$msg" ] && echo -e "$msg"
+    echo
+}
+
+ztp_help() {
+    echo
+    echo "USAGE: consolepi-ztp [OPTIONS]"
+    echo "  No arguments: Generate Configuration templates based on config, and prep DHCP for ZTP"
+    echo "  -start|-S:  Start DHCP for ZTP (only necessary if you chose not to start DHCP on initial run of consolepi-ztp)"
+    echo "  -end|-e:    Reset ConsolePi to pre-ztp state (DHCP back to orig state, revert back to tftpd-hpa if installed...)"
+    echo "  -show|-s:   Show current DHCP configuration"
+    echo "  -j2|-c:     Generate configuration templates only, do not prep DHCP for ZTP"
+    echo "  -watch|-w:  Launch byobu(tmux) session with logs and pcap to monitor ZTP progress"
+    echo "              CTRL-C then exit each pane to leave the tmux session or use byobu or tmux sequences"
+    echo
+}
+
+ztp_process_args() {
+    local args=()
+    while (( "$#" )); do
+        case "$1" in
+            *end|-e)
+                ztp_end "${@}" && exit 0 || exit 1
+                ;;
+            *show|-s)
+                ztp_show "${@}" && exit 0 || exit 1
+                ;;
+            *start|-S)
+                if [ ! -f "/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp.conf" ]; then
+                    echo
+                    echo "Start option is only useful if you chose not to start DHCP right away after the first pass"
+                    echo "ztp configuration for DHCP doesn't appear to be in place.  Please run consolepi-ztp (without args)"
+                    echo
+                    exit 1
+                else
+                    ztp_prep y && check_ssh && ztp_start && exit 0 || exit 1
+                fi
+                ;;
+            *j2|-c)  # gen/re-gen configurations only don't reset dhcp sequence
+                consolepi-py /etc/ConsolePi/src/ztp.py nodhcp && exit 0 || exit 1
+                ;;
+            *watch|-w)
+                ${src_dir}byobu-ztp-watcher.sh ; exit $?
+                ;;
+            *help)
+                ztp_help && exit 0
+                ;;
+            *)
+                echo -e "\n${_lred}Unrecognized Option $1${_norm}"
+                ztp_help && exit 1
+                ;;
+        esac
+    done
+}
+
+ztp_main() {
+    ztp_check_old_dnsmasq || exit 1                                                 # Check They don't have old dnsmasq setup
+    ztp_do_imports "${@}" || ( echo "Failed to import common functions" && exit 1 ) # import functions
+    ztp_process_args "${@}"                                                         # process command line args
+    consolepi-py /etc/ConsolePi/src/ztp.py ${@} &&                                  # Launch ztp script to parse config and configure ztp files/templates
+    ztp_prep &&                                                                     # shutdown any conflicting services save states for restore after
+    check_ssh &&                                                                    # warn if they are on an ssh session and ztp_start would result in a loss in connection
+    ztp_start                                                                       # Trigger Start of consolepi-wired-dhcp.service (eth0 specific instance)
+}
+
+case "$0" in
+    *consolepi-ztp)
+        ztp_main "${@}"
+        shift
+        ;;
+esac

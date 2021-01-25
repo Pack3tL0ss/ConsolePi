@@ -1,7 +1,9 @@
 #!/etc/ConsolePi/venv/bin/python3
 
+import string
 import subprocess
 import shlex
+from subprocess import TimeoutExpired
 import time
 import psutil
 import os
@@ -20,9 +22,30 @@ except Exception:
     loc_user = os.getenv("SUDO_USER", os.getenv("USER"))
 
 
+class Convert:
+    def __init__(self, mac):
+        self.orig = mac
+        if not mac:
+            mac = '0'
+        self.clean = ''.join([c for c in list(mac) if c in string.hexdigits])
+        self.ok = True if len(self.clean) == 12 else False
+        self.cols = ':'.join(self.clean[i:i+2] for i in range(0, 12, 2))
+        self.dashes = '-'.join(self.clean[i:i+2] for i in range(0, 12, 2))
+        self.dots = '.'.join(self.clean[i:i+4] for i in range(0, 12, 4))
+        self.tag = f"ztp-{self.clean[-4:]}"
+        self.dec = int(self.clean, 16) if self.ok else 0
+
+
+class Mac(Convert):
+    def __init__(self, mac):
+        super().__init__(mac)
+        oobm = hex(self.dec + 1).lstrip('0x')
+        self.oobm = Convert(oobm)
+
+
 class Utils:
     def __init__(self):
-        pass
+        self.Mac = Mac
 
     def user_input_bool(self, question):
         """Ask User Y/N Question require Y/N answer
@@ -122,10 +145,12 @@ class Utils:
         return ppid is None
 
     def error_handler(self, cmd, stderr, user=loc_user):
+        # TODO rather than running the command return something to the calling function instructing it to retry
+        # with new cmd
         if isinstance(cmd, str):
             cmd = shlex.split(cmd)
         if stderr and "FATAL: cannot lock /dev/" not in stderr:
-            # Handle key change Error
+            # -- // KEY CHANGE ERROR \\ --
             if "WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!" in stderr:
                 print(
                     "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
@@ -136,6 +161,7 @@ class Utils:
                     "It is also possible that a host key has just been changed."
                 )
                 while True:
+                    choice = ''
                     try:
                         choice = input(
                             "\nDo you want to remove the old host key and re-attempt the connection (y/n)? "
@@ -174,10 +200,18 @@ class Utils:
                 in stderr
             ):
                 return "Skipped - key already exists"
+
             elif "/usr/bin/ssh-copy-id: INFO:" in stderr:
                 if "sh: 1:" in stderr:
                     return "".join(stderr.split("sh: 1:")[1:]).strip()
-            # ssh cipher suite errors
+                else:
+                    if '\n' in stderr:
+                        stderr = stderr.replace('\r', '')
+                        return "".join([line for line in stderr.split('\n')
+                                        if not line.startswith('/usr/bin/ssh-copy-id: INFO:')
+                                        ]).strip()
+
+            # -- // SSH CIPHER SUITE ERRORS \\ --
             elif "no matching cipher found. Their offer:" in stderr:
                 print("Connection Error: {}\n".format(stderr))
                 cipher = stderr.split("offer:")[1].strip().split(",")
@@ -186,12 +220,23 @@ class Utils:
                     cipher = aes_cipher[-1]
                 else:
                     cipher = cipher[-1]
-                cmd += ["-c", cipher]
+                cmd += ["-o", f"ciphers={cipher}"]
 
-                print("Reattempting Connection using cipher {}".format(cipher))
-                r = subprocess.run(cmd)
-                if r.returncode:
-                    return "Error on Retry Attempt"  # TODO better way... handle banners... paramiko?
+                print(f"Reattempting Connection using cipher {cipher}")
+                # r = subprocess.run(cmd)
+                # if r.returncode:
+                #     time.sleep(3)
+                #     return "Error on Retry Attempt"  # TODO better way... handle banners... paramiko?
+                s = subprocess
+                with s.Popen(cmd, stderr=s.PIPE, bufsize=1, universal_newlines=True) as p, StringIO() as buf1:
+                    for line in p.stderr:
+                        print(line, end="")
+                        if not line.startswith('/usr/bin/ssh-copy-id: INFO:'):
+                            buf1.write(line)
+
+                    return buf1.getvalue()
+
+            # TODO handle invalid Key Exchange -o KexAlgorithms=...
             else:
                 return stderr  # return value that was passed in
 
@@ -299,15 +344,19 @@ class Utils:
                 proc = subprocess.Popen(
                     cmd, stderr=subprocess.PIPE, universal_newlines=True, **kwargs
                 )
-                err = proc.communicate(timeout=timeout)[1]
-                if err is not None and do_print:
-                    print(self.shell_output_cleaner(err), file=sys.stdout)
-                # if proc.returncode != 0 and handle_errors:
-                if err and handle_errors:
-                    err = self.error_handler(cmd, err)
 
-                proc.wait()
-                return err
+                try:
+                    err = proc.communicate(timeout=timeout)[1]
+                    if err is not None and do_print:
+                        print(self.shell_output_cleaner(err), file=sys.stdout)
+                    # if proc.returncode != 0 and handle_errors:
+                    if err and handle_errors:
+                        err = self.error_handler(cmd, err)
+
+                    proc.wait()
+                    return err
+                except (TimeoutExpired, TimeoutError):
+                    return f"Timed Out.  Host is likely unreachable."
 
     def check_install_apt_pkg(self, pkg: str, verify_cmd=None):
         verify_cmd = "which {}".format(pkg) if verify_cmd is None else verify_cmd
@@ -339,11 +388,47 @@ class Utils:
             else resp.stderr.decode("UTF-8"),
         )
 
-    def set_perm(self, file):
+    def set_perm(self, file, user: str = None, group: str = None, other: str = None):
+        _modes = {
+            'user': {    # -- user and group set by default for our purposes --
+                'r': 0,  # stat.S_IRUSR,
+                'w': 0,  # stat.S_IWUSR,
+                'x': stat.S_IXUSR
+                },
+            'group': {
+                'r': 0,  # stat.S_IRGRP,
+                'w': 0,  # stat.S_IWGRP,
+                'x': stat.S_IXGRP
+                },
+            'other': {
+                'r': stat.S_IROTH,
+                'w': stat.S_IWOTH,
+                'x': stat.S_IXOTH
+                }
+            }
+        # -- by default set group ownership to consolepi and rw for user and group
         gid = grp.getgrnam("consolepi").gr_gid
         if os.geteuid() == 0:
             os.chown(file, 0, gid)
-            os.chmod(file, (stat.S_IWGRP + stat.S_IRGRP + stat.S_IWRITE + stat.S_IREAD))
+            _perms = stat.S_IWGRP + stat.S_IRGRP + stat.S_IWUSR + stat.S_IRUSR
+            for k, v in [('user', user), ('group', group), ('other', other)]:
+                if v:
+                    # remove _perms added by this helper func by default if provided
+                    if k and (k == 'user' or k == 'group'):
+                        v = v.replace('r', '').replace('w', '')
+                    for _m in list(v.lower()):
+                        if not (_m == 'x' and os.path.isdir(file)):
+                            # print(f"Add {k}: {_m}")
+                            _perms += _modes[k][_m]
+
+            # set x for all when dir (allow cd to the dir)
+            if os.path.isdir(file):
+                # print("add x for all")
+                _perms += stat.S_IXUSR + stat.S_IXGRP + stat.S_IXOTH
+
+            # if other and 'r' in other:
+            #     _perms += stat.S_IROTH
+            os.chmod(file, (_perms))
 
     def json_print(self, obj):
         print(json.dumps(obj, indent=4, sort_keys=True))
@@ -486,6 +571,8 @@ class Utils:
                     for d in dev
                     if "/" not in d
                 }
+            else:
+                d_out = None
             # for d in dev:
             #     if '/' not in d:
             #         _pfx = pfx if pfx + d in data else pfx_else
@@ -501,11 +588,14 @@ class Utils:
                 else {d.split("/")[-1]: dev[d] for d in dev}
             )
 
-    def valid_file(self, file):
-        return os.path.isfile(file) and os.stat(file).st_size > 0
+    def valid_file(self, filepath):
+        return os.path.isfile(filepath) and os.stat(filepath).st_size > 0
 
     def listify(self, var):
-        return var if isinstance(var, list) or var is None else [var]
+        if var is None:
+            return []
+        else:
+            return var if isinstance(var, list) else [var]
 
     def get_host_short(self, host):
         """Extract hostname from fqdn

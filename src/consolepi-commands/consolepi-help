@@ -4,6 +4,7 @@ import subprocess
 import shlex
 import os
 
+
 def help_from_md():
     md = []
     with open('/etc/ConsolePi/README.md', 'r') as readme:
@@ -16,17 +17,17 @@ def help_from_md():
                 break
             if capture:
                 md.append(line)
-                
+
     with open('/tmp/help.md', 'w') as mdout:
         for line in md:
             mdout.write(line)
 
-    # cmd = "mdv -t 630.2337 -u h -x -f 'There are a few convenience commands created for ConsolePi during the automated install:39' /etc/ConsolePi/README.md"
     cmd = '/usr/bin/env bash -c "/etc/ConsolePi/venv/bin/mdv -t 884.0134 -u h -x /tmp/help.md | more"'
     subprocess.run(['bash', '-c', '. /etc/ConsolePi/installer/common.sh; header'])
     print('\n The Following is extracted from the readme.\n\n')
     subprocess.run(shlex.split(cmd))
     if os.path.isfile('/tmp/help.md'):
         os.remove('/tmp/help.md')
+
 
 help_from_md()

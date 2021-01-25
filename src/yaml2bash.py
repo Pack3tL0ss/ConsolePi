@@ -3,7 +3,7 @@
 import sys
 
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import config  # NoQA
+from consolepi import config  # type: ignore # NoQA
 
 cfg = {**config.cfg, **{"comment": "START OF OVERRIDES"},  **config.ovrd}
 
@@ -22,12 +22,19 @@ def get_config(cfg=cfg):
     '''
     for k, v in cfg.items():
         if isinstance(v, str):
-            if v.isdigit() and '.' not in v:
-                print(f'{k}={v}')
-            else:
-                print(f'{k}="{v}"')
+            # if v.isdigit() and '.' not in v:
+            #     print(f'{k}={v}')
+            # else:
+            print(f"{k}='{v}'")
+        elif isinstance(v, list):
+            v = ' '.join(v)
+            print(f'{k}=({v})')
         elif isinstance(v, bool):
             v = 'true' if v else 'false'
+            print(f'{k}={v}')
+        elif not v:
+            print(f'{k}=')
+        else:
             print(f'{k}={v}')
 
 
@@ -38,6 +45,12 @@ if __name__ == '__main__':
         elif sys.argv[1] == 'static':
             get_config(config.static)
         else:
-            print(f'Invalid Argument {sys.argv[1]}')
+            print(
+                f"\nInvalid Argument {sys.argv[1]}\n    "
+                "Valid Args:\n    "
+                "'bash': Get main Configuration (Default if no args)\n    "
+                "'static': Get static variables\n"
+                  )
+            sys.exit(1)
     else:
         get_config()

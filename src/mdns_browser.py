@@ -22,7 +22,7 @@ RESTART_INTERVAL = 300  # time in seconds browser service will restart
 
 class MDNS_Browser:
 
-    def __init__(self, log=None, show=False):
+    def __init__(self, show=False):
         self.cpi = ConsolePi()
         self.debug = config.cfg.get('debug', False)
         self.show = show
@@ -31,7 +31,7 @@ class MDNS_Browser:
         self.d_discovered = []  # used when running as daemon (doesn't reset)
         self.no_adapters = []  # If both mdns and API report no adapters for remote add to list to prevent subsequent API calls
         self.startup_logged = False
-        self.zc = None
+        self.zc = Zeroconf()
 
     def on_service_state_change(self,
                                 zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange) -> None:
@@ -45,9 +45,14 @@ class MDNS_Browser:
                     if info.properties:
                         properties = info.properties
 
-                        mdns_data = {k.decode('UTF-8'):
-                                     v.decode('UTF-8') if len(v) == 0 or not v.decode('UTF-8')[0] in ['[', '{'] else json.loads(v.decode('UTF-8'))  # NoQA
-                                     for k, v in properties.items()}
+                        try:
+                            mdns_data = {k.decode('UTF-8'):
+                                        v.decode('UTF-8') if len(v) == 0 or not v.decode('UTF-8')[0] in ['[', '{'] else json.loads(v.decode('UTF-8'))  # NoQA
+                                        for k, v in properties.items()}
+                        except Exception as e:
+                            log.exception(f"[MDNS DSCVRY] {e.__class__.__name__} occured while parsing mdns_data:\n {mdns_data}\n"
+                                          f"Exception: \n{e}")
+                            return
 
                         hostname = mdns_data.get('hostname')
                         interfaces = mdns_data.get('interfaces', [])
@@ -121,6 +126,7 @@ class MDNS_Browser:
                                                 [d['dev'].replace('/dev/', '') for d in cur_known_adapters])))
                             except TypeError as e:
                                 print(f'EXCEPTION: {e}')
+
                             print(f'\nDiscovered ConsolePis: {self.discovered}')
                             print("press Ctrl-C to exit...\n")
 
@@ -139,19 +145,17 @@ class MDNS_Browser:
                 log.warning(f'[MDNS DSCVRY] {info}: No info found')
 
     def run(self):
-        zeroconf = Zeroconf()
+        self.zc = Zeroconf()
         if not self.startup_logged:
             log.info(f"[MDNS DSCVRY] Discovering ConsolePis via mdns - Debug Enabled: {self.debug}")
             self.startup_logged = True
-        browser = ServiceBrowser(zeroconf, "_consolepi._tcp.local.", handlers=[self.on_service_state_change])  # NoQA pylint: disable=unused-variable
-        return zeroconf
+        return ServiceBrowser(self.zc, "_consolepi._tcp.local.", handlers=[self.on_service_state_change])  # NoQA pylint: disable=unused-variable
 
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         mdns = MDNS_Browser(show=True)
         RESTART_INTERVAL = 30  # when running in interactive mode reduce restart interval
-        # mdns.zc = mdns.run()
         print("\nBrowsing services, press Ctrl-C to exit...\n")
     else:
         mdns = MDNS_Browser()
@@ -159,10 +163,15 @@ if __name__ == '__main__':
     try:
         while True:
             try:
-                mdns.zc = mdns.run()
+                browser = mdns.run()
             except AttributeError:
                 # hopefully this handles "Zeroconf object has no attribute '_handlers_lock'"
                 log.warning('[MDNS BROWSE] caught _handlers_lock exception retrying in 5 sec')
+                time.sleep(5)
+                continue
+            except Exception as e:
+                # Catch any other errors, usually related to transient connectivity issues."
+                log.warning(f'[MDNS BROWSE] caught {e.__class__.__name__} retrying in 5 sec.\nException:\n{e}')
                 time.sleep(5)
                 continue
             start = time.time()

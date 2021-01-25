@@ -15,6 +15,7 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 >*Making multiple ConsolePis?  Want to re-image, but pull-over all of your existing configs?  Check out the [image creator](#3-consolepi-image-creator)!!!*
 
 ------
+<!-- prettier-ignore-start -->
 # Contents
 - [What's New](#whats-new)
 - [Features](#features)
@@ -59,51 +60,33 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 - [Tested Hardware/Software](#tested-hardware--software)
 - [ConsolePi @ Work! (Image Gallery)](#consolepi-@-work)
 - [Credits](#credits)
+<!-- prettier-ignore-end -->
 ------
 
 
 # What's New
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
+### Jan 2021 (v2021-1.0)
+  **DHCP based Automation Enhancements**
+  - Fix an issue that was overlooked, where AutoHotSpot is *not* selected and wired-dhcp is.
+  - Improve the way PushBullet Notifications are constructed/sent.
+  - Add Additional Test flags to `consolepi-pbtest`
+  - ovpn_share: true|false option in OVERRIDES of config = share VPN connection with wired devices when utilizing wired-dhcp (wired fallback to DHCP, where the uplink is the wlan.  ConsolePi will configure wired traffic to NAT out wlan, this option will do the same for OpenVPN tunnel if there is one established.).  This was added to test the functionality, it will eventually end up as a config option.
 
-### Sept 2020 (v2020-4.0) Sept 2020 *Major Update*
-- Major Feature add is ZTP-Orchestration and wired DHCP (fallback if no address recieved from any DHCP servers)
-  - ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DHCP.  The feature uses DHCP to trigger ZTP, and supports config file generation using jinja2 templates.  For more details see [`ConsolePi ZTP Orchestration`](readme_content/ztp.md).
-- Fix bug with legacy digital loggers power controllers, failures would occur after the session expired, session is now being renewed when necessary.  This did not impact newer dli power controllers that support REST API.
-- Removed `apt upgrade` from `consolepi-upgrade`.  ConsolePi will only install/verify/upgrade packages related to it's operation.  Up to the user beyond that.
+> There were a lot of other minor tweaks throughout during this timeframe.  Review commit log for details.
 
-### Sept 2020 (v2020-4.1) Sept 2020 Bug Fix
-- Fixes a bug that would result in all the optional sections from the example config being populated in the resulting default config.  If You've done a recent install this is why there were some hosts in the menu that you didn't configure.
+### Oct 2020 (v2020-5.0) *MAJOR Update!* Posted Jan 2021
+  - **Paging Support in Menu:**
+  The previous Menu supported some formatting (would build columns to utilize space more efficiently).  It lacked support for Paging when the menu content was too much for a single screen given the terminal size.  The old menu would just overrun, causing word-wrap.
+  **The New Menu Library** now supports paging.  Pages will dynamically adapt to terminal size, even if you re-size after launching the menu.  Default menu-options at bottom of menu now take less space (split into to columns)
+***I don't want to talk about the asinine amount of time I spent working out the logic for this… and there is more to come.***
+> The lag in posting this update was an attempt to re-write the re-write, or make it more elegant.  In the end I decided I should get the repo current, and create a new branch for further enhancing the menu.
 
-> If you've installed in the last few months, you can clean out the results of the bug by checking your ConsolePi.yaml and deleting everything below the CONFIG: section (OVERRIDES, POWER, HOSTS... essentially anything past the 'debug:' line)
-
-### Sept 2020 (v2020-4.2) Sept 2020 Bug Fix
-- Fixes issue introduced with changes made in v2020-2.4 (technically it was a merge after v2020-2.4)
-- That release introduced a change where a consolepi user is created vs. just a consolepi group. You were to be given the option to auto-launch menu for that user.
-  - Neither prompt was shown, but the user was created, and auto-launch enabled.  The bug resulted in no user input being requested.
-  - Additionally AutoHotSpot was added as a configurable option, but the prompt didn't display.  All of these worked via cmd-line option/silent install.
-  > If you did a fresh install w/ any version from v2020-2.4 - v2020-4.2 you are likely impacted.  Just use `sudo passwd consolepi` to set the password as desired.
-
-### Sept 2020 (v2020-4.3) Installer Version 53 Sept 2020 Lots of Installer Tweaks
-- This effort was primarily around the Installer and the Image Creator.
-- Installer: Tested, re-tested, made enhancements/improvements, added more imports
-- Place home/pi home/your-user /root etc. in consolepi-stage dir and run image-creator...
-  - Image Creator will import home/pi into home/pi on the image, entire directory structure.  Same for /root.
-  - Once the installer runs on the image it will also import /home/pi (redundant, but useful if you don't use the image-creator)
-  - Installer also prompts to see if you want to create new users, once created if in the consolepi-stage dir it's structure will be imported
-> So you can import .ssh keys / known_hosts and any other files/dirs you want in the users home.
-
-### Sept 2020 (v2020-4.4)
-- Added support for host specific ssh private key for [Manual Host Entries](#configuring-manual-host-entries).
-- Added gpiofan and associated systemd unit file for Variable Speed fan control
-  - I'll document the optional scripts in the near future.
-- minor typo fixes, linter clean-up, etc
-- more error prevention in rename (no rename to alias that's aready in use, no rename to alias that starts with sys root_dev prefix)
-
-### Sept 2020 (v2020-4.5)
-- Bypass ssh private key import logic for daemons
-- mv ttyAMA rules to common rules file (initially deployed to it's own rules file)
-- Additional rename error prevention (don't add new alias to ser2net if already mapped)
+  > If you have suggestions on different ways to accomplish this, how to organize the menu-formatting module [menu.py](src/pypkg/consolepi/menu.py), etc.  let me know.  I'm absolutely more than happy to leverage an existing module, but I was unable to find one with the flexibility I wanted (custom item numbering/prefixes, etc)
+  -  A couple of other menu options (some already existed, but were hidden options):
+      - sp: Show Ports (main-menu & rename-menu: currently still hidden in main-menu).  Switches from the default of displaying the connection settings (baud...) to showing the configured TELNET port for the device.
+      - rl (RL): (main-menu).  This is a hidden option, if you don't use cloud-sync r and `rl` are equivalent.  For those that do use cloud-sync, `rl` refreshes detected adapters, and does a refresh from locally cached data.  It doesn't sync with the cloud, just re-checks reachability for all cached remotes.
 
 # Features
 ## **Feature Summary Image**

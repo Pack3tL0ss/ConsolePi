@@ -464,7 +464,7 @@ disable_autohotspot() {
 }
 
 check_install_dnsmasq() {
-    process dnsmasq
+    process="dnsmasq"
     logit "Verify / Install dnsmasq"
 
     dnsmasq_ver=$(dnsmasq -v 2>/dev/null | head -1 | awk '{print $3}')

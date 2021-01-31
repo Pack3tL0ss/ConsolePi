@@ -3,6 +3,7 @@
 import time
 import threading
 import socket
+from typing import Any, Dict, List, Union
 from halo import Halo
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
@@ -20,7 +21,7 @@ class Remotes:
         self.log_sym_warn = log_sym.WARNING.value
         self.log_sym_error = log_sym.ERROR.value
         self.local = local
-        self.connected = False
+        self.connected: bool = False
         self.cache_update_pending = False
         self.spin = Halo(spinner="dots")
         self.cloud = None  # Set in refresh method if reachable
@@ -53,10 +54,10 @@ class Remotes:
         self.do_cloud = config.cfg["do_cloud"] = False
 
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
-    def get_remote(self, data=None, rename=False):
+    def get_remote(self, data: dict = None, rename: bool = False) -> Dict[str, Any]:
         spin = self.spin
 
-        def verify_remote_thread(remotepi, data, rename):
+        def verify_remote_thread(remotepi: str, data: dict, rename: bool) -> None:
             """sub to verify reachability and api data for remotes
 
             params:
@@ -154,7 +155,7 @@ class Remotes:
                             show=True,
                         )
                     else:
-                        log.show("Cached Remote '{}' is unreachable".format(remotepi))
+                        log.show(f"Cached Remote '{remotepi}' is unreachable")
 
             # update local cache file if rem_ip or adapter data changed
             data = self.update_local_cloud_file(data)
@@ -164,11 +165,11 @@ class Remotes:
         return data
 
     # Update with Data from ConsolePi.csv on Gdrive and local cache populated by mdns.  Update Gdrive with our data
-    def refresh(self, bypass_cloud=False):
-        remote_consoles = None
+    def refresh(self, bypass_cloud: bool = False):
+        remote_consoles: Union[List[Dict[str, Any]], None] = None
         cpiexec = self.cpiexec
         local = self.local
-        cloud_svc = config.cfg.get("cloud_svc", "error")
+        cloud_svc: str = config.cfg.get("cloud_svc", "error")
 
         # TODO refactor wait_for_threads to have an all key or accept a list
         with Halo(text="Waiting For threads to complete", spinner="dots1"):
@@ -206,10 +207,7 @@ class Remotes:
             )  # local data refreshed above
             if remote_consoles and "Gdrive-Error:" not in remote_consoles:
                 if stdin.isatty():
-                    self.spin.succeed(_msg + "\n\tFound {} Remotes via Gdrive Sync".format(
-                            len(remote_consoles)
-                        )
-                    )
+                    self.spin.succeed(f"{_msg}\n\tFound {len(remote_consoles)} Remotes via Gdrive Sync")
                     for r in remote_consoles:
                         # -- Convert Any Remotes with old API schema to new API schema --
                         if isinstance(remote_consoles[r].get("adapters", {}), list):
@@ -396,7 +394,7 @@ class Remotes:
                                     )
                                 )
 
-            for _try in range(0, 2):
+            for _ in range(0, 2):
                 try:
                     with open(local_cloud_file, "w") as cloud_file:
                         cloud_file.write(
@@ -535,8 +533,7 @@ class Remotes:
         rem_ip_list = [
             _iface_dict[_iface].get("ip")
             for _iface in _iface_dict
-            if not _iface.startswith("_")
-            and _iface_dict[_iface].get("ip") not in local.ip_list
+            if not _iface.startswith("_") and _iface_dict[_iface].get("ip") not in local.ip_list
         ]
 
         # if inbound data includes rem_ip make sure to try that first

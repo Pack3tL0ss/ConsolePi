@@ -1,8 +1,9 @@
 #!/etc/ConsolePi/venv/bin/python3
 
+import re
 import sys
 from os import system
-from typing import Tuple, Union, Any
+from typing import Dict, List, Tuple, Union, Any
 
 from consolepi import utils, log, config  # type: ignore
 
@@ -12,13 +13,21 @@ DEF_LEGEND_OPTIONS = {
     "back": ("b", "Back"),
     "next": ("n", "Next Page"),
     "x": ("x", "Exit")
-    }
+}
 COL_PAD = 3
 L_OFFSET = 1  # Number of spaces the body of menu is offset from left.
 MIN_LINES_FOR_SPLIT_COL = 2  # Min number of item entries that need to be avail in col to split next group
 
 
-def format_line(line: Union[str, bool]) -> object:
+class Line:
+    """Constructor Class for line object"""
+
+    def __init__(self, line_len: int, line_text: str) -> None:
+        self.len = line_len
+        self.text = line_text
+
+
+def format_line(line: Union[str, bool]) -> Line:
     """Format line for display in menu.
 
     Args:
@@ -29,13 +38,6 @@ def format_line(line: Union[str, bool]) -> object:
         object: Line object with len and text attributes, where len is the effective printed len with
                 any ASCII formatting characters stripped, and line is formatted (with ASCII colors)
     """
-
-    class Line:
-        """Constructor Class for line object"""
-
-        def __init__(self, line_len, line_text):
-            self.len = line_len
-            self.text = line_text
 
     if isinstance(line, bool):
         line = "{{green}}ON{{norm}}" if line else "{{red}}OFF{{norm}}"
@@ -72,17 +74,19 @@ def format_line(line: Union[str, bool]) -> object:
 
 
 class TTY:
-    def __init__(self):
+    def __init__(self) -> None:
+        self.rows: Union[int, None] = None
+        self.cols: Union[int, None] = None
         self.update()
 
-    def update(self):
+    def update(self) -> None:
         if sys.stdin.isatty():
             self.rows, self.cols = utils.get_tty_size()
         else:
             self.rows = self.cols = None
 
     @staticmethod
-    def __bool__():
+    def __bool__() -> bool:
         return sys.stdin.isatty()
 
 
@@ -92,7 +96,7 @@ tty = TTY()
 class MenuSection:
     def __init__(self, orig: Any = None, lines: list = [], width_list: list = [], rows: int = 0, cols: int = 0,
                  opts: list = [], overrides: dict = {}, update_method: Any = None, update_args: Union[list, tuple, set] = [],
-                 update_kwargs: dict = {}, name: str = None, hide: bool = False):
+                 update_kwargs: dict = {}, name: str = None, hide: bool = False) -> None:
         self.hide = hide
         self.orig = orig  # Original unformatted data
         self.lines = lines
@@ -162,12 +166,12 @@ class MenuSection:
     def get(self, attr: str, default: Any = None):
         if hasattr(self, attr):
             return getattr(self, attr)
-        elif attr in self.data_dict:
-            return self.data_dict[attr]
+        # elif attr in self.data_dict:
+        #     return self.data_dict[attr]
         elif default:
             return default
         else:
-            raise AttributeError
+            raise AttributeError(f'{self.__class__.__name__} does not have attribute {attr}')
 
 
 #
@@ -184,7 +188,13 @@ class MenuParts:
         self.prev_slice = {}
         self.this_slice = {}
         self.next_slice = {}
-        self.parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        self.parts: Union[List[MenuSection], List[None]] = [
+            self.header,
+            self.subhead,
+            self.body,
+            self.legend,
+            self.footer
+        ]
         # +1 is for prompt line
         self.rows = 0 if len(self) == 0 else (len(self) + 1)
         self.cols = self._cols()
@@ -286,47 +296,49 @@ class MenuParts:
 
         self.body_avail_rows = tty.rows - sum([p.rows for p in parts if p] or [0]) - 1  # -1 for prompt line
 
-    def diag(self):
+    def diag(self, diag_data: List[str] = None):
         tty.update()
         parts = [self.header, self.subhead, self.body, self.legend, self.footer]
-        ret = [
-            "", "",
-            f"    tty rows, cols: {tty.rows} {tty.cols}",
-            ]
+        ret = ["", ""]
+        if diag_data:
+            ret += diag_data
+
+        ret += [f"    tty rows, cols: {tty.rows} {tty.cols}"]
         ret += [
             f"    {p.name} rows, cols: {p.rows} {p.cols}"
             f"{'' if not p.name == 'body' else f' (Available Rows: {self.body_avail_rows})'}"
             for p in parts
-            ]
+        ]
         ret += [f"    Total Menu rows, cols: {self.rows} {self.cols}", ""]
         return "\n".join(ret)
 
 
 class Menu:
     def __init__(self, name: str = None, left_offset: int = L_OFFSET):  # utils, debug=False, log=None, log_file=None):
+        self.name = name
         self.left_offset = left_offset
-        self.go = True
+        self.go: bool = True
         self.def_actions = {
             "dump": self.dump_formatter_data,
             "tl": self.toggle_legend
-            }
+        }
         self.states = {True: "{{green}}ON{{norm}}", False: "{{red}}OFF{{norm}}"}
-        self.ignored_errors = []  # Populated by menu script consolepi-menu.py
-        self.log_sym_2bang = "\033[1;33m!!\033[0m"
-        self.prev_page = 1
-        self.cur_page = 1
-        self.legend_options = None
+        self.ignored_errors: List[Union[str, re.Pattern]] = []  # Populated by menu script consolepi-menu.py
+        self.log_sym_2bang: str = "\033[1;33m!!\033[0m"
+        self.prev_page: int = 1
+        self.cur_page: int = 1
+        self.legend_options: Union[Dict[str, List[str]], None] = None
         self.init_pager()
         self.page = MenuParts(name)  # Needs to come after init_pager()
-        self.actions = None  # set in print_menu()
+        self.actions: Union[Dict[str, str], None] = None  # set in print_menu()
         self.body_in = None
         self.items_in = None
         self.subs_in = None
         self.legend_in = None
-        self.menu_actions_in = None
+        self.menu_actions_in: Union[Dict[str, str], None] = None
         self.pbody = None
         self.pitems = None
-        self.psubs = None
+        self.psubs: Union[List[str], None] = None
         self.reverse = False
         self.prev_header = None
         self.tot_body_1col_rows = 0
@@ -340,20 +352,20 @@ class Menu:
 
     def init_pager(self):
         self.prev_page = self.cur_page
-        self.prev_col_width = 0  # assigned in do_pager
-        self.col_width = 0       # assigned in do_pager
-        self.page_width = 0      # assigned in do_pager
-        self.cur_page_width = 0  # assigned in pager_write_other_col
+        self.prev_col_width: int = 0  # assigned in do_pager
+        self.col_width: int = 0       # assigned in do_pager
+        self.page_width: int = 0      # assigned in do_pager
+        self.cur_page_width: int = 0  # assigned in pager_write_other_col
 
     def print_menu(
         self,
         body: list,
-        subs: list = None,
+        subs: Union[List[str], None] = None,
         header: Union[str, list] = None,
         subhead: Union[str, list] = None,
         legend: Union[dict, list] = None,
-        format_subs=False,
-        by_tens=False,
+        format_subs: bool = False,
+        by_tens: bool = False,
         menu_actions: dict = {}
     ) -> dict:
         """Format and print current menu, sized to fit terminal.  Pager implemented if required.
@@ -401,9 +413,10 @@ class Menu:
         refresh = False
         if not self.subs_in:
             self.subs_in = subs
+
         # if a refresh triggered a change to subs/body reset to page 1
         elif subs:
-            if [y for y in subs if y not in self.subs_in]:
+            if len(body) != len(self.body_in):
                 refresh = True
                 self.subs_in = subs
                 self.body_in = body
@@ -412,13 +425,6 @@ class Menu:
                 self.prev_page, self.cur_page = 1, 1
                 self.page.prev_slice = {}
                 self.reverse = False
-                self.actions = {**self.actions, **self.menu_actions_in}
-                x = 1
-                self.items_in = []
-                for idx, sec in enumerate(self.body_in):
-                    if idx > 0:
-                        x += len(self.body_in[idx - 1])
-                    self.items_in.append([y + x for y in range(len(sec))])
 
         if not self.items_in or refresh:
             x = 1
@@ -579,11 +585,11 @@ class Menu:
                     sub = f"-{sec}-{sub}"
 
                 this_lines, this_width, this_rows = self.format_section(
-                        body=sub_section,
-                        sub=sub,
-                        index=item,
-                        format_sub=format_subs
-                    )
+                    body=sub_section,
+                    sub=sub,
+                    index=item,
+                    format_sub=format_subs
+                )
 
                 item = item + len(sub_section) if not self.reverse else item - len(sub_section)
 
@@ -594,13 +600,12 @@ class Menu:
                     # -- Prev Col written update col with current lines
                     col_lines = this_lines
                     self.col_width = this_width
-                elif col_lines and len(col_lines) + len(this_lines) >= self.tot_body_1col_rows / 2 \
-                        and (
-                            not self.pages or (
-                                len(self.pages[self.cur_page]) > 0 and
-                                not (len(col_lines) + len(_section) + addl_rows) <= len(self.pages[self.cur_page])
-                                )
-                            ):
+                elif col_lines and len(col_lines) + len(this_lines) >= self.tot_body_1col_rows / 2 and (
+                    not self.pages or (
+                        len(self.pages[self.cur_page]) > 0 and not (
+                            len(col_lines) + len(_section) + addl_rows) <= len(self.pages[self.cur_page])
+                    )
+                ):
                     self.pager_write_col_to_page(col_lines, section_slices)
                     section_slices = {}
                     # -- Prev Col written update col with current lines
@@ -649,11 +654,11 @@ class Menu:
             self.pages = {**prev_pages, **self.pages}
 
         self.page.body = MenuSection(
-                                     lines=self.pages[self.cur_page],
-                                     rows=len(self.pages[self.cur_page]),
-                                     cols=self.cur_page_width,
-                                     name="body"
-                                     )
+            lines=self.pages[self.cur_page],
+            rows=len(self.pages[self.cur_page]),
+            cols=self.cur_page_width,
+            name="body"
+        )
 
         # Adds Next/Back option as appropriate for Paged Menu
         self.pager_update_legend()
@@ -680,11 +685,11 @@ class Menu:
         '''Print Menu with Empty body when no body is provided to print_menu().
         '''
         self.page.body = MenuSection(
-                            lines=[],
-                            rows=0,
-                            cols=0,
-                            name="body"
-                            )
+            lines=[],
+            rows=0,
+            cols=0,
+            name="body"
+        )
 
         self.format_subhead(
             [
@@ -717,17 +722,17 @@ class Menu:
         left_offset = self.left_offset
 
         class Size:
-            def __init__(self, lines: list = None, cols: int = None, rows: int = None):
+            def __init__(self):
                 self.body_avail_rows = body_avail_rows
                 self.left_offset = left_offset
                 self.lines = []
                 self.cols = []
                 self.rows = []
                 self.pages = {}
-                self.col_width = 0
-                self.page_width = 0
-                self.vert_cols = 0
-                self.page = 1
+                self.col_width: int = 0
+                self.page_width: int = 0
+                self.vert_cols: int = 0
+                self.page: int = 1
                 self.body = body  # original unformatted data
                 self.subs = subs
                 self.addl_rows = None
@@ -805,7 +810,7 @@ class Menu:
                             if sub and sub_section[_sub_key] != self.body[idx][0]:
                                 sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0]}"
 
-                            this_lines, this_cols, this_rows = self.format_section(
+                            this_lines, this_cols, _ = self.format_section(
                                 body=sub_section,
                                 sub=sub,
                                 index=item,
@@ -827,7 +832,7 @@ class Menu:
                                 if self.page == self.cur_page:
                                     self.vert_cols += 1
 
-                                if self.page_width + self.col_width > tty.cols:
+                                if tty.cols and self.page_width + self.col_width > tty.cols:
                                     self.page += 1
                                     if _pass == 0:
                                         self.body_avail_rows -= 1
@@ -908,12 +913,12 @@ class Menu:
                     self.pages[page] = [
                         f"{line[0]}{' ':{col_pad}}{line[1]:{self.col_width}}"
                         for line in zip(self.pages[page], col_lines)
-                        ]
+                    ]
                 else:  # Add From Right to Left when parsing slices in reverse order (Back)
                     self.pages[page] = [
                         f"{line[0]:{self.col_width}}{' ':{col_pad}}{line[1]:{self.col_width}}"
                         for line in zip(col_lines, self.pages[page])
-                        ]
+                    ]
 
                 self.page_width += (col_pad + self.col_width)
 
@@ -928,7 +933,7 @@ class Menu:
                 body=_section,
                 sub=None if subs is None else subs[i],
                 index=item, format_sub=format_subs
-                )
+            )
             if i == 0:
                 addl_rows = this_rows - len(_section)
             size = size(this_lines, this_width, this_rows)
@@ -961,7 +966,7 @@ class Menu:
 
         '''
         page = 1 if not self.pages else len(self.pages)
-        if self.page_width + (COL_PAD - self.left_offset) + self.col_width > tty.cols:
+        if tty.cols and self.page_width + (COL_PAD - self.left_offset) + self.col_width > tty.cols:
             # Increment page unless this is first col of first page
             page = page if not self.pages[page] else page + 1
 
@@ -981,7 +986,7 @@ class Menu:
                         self.page.prev_slice[idx].stop + col_slices[idx].start,
                         self.page.prev_slice[idx].stop + col_slices[idx].stop,
                         1
-                        )
+                    )
             else:
                 if idx in self.page.next_slice:
                     col_slices[idx] = slice(
@@ -1011,7 +1016,7 @@ class Menu:
         else:  # -- // PAGE NOT FULL write existing col_lines to page \\ --
             self.pager_write_other_col(col_lines, page)
             if legend_lines:
-                self.pager_write_other_col(legend_lines, page, legend=True)
+                self.pager_write_other_col(legend_lines, page)  # , legend=True)
 
         if page == self.cur_page:
             self.cur_page_width = self.page_width  # self.page_width updated in helper methods
@@ -1048,12 +1053,12 @@ class Menu:
             self.pages[page] = [
                 f"{line[0]}{' ':{col_pad}}{line[1]:{self.col_width}}"
                 for line in zip(self.pages[page], col_lines)
-                ]
+            ]
         else:  # Add From Right to Left when parsing slices in reverse order (Back)
             self.pages[page] = [
                 f"{line[0]:{self.col_width}}{' ':{col_pad}}{line[1]:{self.col_width}}"
                 for line in zip(col_lines, self.pages[page])
-                ]
+            ]
 
         self.page_width += (col_pad + self.col_width)
 
@@ -1086,14 +1091,14 @@ class Menu:
             if "next" in self.page.legend.opts:
                 self.page.legend.opts.pop(
                     self.page.legend.opts.index('next')
-                    )
+                )
 
         # Tweak order of Final Legend Options so that last entries are refresh, back, next, exit
         for opt in ["refresh", "back", "next", "x"]:
             if opt in self.page.legend.opts:
                 self.page.legend.opts.pop(
                     self.page.legend.opts.index(opt)
-                    )
+                )
                 self.page.legend.opts += [opt]
 
     def pager_next_page(self):
@@ -1213,7 +1218,7 @@ class Menu:
     def format_line(line: Union[str, bool]) -> object:
         return format_line(line)
 
-    def format_header(self, text: Union[str, list], width: int = MIN_WIDTH) -> MenuSection:
+    def format_header(self, text: Union[str, List[str]], width: int = MIN_WIDTH) -> MenuSection:
         if tty and width > tty.cols:
             width = tty.cols
         orig = text
@@ -1274,7 +1279,7 @@ class Menu:
             # -- format spacing of item entry --
             _i = f"{str(index)}. {' ' * (_end_index_len - len(str(index)))}"
             # -- generate line and calculate line length --
-            _line = " " * left_offset + _i + _line
+            _line = " " * left_offset + _i + _line.rstrip()  # rstrip handle errant tabs in dli port name
             line = format_line(_line)
             # if not self.cur_page < self.prev_page:
             if not self.reverse:

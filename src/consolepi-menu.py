@@ -257,11 +257,16 @@ class ConsolePiMenu(Rename):
                         if show_linked:
                             this_linked = config.cfg_yml.get('POWER', {}).get(r, {}).get('linked_devs', {})
                             _linked = [
-                                        '{}'.format('{{red}}' + k + '{{norm}}'
-                                                    if k not in cpi.local.adapters and '/host/' not in k else k)
-                                        for k in this_linked if _port in utils.listify(this_linked[k])
-                                        # for k in this_linked if str(_port) in this_linked[k]
-                                      ]
+                                '        {}'.format(
+                                    '{{red}}' + k + '{{norm}}'
+                                    if k not in cpi.local.adapters and '/host/' not in k else k
+                                )
+                                for k in this_linked if _port in utils.listify(this_linked[k])
+                                # for k in this_linked if str(_port) in this_linked[k]
+                            ]
+                            if _linked:
+                                _linked.insert(0, '\n      {{cyan}}Linked Devices{{norm}}:')
+                                _linked = '\n'.join(_linked).rstrip()
                             # _linked = ', '.join(_linked)
                             # _linked = ', '.join([k for k in this_linked if str(_port) in this_linked[k]])
                         _outlet = outlet['is_on'][_port]
@@ -281,19 +286,19 @@ class ConsolePiMenu(Rename):
                             'args': [outlet['type'], outlet['address']],
                             'kwargs': {'port': _port},  # , 'desired_state': not _outlet['state']},
                             'key': r
-                            }
+                        }
                         menu_actions['c' + str(item)] = {
                             'function': pwr.pwr_cycle,
                             'args': [outlet['type'].lower(), outlet['address']],
                             'kwargs': {'port': _port},
                             'key': 'dli_pwr' if outlet['type'].lower() == 'dli' else r
-                            }
+                        }
                         menu_actions['r' + str(item)] = {
                             'function': pwr.pwr_rename,
                             'args': [outlet['type'].lower(), outlet['address']],
                             'kwargs': {'port': _port},
                             'key': 'dli_pwr' if outlet['type'].lower() == 'dli' else r
-                            }
+                        }
                         item += 1
 
                 # -- // GPIO or tasmota OUTLET MENU LINE \\ --
@@ -320,18 +325,18 @@ class ConsolePiMenu(Rename):
                             'args': [outlet['type'], outlet['address']],
                             'kwargs': {'noff': outlet.get('noff', True)},
                             'key': r
-                            }
+                        }
                         menu_actions['c' + str(item)] = {
                             'function': pwr.pwr_cycle,
                             'args': [outlet['type'], outlet['address']],
                             'kwargs': {'noff': outlet.get('noff', True)},
                             'key': r
-                            }
+                        }
                         menu_actions['r' + str(item)] = {
                             'function': pwr.pwr_rename,
                             'args': [outlet['type'], outlet['address']],
                             'key': r
-                            }
+                        }
                         item += 1
                     else:   # refactored power.py pwr_get_outlets this should never hit
                         if outlet.get('is_on'):

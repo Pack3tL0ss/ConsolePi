@@ -62,7 +62,7 @@ class ConsolePiMenu(Rename):
             'rn': ['rn', 'Rename Adapters'],
             'refresh': ['r', 'Refresh'],
             'sync': ['s', 'Sync with cloud'],
-            'sp': ['sp', 'Toggle Display of associated TELNET ports'],
+            'tp': ['tp', 'Toggle Display of associated TELNET ports'],
             'con': ['c', 'Change Default Serial Settings (devices marked with ** only)'],
             'picohelp': ['h', 'Display Picocom Help'],
             'back': ['b', 'Back'],
@@ -277,10 +277,13 @@ class ConsolePiMenu(Rename):
 
                         # _state = menu.format_line(_state).text
                         _name = ' ' + _outlet['name'] if 'ON' in _state else _outlet['name']
-                        if _name != r:
-                            body.append(f"[{_state}] {_name} ({r} Port:{_port}) {_linked if _linked else ''}")
-                        else:
-                            body.append(f"[{_state}] {_name} (Port:{_port}) {_linked if _linked else ''}")
+
+                        _menu_line = f"[{_state}] {_name}"
+                        _menu_line = f"{_menu_line} ({r}" if _name.strip() != r else f"{_menu_line} ("
+                        _menu_line = f"{_menu_line} Port:{_port})" if _name.strip() != _port else f"{_menu_line})"
+                        _menu_line = f"{_menu_line} {_linked if _linked else ''}"
+                        body.append(_menu_line)
+
                         menu_actions[str(item)] = {
                             'function': pwr.pwr_toggle,
                             'args': [outlet['type'], outlet['address']],
@@ -348,20 +351,20 @@ class ConsolePiMenu(Rename):
                     menu_actions['all on'] = {
                         'function': pwr.pwr_all,
                         'kwargs': {'outlets': outlets, 'action': 'toggle', 'desired_state': True}
-                        }
+                    }
                 if True in state_list:
                     legend['before'].append('all off: Turn all outlets {{red}}OFF{{norm}}')
                     menu_actions['all off'] = {
                         'function': pwr.pwr_all,
                         'kwargs': {'outlets': outlets, 'action': 'toggle', 'desired_state': False}
-                        }
+                    }
                     legend['before'].append('cycle all: Cycle all outlets '
                                             '{{green}}ON{{norm}}{{dot}}{{red}}OFF{{norm}}{{dot}}{{green}}ON{{norm}}')
 
                     menu_actions['cycle all'] = {
                         'function': pwr.pwr_all,
                         'kwargs': {'outlets': outlets, 'action': 'cycle'}
-                        }
+                    }
                 legend['before'].append('')
                 if not show_linked:
                     legend['before'].append('L.  Show Connected Linked Devices')
@@ -832,7 +835,7 @@ class ConsolePiMenu(Rename):
         menu = Menu(name='rename_menu')
         menu.legend_options = {
             'refresh': ['r', 'Refresh'],
-            'sp': ['sp', 'Toggle Display of associated TELNET ports'],
+            'tp': ['tp', 'Toggle Display of associated TELNET ports'],
             'back': ['b', 'Back'],
             'x': ['x', 'Exit']
         }
@@ -883,8 +886,8 @@ class ConsolePiMenu(Rename):
             if not direct_launch:
                 legend['opts'].append('back')
 
-            legend['opts'].append('sp')
-            menu_actions['sp'] = self.toggle_show_ports
+            legend['opts'].append('tp')
+            menu_actions['tp'] = self.toggle_show_ports
             legend['opts'].append('refresh')
             menu_actions['b'] = None
             menu_actions['r'] = None
@@ -923,6 +926,14 @@ class ConsolePiMenu(Rename):
     def toggle_show_ports(self):
         self.show_ports = not self.show_ports
 
+    def refresh_local(self):
+        cpi = self.cpi
+        remotes = cpi.remotes
+        cpi.local.adapters = cpi.local.build_adapter_dict(refresh=True)
+        remotes.data = remotes.get_remote(data=config.remote_update())
+        # loc = cpi.local.adapters
+        # rem = remotes.data
+
     # def toggle_show_legend(self):
     #     self.menu.show_legend = not self.menu.show_legend
 
@@ -943,6 +954,7 @@ class ConsolePiMenu(Rename):
         menu_actions = {
             'h': self.picocom_help,
             'r': remotes.refresh,
+            'rl': self.refresh_local,
             'x': self.exit,
         }
         if config.power and pwr.data:
@@ -1011,6 +1023,8 @@ class ConsolePiMenu(Rename):
 
         if loc or remotes.connected:
             foot_opts.append('picohelp')
+            foot_opts.append('tp')
+            menu_actions['tp'] = self.toggle_show_ports
 
         if config.power:  # and config.outlets is not None:
             if pwr.outlets_exists:
@@ -1030,7 +1044,6 @@ class ConsolePiMenu(Rename):
         if loc or remotes.connected:  # and config.root:
             foot_opts.append('rn')
             menu_actions['rn'] = self.rename_menu
-            menu_actions['sp'] = self.toggle_show_ports
         foot_opts.append('refresh')
 
         menu_actions = menu.print_menu(outer_body, header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
@@ -1039,15 +1052,15 @@ class ConsolePiMenu(Rename):
         self.cur_menu = menu
 
         choice_c = self.wait_for_input(locs=locals(), terminate=True)
-        choice = choice_c.lower
+        # choice = choice_c.lower
         # TODO Temporary local only refresh refactor to action object
-        if choice == 'rl':
-            cpi.local.adapters = cpi.local.build_adapter_dict(refresh=True)
-            remotes.data = remotes.get_remote(data=config.remote_update())
-            loc = cpi.local.adapters
-            rem = remotes.data
-        else:
-            cpi.cpiexec.menu_exec(choice_c, menu_actions)
+        # if choice == 'rl':
+        #     cpi.local.adapters = cpi.local.build_adapter_dict(refresh=True)
+        #     remotes.data = remotes.get_remote(data=config.remote_update())
+        #     loc = cpi.local.adapters
+        #     rem = remotes.data
+        # else:
+        cpi.cpiexec.menu_exec(choice_c, menu_actions)
         return
 
     # ------ // REMOTE SHELL MENU \\ ------ #
@@ -1395,7 +1408,7 @@ if __name__ == '__main__':
     else:
         # -- // LAUNCH MENU \\ --
         cpi_menu = ConsolePiMenu()
-        while cpi_menu.go:  # TODO Don't think this is used anymore - should be able to remove
+        while cpi_menu.go:
             cpi_menu.main_menu()
-        print('hit')  # DEBUG
+        print('hit')  # TODO remove debug line... This should never hit.
         cpi_menu.exit()

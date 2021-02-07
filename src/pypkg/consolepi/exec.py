@@ -364,9 +364,12 @@ class ConsolePiExec:
                         ):
                             self.exec_auto_pwron(menu_actions[ch]["pwr_key"])
 
-                        # -- // Print pre-connect messsge if provided \\ --
+                        # -- // Print pre-connect messsage if provided \\ --
                         if menu_actions[ch].get("pre_msg"):
                             print(menu_actions[ch]["pre_msg"])
+                            c = menu_actions[ch].get("cmd")
+                            if '/dev/' in c or 'telnet' in c.lower():
+                                print(self.menu.tty)
 
                         # --// execute the command \\--
                         try:

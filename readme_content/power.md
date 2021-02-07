@@ -19,6 +19,7 @@ POWER:
   cloud_lab:
     address: 10.0.230.10
     type: tasmota
+    no_all: true
   gpio_outlet1:
     address: 4
     linked_devs: ofc-2930F-sw
@@ -72,6 +73,7 @@ POWER: <-- required section header
     type: [required, valid values = GPIO, tasmota, dli]
     address: [required, GPIO pin (BCM numbering) if type is "GPIO" OR ip address/fqdn if type is "tasmota" or "dli"]
     noff: [optional (bool) applies to GPIO default is true] ... indicates if outlet is normally off (true) or normally on (false)
+    no_all: [optional (bool)] ... indicates this outlet should *not* be included in 'all <on|off|cycle>' operations.
     relays: [required and only applies to espHome outlets] ... This is the `name` of the relay being controlled (see espHome section below)
     username: [required for dli] username used to access the dli
     password: [required for dli] password used to access the dli - use quotes if special characters such as `:` are in the password.
@@ -88,7 +90,7 @@ POWER: <-- required section header
 > *A 'normally off' outlet will revert to powered off if ConsolePi is powered-off, disconnected, or rebooted, inversely a 'normally on' outlet will revert to a powered-on state if ConsolePi is powered-off, disconnected, or rebooted.*  The default is 'normally off', use `noff: false` for 'normally on' outlets.
 
 
-![GPIO Pin Layout](readme_content/pin_layout.svg)
+![GPIO Pin Layout](pin_layout.svg)
 
 #### espHome Flashed WiFi Smart Outlets
 - You'll need a WiFi smart outlet running espHome.  There are plenty of resources online to help with that.
@@ -118,6 +120,10 @@ repeat as needed for multiple outlets.
 Then the `POWER:` section of your `ConsolePi.yaml` would include something like this:
 ```
 POWER:
+  cloud_lab:
+    address: 10.0.230.10
+    type: tasmota
+    no_all: true
   outlet1:
     address: outlet1.example.com
     type: esphome
@@ -132,7 +138,7 @@ POWER:
       AP-SERU: relay1
       Orange6: [relay2, relay3]
 ```
-The example above highlights a couple of scenarios.  A multi-port power-strip, and a single port device.  With espHome there is a "relays:" key in the config where the relays are defined.  The values should match what was configured in the yaml used to compile the binary flashed to the device, for example this is a snippet from the config used to build the binary for powerstrip1 above:
+The example above highlights the following.  Outlet `cloud_lab` has the `no_all` key set to `true`, it will be excluded from any `all` operations available in the menu (`all on`, `all off`, `cycle all`).  It also highlights A multi-port power-strip, and a single port device.  With espHome there is a `relays:` key in the config where the relays are defined.  The values should match what was configured in the yaml used to compile the binary flashed to the device, for example this is a snippet from the config used to build the binary for powerstrip1 above:
 ```
 ### THIS IS NOT AN EXAMPLE FOR ConsolePi.yaml, This is an example for espHome, more details found on espHome's site
 switch:

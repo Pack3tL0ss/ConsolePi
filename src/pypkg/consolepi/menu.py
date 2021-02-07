@@ -12,6 +12,7 @@ MAX_COLS = 5
 DEF_LEGEND_OPTIONS = {
     "back": ("b", "Back"),
     "next": ("n", "Next Page"),
+    # "tl": ("tl", "Toggle (show/hide) Legend"),
     "x": ("x", "Exit")
 }
 COL_PAD = 3
@@ -79,6 +80,15 @@ class TTY:
         self.cols: Union[int, None] = None
         self.update()
 
+    def __str__(self):
+        return "\n".join([
+            '',
+            'TTY Size:',
+            f'  rows: {self.rows}',
+            f'  cols: {self.cols}',
+            ''
+        ])
+
     def update(self) -> None:
         if sys.stdin.isatty():
             self.rows, self.cols = utils.get_tty_size()
@@ -124,7 +134,7 @@ class MenuSection:
         return len(self.lines)
 
     def __bool__(self):
-        return True if self.lines else False
+        return bool(self.lines)
 
     def __add__(self, data: Union[int, list]):
         if isinstance(data, list):
@@ -434,7 +444,10 @@ class Menu:
                     x += len(self.body_in[idx - 1])
                 self.items_in.append([y + x for y in range(len(sec))])
 
-        if not self.menu_actions_in or refresh:
+        # if not self.menu_actions_in or refresh:
+        #     self.menu_actions_in = menu_actions
+        #     self.actions = None
+        if menu_actions:
             self.menu_actions_in = menu_actions
             self.actions = None
 
@@ -1398,9 +1411,16 @@ class Menu:
                     col_2_text += [""]
                 legend_text = [
                     f"{col[0]:{col_1_max}}{' ':{col_pad}}{col[1]:{col_2_max}}" for col in zip(col_1_text, col_2_text)
-                    ]
-                width_list += [col_1_max + col_pad + col_2_max]  # +2 is for " |" appended to the end of each line
+                ]
+                width_list += [col_1_max + col_pad + col_2_max]
                 legend_text.insert(0, " " + "-" * (col_1_max + col_pad + col_2_max - 1))
+
+                # if multi-paged output, and there is room on last line of legend display toggle legend options
+                if (("b" in self.actions and self.actions["b"] and self.actions["b"].__name__ == "pager_prev_page") or 'next' in opts):
+                    _tl = " 'TL' to hide "
+                    line_slice = slice(0, len(legend_text[0]) - len(_tl) - 5)
+                    legend_text[0] = f'{legend_text[0][line_slice]}{_tl}{"-" * 5}'
+
             else:  # legend consists of only 1 item
                 legend_text = col_1_text
                 width_list = legend_width_list

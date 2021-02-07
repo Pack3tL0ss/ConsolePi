@@ -74,7 +74,7 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
   - Add Additional Test flags to `consolepi-pbtest`
   - ovpn_share: true|false option in OVERRIDES of config = share VPN connection with wired devices when utilizing wired-dhcp (wired fallback to DHCP, where the uplink is the wlan.  ConsolePi will configure wired traffic to NAT out wlan, this option will do the same for OpenVPN tunnel if there is one established.).  This was added to test the functionality, it will eventually end up as a config option.
 
-> There were a lot of other minor tweaks throughout during this timeframe.  Review commit log for details.
+> There were a lot of other minor tweaks throughout during this time frame.  Review commit log for details.
 
 ### Oct 2020 (v2020-5.0) *MAJOR Update!* Posted Jan 2021
   - **Paging Support in Menu:**
@@ -93,9 +93,9 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
 ![consolepi-menu image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePi_features.jpg)
 
 ## **Serial Console Server**
-This is the core feature of ConsolePi.  Connect USB to serial adapters to ConsolePi (or use the onboard UART(s)), then access the devices on those adapters via the ConsolePi.  Supports TELNET directly to the adapter, or connect to ConsolePi via SSH or BlueTooth and select the adapter from `consolepi-menu`.  The menu will show connection options for any locally connected adapters, as well as connections to any remote ConsolePis discovered via Cluster/sync.  The menu has a lot of other features beyond connecting to local adpaters, as shown in the image above.
+This is the core feature of ConsolePi.  Connect USB to serial adapters to ConsolePi (or use the onboard UART(s)), then access the devices on those adapters via the ConsolePi.  Supports TELNET directly to the adapter, or connect to ConsolePi via SSH or BlueTooth and select the adapter from `consolepi-menu`.  The menu will show connection options for any locally connected adapters, as well as connections to any remote ConsolePis discovered via Cluster/sync.  The menu has a lot of other features beyond connecting to local adapters, as shown in the image above.
 
-- When connecting to the ConsolePi via bluetooth, default behavior is to auto-login and launch a limitted function menu.  Given this user is automatically logged in, the user has limitted rights, hence the limitted function menu (allows access to locally attached adapters).
+- When connecting to the ConsolePi via bluetooth, default behavior is to auto-login and launch a limited function menu.  Given this user is automatically logged in, the user has limited rights, hence the limited function menu (allows access to locally attached adapters).
 - The `consolepi` user can also be configured to auto-launch the menu on login (option during install), this user doesn't auto-login, so it's created with typical rights and launches the full menu.
 > To disable auto-login via Bluetooth, modify /etc/systemd/system/rfcomm.service and remove `-a blue` from the end of the `ExecStart` line.  Then issue the following to create an empty file telling `consolepi-upgrade` not to update the file on upgrade: `touch /etc/ConsolePi/overrides/rfcomm.service`.
 
@@ -172,7 +172,7 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
   2. When consolepi-menu is launched and the `'r'` (refresh) option is selected.
 
   3. When a USB to Serial adapter is added or removed.  (This happens on a 30 second delay, so if multiple add/removes are made in a 30 second window, only 1 update to the cloud will occur, that update will include everything that happened within the 30 second window)
-      > Note: The plan is to disable this update scenario in a future release, as we only need address information for the remote, not a full snapshot of the data.  The remote is querried via API to ensure reachability and get the current list of adapters available, so we no longer need that data stored in the cloud.
+      > Note: The plan is to disable this update scenario in a future release, as we only need address information for the remote, not a full snapshot of the data.  The remote is queried via API to ensure reachability and get the current list of adapters available, so we no longer need that data stored in the cloud.
 
   >The Gdrive function uses the hostname as a unique identifier.  If all of your ConsolePis have the same hostname only one of them will be synchronized.  **Make Hostnames unique for each ConsolePi**
   >
@@ -190,7 +190,7 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 #### Local Cloud Cache
   - local cloud cache:  For both of the above methods, a local file `/etc/ConsolePi/cloud.json` is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.
 
- - The rename option in `consolepi-menu` or the `consolepi-addconsole` command supports assingment of custom aliases used to predictably identify the serial adapters with friendly names (udev rules).  If configured these names are used in `consolepi-menu`, the default device name is used if not (i.e. ttyUSB0), but that's less predictable.
+ - The rename option in `consolepi-menu` or the `consolepi-addconsole` command supports assignment of custom aliases used to predictably identify the serial adapters with friendly names (udev rules).  If configured these names are used in `consolepi-menu`, the default device name is used if not (i.e. ttyUSB0), but that's less predictable.
 
  - `consolepi-menu` does not attempt to connect to the cloud on launch, it retrieves remote data from the local cache file only, verifies the devices are reachable, and if so adds them to the menu.  To trigger a cloud update use the refresh option.
   >Note: that ConsolePi will automatically update the local cache file when it gets an IP address, or adapters are added/removed, so the refresh should only be necessary if other ConsolePis have come online since the the menu was launched.  Additionally ConsolePis will automatically discover each other via mdns if on the same network, this will automatically update the local-cache if a new remote ConsolePi is discovered.
@@ -369,7 +369,7 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
 
 - ztp(directory): if a `ztp` directory is found in the `consolepi-stage` dir, it's contents are copied to /etc/ConsolePi/ztp.  This is where your template/variable files, and custom_parsers are configured.
 
-- consolepi-post.sh: Custom post install script.  This custom script is triggered after all install steps are complete.  It runs just before the post-install message is displayed.  Use it to do anything the installer doens't cover that you normally setup on your systems.  For Example my consolepi-post.sh script does the following:
+- consolepi-post.sh: Custom post install script.  This custom script is triggered after all install steps are complete.  It runs just before the post-install message is displayed.  Use it to do anything the installer does not cover that you normally setup on your systems.  For Example my consolepi-post.sh script does the following:
   - generates an ssh key `sudu -u $iam ssh-keygen`
   - sends that key to my NAS `sudo -u $iam ssh-copy-id pi@omv 2>/dev/null`
   - Then it pulls a few files common to all my systems makes executable if it applies etc
@@ -409,7 +409,7 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 ### Silent Install
 A Silent install (Installation runs without prompts) is possible cmd line arguments provided to the installer or a config file, where the path to the config is provided to the installer via the `-C </path/to/config/file.conf>` argument.  A pre configured ConsolePi.yaml should also exist in the `consolepi-stage` dir described above.
 
-Refer to [/etc/ConsolePi/installer/install.conf.example](installer/install.conf.example) for an example config.  This command string will download it to your home dir as install.conf and open it in nano for editting.
+Refer to [/etc/ConsolePi/installer/install.conf.example](installer/install.conf.example) for an example config.  This command string will download it to your home dir as install.conf and open it in nano for editing.
 ```
 wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.conf.example -O ~/install.conf && nano ~/install.conf
 ```
@@ -476,7 +476,7 @@ mkdir consolepi-stage
 sudo cp ConsolePi.yaml.example ~/consolepi-stage/ConsolePi.yaml
 sudo nano ConsolePi.yaml
 ```
-> This exaple coppies the configuration to the stage directory to highlight that function (importing settings from the stage directory), you could also place the configured `ConsolePi.yaml` file in `/etc/ConsolePi`.
+> This example copies the configuration to the stage directory to highlight that function (importing settings from the stage directory), you could also place the configured `ConsolePi.yaml` file in `/etc/ConsolePi`.
 >
 > *NOTE:* pre-staging only occurs on the initial install, not when using `consolepi-upgrade`.
 
@@ -503,7 +503,7 @@ From an Existing ConsolePi:
 Using a Linux System (Most distros should work only requirement is a bash shell ... tested on RaspiOS and Mint) enter the following command:
 - `curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/consolepi-image-creator.sh  && sudo chmod +x consolepi-image-creator.sh`
 - That will download the image creator and make it executable.
-- The image creator supports both command line arguments and a configuration file (where the same settings configureable as cmd line arguments can be configured in file... handy for re-use).
+- The image creator supports both command line arguments and a configuration file (where the same settings configurable as cmd line arguments can be configured in file... handy for re-use).
 - `curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/consolepi-image-creator.conf` To get the optional conf file for the image creator.  The config file will be automatically imported if it's in cwd (current working directory).
 
 #### **ConsolePi_image_creator brief summary:**
@@ -552,7 +552,7 @@ Examples:
 #    mass_import=true will bypass the prompt and do the import
 #    mass_import=false will bypass the prompt and will not perform the import
 # edit: Not Set (Will Prompt User)
-#    edit=true will bypass the prompt and open the staged ConsolePi.yaml for editting
+#    edit=true will bypass the prompt and open the staged ConsolePi.yaml for editing
 #    edit=false will bypass, the prompt ConsolePi.yaml will remain as imported
 # hotspot_hostname: Not Set (Will Prompt User)
 #    edit=true will pre-configure the hostname on the image to match the HotSpot SSID
@@ -575,8 +575,8 @@ Examples:
 - create a quick command 'consolepi-install' to simplify the command string to pull the installer from this repo and launch.  If cmd_line= argument is provided to consolepi-image-creator.sh those arguments are passed on to the auto-install.
 - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled with `--auto_install=false`.
   > If you set `--auto_install=false`, `--cmd_line=...` is ignored.  You would specify arguments for the installer manually.
-- If the `consolepi-image-creator.sh` script is ran from a ConsolePi, the script will detect that it's a ConsolePi and offer to pre-staage it's existing settings.  If a file has alredy been pre-staged (via consolepi-stage dir) it will skip it.  It will give you the chance to edit ConsolePi.yaml if pre-staged, so you can deploy multiple ConsolePis and edit the specifics for each as you stage them.
-- Entire home directory imports:  If you place /root and/or /home/pi inside the consolepi-stage directory.  Those contents/subdirs will be imported to the respective users directory on the image.
+- If the `consolepi-image-creator.sh` script is ran from a ConsolePi, the script will detect that it's a ConsolePi and offer to pre-stage it's existing settings.  If a file has already been pre-staged (via consolepi-stage dir) it will skip it.  It will give you the chance to edit ConsolePi.yaml if pre-staged, so you can deploy multiple ConsolePis and edit the specifics for each as you stage them.
+- Entire home directory imports:  If you place /root and/or /home/pi inside the consolepi-stage directory.  Those contents/sub-dirs will be imported to the respective users directory on the image.
   - You can even pre-stage a users home directory for a user that doesn't exist.  When the installer runs, you are given the option to create new users.  Once created if a folder is found in consolepi-stage for that user (i.e. `home/pi/consolepi-stage/home/larry`), the contents will be copied from the `consolepi-stage` dir to `/home/larry`.
 
 The install script (not this image-creator, the installer that actually installs ConsolePi) will look for and if found import a number of items from the consolepi-stage directory.  Gdrive credentials, ovpn settings, ssh keys refer to *TODO link to section highlighting imports*
@@ -678,16 +678,17 @@ Once Complete you place the newly blessed micro-sd in your raspberryPi and boot.
 
 For my use case I manually installed these, but depending on the system/use-case you could use the installer in the same method described above. *results may vary :)*
 
+> Testing and extending the installer to natively detect and support installation on non RaspberryPi devices is planned for a future release.  It currently has not been tested.
+
 The Use Cases
-  1. ConsolePi running on a Linux Mint LapTop
+  1. ConsolePi running on a Linux Mint laptop
       - desire was to be able to load the menu, see the remotes, and use a locally connected adapter if I wanted, but to only sync one way (discover remote ConsolePis, but don't advertise to them).  This is because the laptop is used ad-hoc and if I'm using it I'm on it, not remote.
       - Install Process was simply (this is from memory so might be off a bit):
       ```bash
       sudo apt install python3-pip virtualenv git
       cd /tmp
       git clone https://github.com/Pack3tL0ss/ConsolePi.git
-      cd consolepi
-      cd /tmp/ConsolePi
+      cd ConsolePi  # Should now be in /tmp/ConsolePi
       python3 -m virtualenv venv
       sudo mv /tmp/ConsolePi /etc
       sudo cp /etc/ConsolePi/src/consolepi.sh /etc/profile.d && . /etc/profile.d/consolepi.sh # <-- adds consolepi-commands to PATH
@@ -703,13 +704,17 @@ The Use Cases
       Select option `r` (refresh) if cloud enabled and creds in place.
         If you've completed [Google Drive Setup](readme_content/gdrive.md), and need to authorize ConsolePi for the first time launch the menu with the `cloud` argument (`consolepi-menu cloud`) (then select the `r` (refresh) option).  This is only required to create the credential files for the first time, you can use `consolepi-menu` without arguments to launch after the creds have been created.
 
-        *I think that's it.  So the above will allow use of the menu on the LapTop, will detect any local adapters if any are plugged in, will discover and allow connection to any remotes, manually defined hosts, power outlets, etc, but will not advertise itself to any other ConsolePis*
+        *I think that's it.  So the above will allow use of the menu on the LapTop, will detect any local adapters if any are plugged in, will discover and allow connection to any remotes, manually defined hosts, power outlets, etc, but will not advertise itself to any other ConsolePis.*
+
+        > If you did want the system to advertise itself on the network, so other ConsolePis could discover it:  Repeat the commands above related to `consolepi-mdnsbrowse.service` but swap in `consolepi-mdnsreg.service`.
 
   2. ConsolePi running on wsl-ubuntu (Windows Subsystem for Linux)
       - Use Case... I just wanted to see if it would work.  I also have it open a lot so handy to be able to just run from there.
       - No local-adapters wsl would be remote only.
       - Install process: Same as above with the exception of leave out the consolpi-mdnsbrowse bit (no systemd on wsl)
       - It works as expected, with the minor caveat that it's only source to get remote details is via cloud-sync.  Adapter data is still refreshed on menu-load by querying the remote directly.  You also can not create the cloud credentials files (do the initial Authorization) in wsl.  That needs to be done on another system and copied over.
+
+  > For Alternative installs.  Use `consolepi-sync` to update ConsolePi rather than `consolepi-upgrade`.  *or* just `git pull` from the `/etc/ConsolePi` directory.  `consolepi-upgrade` is the installer (which will detect ConsolePi is already installed and run as upgrade), has not been tested on non RaspberryPi installs yet.
 
 # ConsolePi Usage
 
@@ -765,7 +770,7 @@ HOSTS:
 
 ### Local UART Support
 
-ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 actually has 6 UARTs onboard (5 useable).  The additional UARTs would need to be enabled.  The examples below should get you there if you want to make use of the extra UARTs, obviously you can search the internet or refer to the Pi4 [datasheet](https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2711/rpi_DATA_2711_1p0.pdf) for info beyond that.
+ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 actually has 6 UARTs onboard (5 useable).  The additional UARTs would need to be enabled.  The examples below should get you there if you want to make use of the extra UARTs, obviously you can search the internet or refer to the Pi4 [data-sheet](https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2711/rpi_DATA_2711_1p0.pdf) for info beyond that.
 
 >Note: The RaspberryPis onboard UARTs are TTL level.  This is useful for connecting to other devices with TTL level UARTs (i.e. Another Rpi, Arduino, or Aruba APs that used the flat 4 pin connector (The grey Aruba Adapter used to connect to these APs `AP-SER` has a TTL to RS232 level shifter built into the cable)).  To use these to connect to RS232 ports typically found on Network Hardware and other equipment you need a ttl<-->RS232 level shifter i.e. (max232 family).
 
@@ -783,7 +788,7 @@ ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 a
   sudo cp /etc/ConsolePi/src/10-ConsolePi.rules /etc/udev/rules.d  # copy the new file template to the rules dir
   cat ~/10-ConsolePi.rules  # cat the old file contents.
   # Select and copy only the lines with aliases that were previously configured
-  sudo nano /etc/udev/rules.d/10-ConsolePi.rules  # open the new rules file for editting
+  sudo nano /etc/udev/rules.d/10-ConsolePi.rules  # open the new rules file for editing
   # paste in the lines with aliases from the previous rules file, in the same section they existed previously
   # Be sure not to remove any of the existing comments/lines
   # repeat cat, copy, edit, paste as needed if content existed in multiple sections.

@@ -67,6 +67,13 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 # What's New
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
+### Feb 2021 (v2021-1.1)
+  - Fix: dhcpcd.exit-hook had an issue that impacted shared vpn on wired, a previously undocumented feature.
+  - Fix: menu item mapping, when a refresh resulted in an additional adapter being added.
+  - Enhancement: Expose previously hidden 'tl' and 'tp' menu items.
+  - Enhancement: Display current tty size when connecting to a serial or TELNET device.
+    >Handy when connecting to a device that needs the terminal adjusted to use the full display size.
+
 ### Jan 2021 (v2021-1.0)
   **DHCP based Automation Enhancements**
   - Fix an issue that was overlooked, where AutoHotSpot is *not* selected and wired-dhcp is.
@@ -92,7 +99,7 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
 ## **Feature Summary Image**
 ![consolepi-menu image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePi_features.jpg)
 
-## **Serial Console Server**
+## Serial Console Server
 This is the core feature of ConsolePi.  Connect USB to serial adapters to ConsolePi (or use the onboard UART(s)), then access the devices on those adapters via the ConsolePi.  Supports TELNET directly to the adapter, or connect to ConsolePi via SSH or BlueTooth and select the adapter from `consolepi-menu`.  The menu will show connection options for any locally connected adapters, as well as connections to any remote ConsolePis discovered via Cluster/sync.  The menu has a lot of other features beyond connecting to local adapters, as shown in the image above.
 
 - When connecting to the ConsolePi via bluetooth, default behavior is to auto-login and launch a limited function menu.  Given this user is automatically logged in, the user has limited rights, hence the limited function menu (allows access to locally attached adapters).
@@ -103,7 +110,7 @@ For guidance on USB to serial adapters check out the sh#t list [here](adapters.m
 
 > There are some lame adapters that don't burn a serial # to the chip, this makes assigning a unique name/TELNET port more challenging).  The link above is a page where we note what chipsets are solid and which ones are a PITA.
 
-## **AutoHotSpot**
+## AutoHotSpot
 
 Script runs at boot (can be made to check on interval via Cron if desired).  Looks for pre-defined SSIDs, if those SSIDs are not available then it automatically goes into hotspot mode and broadcasts its own SSID.  In HotSpot mode user traffic is NAT'd to the wired interface if the wired interface is up.
 
@@ -111,14 +118,15 @@ When ConsolePi enters hotspot mode, it first determines if the wired port is up 
 
 > If a domain is provided to the wired port via DHCP, and the hotspot is enabled ConsolePi will distribute that same domain via DHCP to clients.
 
-## **Automatic OpenVPN Tunnel**
+## Automatic OpenVPN Tunnel
 
 When an interface receives an IP address ConsolePi will Automatically connect to an OpenVPN server under the following conditions:
 - It's configured to use the OpenVPN feature, and the ConsolePi.ovpn file exists (an example is provided during install)
 - ConsolePi is not on the users home network (determined by the 'domain' handed out by DHCP)
 - The internet is reachable via the interface.  (Checked by pinging a configurable common internet reachable destination)
+- When wired DHCP fallback is enabled and `ovpn_share: true` is set in the optional `OVERRIDES:` section of ConsolePi.yaml.  The vpn connection will be shared with any devices connected to the wired interface (the automation will add the NAT rules).
 
-##  **Automatic PushBullet Notification**
+## Automatic PushBullet Notification
 
 *(Requires a PushBullet Account, API key, and the app / browser extension.)*
 
@@ -132,7 +140,7 @@ An additional message is sent once a tunnel is established if the Automatic Open
 
 Each Time a Notification is triggered **all** interface IPs are sent in the message along with the ConsolePi's default gateway(s).
 
-## **Automatic Wired DHCP Fallback**
+## Automatic Wired DHCP Fallback
 
 **Use with caution**
 
@@ -142,11 +150,11 @@ This is useful when configuring factory-default devices, or on an isolated stagi
 
 This function also:
 - Configures traffic from the wired interface to NAT out of the WLAN interface if the WLAN has an internet connection. (The reverse of Auto-HotSpot)
-- Optionally Configure wired traffic to share access to the OpenVPN tunnel if established (via Auto-OpenVPN)
+- Optionally, with `ovpn_share: true` set in the optional `OVERRIDES:` section of ConsolePi.yaml wired devices will share access to the OpenVPN tunnel if established (via Auto-OpenVPN).
 
 > The [ZTP Orchestration](readme_content/ztp.md) feature will enable wired fallback to static/DHCP Server when you run `consolepi-ztp`.  `consolepi-ztp -end` restores everything to pre-ZTP state.  You do not need to enable it if ZTP is your only need for it `consolepi-ztp` will handle that.
 
-## **ConsolePi Cluster / Cloud Sync**
+## ConsolePi Cluster / Cloud Sync
 
 The Cluster feature allows you to have multiple ConsolePis connected to the network, or to each other (i.e. first ConsolePi in hotspot mode, the others connected as clients to that hotspot).  A connection to any one of the ConsolePis in the Cluster will provide options to connect to any local serial adapters, as well as those connected to the other ConsolePis in the cluster (via the `consolepi-menu` command).
 
@@ -212,73 +220,16 @@ The Power Control Function allows you to control power to external outlets.  Con
     > The power sub-menu **currently** only appears in the menu on the ConsolePi where the outlets are defined (Menu does not display outlets defined on remote ConsolePis).  The auto-power-on when connecting to an adapter linked to an outlet works for both local and remote connections (establishing a connection to an adapter on a remote ConsolePi (clustering / cloud-sync function) via another ConsolePis menu)
 
 ### The Power Control Menu
-*Defined Outlets will show up in the Power Menu.  Note: These menu captures lack color, see the [Feature Summary Image](#feature-summary-image) to see what these sub-menus like in a terminal with ASCII colors.*
-  ```bash
-  ===========================================================
+*Defined Outlets will show up in the Power Menu*
 
-    enter item # to toggle power state on outlet
-    enter c + item # i.e. "c2" to cycle power on outlet
+![consolepi-menu image](/readme_content/powermenu.png)
 
-  1.  [ON]  bsmtpi_outlet (BsmtPi Port:bsmtpi_outlet)
-  2.  [ON]  garage_fan (GarageFan Port:garage_fan)
-  3.  [OFF] 8320s (labpower1 Port:2)
-  4.  [OFF] 5900_LAB_ToR (labpower1 Port:6)
-  5.  [OFF] 6300Ms (labpower1 Port:8)
-  6.  [OFF] r2-ToR_2930M (labpower2 Port:1)
-  7.  [OFF] Nortel (labpower2 Port:2)
-  8.  [OFF] sdbranch_9004s (labpower2 Port:3)
-  9.  [OFF] 6200F (labpower2 Port:4)
-  10. [OFF] 6300M_CL6 (labpower2 Port:5)
-  11. [OFF] Legacy (labpower2 Port:6)
-  12. [OFF] C3750 (labpower2 Port:7)
-  13. [OFF] 5400s (labpower2 Port:8)
-
-  all on: Turn all outlets ON
-  all off: Turn all outlets OFF
-  cycle all: Cycle all outlets ON·OFF·ON
-
-  L.  Show Connected Linked Devices
-  d.  [dli] Web Power Switch Menu
-  b.  Back
-  r.  Refresh
-  x.  Exit
-
-  ========================================================================
-   >>
-  ```
 
 ### Additional Controls for Digital Loggers
-*You may have an 8 port digital-loggers web power switch, with only some of those ports linked to devices.  Any Outlets linked to devices will show up in the Power Menu, All of the Ports for the DLI (regardless of linkage) will show up in the dli menu*
+*You may have an 8 port digital-loggers web power switch, with only some of those ports linked to devices.  Any Outlets linked to devices will show up in the Power Menu, **All** of the Ports for the DLI (regardless of linkage) will show up in the dli menu*
 
-```bash
-===========================================================================================
- --------------------------------- DLI Web Power Switch ----------------------------------
-===========================================================================================
+![consolepi-menu image](/readme_content/dlimenu.png)
 
- enter item # to toggle power state on outlet
- enter c + item # i.e. "c2" to cycle power on outlet
- enter r + item # i.e. "r2" to rename the outlet
-
-    --- labpower1 ----         ------ labpower2 -------         ------- stagepower --------
-    ------------------         ------------------------         ---------------------------
- 1. [OFF] VACANT1          11. [OFF] P1: r2-ToR_2930M       21. [OFF] P1: DigiSR_3800SR
- 2. [OFF] 8320s            12. [OFF] P2: Nortel             22. [OFF] P2: VACANT2
- 3. [OFF] 7210             13. [OFF] P3: sdbranch_9004s     23. [OFF] P3: 2530-24
- 4. [OFF] 3800_L1sw        14. [OFF] P4: 6200F              24. [ON]  P4: 2510-24
- 5. [OFF] MSR930 BCM50     15. [OFF] P5: 6300M_CL6          25. [OFF] P5: VACANT5
- 6. [OFF] 5900_LAB_ToR     16. [OFF] P6: Legacy             26. [OFF] P6: VACANT6
- 7. [OFF] 3810-Access      17. [OFF] P7: C3750              27. [OFF] P7: VACANT7
- 8. [OFF] 6300Ms           18. [OFF] P8: 5400s              28. [OFF] P8: VACANT8
- 9. ALL ON                 19. ALL ON                       29. ALL [on|off]. i.e. "29 off"
-                                                            30. Cycle ALL
-
- b.  Back
- r.  Refresh
- x.  Exit
-
-===========================================================================================
- >>
-```
 ### Outlet Linkages
 
 Example Outlet Linkage.  In this case the switch "rw-6200T-sw" has 2 ports linked.  Both are on a dli web power switch.  One of the ports is for this switch, the other is for the up-stream switch that serves this rack.  When connecting to the switch, ConsolePi will ensure the linked outlets are powered ON.  *ConsolePi does **not** power-off the outlets when you disconnect.*
@@ -723,7 +674,8 @@ The Use Cases
 The Configuration file is validated and created during the install.  Settings can be modified post-install via the configuration file `/etc/ConsolePi.yaml` (Some Changes will require consolepi-upgrade to be ran to take effect). See ConsolePi.yaml.example for an example of the available options.
 
 ### consolepi-menu sorting and connection settings
-When you assign a friendly alias to an adapter for predictability via the `rn` (rename) option in `consolepi-menu` or via `consolepi-addconsole` an alias (udev rule) is created for that adapter and ser2net.conf is updated with a pointer to that alias using the next available TELNET port in the 7xxx range which includes the desired serial settings.  The `consolepi-menu` parses the ser2net.conf to retrieve the serial settings for each device, but it also uses this file to determine the order the adapters appear in the menu.  The menu is sorted by TELNET port#.  So if you want re-arrange the order devices show up you just need to re-arrange the port #s used in ser2net.conf for the devices.
+When you assign a friendly alias to an adapter for predictability via the `rn` (rename) option in `consolepi-menu` or via `consolepi-addconsole` an alias (udev rule) is created for that adapter and ser2net.conf is updated with a pointer to that alias using the next available TELNET port in the 7xxx range which includes the desired serial settings.  The `consolepi-menu` parses the ser2net.conf to retrieve the serial settings for each device, but it also uses this file to determine the order the adapters appear in the menu.  The menu is sorted by TELNET port#.  So if you want re-arrange the order devices show up you just need to re-arrange the port #s mapped in `/etc/ser2net.conf` for the devices.  Just ensure each device is mapped to a unique port (no duplicate ports).
+> You can use the `tp` option in `consolepi-menu` to display the TELNET ports mapped to each device.  Re-arranging them still needs to be done manually by editing `/etc/ser2net.conf`
 
 ### Configuring Manual Host Entries
 The Manual Host Entries Feature allows you to manually define other SSH or TELNET endpoints that you want to appear in the menu.  These entries will appear in the `rs` remote shell menu by default, but can also show-up in the main menu if `show_in_main: true`.  Manual host entries support [power outlet bindings](readme_content/power.md#power-control-setup) as well. To configure this feature simply populate the optional `HOSTS:` section of `ConsolePi.yaml`. Using the following structure:
@@ -732,7 +684,7 @@ The Manual Host Entries Feature allows you to manually define other SSH or TELNE
 HOSTS:
   mm1(serial):
     address: 10.0.30.60:7001
-    method: telnet
+    method: telnet  # This field is now optional defaults to ssh if not specified.
     show_in_main: true
     group: WLAN
   mc1(ssh):

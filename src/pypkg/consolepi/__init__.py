@@ -17,7 +17,7 @@ LOG_FILE = '/var/log/ConsolePi/consolepi.log'
 
 
 class Response():
-    def __init__(self, ok: bool, output=None, error=None, status_code=None, state=None, do_json=False,  **kwargs):
+    def __init__(self, ok: bool, output=None, error=None, status_code=None, state=None, do_json=False, **kwargs):
         self.ok = ok
         self.text = output
         self.error = error

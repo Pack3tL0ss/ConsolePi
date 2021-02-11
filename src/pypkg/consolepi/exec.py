@@ -368,7 +368,7 @@ class ConsolePiExec:
                         if menu_actions[ch].get("pre_msg"):
                             print(menu_actions[ch]["pre_msg"])
                             c = menu_actions[ch].get("cmd")
-                            if '/dev/' in c or 'telnet' in c.lower():
+                            if calling_menu != 'rename_menu' and '/dev/' in c or 'telnet' in c.lower():
                                 print(self.menu.tty)
 
                         # --// execute the command \\--

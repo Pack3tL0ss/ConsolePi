@@ -161,7 +161,7 @@ class Config():
             'linked': by_dev,
             'dli_power': {},
             'failures': {}
-            }
+        }
 
         return outlet_data
 
@@ -214,7 +214,7 @@ class Config():
                                 user_key.chmod(0o600)
                                 log.info(f"{hosts[h]['key']} Updated from ConsolePi global .ssh key_dir to "
                                          f"{str(user_key.parent)} for use with {h}...", show=True)
-                            key_file = str(user_key)
+                        key_file = str(user_key)
                     elif utils.valid_file(hosts[h]['key']):
                         key_file = hosts[h]['key']
                     elif utils.valid_file(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}"):
@@ -227,8 +227,9 @@ class Config():
                             log.info(f"{hosts[h]['key']} imported from ConsolePi global .ssh key_dir to "
                                      f"{str(user_ssh_dir)} for use with {h}...", show=True)
                             key_file = str(user_key)
-                hosts[h]['cmd'] = f"sudo -u {self.loc_user} ssh{' ' if not key_file else f' -i {key_file} '}" \
-                                  f"-t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
+                hosts[h]['cmd'] = (
+                    f"sudo -u {self.loc_user} ssh{' ' if not key_file else f' -i {key_file} '}" f"-t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
+                )
                 # hosts[h]['cmd'] = f"sudo -u {self.loc_user} ssh -t {_user_str}{hosts[h]['address'].split(':')[0]} -p {port}"
             elif hosts[h].get('method').lower() == 'telnet':
                 port = 23 if ':' not in hosts[h]['address'] else hosts[h]['address'].split(':')[1]
@@ -363,6 +364,6 @@ class Config():
                     'log_ptr': log_ptr,
                     'cmd': cmd,
                     'line': _line
-                    }
+                }
 
         return ser2net_conf

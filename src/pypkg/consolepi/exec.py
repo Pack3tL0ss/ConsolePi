@@ -76,8 +76,17 @@ class ConsolePiExec:
         # -- // Perform Auto Power On (if not already on) \\ --
         for o in outlets["linked"][pwr_key]:
             outlet = outlets["defined"].get(o.split(":")[0])
-            ports = [] if ":" not in o else json.loads(o.replace("'", '"').split(":")[1])
-            _addr = outlet["address"]
+            if outlet:
+                ports = [] if ":" not in o else json.loads(o.replace("'", '"').split(":")[1])
+                _addr = outlet["address"]
+            else:
+                log.error(
+                    f"Skipping Auto Power On {pwr_key} for {o}. Unable to pull outlet details from defined outlets.", show=True
+                )
+                log.debugv(
+                    f"Outlet Dict:\n{json.dumps(outlets)}"
+                )
+                continue
 
             # -- // DLI web power switch Auto Power On \\ --
             #
@@ -717,6 +726,7 @@ class ConsolePiExec:
                 port = f"{_type}:{_addr}"
                 port_name = _grp
                 to_state = not pwr.data["defined"][_grp]["is_on"]
+
         if _type == "dli" or _type == "tasmota" or _type == "esphome":
             host_short = utils.get_host_short(_addr)
         else:

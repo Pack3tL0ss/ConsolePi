@@ -1192,7 +1192,7 @@ class ConsolePiMenu(Rename):
             # -- Print Baud Menu --
             # menu.menu_formatting('header', text=' Select Desired Baud Rate ', do_print=True)
             if not config.debug:
-                _ = system("clear")
+                _ = system("clear -x")
             header = menu.format_header(text=' Select Desired Baud Rate ')
             print(header)
             # print('')
@@ -1243,7 +1243,7 @@ class ConsolePiMenu(Rename):
         while not valid:
             # menu.menu_formatting('header', text=' Enter Desired Data Bits ')
             if not config.debug:
-                _ = system("clear")
+                _ = system("clear -x")
             header = menu.format_header(text=' Enter Desired Data Bits ')
             print(header)
             print('\n Default 8, Current [{}], Valid range 5-8'.format(self.data_bits))
@@ -1277,7 +1277,7 @@ class ConsolePiMenu(Rename):
 
         def print_menu():
             if not config.debug:
-                _ = system("clear")
+                _ = system("clear -x")
             # menu.menu_formatting('header', text=' Select Desired Parity ')
             header = menu.format_header(text=' Select Desired Parity ')
             print(header)
@@ -1320,7 +1320,7 @@ class ConsolePiMenu(Rename):
 
         def print_menu():
             if not config.debug:
-                _ = system("clear")
+                _ = system("clear -x")
             # menu.menu_formatting('header', text=' Select Desired Flow Control ')
             header = menu.format_header(text=' Select Desired Flow Control ')
             print(header)

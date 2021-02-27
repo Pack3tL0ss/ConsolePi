@@ -271,7 +271,7 @@ class MenuParts:
     def __str__(self):
         # ---- CLEAR SCREEN -----
         if not config.debug:
-            _ = system("clear")
+            _ = system("clear -x")
         else:
             print("")  # if DEBUG need this to get off the prompt line
 

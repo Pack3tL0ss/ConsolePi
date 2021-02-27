@@ -849,7 +849,7 @@ custom_post_install_script() {
 
 # -- Display Post Install Message --
 post_install_msg() {
-    clear;echo
+    clear -x ;echo
     declare -a _msg=(
             -head "${_green}Installation Complete${_norm}"
             "${_bold}Next Steps/Info${_norm}"

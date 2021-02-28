@@ -809,7 +809,7 @@ list_wlan_interfaces() {
 do_wifi_country() {
     process="Set WiFi Country"
     IFACE="$(list_wlan_interfaces | head -n 1)"
-    [ -z "$IFACE" ] && $IFACE=wlan0
+    [ -z "$IFACE" ] && IFACE=wlan0
 
     if ! wpa_cli -i "$IFACE" status > /dev/null 2>&1; then
         logit "Could not communicate with wpa_supplicant ~ normal if there is no wlan interface" "WARNING"

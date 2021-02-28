@@ -175,7 +175,8 @@ class ConsolePiMenu(Rename):
 
         # -- // No Local Adapters Found \\ --
         if not self.cpi.local.adapters:
-            log.show('No Local Adapters Detected')
+            if not config.cloud_pull_only:
+                log.show('No Local Adapters Detected')
             if log.error_msgs:
                 # -- remove no ser2net.conf found msg if no local adapters
                 log.error_msgs = [m for m in log.error_msgs if 'ser2net' not in m]

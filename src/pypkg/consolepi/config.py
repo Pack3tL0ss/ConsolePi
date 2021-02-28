@@ -180,7 +180,7 @@ class Config():
             with open(yaml_file) as f:
                 try:
                     # return yaml.load(f, Loader=yaml.BaseLoader)
-                    return yaml.load(f, Loader=yaml.FullLoader)
+                    return yaml.load(f, Loader=yaml.SafeLoader)
                 except ValueError as e:
                     log.warning(f'Unable to load configuration from {yaml_file}\n\t{e}', show=True)
 

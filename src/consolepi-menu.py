@@ -466,7 +466,7 @@ class ConsolePiMenu(Rename):
                 print('')  # prevents header and prompt on same line in debug
                 return Choice(prompt, clear=True)
 
-    # ------ // DLI WEB POWER SWITCH MENU \\ ------ #
+    # ------ // DLI WEB POWER SWITCH MENU / Multi-Port menu \\ ------ #
     def dli_menu(self, calling_menu: str = 'power_menu'):
         cpi = self.cpi
         pwr = cpi.pwr
@@ -483,7 +483,7 @@ class ConsolePiMenu(Rename):
             'dli_menu': self.dli_menu,
             'power_menu': self.power_menu
         }
-        # states = self.states
+
         choice = ''
         if not cpi.pwr_init_complete:
             with Halo(text='Waiting for Outlet init Threads to Complete...',
@@ -497,30 +497,38 @@ class ConsolePiMenu(Rename):
         if cpi.cpiexec.autopwr_wait:
             utils.spinner("Waiting for Auto Power Threads to Complete", cpi.cpiexec.wait_for_threads, name="auto_pwr", timeout=20)
 
-        dli_dict = pwr.data['dli_power']
         while choice not in ['x']:
             item = start = 1
             outer_body = []
             slines = []
             state_list = []
-            for dli in sorted(dli_dict, key=lambda i: i.lower()):
+            dli_dict = {**pwr.data['dli_power'], **pwr.data['esp_power']}
+            for addr in sorted(dli_dict, key=lambda i: i.lower()):
                 mlines = []
                 state_list = []
-                port_dict = dli_dict[dli]
+                port_dict = dli_dict[addr]
+
                 # strip off all but hostname if address is fqdn
-                host_short = dli.split('.')[0] if '.' in dli and not dli.split('.')[0].isdigit() else dli
+                host_short = addr.split('.')[0] if '.' in addr and not addr.split('.')[0].isdigit() else addr
+
+                # Menu includes both dli web power switches and multi-port esphome
                 _type = "dli" if port_dict and str(list(port_dict.keys())[0]).isdigit() else "esphome"
                 if _type == "dli":
                     key = "dli_pwr"
                     toggle_all_func = pwr.pwr_toggle
-                    _all_args = [_type, dli]
+                    _all_args = [_type, addr]
                     toggle_all_kwargs = {'port': 'all'}
                     cycle_all_kwargs = {}
                     cycle_all_func = pwr.pwr_cycle
                 else:
-                    key = dli
+                    key = addr
                     toggle_all_func = pwr.pwr_all
-                    _all_args = [{dli: pwr.data["defined"].get(dli, {})}]
+                    defined = {k: v for k, v in pwr.data.get("defined", {}).items() if v.get("address", "") == addr}
+                    if not defined or len(defined) > 1:
+                        log.error(f"dli_menu unable to find def or too many matches for {addr}", show=True)
+                    else:
+                        key = list(defined.keys())[0]
+                    _all_args = [defined]
                     toggle_all_kwargs = {"action": "toggle"}
                     cycle_all_kwargs = {"action": "cycle"}
                     cycle_all_func = pwr.pwr_all
@@ -545,19 +553,19 @@ class ConsolePiMenu(Rename):
 
                     menu_actions[str(item)] = {
                         'function': pwr.pwr_toggle,
-                        'args': [_type, dli],
+                        'args': [_type, addr],
                         'kwargs': {'port': port},  # , 'desired_state': to_state},
                         'key': key
                     }
                     menu_actions['c' + str(item)] = {
                         'function': pwr.pwr_cycle,
-                        'args': [_type, dli],
+                        'args': [_type, addr],
                         'kwargs': {'port': port},
                         'key': key
                     }
                     menu_actions['r' + str(item)] = {
                         'function': pwr.pwr_rename,
-                        'args': [_type, dli],
+                        'args': [_type, addr],
                         'kwargs': {'port': port},
                         'key': key
                     }
@@ -574,6 +582,7 @@ class ConsolePiMenu(Rename):
                 else:
                     _line = 'ALL [on|off]. i.e. "{} off"'.format(item)
                     desired_state = None
+
                 # build appropriate menu_actions item will represent ALL ON or ALL OFF if current state
                 # of all outlets is the inverse
                 # if there is a mix item#+on or item#+off will both be valid but item# alone will not.
@@ -584,16 +593,15 @@ class ConsolePiMenu(Rename):
                         'kwargs': {**toggle_all_kwargs, 'desired_state': desired_state},
                         'key': key
                     }
-                print("desired state unexpected value")
-                # elif desired_state is None:
-                #     for s in ['on', 'off']:
-                #         desired_state = True if s == 'on' else False
-                #         menu_actions[str(item) + ' ' + s] = {
-                #             'function': pwr.pwr_toggle,
-                #             'args': [_type, dli],
-                #             'kwargs': {'port': 'all', 'desired_state': desired_state},
-                #             'key': key
-                #         }
+                elif desired_state is None:
+                    for s in ['on', 'off']:
+                        desired_state = True if s == 'on' else False
+                        menu_actions[str(item) + ' ' + s] = {
+                            'function': toggle_all_func,
+                            'args': _all_args,
+                            'kwargs': {**toggle_all_kwargs, 'desired_state': desired_state},
+                            'key': key
+                        }
                 mlines.append(_line)
                 item += 1
 
@@ -642,7 +650,9 @@ class ConsolePiMenu(Rename):
             if choice == 'r':
                 self.spin.start('Refreshing Outlets')
                 dli_dict = self.cpiexec.outlet_update(refresh=True, key='dli_power')
-                # esp_dict = self.cpiexec.outlet_update(refresh=True, key='dli_power')
+                esp_dict = self.cpiexec.outlet_update(refresh=True, key='esp_power')
+                pwr.data['dli_power'] = dli_dict
+                pwr.data['esp_power'] = esp_dict
                 self.spin.succeed()
             elif choice == 'b':
                 return
@@ -1213,19 +1223,15 @@ class ConsolePiMenu(Rename):
 
         while True:
             # -- Print Baud Menu --
-            # menu.menu_formatting('header', text=' Select Desired Baud Rate ', do_print=True)
             if not config.debug:
                 _ = system("clear -x")
             header = menu.format_header(text=' Select Desired Baud Rate ')
             print(header)
-            # print('')
 
             for key in menu_actions:
                 _cur_baud = menu_actions[key]
                 print(' {0}. {1}'.format(key, _cur_baud if _cur_baud != self.baud else '[{}]'.format(_cur_baud)))
 
-            # menu.menu_formatting('footer', text=text)
-            # menu.menu_formatting('footer', footer={"opts": 'back'}, do_print=True)
             legend = menu.format_legend(legend={"opts": 'back'})
             footer = menu.format_footer()
             print(legend)
@@ -1264,14 +1270,12 @@ class ConsolePiMenu(Rename):
         menu = self.cpi.menu
         valid = False
         while not valid:
-            # menu.menu_formatting('header', text=' Enter Desired Data Bits ')
             if not config.debug:
                 _ = system("clear -x")
             header = menu.format_header(text=' Enter Desired Data Bits ')
             print(header)
             print('\n Default 8, Current [{}], Valid range 5-8'.format(self.data_bits))
-            # menu.menu_formatting('footer', text=' b.  Back')
-            # menu.menu_formatting('footer', footer={'opts': 'back'})
+
             legend = menu.format_legend(legend={"opts": 'back'})
             footer = menu.format_footer()
             print(legend)
@@ -1301,16 +1305,13 @@ class ConsolePiMenu(Rename):
         def print_menu():
             if not config.debug:
                 _ = system("clear -x")
-            # menu.menu_formatting('header', text=' Select Desired Parity ')
             header = menu.format_header(text=' Select Desired Parity ')
             print(header)
             print('\n Default No Parity\n')
             print(f" 1. {'[None]' if self.parity == 'n' else 'None'}")
             print(f" 2. {'[Odd]' if self.parity == 'o' else 'Odd'}")
             print(f" 3. {'[Even]' if self.parity == 'e' else 'Even'}")
-            # text = ' b.  Back'
-            # menu.menu_formatting('footer', text=text)
-            # menu.menu_formatting('footer', footer={"opts": 'back'})
+
             legend = menu.format_legend(legend={"opts": 'back'})
             footer = menu.format_footer()
             print(legend)
@@ -1344,7 +1345,6 @@ class ConsolePiMenu(Rename):
         def print_menu():
             if not config.debug:
                 _ = system("clear -x")
-            # menu.menu_formatting('header', text=' Select Desired Flow Control ')
             header = menu.format_header(text=' Select Desired Flow Control ')
             print(header)
             print('')
@@ -1352,9 +1352,6 @@ class ConsolePiMenu(Rename):
             print(f" 1. {'[None]' if self.flow == 'n' else 'None'}")
             print(f" 2. {'[Xon/Xoff]' if self.flow == 'x' else 'Xon/Xoff'} (software)")
             print(f" 3. {'[RTS/CTS]' if self.flow == 'h' else 'RTS/CTS'} (hardware)")
-            # text = ' b.  Back'
-            # menu.menu_formatting('footer', text=text)
-            # menu.menu_formatting('footer', footer={"opts": 'back'})
             legend = menu.format_legend(legend={"opts": 'back'})
             footer = menu.format_footer()
             print(legend)

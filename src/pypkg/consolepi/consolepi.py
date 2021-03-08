@@ -11,11 +11,10 @@ from consolepi.menu import Menu  # NoQA
 
 
 class ConsolePi():
-    def __init__(self, bypass_remotes=False):
-        # self.response = Response
-        self.menu = Menu()
+    def __init__(self, bypass_remotes: bool = False, bypass_outlets: bool = False):
+        self.menu = Menu("main_menu")
         self.local = Local()
-        if config.cfg.get('power'):
+        if not bypass_outlets and config.cfg.get('power'):
             self.pwr_init_complete = False
             self.pwr = Outlets()
         else:

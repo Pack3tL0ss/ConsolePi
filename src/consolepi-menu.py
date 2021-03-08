@@ -32,6 +32,17 @@ class Actions():
         pass
 
 
+class Choice():
+    def __init__(self, prompt: str, clear=False):
+        if not clear:
+            ch = input(prompt)
+            self.lower = ch.lower()
+            self.orig = ch
+        else:
+            self.lower = ''
+            self.orig = ''
+
+
 class ConsolePiMenu(Rename):
 
     def __init__(self, bypass_remotes: bool = False, bypass_outlets: bool = False):
@@ -387,7 +398,7 @@ class ConsolePiMenu(Rename):
                     # with Halo(text='Refreshing Outlets', spinner='dots'):
                     #     outlets = self.cpiexec.outlet_update(refresh=True, upd_linked=True)
 
-    def wait_for_input(self, prompt: str = " >> ", terminate: bool = False, locs: dict = {}) -> object:
+    def wait_for_input(self, prompt: str = " >> ", terminate: bool = False, locs: dict = {}) -> Choice:
         '''Get input from user.
 
         User Can Input One of the following for special handling:
@@ -412,16 +423,6 @@ class ConsolePiMenu(Rename):
         '''
         menu = self.menu
 
-        class choice():
-            def __init__(self, clear=False):
-                if not clear:
-                    ch = input(prompt)
-                    self.lower = ch.lower()
-                    self.orig = ch
-                else:
-                    self.lower = ''
-                    self.orig = ''
-
         try:
             # if config.debug:
             #     prompt = f'pg[{menu.cur_page}] m[r:{menu.page.rows}, c:{menu.page.cols}] ' \
@@ -431,7 +432,7 @@ class ConsolePiMenu(Rename):
                          f'a[r:{self.cur_menu.tty.rows}, c:{self.cur_menu.tty.cols}]' \
                          f'{prompt}'
 
-            ch = choice()
+            ch = Choice(prompt)
 
             # -- // toggle debug \\ --
             if ch.lower == 'debug':
@@ -439,7 +440,7 @@ class ConsolePiMenu(Rename):
                 config.debug = not config.debug
                 if config.debug:
                     log.setLevel(10)  # logging.DEBUG = 10
-                ch = choice(clear=True)
+                ch = Choice(prompt, clear=True)
 
             # -- // always accept 'exit' \\ --
             elif ch.lower == 'exit':
@@ -447,7 +448,7 @@ class ConsolePiMenu(Rename):
 
             # -- // Menu Debugging Tool prints attributes/function returns \\ --
             elif '.' in ch.orig and self.print_attribute(ch.orig, locs):
-                ch = choice(clear=True)
+                ch = Choice(prompt, clear=True)
 
             menu.menu_rows = 0  # TODO REMOVE AFTER SIMPLIFIED
 
@@ -460,7 +461,7 @@ class ConsolePiMenu(Rename):
             else:
                 log.show('Operation Aborted')
                 print('')  # prevents header and prompt on same line in debug
-                return choice(clear=True)
+                return Choice(prompt, clear=True)
 
     # ------ // DLI WEB POWER SWITCH MENU \\ ------ #
     def dli_menu(self, calling_menu: str = 'power_menu'):
@@ -520,19 +521,19 @@ class ConsolePiMenu(Rename):
                         'args': ['dli', dli],
                         'kwargs': {'port': port},  # , 'desired_state': to_state},
                         'key': 'dli_pwr'
-                        }
+                    }
                     menu_actions['c' + str(index)] = {
                         'function': pwr.pwr_cycle,
                         'args': ['dli', dli],
                         'kwargs': {'port': port},
                         'key': 'dli_pwr'
-                        }
+                    }
                     menu_actions['r' + str(index)] = {
                         'function': pwr.pwr_rename,
                         'args': ['dli', dli],
                         'kwargs': {'port': port},
                         'key': 'dli_pwr'
-                        }
+                    }
                     index += 1
 
                 # add final entry for all operations
@@ -554,7 +555,7 @@ class ConsolePiMenu(Rename):
                         'args': ['dli', dli],
                         'kwargs': {'port': 'all', 'desired_state': desired_state},
                         'key': 'dli_pwr'
-                        }
+                    }
                 elif desired_state is None:
                     for s in ['on', 'off']:
                         desired_state = True if s == 'on' else False
@@ -563,7 +564,7 @@ class ConsolePiMenu(Rename):
                             'args': ['dli', dli],
                             'kwargs': {'port': 'all', 'desired_state': desired_state},
                             'key': 'dli_pwr'
-                            }
+                        }
                 mlines.append(_line)
                 index += 1
 
@@ -575,7 +576,7 @@ class ConsolePiMenu(Rename):
                         'args': ['dli', dli],
                         'kwargs': {'port': 'all'},
                         'key': 'dli_pwr'
-                        }
+                    }
                 index = start + 10
                 start += 10
 
@@ -589,8 +590,7 @@ class ConsolePiMenu(Rename):
             subhead.append('enter r + item # i.e. "r2" to rename the outlet')
 
             legend = {'opts': ['back', 'refresh']}
-            if (not calling_menu == 'power_menu' and pwr.data) and (pwr.gpio_exists or pwr.tasmota_exists or
-                                                                    pwr.linked_exists or pwr.esphome_exists):
+            if (not calling_menu == 'power_menu' and pwr.data) and (pwr.gpio_exists or pwr.tasmota_exists or pwr.linked_exists or pwr.esphome_exists):
                 menu_actions['p'] = self.power_menu
                 legend['opts'].insert(0, 'power')
                 legend['overrides'] = {'power': ['p', 'Power Control Menu (linked, GPIO, tasmota)']}
@@ -844,7 +844,7 @@ class ConsolePiMenu(Rename):
             self.do_rename_adapter(from_name)
             self.trigger_udev()
             sys.exit()
-        while choice not in ["x"]:  # == '' or menu_actions[choice] is not None:  # choice not in ['b']:
+        while choice not in ["x"]:
             if choice == 'r':
                 local.adapters = local.build_adapter_dict(refresh=True)
                 if not direct_launch:

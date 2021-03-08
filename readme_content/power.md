@@ -133,30 +133,34 @@ POWER:
   powerstrip1:
     address: 10.0.10.123
     type: esphome
-    relays: [relay1, relay2, relay3, relay4]
+    relays: [r2_6400_mml-sw, r2_6400_mmr-sw, another-one, and-another]
     linked_devs:
-      AP-SERU: relay1
-      Orange6: [relay2, relay3]
+      r2_6400L-sw: r2_6400_mml-sw
+      Orange6: [outlet_4, another_outlet]
 ```
-The example above highlights the following.  Outlet `cloud_lab` has the `no_all` key set to `true`, it will be excluded from any `all` operations available in the menu (`all on`, `all off`, `cycle all`).  It also highlights A multi-port power-strip, and a single port device.  With espHome there is a `relays:` key in the config where the relays are defined.  The values should match what was configured in the yaml used to compile the binary flashed to the device, for example this is a snippet from the config used to build the binary for powerstrip1 above:
+The example above highlights the following.  Outlet `cloud_lab` has the `no_all` key set to `true`, it will be excluded from any `all` operations available in the menu (`all on`, `all off`, `cycle all`).  It also highlights A multi-port power-strip, and a single port device.  With espHome there is a `relays:` key in the config where the relays are defined.  The values should match the name (with some conversion rules explained below) configured in the yaml used to compile the binary flashed to the device, for example this is a snippet from the config used to build the binary for powerstrip1 above:
 ```
 ### THIS IS NOT AN EXAMPLE FOR ConsolePi.yaml, This is an example for espHome, more details found on espHome's site
 switch:
   - platform: gpio
-    name: "Relay1"
+    name: "R2-6400 MML-sw"
     id: relay1
     icon: "mdi:power-socket-us"
     pin:
       number: GPIO13
   - platform: gpio
-    name: "Relay2"
+    name: "R2-6400 MMR-sw"
     id: relay2
     icon: "mdi:power-socket-us"
     pin:
       number: GPIO12
 ```
-Notice the `id` of the relay that controls the outlet is what is configured as `relays:` in ConsolePi.yaml.  Beyond that similar to other outlet types you can link a device with a single outlet/relay or multiple.  You can also specify the same device across multiple controlled outlets/power-strips.  "Orange6" above will lead to outlet1 as well as relay2 and 3 on powerstrip1 all being toggled ON when connecting to Orange6 via the menu.
+Notice the `name` of the relay from the esphome config is what is configured as `relays:` in ConsolePi.yaml with the following conversion rules.
 
+  - convert to all lower case
+  - replace any spaces with underscores
+
+Beyond that similar to other outlet types you can link a device with a single outlet/relay or multiple.  You can also specify the same device across multiple controlled outlets/power-strips.  `Orange6` above will lead to `outlet1` as well as `outlet_4` and `another_outlet` on powerstrip1 all being toggled ON when connecting to Orange6 via the menu.
 
 
 #### Tasmota Flashed WiFi Smart Outlets

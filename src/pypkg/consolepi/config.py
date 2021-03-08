@@ -1,5 +1,6 @@
 #!/etc/ConsolePi/venv/bin/python3
 import os
+from typing import Any, Dict
 import yaml
 import json
 import shutil
@@ -46,6 +47,7 @@ class Config():
         self.ser2net_conf = self.get_ser2net()
         self.hosts = self.get_hosts()
         self.power = self.cfg.get('power', False)
+        self.do_dli_menu = None  # updated in get_outlets_from_file()
         self.outlets = {} if not self.power else self.get_outlets_from_file()
         self.remotes = self.get_remotes_from_file()
         self.remote_update = self.get_remotes_from_file
@@ -129,15 +131,19 @@ class Config():
             return outlet_data
 
         types = []
-        by_dev = {}
+        by_dev: Dict[str, Any] = {}
         for k in outlet_data:
-            if outlet_data[k].get('linked_devs'):
+            _type = outlet_data[k].get('type').lower()
+            relays = [] if _type != "esphome" else utils.listify(outlet_data[k].get('relays', k))
+            linked = outlet_data[k].get('linked_devs', {})
+
+            if linked:
                 outlet_data[k]['linked_devs'] = utils.format_dev(outlet_data[k]['linked_devs'],
                                                                  hosts=self.hosts, with_path=True)
                 self.linked_exists = True
                 for dev in outlet_data[k]['linked_devs']:
-                    _type = outlet_data[k].get('type').lower()
                     if _type == 'dli':
+                        self.do_dli_menu = True
                         _this = [f"{k}:{[int(p) for p in utils.listify(outlet_data[k]['linked_devs'][dev])]}"]
                     elif _type == 'esphome':
                         _linked = utils.listify(outlet_data[k]['linked_devs'][dev])
@@ -146,7 +152,7 @@ class Config():
                         _this = [k]
                     by_dev[dev] = _this if dev not in by_dev else by_dev[dev] + _this
             else:
-                outlet_data[k]['linked_devs'] = []
+                outlet_data[k]['linked_devs'] = {}
 
             if outlet_data[k]["type"].lower() not in types:
                 types.append(outlet_data[k]["type"].lower())
@@ -154,6 +160,14 @@ class Config():
             if outlet_data[k]['type'].upper() == 'GPIO' and isinstance(outlet_data[k].get('address'), str) \
                     and outlet_data[k]['address'].isdigit():
                 outlet_data[k]['address'] = int(outlet_data[k]['address'])
+
+            # This block determines if we should show dli_menu / if any esphome outlets match criteria to show
+            # in dli menu (anytime it has exactly 8 outlets, if it has > 1 relay and not all are linked)
+            if not self.do_dli_menu and _type == "esphome" and len(relays) > 1:
+                if len(relays) == 8 or not linked:
+                    self.do_dli_menu = True
+                elif [r for r in relays if f"'{r}'" not in str(linked)]:
+                    self.do_dli_menu = True
 
         self.outlet_types = types
         outlet_data = {

@@ -257,10 +257,20 @@ class ConsolePiMenu(Rename):
             legend = {'opts': [], 'before': []}
             for r in sorted(outlets):
                 outlet = outlets[r]
+
                 # -- // Linked DLI OUTLET AND ESPHOME MENU LINE(s) \\ --
-                if (outlet['type'].lower() == 'dli' and outlet.get('linked_devs') and outlet.get('is_on')) or \
-                   (outlet['type'].lower()) == 'esphome':
-                    for _port in sorted(outlet['is_on']):
+                if outlet['type'].lower() in ['dli', 'esphome']:
+                    is_on_dict = {}
+
+                    # Show DLIs that are linked (Auto Power On)
+                    if outlet['type'].lower() == "dli" and outlet.get('linked_devs') and outlet.get('is_on'):
+                        is_on_dict = sorted(outlet['is_on'])
+
+                    # Show linked esphome relays, or all if there is only 1.
+                    elif len(outlet.get("relays", {})) == 1 or (outlet.get('linked_devs') and outlet.get('is_on')):
+                        is_on_dict = {k: v for k, v in outlet["is_on"].items() if k in outlet.get("linked_devs", {}).values()}
+
+                    for _port in is_on_dict:
                         if show_linked:
                             this_linked = config.cfg_yml.get('POWER', {}).get(r, {}).get('linked_devs', {})
                             _linked = [
@@ -269,20 +279,17 @@ class ConsolePiMenu(Rename):
                                     if k not in cpi.local.adapters and '/host/' not in k else k
                                 )
                                 for k in this_linked if _port in utils.listify(this_linked[k])
-                                # for k in this_linked if str(_port) in this_linked[k]
                             ]
                             if _linked:
                                 _linked.insert(0, '\n      {{cyan}}Linked Devices{{norm}}:')
                                 _linked = '\n'.join(_linked).rstrip()
-                            # _linked = ', '.join(_linked)
-                            # _linked = ', '.join([k for k in this_linked if str(_port) in this_linked[k]])
+
                         _outlet = outlet['is_on'][_port]
                         _state = states[_outlet['state']]
 
                         if not outlet.get("no_all", False):
                             state_list.append(_outlet['state'])
 
-                        # _state = menu.format_line(_state).text
                         _name = ' ' + _outlet['name'] if 'ON' in _state else _outlet['name']
 
                         _menu_line = f"[{_state}] {_name}"
@@ -320,14 +327,12 @@ class ConsolePiMenu(Rename):
 
                     if show_linked:
                         this_linked = config.cfg_yml.get('POWER', {}).get(r, {}).get('linked_devs', {})
-                        # _linked = ', '.join([k for k in this_linked])
                         _linked = ['{}'.format('{{red}}' + k + '{{norm}}'
                                    if k not in cpi.local.adapters and '/host/' not in k else k)
                                    for k in this_linked]
                     if isinstance(outlet.get('is_on'), bool):
                         _state = states[outlet['is_on']]
                         state_list.append(outlet['is_on'])
-                        # _state = menu.format_line(_state).text
                         body.append(f"[{_state}] {' ' + r if 'ON' in _state else r} ({outlet['type']}:{outlet['address']}) "
                                     f"{_linked if _linked else ''}")
                         menu_actions[str(item)] = {
@@ -395,8 +400,6 @@ class ConsolePiMenu(Rename):
             elif choice == 'r':
                 if pwr.dli_exists:
                     outlets = utils.spinner("Refreshing Outlets", self.cpiexec.outlet_update, refresh=True, upd_linked=True)
-                    # with Halo(text='Refreshing Outlets', spinner='dots'):
-                    #     outlets = self.cpiexec.outlet_update(refresh=True, upd_linked=True)
 
     def wait_for_input(self, prompt: str = " >> ", terminate: bool = False, locs: dict = {}) -> Choice:
         '''Get input from user.
@@ -496,45 +499,70 @@ class ConsolePiMenu(Rename):
 
         dli_dict = pwr.data['dli_power']
         while choice not in ['x']:
-            index = start = 1
+            item = start = 1
             outer_body = []
             slines = []
             state_list = []
-            for dli in sorted(dli_dict):
+            for dli in sorted(dli_dict, key=lambda i: i.lower()):
                 mlines = []
                 state_list = []
                 port_dict = dli_dict[dli]
                 # strip off all but hostname if address is fqdn
                 host_short = dli.split('.')[0] if '.' in dli and not dli.split('.')[0].isdigit() else dli
+                _type = "dli" if port_dict and str(list(port_dict.keys())[0]).isdigit() else "esphome"
+                if _type == "dli":
+                    key = "dli_pwr"
+                    toggle_all_func = pwr.pwr_toggle
+                    _all_args = [_type, dli]
+                    toggle_all_kwargs = {'port': 'all'}
+                    cycle_all_kwargs = {}
+                    cycle_all_func = pwr.pwr_cycle
+                else:
+                    key = dli
+                    toggle_all_func = pwr.pwr_all
+                    _all_args = [{dli: pwr.data["defined"].get(dli, {})}]
+                    toggle_all_kwargs = {"action": "toggle"}
+                    cycle_all_kwargs = {"action": "cycle"}
+                    cycle_all_func = pwr.pwr_all
 
                 # -- // MENU ITEMS LOOP \\ --
-                for port in port_dict:
+                for idx, port in enumerate(port_dict):
                     pname = port_dict[port]['name']
                     cur_state = port_dict[port]['state']
                     state_list.append(cur_state)
                     to_state = not cur_state
                     on_pad = ' ' if cur_state else ''
-                    mlines.append('[{}] {}{}{}'.format(
-                        self.states[cur_state], on_pad, 'P' + str(port) + ': ' if port != index else '', pname))
-                    menu_actions[str(index)] = {
+                    # _type = "dli" if port.isdigit() else "esphome"
+
+                    # TODO make esp-power it's own dict from pwr_get_outlets vs putting in dli-power
+                    if _type == "dli":
+                        mlines.append('[{}] {}{}{}'.format(
+                            self.states[cur_state], on_pad, 'P' + str(port) + ': ' if port != item else '', pname))
+
+                    else:  # esphome in dli menu
+                        mlines.append('[{}] {}{}{}'.format(self.states[cur_state], on_pad, 'P' + str(idx + 1) + ': ' if idx != item else '', pname))
+                        _type = "esphome"
+
+                    menu_actions[str(item)] = {
                         'function': pwr.pwr_toggle,
-                        'args': ['dli', dli],
+                        'args': [_type, dli],
                         'kwargs': {'port': port},  # , 'desired_state': to_state},
-                        'key': 'dli_pwr'
+                        'key': key
                     }
-                    menu_actions['c' + str(index)] = {
+                    menu_actions['c' + str(item)] = {
                         'function': pwr.pwr_cycle,
-                        'args': ['dli', dli],
+                        'args': [_type, dli],
                         'kwargs': {'port': port},
-                        'key': 'dli_pwr'
+                        'key': key
                     }
-                    menu_actions['r' + str(index)] = {
+                    menu_actions['r' + str(item)] = {
                         'function': pwr.pwr_rename,
-                        'args': ['dli', dli],
+                        'args': [_type, dli],
                         'kwargs': {'port': port},
-                        'key': 'dli_pwr'
+                        'key': key
                     }
-                    index += 1
+
+                    item += 1
 
                 # add final entry for all operations
                 if True not in state_list:
@@ -544,46 +572,47 @@ class ConsolePiMenu(Rename):
                     _line = 'ALL {{red}}OFF{{norm}}'
                     desired_state = False
                 else:
-                    _line = 'ALL [on|off]. i.e. "{} off"'.format(index)
+                    _line = 'ALL [on|off]. i.e. "{} off"'.format(item)
                     desired_state = None
                 # build appropriate menu_actions item will represent ALL ON or ALL OFF if current state
                 # of all outlets is the inverse
                 # if there is a mix item#+on or item#+off will both be valid but item# alone will not.
                 if desired_state in [True, False]:
-                    menu_actions[str(index)] = {
-                        'function': pwr.pwr_toggle,
-                        'args': ['dli', dli],
-                        'kwargs': {'port': 'all', 'desired_state': desired_state},
-                        'key': 'dli_pwr'
+                    menu_actions[str(item)] = {
+                        'function': toggle_all_func,
+                        'args': _all_args,
+                        'kwargs': {**toggle_all_kwargs, 'desired_state': desired_state},
+                        'key': key
                     }
-                elif desired_state is None:
-                    for s in ['on', 'off']:
-                        desired_state = True if s == 'on' else False
-                        menu_actions[str(index) + ' ' + s] = {
-                            'function': pwr.pwr_toggle,
-                            'args': ['dli', dli],
-                            'kwargs': {'port': 'all', 'desired_state': desired_state},
-                            'key': 'dli_pwr'
-                        }
+                print("desired state unexpected value")
+                # elif desired_state is None:
+                #     for s in ['on', 'off']:
+                #         desired_state = True if s == 'on' else False
+                #         menu_actions[str(item) + ' ' + s] = {
+                #             'function': pwr.pwr_toggle,
+                #             'args': [_type, dli],
+                #             'kwargs': {'port': 'all', 'desired_state': desired_state},
+                #             'key': key
+                #         }
                 mlines.append(_line)
-                index += 1
+                item += 1
 
                 # Add cycle line if any outlets are currently ON
                 if True in state_list:
                     mlines.append('Cycle ALL')
-                    menu_actions[str(index)] = {
-                        'function': pwr.pwr_cycle,
-                        'args': ['dli', dli],
-                        'kwargs': {'port': 'all'},
-                        'key': 'dli_pwr'
+                    menu_actions[str(item)] = {
+                        'function': cycle_all_func,
+                        'args': _all_args,
+                        'kwargs': cycle_all_kwargs,
+                        'key': key
                     }
-                index = start + 10
+                item = start + 10
                 start += 10
 
                 outer_body.append(mlines)   # list of lists where each list = printed menu lines
                 slines.append(host_short)   # list of strings index to index match with body list of lists
 
-            header = 'DLI Web Power Switch'
+            header = 'DLI Web Power Switch / espHome Power Strip'
             subhead = ['enter item # to toggle power state on outlet']
             if True in state_list:
                 subhead.append('enter c + item # i.e. "c2" to cycle power on outlet')
@@ -595,13 +624,11 @@ class ConsolePiMenu(Rename):
                 legend['opts'].insert(0, 'power')
                 legend['overrides'] = {'power': ['p', 'Power Control Menu (linked, GPIO, tasmota)']}
 
-            # for dli menu remove any tasmota or esphome errors
+            # for dli menu remove any tasmota errors
             for _error in log.error_msgs:
-                if 'TASMOTA' in _error or 'esphome' in _error:
+                if 'TASMOTA' in _error:
                     log.error_msgs.remove(_error)
 
-            # menu_actions = self.menu.print_menu(outer_body, header=header, subhead=subhead, legend=legend, subs=slines,
-            #                                     by_tens=True, menu_actions=menu_actions)
             menu_actions = menu.print_menu(outer_body, header=header, subhead=subhead, legend=legend, subs=slines,
                                            by_tens=True, menu_actions=menu_actions)
 
@@ -610,14 +637,12 @@ class ConsolePiMenu(Rename):
             if menu.cur_page == 1 and choice == "b":
                 break
 
-            # self.menu.print_menu(outer_body, header=header, subhead=subhead, footer=footer, subs=slines,
-            #                      force_cols=True, by_tens=True)
-
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
             if choice == 'r':
                 self.spin.start('Refreshing Outlets')
                 dli_dict = self.cpiexec.outlet_update(refresh=True, key='dli_power')
+                # esp_dict = self.cpiexec.outlet_update(refresh=True, key='dli_power')
                 self.spin.succeed()
             elif choice == 'b':
                 return

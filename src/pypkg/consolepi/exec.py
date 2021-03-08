@@ -205,7 +205,7 @@ class ConsolePiExec:
             bool: True if threads are still running indicating a timeout
                   None indicates no threads found ~ they have finished
         """
-        start = time.time()
+        start = time.perf_counter()
         do_log = False
         found = False
         while True:
@@ -225,16 +225,16 @@ class ConsolePiExec:
                         "[{0} {1} WAIT] {0} Threads have Completed, elapsed time: {2}".format(
                             name.strip("_").upper(),
                             thread_type.upper(),
-                            time.time() - start,
+                            round(time.perf_counter() - start, 2),
                         )
                     )
                 break
-            elif time.time() - start > timeout:
+            elif time.perf_counter() - start > timeout:
                 log.error(
                     "[{0} {1} WAIT] Timeout Waiting for {0} Threads to Complete, elapsed time: {2}".format(
                         name.strip("_").upper(),
                         thread_type.upper(),
-                        time.time() - start,
+                        round(time.perf_counter() - start, 2),
                     ),
                     show=True,
                 )

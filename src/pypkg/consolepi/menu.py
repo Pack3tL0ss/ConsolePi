@@ -516,7 +516,7 @@ class Menu:
         addl_rows = 0
         section_slices = {}
 
-        equal_sections = True if len(set([len(section) for section in _body])) == 1 else False
+        equal_sections = True if by_tens or len(set([len(section) for section in _body])) == 1 else False
         max_section = max([len(section) + addl_rows for section in _body])
         for idx, _section in enumerate(_body):
             if subs:

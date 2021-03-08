@@ -3,6 +3,7 @@
 import json
 import threading
 import time
+from typing import Any, Dict, List, Tuple, Union
 
 try:
     import RPi.GPIO as GPIO
@@ -38,8 +39,8 @@ class Outlets:
         else:
             self.outlets_exists = False
 
-        self.data = config.outlets
-        # self.pwr_init_complete = False
+        self.data: Dict[str, Any] = config.outlets
+
         if config.power:
             self.pwr_start_update_threads()
 
@@ -237,9 +238,9 @@ class Outlets:
         else:
             return self._dli[address], True
 
-    def pwr_start_update_threads(self, upd_linked=False, failures={}, t_name='init'):
+    def pwr_start_update_threads(self, upd_linked: bool = False, failures: Dict[str, Any] = {}, t_name: str = 'init'):
         kwargs = {'upd_linked': upd_linked, 'failures': failures}
-        outlets = self.data.get('defined')
+        outlets = self.data.get('defined', {})
         if not failures:
             if 'failures' in outlets:
                 failures = outlets['failures']
@@ -260,7 +261,7 @@ class Outlets:
                     threading.Thread(target=self.pwr_get_outlets, args=[{k: _outlets[k]}],
                                      kwargs=kwargs, name=t_name + '_pwr_' + k).start()
 
-    def update_linked_devs(self, outlet):
+    def update_linked_devs(self, outlet: Dict[str, Any]) -> Tuple[Dict[str, Any], List[Union[str, int]]]:
         '''Update linked devs for dli outlets if they exist
 
         Params:
@@ -300,7 +301,7 @@ class Outlets:
                 else:
                     threading.Thread(target=dlis[address].dli.session.close).start()
 
-    def pwr_get_outlets(self, outlet_data: dict = {}, upd_linked: bool = False, failures: dict = {}):
+    def pwr_get_outlets(self, outlet_data: Dict[str, Any] = {}, upd_linked: bool = False, failures: Dict[str, Any] = {}) -> Dict[str, Any]:
         '''Get Details for Outlets defined in ConsolePi.yaml power section
 
         On Menu Launch this method is called in parallel (threaded) for each outlet
@@ -315,14 +316,15 @@ class Outlets:
         # re-attempt connection to failed power controllers on refresh
         log.debug(f"[PWR VRFY (pwr_get_outlets)] Processing {', '.join(outlet_data.keys())}")
         if not failures:
-            failures = outlet_data.get('failures') if outlet_data.get('failures') else self.data.get('failures')
+            failures = outlet_data.get('failures', {}) if outlet_data.get('failures') else self.data.get('failures', {})
 
-        outlet_data = self.data.get('defined') if not outlet_data else outlet_data
+        outlet_data = self.data.get('defined', {}) if not outlet_data else outlet_data
         if failures:
             outlet_data = {**outlet_data, **failures}
             failures = {}
 
         dli_power = self.data.get('dli_power', {})
+        esp_power = self.data.get('esp_power', {})
 
         for k in outlet_data:
             outlet = outlet_data[k]
@@ -368,7 +370,7 @@ class Outlets:
                 if esp_ok and len(relays) > 1 or (esp_ok and len(relays) == 8):
                     no_linkage_relays = [r for r in relays if f"'{r}'" not in str(outlet_data[k]["linked_devs"])]
                     if no_linkage_relays:
-                        dli_power[k] = outlet_data[k]["is_on"]
+                        esp_power[outlet_data[k]["address"]] = outlet_data[k]["is_on"]
 
             # -- // dli \\ --
             elif outlet['type'].lower() == 'dli':
@@ -444,8 +446,6 @@ class Outlets:
 
         # Move failed outlets from the keys that populate the menu to the 'failures' key
         # failures are displayed in the footer section of the menu, then re-tried on refresh
-        # TODO this may be causing - RuntimeError: dictionary changed size during iteration
-        # in pwr_start_update_threads. witnessed on mdnsreg daemon on occasion (Move del logic after wait_for_threads?)
         for _dev in failures.copy():
             if outlet_data.get(_dev):
                 del outlet_data[_dev]
@@ -463,6 +463,7 @@ class Outlets:
                 del self.data['failures'][_dev]
 
         self.data['dli_power'] = dli_power
+        self.data['esp_power'] = esp_power
 
         log.debug(f"[PWR VRFY (pwr_get_outlets)] Done Processing {', '.join(outlet_data.keys())}")
         return self.data

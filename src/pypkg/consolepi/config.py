@@ -174,6 +174,7 @@ class Config():
             'defined': outlet_data,
             'linked': by_dev,
             'dli_power': {},
+            'esp_power': {},
             'failures': {}
         }
 

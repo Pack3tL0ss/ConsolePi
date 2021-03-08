@@ -175,7 +175,7 @@ class Outlets:
             'Cache-Control': "no-cache",
             'Connection': "keep-alive",
             'cache-control': "no-cache"
-            }
+        }
         # -- Get initial State of Outlet --
         cur_state = esphome_req(command=None)
 
@@ -225,8 +225,8 @@ class Outlets:
         if not self._dli.get(address):
             try:
                 self._dli[address] = DLI(address, username, password, timeout=config.dli_timeout, log=log)
-            except ConnectionError as e:
-                log.warning(f"[PWR-DLI] DLI @ {address} is now unreachable {e}", show=True)
+            except Exception as e:
+                log.warning(f"[PWR-DLI] DLI @ {address} is now unreachable {e.__class__.__name__}", show=True)
                 return None, None
             # --// Return Pass or fail based on reachability \\--
             if self._dli[address].reachable:
@@ -359,6 +359,7 @@ class Outlets:
                         failures[k] = outlet_data[k]
                         failures[k]['error'] = f'[PWR-ESP] {k}:{failures[k]["address"]} {response} - Removed'
                         log.warning(failures[k]['error'], show=True)
+                        break
 
             # -- // dli \\ --
             elif outlet['type'].lower() == 'dli':
@@ -620,28 +621,28 @@ class Outlets:
                             # Start a thread for each port run in parallel
                             # menu status for (linked) power menu is updated on load
                             threading.Thread(
-                                    target=self.pwr_cycle,
-                                    args=[outlet['type'], outlet['address']],
-                                    kwargs={'port': p, 'noff': noff},
-                                    name=f'cycle_{p}'
-                                ).start()
-                elif outlet['type'] == 'esphome':
-                    relays = utils.listify(outlet.get('relays', []))
-                    for p in relays:
-                        # Start a thread for each port run in parallel
-                        threading.Thread(
                                 target=self.pwr_cycle,
                                 args=[outlet['type'], outlet['address']],
                                 kwargs={'port': p, 'noff': noff},
                                 name=f'cycle_{p}'
                             ).start()
-                else:
-                    threading.Thread(
+                elif outlet['type'] == 'esphome':
+                    relays = utils.listify(outlet.get('relays', []))
+                    for p in relays:
+                        # Start a thread for each port run in parallel
+                        threading.Thread(
                             target=self.pwr_cycle,
                             args=[outlet['type'], outlet['address']],
-                            kwargs={'noff': noff},
-                            name='cycle_{}'.format(outlet['address'])
+                            kwargs={'port': p, 'noff': noff},
+                            name=f'cycle_{p}'
                         ).start()
+                else:
+                    threading.Thread(
+                        target=self.pwr_cycle,
+                        args=[outlet['type'], outlet['address']],
+                        kwargs={'noff': noff},
+                        name='cycle_{}'.format(outlet['address'])
+                    ).start()
 
         # Wait for all threads to complete
         while True:

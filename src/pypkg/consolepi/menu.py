@@ -3,7 +3,7 @@
 import re
 import sys
 from os import system
-from typing import Dict, List, Tuple, Union, Any
+from typing import Dict, Iterator, List, Tuple, Union, Any
 
 from consolepi import utils, log, config  # type: ignore
 
@@ -261,7 +261,7 @@ class MenuParts:
         # self._footer.update(width=self.cols)
 
     def __repr__(self):
-        name = "" if not self.name else f" {(self.name)}"
+        name = "" if not self.name else f" ({(self.name)})"
         return f"<{self.__module__}.{type(self).__name__}{name} object at {hex(id(self))}>"
 
     def __len__(self):
@@ -281,7 +281,7 @@ class MenuParts:
         log.clear()
         return "\n".join([line for p in parts for line in p.lines])
 
-    def __iter__(self, key: str = None) -> MenuSection:
+    def __iter__(self, key: str = None) -> Iterator[MenuSection]:
         # parts = [self.header, self.subhead, self.body, self.legend, self.footer]
         for p in self.parts:
             if not p or (key and p.name != key):  # or (p.name == "legend" and p.hide):
@@ -291,6 +291,7 @@ class MenuParts:
 
     def _cols(self):
         # parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        _ = "Do Nothing Break Point Line"  # TODO remove
         return max([p.cols for p in self.parts if p] or [0])
 
     def update(self):
@@ -589,6 +590,7 @@ class Menu:
                 _sub_key = 0 if not self.reverse else -1
                 if sub and sub_section[_sub_key].split()[0] != self.body_in[sec][0].split()[0]:
                     if "Local Adapters" in sub:
+                        # if self.name != "rename_menu":
                         sub = f"[CONTINUED] {sub.replace('Rename ', '')}"
                     else:
                         sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0].split(' on ')[-1]}"
@@ -1248,10 +1250,20 @@ class Menu:
         head_lines.append("=" * width)
         width_list += [width]
 
-        _header = MenuSection(lines=head_lines, rows=len(head_lines), cols=max(width_list), width_list=width_list, orig=orig)
-        _header.update_method = self.format_header
-        _header.update_args = (text)
-        _header.update_kwargs = {"width": width}
+        _header = MenuSection(
+            orig=orig,
+            lines=head_lines,
+            width_list=width_list,
+            rows=len(head_lines),
+            cols=max(width_list),
+            name="header",
+            update_method=self.format_header,
+            update_args=(text, ),
+            update_kwargs={"width": width},
+        )
+        # _header.update_method = self.format_header
+        # _header.update_args = (text)
+        # _header.update_kwargs = {"width": width}
         self.page.header = _header
 
         return self.page.header
@@ -1517,8 +1529,15 @@ class Menu:
 
         mlines += [bot_line]
 
-        _footer = MenuSection(lines=mlines, rows=len(mlines), cols=width, update_method=self.format_footer,
-                              update_kwargs={"width": width})
+        _footer = MenuSection(
+            lines=mlines,
+            width_list=foot_width_list,
+            rows=len(mlines),
+            cols=width,
+            update_method=self.format_footer,
+            update_kwargs={"width": width},
+            name="footer",
+        )
         self.page.footer = _footer
 
         return _footer

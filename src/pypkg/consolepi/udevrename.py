@@ -47,10 +47,14 @@ class Rename():
         try:
             to_name = None
             while not to_name:
-                to_name = input(' [rename {}]: Provide desired name: '.format(c_from_name))
+                print(" Press 'enter' to keep the same name and change baud/parity/...")
+                to_name = input(f' [rename {c_from_name}]: Provide desired name: ')
+                print("")
+                to_name = to_name or from_name
             to_name = to_name.replace('/dev/', '')  # strip /dev/ if they thought they needed to include it
             # it's ok to essentialy rename with same name (to chg baud etc.), but not OK to rename to a name that is already
             # in use by another adapter
+            # TODO collect not connected adapters as well to avoid dups
             if from_name != to_name and f"/dev/{to_name}" in local.adapters:
                 return f"There is already an adapter using alias {to_name}"
 
@@ -67,9 +71,18 @@ class Rename():
         except (KeyboardInterrupt, EOFError):
             return 'Rename Aborted based on User Input'
 
-        c_to_name = '{}{}{}'.format(c['green'], to_name, c['norm'])
+        c_to_name = f'{c["green"]}{to_name}{c["norm"]}'
+        log_c_to_name = "".join(["{{green}}", to_name, "{{norm}}"])
 
-        if utils.user_input_bool(' Please Confirm Rename {} --> {}'.format(c_from_name, c_to_name)):
+        go, con_only = True, False
+        if from_name == to_name:
+            log.show(f"Keeping {log_c_to_name}. Changing connection settings Only.")
+            con_only = True
+            use_def = False
+        elif utils.user_input_bool(' Please Confirm Rename {} --> {}'.format(c_from_name, c_to_name)) is False:
+            go = False
+
+        if go:
             for i in local.adapters:
                 if i == f'/dev/{from_name}':
                     break
@@ -86,8 +99,10 @@ class Rename():
                     word = 'Use default'
 
             # -- // Ask user if they want to update connection settings \\ --
-            use_def = utils.user_input_bool(' {} connection values [{} {}{}1 Flow: {}]'.format(
-                word, baud, dbits, parity.upper(), self.flow_pretty[flow]))
+            if not con_only:
+                use_def = utils.user_input_bool(' {} connection values [{} {}{}1 Flow: {}]'.format(
+                    word, baud, dbits, parity.upper(), self.flow_pretty[flow]))
+
             if not use_def:
                 self.con_menu(rename=True, con_dict={'baud': baud, 'data_bits': dbits, 'parity': parity,
                                                      'flow': flow, 'sbits': sbits})
@@ -97,11 +112,9 @@ class Rename():
                 parity = self.parity
                 flow = self.flow
                 sbits = self.sbits
-            # if not use_def:
-            #     con_settings = self.con_menu(rename=True)
-            #     print(con_settings)
 
             # restore defaults back to class attribute if we flipped them when we called con_menu
+            # TODO believe this was an old hack, and can be removed
             if hasattr(self, 'con_dict') and self.con_dict:
                 self.baud = self.con_dict['baud']
                 self.data_bits = self.con_dict['data_bits']
@@ -125,11 +138,6 @@ class Rename():
                     root_dev = _tty.get('root_dev')
                 else:
                     return 'ERROR: Adapter no longer found'
-
-                # this should never hit now added check after to_name input to throw error
-                if not root_dev:
-                    return 'Did you really create an alias with "ttyUSB" or "ttyACM" in it (same as root devices)?\n\t' \
-                           'Rename failed cause you\'re silly'
 
                 # -- // ADAPTERS WITH ALL ATTRIBUTES AND GPIO UART (TTYAMA) \\ --
                 if id_prod and id_serial and id_vendorid:
@@ -268,6 +276,7 @@ class Rename():
                 local.adapters[f'/dev/{to_name}'] = local.adapters[f'/dev/{from_name}']
                 local.adapters[f'/dev/{to_name}']['config']['port'] = config.ser2net_conf[f'/dev/{to_name}'].get('port', 0)
                 local.adapters[f'/dev/{to_name}']['config']['cmd'] = config.ser2net_conf[f'/dev/{to_name}'].get('cmd')
+                local.adapters[f'/dev/{to_name}']['config']['line'] = config.ser2net_conf[f'/dev/{to_name}'].get('line')
                 local.adapters[f'/dev/{to_name}']['config']['log'] = config.ser2net_conf[f'/dev/{to_name}'].get('log')
                 local.adapters[f'/dev/{to_name}']['config']['log_ptr'] = config.ser2net_conf[f'/dev/{to_name}'].get('log_ptr')
                 _config_dict = local.adapters[f'/dev/{to_name}']['config']
@@ -280,9 +289,18 @@ class Rename():
                         'sbits': sbits,
                         }
                     local.adapters[f'/dev/{to_name}']['config'] = {**_config_dict, **updates}
+
                 if from_name != to_name:  # facilitates changing con settings without actually renaming
                     del local.adapters[f'/dev/{from_name}']
+
                 self.udev_pending = True    # toggle for exit function if they exit directly from rename memu
+
+                # update first item in first section of menu_body menu uses it to determine if section is a continuation
+                try:
+                    self.cur_menu.body_in[0][0] = self.cur_menu.body_in[0][0].replace(from_name, to_name)
+                    self.menu.body_in[0][0] = self.menu.body_in[0][0].replace(from_name, to_name)
+                except Exception as e:
+                    log.exceptions(f"[DEV NOTE menu_body update after rename caused exception.\n{e}", show=False)
 
         else:
             return 'Aborted based on user input'
@@ -366,7 +384,8 @@ class Rename():
             ser2net_line = ser2net_line.strip().replace('/', r'\/')
             cur_line = cur_line.replace('/', r'\/')
             cmd = "sudo sed -i 's/^{}$/{}/'  {}".format(
-                        cur_line, ser2net_line, self.ser2net_file)
+                cur_line, ser2net_line, self.ser2net_file
+            )
             error = utils.do_shell_cmd(cmd, shell=True)
 
         if not error:

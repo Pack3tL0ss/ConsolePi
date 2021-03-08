@@ -9,6 +9,7 @@ import itertools
 from os import system
 from pprint import pprint
 from collections import OrderedDict as od
+from typing import Union
 from halo import Halo
 
 # --// ConsolePi imports \\--
@@ -33,8 +34,8 @@ class Actions():
 
 class ConsolePiMenu(Rename):
 
-    def __init__(self, bypass_remotes: bool = False):
-        self.cpi = ConsolePi(bypass_remotes=bypass_remotes)
+    def __init__(self, bypass_remotes: bool = False, bypass_outlets: bool = False):
+        self.cpi = ConsolePi(bypass_remotes=bypass_remotes, bypass_outlets=bypass_outlets)
         self.cpiexec = self.cpi.cpiexec
         self.baud = config.default_baud
         self.go = True
@@ -71,7 +72,7 @@ class ConsolePiMenu(Rename):
         self.cur_menu = None
         super().__init__(self.menu)
 
-    def print_attribute(self, ch: str, locs: dict = {}) -> bool:
+    def print_attribute(self, ch: str, locs: dict = {}) -> Union[bool, None]:
         '''Debugging Function allowing user to print class attributes / function returns.
 
         Params:
@@ -109,16 +110,10 @@ class ConsolePiMenu(Rename):
                 _args_str = f"({ch.split('(')[1]}"
                 _ch = ch.replace(_args_str, '{{ARGS}}')
             _class_str = '.'.join(_ch.split('.')[0:-1])
-            _attr = _ch.split('.')[-1].split('{{')[0]  # .split('[')[0].split('(')[0]
-            # if _class_str.split('.')[0] == 'this':
+            _attr = _ch.split('.')[-1].split('{{')[0]
             if _class_str.startswith('this'):
                 _var = f'self.var = locs.get("{_attr}", "Attribute/Variable Not Found")'
                 _var += ch.lstrip(f"{_class_str}.").lstrip(_attr)
-                # _var = _var.replace('{{KEY}}', _key_str).replace('{{ARGS}}', _args_str)
-                # if '[' in ch:
-                #     _var += f"[{ch.split('.')[-1].split('[')[1]}"
-                # if '(' in ch:
-                #     _var += f"({ch.split('.')[-1].split('(')[1]}"
             else:
                 try:
                     exec(f"self._class = {_class_str}")
@@ -814,7 +809,7 @@ class ConsolePiMenu(Rename):
                     menu_actions['c' + str(item)] = connect
                     menu_actions['c ' + str(item)] = connect
 
-                    _cmd = f'{rem_pfx} \"sudo /\etc/\ConsolePi/\src/\consolepi-menu.py rn {dev}\"'  # NoQA
+                    _cmd = f'{rem_pfx} \"sudo /\etc/\ConsolePi/\src/\consolepi-menu.py rn {dev}\"'  # type: ignore # noqa
                     menu_actions[str(item)] = {'cmd': _cmd,
                                                'pre_msg': f"Connecting To {host} to Rename {dev_pretty}...",
                                                'host': host}
@@ -894,8 +889,10 @@ class ConsolePiMenu(Rename):
             menu_actions['r'] = None
             menu_actions['x'] = self.exit
 
-            # menu_actions = self.menu.print_menu(outer_body, header='Define/Rename Adapters',
-            #                              legend=legend, subs=slines, menu_actions=menu_actions, calling_menu='rename_menu')
+            if not loc:
+                print(f"{self.log_sym_2bang}  No Local Adapters Detected. Nothing to rename, exiting...")
+                return
+
             menu_actions = menu.print_menu(outer_body, header='Define/Rename Adapters',
                                            legend=legend, subs=slines, menu_actions=menu_actions)
 
@@ -903,13 +900,15 @@ class ConsolePiMenu(Rename):
 
             choice_c = self.wait_for_input(locs=locals())
             choice = choice_c.lower
-            # if choice in menu_actions:  # == 'b':
+
             # if trying to connect to local adapter after rename refresh udev
             if choice.startswith('c') and len(choice) <= len(str(rem_item - 1)) + 1 and self.udev_pending:
                 n = int(choice.replace('c', '').strip())
                 if n < rem_item:
                     self.trigger_udev()
+
             cpi.cpiexec.menu_exec(choice_c, menu_actions, calling_menu='rename_menu')
+
             # -- if rename was performed on a remote update remotes to pull the new name
             if choice.isdigit() and int(choice) >= rem_item:
                 print('Triggering Refresh due to Remote Name Change')
@@ -990,7 +989,6 @@ class ConsolePiMenu(Rename):
         rem_slines = []
         rem_outer_body = []
         for host in sorted(rem):
-            # if rem[host].get('rem_ip') and len(rem[host]['adapters']) > 0:
             if rem[host].get('rem_ip') and rem[host]['adapters']:
                 remotes.connected = True
                 rem_mlines, rem_menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item, remote=True,
@@ -1053,15 +1051,9 @@ class ConsolePiMenu(Rename):
         self.cur_menu = menu
 
         choice_c = self.wait_for_input(locs=locals(), terminate=True)
-        # choice = choice_c.lower
-        # TODO Temporary local only refresh refactor to action object
-        # if choice == 'rl':
-        #     cpi.local.adapters = cpi.local.build_adapter_dict(refresh=True)
-        #     remotes.data = remotes.get_remote(data=config.remote_update())
-        #     loc = cpi.local.adapters
-        #     rem = remotes.data
-        # else:
+
         cpi.cpiexec.menu_exec(choice_c, menu_actions)
+
         return
 
     # ------ // REMOTE SHELL MENU \\ ------ #
@@ -1129,7 +1121,12 @@ class ConsolePiMenu(Rename):
 
     # -- // CONNECTION MENU \\ --
     def con_menu(self, rename: bool = False, con_dict: dict = None):
-        menu = self.cpi.menu
+        # menu = self.cpi.menu
+        menu = Menu("con_menu")
+        menu.legend_options = {
+            'back': ['b', 'Back'],
+            'x': ['x', 'Exit']
+        }
         menu_actions = {
             '1': self.baud_menu,
             '2': self.data_bits_menu,
@@ -1161,7 +1158,7 @@ class ConsolePiMenu(Rename):
             legend = {'opts': ['back', 'x'],
                       'overrides': {'back': ['b', 'Back {}'.format(' (Apply Changes to Files)' if rename else '')]}
                       }
-            menu.print_menu(mlines, header=header, legend=legend)
+            menu.print_menu(mlines, header=header, legend=legend, menu_actions=menu_actions)
             ch = self.wait_for_input(locs=locals()).lower
             try:
                 if ch == 'b':
@@ -1389,7 +1386,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         # -- // Direct Launch to Rename Menu \\ --
         if sys.argv[1].lower() in ['rn', 'rename', 'addconsole']:
-            cpi_menu = ConsolePiMenu(bypass_remotes=True)
+            cpi_menu = ConsolePiMenu(bypass_remotes=True, bypass_outlets=True)
             if len(sys.argv) == 2:
                 cpi_menu.rename_menu(direct_launch=True)
             # -- // Direct Launch to Rename Task (Remote Rename) \\

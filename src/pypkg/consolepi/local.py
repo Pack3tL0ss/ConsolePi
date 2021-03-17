@@ -30,12 +30,15 @@ class Local():
             self.interfaces = self.get_if_info()
         _ip_w_gw = self.interfaces['_ip_w_gw']
         rem_ip = _ip_w_gw if rem_ip is None else rem_ip
-        local = {self.hostname: {
-                                'cpuserial': self.cpuserial,
-                                'adapters': self.adapters,
-                                'interfaces': self.interfaces,
-                                'rem_ip': rem_ip,
-                                'user': config.cfg.get('rem_user', 'pi')}}
+        local = {
+            self.hostname: {
+                'cpuserial': self.cpuserial,
+                'adapters': self.adapters,
+                'interfaces': self.interfaces,
+                'rem_ip': rem_ip,
+                'user': config.cfg.get('rem_user', 'pi')
+            }
+        }
         return local
 
     def detect_adapters(self, key=None):
@@ -154,15 +157,15 @@ class Local():
     def default_ser_config(self, tty_dev, tty_port=0):
         '''Return default serial parameters when no match found in ser2net'''
         return {
-                'port': tty_port,
-                'baud': self.default_baud,
-                'dbits': 8,
-                'parity': 'n',
-                'flow': 'n',
-                'sbits': 1,
-                'logfile': None,
-                'cmd': f'picocom {tty_dev} --baud {self.default_baud}'
-                }
+            'port': tty_port,
+            'baud': self.default_baud,
+            'dbits': 8,
+            'parity': 'n',
+            'flow': 'n',
+            'sbits': 1,
+            'logfile': None,
+            'cmd': f'picocom {tty_dev} --baud {self.default_baud}'
+        }
 
     def build_adapter_dict(self, refresh=False):
         '''Create final adapter dict from udev ser2net and outlet dicts.'''
@@ -207,9 +210,11 @@ class Local():
         return if_data
 
     def get_ip_list(self):
-        return [ni.ifaddresses(i).get(ni.AF_INET, {0: {}})[0].get('addr')
-                for i in ni.interfaces() if i != 'lo' and 'docker' not in i and 'ifb' not in i
-                and ni.ifaddresses(i).get(ni.AF_INET, {0: {}})[0].get('addr')]
+        return [
+            ni.ifaddresses(i).get(ni.AF_INET, {0: {}})[0].get('addr')
+            for i in ni.interfaces()
+            if i != 'lo' and 'docker' not in i and 'ifb' not in i and ni.ifaddresses(i).get(ni.AF_INET, {0: {}})[0].get('addr')
+        ]
 
 
 if __name__ == '__main__':

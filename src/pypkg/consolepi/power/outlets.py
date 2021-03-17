@@ -3,7 +3,7 @@
 import json
 import threading
 import time
-from copy import copy  # , deepcopy
+from typing import Any, Dict, List, Tuple, Union
 
 try:
     import RPi.GPIO as GPIO
@@ -29,7 +29,7 @@ class Outlets:
         self._dli = {}
 
         # Some convenience Bools used by menu to determine what options to display
-        self.dli_exists = True if 'dli' in config.outlet_types else False
+        self.dli_exists = True if 'dli' in config.outlet_types or config.do_dli_menu else False
         self.tasmota_exists = True if 'tasmota' in config.outlet_types else False
         self.esphome_exists = True if 'esphome' in config.outlet_types else False  # TODO Future
         self.gpio_exists = True if 'gpio' in config.outlet_types else False
@@ -39,8 +39,8 @@ class Outlets:
         else:
             self.outlets_exists = False
 
-        self.data = config.outlets
-        # self.pwr_init_complete = False
+        self.data: Dict[str, Any] = config.outlets
+
         if config.power:
             self.pwr_start_update_threads()
 
@@ -91,7 +91,7 @@ class Outlets:
             'Cache-Control': "no-cache",
             'Connection': "keep-alive",
             'cache-control': "no-cache"
-            }
+        }
 
         querystring = {"cmnd": "Power"}
         cycle = False
@@ -175,7 +175,7 @@ class Outlets:
             'Cache-Control': "no-cache",
             'Connection': "keep-alive",
             'cache-control': "no-cache"
-            }
+        }
         # -- Get initial State of Outlet --
         cur_state = esphome_req(command=None)
 
@@ -225,8 +225,8 @@ class Outlets:
         if not self._dli.get(address):
             try:
                 self._dli[address] = DLI(address, username, password, timeout=config.dli_timeout, log=log)
-            except ConnectionError as e:
-                log.warning(f"[PWR-DLI] DLI @ {address} is now unreachable {e}", show=True)
+            except Exception as e:
+                log.warning(f"[PWR-DLI] DLI @ {address} is now unreachable {e.__class__.__name__}", show=True)
                 return None, None
             # --// Return Pass or fail based on reachability \\--
             if self._dli[address].reachable:
@@ -238,9 +238,9 @@ class Outlets:
         else:
             return self._dli[address], True
 
-    def pwr_start_update_threads(self, upd_linked=False, failures={}, t_name='init'):
+    def pwr_start_update_threads(self, upd_linked: bool = False, failures: Dict[str, Any] = {}, t_name: str = 'init'):
         kwargs = {'upd_linked': upd_linked, 'failures': failures}
-        outlets = self.data.get('defined')
+        outlets = self.data.get('defined', {})
         if not failures:
             if 'failures' in outlets:
                 failures = outlets['failures']
@@ -249,7 +249,7 @@ class Outlets:
             failures = {}
 
         # this shouldn't happen, but prevents spawning multiple updates for same outlet
-        _outlets = copy(outlets)
+        _outlets = outlets.copy()
         if _outlets is not None:
             for k in _outlets:
                 found = False
@@ -261,7 +261,7 @@ class Outlets:
                     threading.Thread(target=self.pwr_get_outlets, args=[{k: _outlets[k]}],
                                      kwargs=kwargs, name=t_name + '_pwr_' + k).start()
 
-    def update_linked_devs(self, outlet):
+    def update_linked_devs(self, outlet: Dict[str, Any]) -> Tuple[Dict[str, Any], List[Union[str, int]]]:
         '''Update linked devs for dli outlets if they exist
 
         Params:
@@ -283,7 +283,7 @@ class Outlets:
             if isinstance(_p, int):
                 outlet['is_on'] = {_p: this_dli.outlets[_p]}
             else:
-                outlet['is_on'] = {_: self.data['dli_power'][outlet['address']][_] for _ in _p}
+                outlet['is_on'] = {port: this_dli.outlets[port] for port in _p}
 
         return outlet, _p
 
@@ -301,7 +301,7 @@ class Outlets:
                 else:
                     threading.Thread(target=dlis[address].dli.session.close).start()
 
-    def pwr_get_outlets(self, outlet_data: dict = {}, upd_linked: bool = False, failures: dict = {}):
+    def pwr_get_outlets(self, outlet_data: Dict[str, Any] = {}, upd_linked: bool = False, failures: Dict[str, Any] = {}) -> Dict[str, Any]:
         '''Get Details for Outlets defined in ConsolePi.yaml power section
 
         On Menu Launch this method is called in parallel (threaded) for each outlet
@@ -314,19 +314,21 @@ class Outlets:
             failures:dict: when refreshing outlets pass in previous failures so they can be re-tried
         '''
         # re-attempt connection to failed power controllers on refresh
+        log.debug(f"[PWR VRFY (pwr_get_outlets)] Processing {', '.join(outlet_data.keys())}")
         if not failures:
-            failures = outlet_data.get('failures') if outlet_data.get('failures') else self.data.get('failures')
+            failures = outlet_data.get('failures', {}) if outlet_data.get('failures') else self.data.get('failures', {})
 
-        outlet_data = self.data.get('defined') if not outlet_data else outlet_data
+        outlet_data = self.data.get('defined', {}) if not outlet_data else outlet_data
         if failures:
             outlet_data = {**outlet_data, **failures}
             failures = {}
 
         dli_power = self.data.get('dli_power', {})
+        esp_power = self.data.get('esp_power', {})
 
         for k in outlet_data:
             outlet = outlet_data[k]
-            _start = time.time()
+            _start = time.perf_counter()
 
             # -- // GPIO \\ --
             if outlet['type'].upper() == 'GPIO':
@@ -352,6 +354,7 @@ class Outlets:
                 # TODO have do_esphome accept list, slice, or str for one or multiple relays
                 relays = utils.listify(outlet.get('relays', k))  # if they have not specified the relay try name of outlet
                 outlet['is_on'] = {}
+                esp_ok = True
                 for r in relays:
                     response = self.do_esphome_cmd(outlet['address'], r)
                     outlet['is_on'][r] = {'state': response, 'name': r}
@@ -359,6 +362,15 @@ class Outlets:
                         failures[k] = outlet_data[k]
                         failures[k]['error'] = f'[PWR-ESP] {k}:{failures[k]["address"]} {response} - Removed'
                         log.warning(failures[k]['error'], show=True)
+                        esp_ok = False
+                        break
+
+                # add multi-port esp_outlets to dli_menu, unless all outlets are linked anyway
+                # if esp is 8 ports add it to dli regardless (dli are 8 and they get that treatment)
+                if esp_ok and len(relays) > 1 or (esp_ok and len(relays) == 8):
+                    no_linkage_relays = [r for r in relays if f"'{r}'" not in str(outlet_data[k]["linked_devs"])]
+                    if no_linkage_relays:
+                        esp_power[outlet_data[k]["address"]] = outlet_data[k]["is_on"]
 
             # -- // dli \\ --
             elif outlet['type'].lower() == 'dli':
@@ -389,7 +401,7 @@ class Outlets:
                     log.warning(f"[PWR-DLI {k}] {failures[k]['address']} Unreachable - Removed", show=True)
                 else:
                     if TIMING:
-                        xstart = time.time()
+                        xstart = time.perf_counter()
                         print('this_dli.outlets: {} {}'.format(this_dli.outlets, 'update' if _update else 'init'))
                         print(json.dumps(dli_power, indent=4, sort_keys=True))
 
@@ -427,16 +439,14 @@ class Outlets:
                             (outlet, _p) = self.update_linked_devs(outlet)
 
                 if TIMING:
-                    print('[TIMING] this_dli.outlets: {}'.format(time.time() - xstart))  # type: ignore
+                    print('[TIMING] this_dli.outlets: {}'.format(time.perf_counter() - xstart))  # type: ignore
 
-            log.debug(f"{outlet['type'].lower()} {k} Updated. Elapsed Time(secs): {time.time() - _start}")
+            log.debug(f"{outlet['type'].lower()} {k} Updated. Elapsed Time(secs): {time.perf_counter() - _start}")
             # -- END for LOOP for k in outlet_data --
 
         # Move failed outlets from the keys that populate the menu to the 'failures' key
         # failures are displayed in the footer section of the menu, then re-tried on refresh
-        # TODO this may be causing - RuntimeError: dictionary changed size during iteration
-        # in pwr_start_update_threads. witnessed on mdnsreg daemon on occasion (Move del logic after wait_for_threads?)
-        for _dev in failures:
+        for _dev in failures.copy():
             if outlet_data.get(_dev):
                 del outlet_data[_dev]
             if self.data['defined'].get(_dev):
@@ -446,14 +456,16 @@ class Outlets:
             self.data['failures'][_dev] = failures[_dev]
 
         # restore outlets that failed on menu launch but found reachable during refresh
-        for _dev in outlet_data:
+        for _dev in outlet_data.copy():
             if _dev not in self.data['defined']:
                 self.data['defined'][_dev] = outlet_data[_dev]
             if _dev in self.data['failures']:
                 del self.data['failures'][_dev]
 
         self.data['dli_power'] = dli_power
+        self.data['esp_power'] = esp_power
 
+        log.debug(f"[PWR VRFY (pwr_get_outlets)] Done Processing {', '.join(outlet_data.keys())}")
         return self.data
 
     def pwr_toggle(self, pwr_type, address, desired_state=None, port=None, noff=True, noconfirm=False):
@@ -620,28 +632,28 @@ class Outlets:
                             # Start a thread for each port run in parallel
                             # menu status for (linked) power menu is updated on load
                             threading.Thread(
-                                    target=self.pwr_cycle,
-                                    args=[outlet['type'], outlet['address']],
-                                    kwargs={'port': p, 'noff': noff},
-                                    name=f'cycle_{p}'
-                                ).start()
-                elif outlet['type'] == 'esphome':
-                    relays = utils.listify(outlet.get('relays', []))
-                    for p in relays:
-                        # Start a thread for each port run in parallel
-                        threading.Thread(
                                 target=self.pwr_cycle,
                                 args=[outlet['type'], outlet['address']],
                                 kwargs={'port': p, 'noff': noff},
                                 name=f'cycle_{p}'
                             ).start()
-                else:
-                    threading.Thread(
+                elif outlet['type'] == 'esphome':
+                    relays = utils.listify(outlet.get('relays', []))
+                    for p in relays:
+                        # Start a thread for each port run in parallel
+                        threading.Thread(
                             target=self.pwr_cycle,
                             args=[outlet['type'], outlet['address']],
-                            kwargs={'noff': noff},
-                            name='cycle_{}'.format(outlet['address'])
+                            kwargs={'port': p, 'noff': noff},
+                            name=f'cycle_{p}'
                         ).start()
+                else:
+                    threading.Thread(
+                        target=self.pwr_cycle,
+                        args=[outlet['type'], outlet['address']],
+                        kwargs={'noff': noff},
+                        name='cycle_{}'.format(outlet['address'])
+                    ).start()
 
         # Wait for all threads to complete
         while True:

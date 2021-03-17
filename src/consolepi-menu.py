@@ -1080,8 +1080,10 @@ class ConsolePiMenu(Rename):
             menu_actions['rn'] = self.rename_menu
         foot_opts.append('refresh')
 
-        menu_actions = menu.print_menu(outer_body, header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
-                                       legend={'opts': foot_opts}, subs=slines, menu_actions=menu_actions)
+        menu_actions = menu.print_menu(
+            outer_body, header='{{cyan}}Console{{red}}Pi{{norm}} {{cyan}}Serial Menu{{norm}}',
+            legend={'opts': foot_opts}, subs=slines, menu_actions=menu_actions
+        )
 
         self.cur_menu = menu
 

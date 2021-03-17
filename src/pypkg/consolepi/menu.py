@@ -445,16 +445,13 @@ class Menu:
                     x += len(self.body_in[idx - 1])
                 self.items_in.append([y + x for y in range(len(sec))])
 
-        # if not self.menu_actions_in or refresh:
-        #     self.menu_actions_in = menu_actions
-        #     self.actions = None
         if menu_actions:
             self.menu_actions_in = menu_actions
             self.actions = None
 
         self.actions = self.menu_actions_in if not self.actions else {**self.menu_actions_in, **self.actions}
 
-        if not self.legend_in:
+        if not self.legend_in or self.legend_in != legend:
             if isinstance(legend, dict):
                 self.legend_in = legend
             elif isinstance(legend, list):
@@ -500,6 +497,10 @@ class Menu:
         prev_pages = self.pages
         if self.pages:
             self.pages = {k: [] for k in self.pages.keys() if k <= self.cur_page}
+
+        # -- // EMPTY MENU No Adapters / HOSTS / REMOTES \\ --
+        if not body:
+            return self.empty_menu()
 
         # # -- // SET STARTING ITEM # \\ --
         if not self.reverse:
@@ -722,8 +723,9 @@ class Menu:
             menu_part.update(width=self.page.cols)
 
         print(self.page)
-
         self.init_pager()
+
+        return self.menu_actions_in
 
     def calc_size(self, body: list, subs: Union[list, None],
                   format_subs: bool = False, by_tens: bool = False) -> object:
@@ -1384,12 +1386,7 @@ class Menu:
             r = legend.get("rjust")
             f = legend_options
             legend_overrides = {
-                k: [f[k][0], "{}{}".format(f[k][1], r[k].rjust(width - len(
-                                f' {f[k][0]}.{" " if len(f[k][0]) == 2 else "  "}{f[k][1]}'
-                                )
-                            ),
-                        ),
-                    ]
+                k: [f[k][0], "{}{}".format(f[k][1], r[k].rjust(width - len(f' {f[k][0]}.{" " if len(f[k][0]) == 2 else "  "}{f[k][1]}')))]
                 for k in r
                 if k in f
             }

@@ -194,17 +194,17 @@ class Rename():
                                   'uniquely identified.\n There are 2 options for naming this device:')
 
                             mlines = [
-                                'Map it to the USB port it\'s plugged in to'
+                                '1. Map it to the USB port it\'s plugged in to'
                                 '\n\tAnytime a {} {} tty device is plugged into the port it\n\tis currently plugged into it will '
                                 'adopt the {} alias'.format(
                                     _tty['id_vendor_from_database'], _tty['id_model_from_database'], to_name),
-                                'Map it by vedor ({0}) and model ({1}) alone.'
+                                '2. Map it by vedor ({0}) and model ({1}) alone.'
                                 '\n\tThis will only work if this is the only {0} {1} adapter you plan to plug in'.format(
                                     _tty['id_vendor_from_database'], _tty['id_model_from_database'])
                                 # 'Temporary mapping' \
                                 # '\n\tnaming will only persist during this menu session\n'
                             ]
-                            self.menu.menu_formatting('body', text=mlines)
+                            print(self.menu.format_subhead(mlines))
                             print('\n b. back (abort rename)\n')
                             valid_ch = {
                                 '1': 'by_path',
@@ -263,7 +263,7 @@ class Rename():
                     to_name,
                     rules_file,
                     ''
-                    )
+                )
                 error = utils.do_shell_cmd(cmd, shell=True)
                 if not error:
                     error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
@@ -287,7 +287,7 @@ class Rename():
                         'flow': flow,
                         'parity': parity,
                         'sbits': sbits,
-                        }
+                    }
                     local.adapters[f'/dev/{to_name}']['config'] = {**_config_dict, **updates}
 
                 if from_name != to_name:  # facilitates changing con settings without actually renaming

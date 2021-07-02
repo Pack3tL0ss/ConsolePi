@@ -298,9 +298,10 @@ class Rename():
                 # update first item in first section of menu_body menu uses it to determine if section is a continuation
                 try:
                     self.cur_menu.body_in[0][0] = self.cur_menu.body_in[0][0].replace(from_name, to_name)
-                    self.menu.body_in[0][0] = self.menu.body_in[0][0].replace(from_name, to_name)
+                    if self.menu.body_in is not None:  # Can be none when called via rename directly
+                        self.menu.body_in[0][0] = self.menu.body_in[0][0].replace(from_name, to_name)
                 except Exception as e:
-                    log.exceptions(f"[DEV NOTE menu_body update after rename caused exception.\n{e}", show=False)
+                    log.exception(f"[DEV NOTE menu_body update after rename caused exception.\n{e}", show=False)
 
         else:
             return 'Aborted based on user input'

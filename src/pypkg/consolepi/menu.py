@@ -1425,7 +1425,7 @@ class Menu:
                 legend_text.insert(0, " " + "-" * (col_1_max + col_pad + col_2_max - 1))
 
                 # if multi-paged output, and there is room on last line of legend display toggle legend options
-                if (self.actions,get("b") and self.actions["b"].__name__ == "pager_prev_page") or 'next' in opts:
+                if (self.actions.get("b") and self.actions["b"].__name__ == "pager_prev_page") or 'next' in opts:
                     _tl = " 'TL' to hide "
                     line_slice = slice(0, len(legend_text[0]) - len(_tl) - 5)
                     legend_text[0] = f'{legend_text[0][line_slice]}{_tl}{"-" * 5}'

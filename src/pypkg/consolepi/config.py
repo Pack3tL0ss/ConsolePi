@@ -19,6 +19,7 @@ DEFAULT_REMOTE_TIMEOUT = 3
 DEFAULT_DLI_TIMEOUT = 7
 DEFAULT_SO_TIMEOUT = 3  # smart outlets
 DEFAULT_CYCLE_TIME = 3
+DEFAULT_API_PORT = 5000
 
 
 class Config():
@@ -108,6 +109,7 @@ class Config():
         self.dli_timeout = int(ovrd.get('dli_timeout', DEFAULT_DLI_TIMEOUT))
         self.so_timeout = int(ovrd.get('smartoutlet_timeout', DEFAULT_SO_TIMEOUT))
         self.cycle_time = int(ovrd.get('cycle_time', DEFAULT_CYCLE_TIME))
+        self.api_port = int(ovrd.get("api_port", DEFAULT_API_PORT))
 
     def get_outlets_from_file(self):
         '''Get outlets defined in config

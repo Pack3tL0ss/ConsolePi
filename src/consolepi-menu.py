@@ -887,6 +887,10 @@ class ConsolePiMenu(Rename):
             loc = local.adapters
             rem = remotes.data if not direct_launch else []
 
+            if (direct_launch and not loc) or (not loc and not rem):
+                print(f"{self.log_sym_2bang}  No Local Adapters Detected. Nothing to rename, exiting...")
+                return
+
             slines = []
             outer_body = []
             item = 1
@@ -923,10 +927,6 @@ class ConsolePiMenu(Rename):
             menu_actions['b'] = None
             menu_actions['r'] = None
             menu_actions['x'] = self.exit
-
-            if not loc:
-                print(f"{self.log_sym_2bang}  No Local Adapters Detected. Nothing to rename, exiting...")
-                return
 
             menu_actions = menu.print_menu(outer_body, header='Define/Rename Adapters',
                                            legend=legend, subs=slines, menu_actions=menu_actions)

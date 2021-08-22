@@ -67,6 +67,11 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 # What's New
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
+### Feb 2021 (v2021-1.2)
+  - Fix: new menu and options from previous commit broke baud rate change during rename.
+  - Fix: A remote with no local adapters would fail to launch rename (to rename an adapter on a remote another remote ConsolePi)
+  *Next commit will add support for custom port for the API on a per ConsolePi basis.*
+
 ### Feb 2021 (v2021-1.1)
   - Fix: dhcpcd.exit-hook had an issue that impacted shared vpn on wired, a previously undocumented feature.
   - Fix: menu item mapping, when a refresh resulted in an additional adapter being added.

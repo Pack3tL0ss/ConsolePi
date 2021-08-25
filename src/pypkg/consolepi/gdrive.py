@@ -59,7 +59,7 @@ class GoogleDrive:
                         self.file_id = self.create_sheet()
                 return True
             except (ConnectionError, TimeoutError, OSError) as e:
-                log.error('Exception Occurred Connecting to Gdrive {}'.format(e))
+                log.error(f'Exception Occurred Connecting to Gdrive {e.__class__.__name__}')
                 return False
         else:
             log.error('Google Drive is not reachable - Aborting')

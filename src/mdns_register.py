@@ -57,7 +57,7 @@ class MDNS_Register:
             "_consolepi._tcp.local.",
             local.hostname + "._consolepi._tcp.local.",
             addresses=[socket.inet_aton(ip) for ip in local.get_ip_list()],
-            port=5000,
+            port=config.api_port,
             properties=loc,
             server=f'{local.hostname}.local.'
         )

@@ -13,6 +13,7 @@ class Local():
 
     def __init__(self):
         self.default_baud = config.default_baud
+        self.api_port = config.api_port
         self.udev_adapters = self.detect_adapters()
         self.adapters = self.build_adapter_dict()
         self.hostname = socket.gethostname()
@@ -36,6 +37,7 @@ class Local():
                 'adapters': self.adapters,
                 'interfaces': self.interfaces,
                 'rem_ip': rem_ip,
+                'api_port': self.api_port,
                 'user': config.cfg.get('rem_user', 'pi')
             }
         }

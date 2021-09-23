@@ -18,9 +18,9 @@ def main():
     if not utils.is_reachable("www.googleapis.com", 443):
         log.error(f"Not Updating {cloud_svc} due to connection failure")
         sys.exit(1)
-        if not utils.valid_file(CLOUD_CREDS_FILE):
-            log.error('Credentials file not found or invalid')
-            sys.exit(1)
+    if not utils.valid_file(CLOUD_CREDS_FILE):
+        log.error('Credentials file not found or invalid')
+        sys.exit(1)
 
     # -- // Get details from Google Drive - once populated will skip \\ --
     if cloud_svc == "gdrive" and remotes.cloud is None:

@@ -453,7 +453,7 @@ class Remotes:
 
         return response
 
-    def get_adapters_via_api(self, ip: str, rename: bool = False, log_host: str = None):
+    def get_adapters_via_api(self, ip: str, port: int = 5000, rename: bool = False, log_host: str = None):
         """Send RestFul GET request to Remote ConsolePi to collect adapter info
 
         params:
@@ -467,7 +467,7 @@ class Remotes:
         """
         if not log_host:
             log_host = ip
-        url = f"http://{ip}:5000/api/v1.0/adapters"
+        url = f"http://{ip}:{port}/api/v1.0/adapters"
         if rename:
             url = f"{url}?refresh=true"
 
@@ -476,7 +476,7 @@ class Remotes:
         headers = {
             "Accept": "*/*",
             "Cache-Control": "no-cache",
-            "Host": f"{ip}:5000",
+            "Host": f"{ip}:{port}",
             "accept-encoding": "gzip, deflate",
             "Connection": "keep-alive",
             "cache-control": "no-cache",
@@ -546,7 +546,7 @@ class Remotes:
         rem_ip = _adapters = None
         for _ip in rem_ip_list:
             log.debug(f"[API_REACHABLE] verifying {remote_host}")
-            _adapters = self.get_adapters_via_api(_ip, rename=rename, log_host=f"{remote_host}({_ip})")
+            _adapters = self.get_adapters_via_api(_ip, port=int(cache_data.get("api_port", 5000)), rename=rename, log_host=f"{remote_host}({_ip})")
             if _adapters:
                 rem_ip = _ip  # Remote is reachable
                 if not isinstance(_adapters, int):  # indicates status_code returned (error or no adapters found)

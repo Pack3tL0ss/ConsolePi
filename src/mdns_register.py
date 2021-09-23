@@ -114,20 +114,20 @@ class MDNS_Register:
 
         try:
             info = self.build_info()
-        except struct.error as e:
+        except (struct.error, ValueError):
             log.debug('[MDNS REG] data is too big for mdns, removing adapter data \n    {} {}'.format(e.__class__.__name__, e))
             log.debug('[MDNS REG] offending payload \n    {}'.format(json.dumps(local.data, indent=4, sort_keys=True)))
             # Too Big - Try sending without adapter data
             try:
                 info = self.build_info(squash='adapters')
-            except struct.error as e:
+            except (struct.error, ValueError):
                 log.warning('[MDNS REG] data is still too big for mdns, reducing interface payload \n'
                             '    {} {}'.format(e.__class__.__name__, e))
                 log.debug('[MDNS REG] offending interface data \n    {}'.format(
                           json.dumps(local.interfaces, indent=4, sort_keys=True)))
                 try:
                     info = self.build_info(squash='interfaces')
-                except struct.error:
+                except (struct.error, ValueError):
                     log.critical('[MDNS REG] data is still too big for mdns')
                     log.debug('[MDNS REG] offending interface data \n    {}'.format(
                             json.dumps(local.interfaces, indent=4, sort_keys=True)))

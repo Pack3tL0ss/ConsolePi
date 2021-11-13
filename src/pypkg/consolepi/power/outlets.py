@@ -360,7 +360,7 @@ class Outlets:
                     outlet['is_on'][r] = {'state': response, 'name': r}
                     if response not in [True, False]:
                         failures[k] = outlet_data[k]
-                        failures[k]['error'] = f'[PWR-ESP] {k}:{failures[k]["address"]} {response} - Removed'
+                        failures[k]['error'] = f'[PWR-ESP] {k}:{r} ({failures[k]["address"]}) {response} - Removed'
                         log.warning(failures[k]['error'], show=True)
                         esp_ok = False
                         break

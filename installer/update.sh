@@ -538,15 +538,38 @@ do_blue_config() {
     logit "${process} Starting"
 
     # [ "$btmode" == "serial" ] && local btsrc="${src_dir}systemd/bluetooth.service" || local btsrc="${src_dir}systemd/bluetooth_pan.service"
-    btsrc="${src_dir}systemd/bluetooth.service"  # Temp until btpan configuration vetted/implemented
-    file_diff_update $btsrc /lib/systemd/system/bluetooth.service
+    # btsrc="${src_dir}systemd/bluetooth.service"  # Temp until btpan configuration vetted/implemented
+    # file_diff_update $btsrc /lib/systemd/system/bluetooth.service
+    bt_exec=$(grep 'ExecStart=' /lib/systemd/system/bluetooth.service |grep bluetoothd| cut -d'=' -f2)
+    systemctl is-enabled bluetooth.service >/dev/null && bt_enabled=true || bt_enabled=false
+    if [ ! -z "$bt_exec" ]; then
+        if [ ! -f "$bt_exec" ]; then
+            [ -f /usr/libexec/bluetooth/bluetoothd ] && bt_exec=/usr/libexec/bluetooth/bluetoothd
+        fi
+    else
+        logit "Unable to extract bluetoothd (lib) exec path from default /lib/systemd/system/bluetooth.service" "WARNING"
+    fi
+
+    if [ ! -z "$bt_exec" ] && [ -f "$bt_exec" ]; then
+        convert_template bluetooth.service /etc/systemd/system/bluetooth.service bt_exec=${bt_exec}
+    else
+        logit "Unable to find bluetoothd (lib) exec path" "WARNING"
+    fi
 
     # create /etc/systemd/system/rfcomm.service to enable
     # the Bluetooth serial port from systemctl
+    # TODO make autologin blue user optional (can do now via override and modified rfcomm.service file)
     systemd_diff_update rfcomm
 
-    # enable the new rfcomm service
-    do_systemd_enable_load_start rfcomm
+    # if bluetooth.service was disabled we only update the files, we don't enable bluetooth.service or rfcomm.service
+    # prevents failed services on rpis that lack bt
+    if $bt_enabled; then
+        logit "Reloading bluetooth service"
+        systemctl daemon-reload
+        systemctl restart bluetooth.service >>$log_file 2>&1
+        # enable the new rfcomm service
+        do_systemd_enable_load_start rfcomm
+    fi
 
     # add blue user and set to launch menu on login
     if $(! grep -q ^blue:.* /etc/passwd); then

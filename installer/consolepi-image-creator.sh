@@ -250,7 +250,7 @@ do_import_configs() {
 
         # -- import SSH known hosts on image if found --
         if [[ -f $IMG_STAGE/known_hosts ]]; then
-            dots "SSH known_hosts found pre-staging" ; rc=0
+            dots "SSH known_hosts found pre-staging"
             mkdir -p $IMG_HOME/.ssh ; rc=$?
             mkdir -p /mnt/usb2/root/.ssh ; ((rc+=$?))
             cp ${CUR_DIR}/$STAGE_DIR/known_hosts $IMG_HOME/.ssh/ ; ((rc+=$?))

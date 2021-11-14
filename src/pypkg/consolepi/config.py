@@ -110,6 +110,7 @@ class Config():
         self.so_timeout = int(ovrd.get('smartoutlet_timeout', DEFAULT_SO_TIMEOUT))
         self.cycle_time = int(ovrd.get('cycle_time', DEFAULT_CYCLE_TIME))
         self.api_port = int(ovrd.get("api_port", DEFAULT_API_PORT))
+        self.hide_legend = ovrd.get("hide_legend", False)
 
     def get_outlets_from_file(self):
         '''Get outlets defined in config

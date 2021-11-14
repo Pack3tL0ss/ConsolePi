@@ -103,11 +103,15 @@ class TTY:
 tty = TTY()
 
 
+#
+#  A section of the menu
+#  Header, subhead, body, legend, footer
+#
 class MenuSection:
     def __init__(self, orig: Any = None, lines: list = [], width_list: list = [], rows: int = 0, cols: int = 0,
                  opts: list = [], overrides: dict = {}, update_method: Any = None, update_args: Union[list, tuple, set] = [],
                  update_kwargs: dict = {}, name: str = None, hide: bool = False) -> None:
-        self.hide = hide
+        self.hide = hide if name != "legend" else hide or config.hide_legend
         self.orig = orig  # Original unformatted data
         self.lines = lines
         self.width_list = width_list
@@ -138,9 +142,9 @@ class MenuSection:
 
     def __add__(self, data: Union[int, list]):
         if isinstance(data, list):
-            line_info = [format_line(l) for l in data]
-            self.width_list += [l.len for l in line_info]
-            self.lines += [l.text for l in line_info]
+            line_info = [format_line(line) for line in data]
+            self.width_list += [line.len for line in line_info]
+            self.lines += [line.text for line in line_info]
             self.update()
 
     def __getitem__(self, index: Union[int, list, slice, tuple, set]) -> Any:
@@ -186,6 +190,7 @@ class MenuSection:
 
 #
 #   The Primary Menu Object
+#   Represents page
 #
 class MenuParts:
     def __init__(self, name: str = None):
@@ -683,7 +688,8 @@ class Menu:
         self.update_slices()
 
         for menu_part in [self.page.legend, self.page.footer, self.page.header]:
-            menu_part.update(width=self.page.cols)
+            menu_part.update(width=self.cur_page_width)
+            # menu_part.update(width=self.page.cols)
 
         # -- // PRINT THE MENU \\ --
         print(self.page)
@@ -960,8 +966,6 @@ class Menu:
 
     def toggle_legend(self):
         '''Toggles Display of the Legend.
-
-        Currently a hidden option, not built out, doesn't have impact on sizing yet so of little value
         '''
         self.page.legend.hide = not self.page.legend.hide
         # if self.page.legend.hide:
@@ -1425,7 +1429,7 @@ class Menu:
                 legend_text.insert(0, " " + "-" * (col_1_max + col_pad + col_2_max - 1))
 
                 # if multi-paged output, and there is room on last line of legend display toggle legend options
-                if (self.actions  and "b" in self.actions and self.actions["b"] and self.actions["b"].__name__ == "pager_prev_page") or 'next' in opts:
+                if (self.actions and "b" in self.actions and self.actions["b"] and self.actions["b"].__name__ == "pager_prev_page") or 'next' in opts:
                     _tl = " 'TL' to hide "
                     line_slice = slice(0, len(legend_text[0]) - len(_tl) - 5)
                     legend_text[0] = f'{legend_text[0][line_slice]}{_tl}{"-" * 5}'
@@ -1452,7 +1456,7 @@ class Menu:
         # TODO update attributes if self.page has attr legend
         if not hasattr(self.page, "legend") or self.page.legend is None:
             _legend = MenuSection(lines=mlines, cols=max(width_list), rows=len(mlines), opts=opts or [],
-                                  overrides=legend.get("overrides", {}))
+                                  overrides=legend.get("overrides", {}), name="legend")
         else:
             _legend = getattr(self.page, "legend")
             _legend.lines = mlines
@@ -1518,7 +1522,7 @@ class Menu:
         if self.page.prev_slice or self.page.next_slice:
             bot_line = "=" * (width - len(page_text) - 5) + page_text + "=" * 5
         if self.page.legend.hide:
-            legend_text = " Use 'TL' to restore Legend "
+            legend_text = " Use 'TL' to Toggle Legend "
             bot_line = "=" * 5 + legend_text + bot_line[len(legend_text) + 5:]
 
         if log.error_msgs:

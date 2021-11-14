@@ -3,7 +3,7 @@
 # Create a Copy of this file with the name ConsolePi.yaml (remove ".example" extension).
 ---
 CONFIG:
-  cfg_file_ver: 9 # ---- Do Not Delete or modify this line ---- #
+  cfg_file_ver: 10 # ---- Do Not Delete or modify this line ---- #
   push: true # PushBullet Notifications: true - enable, false - disable
   push_all: true # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden
   push_api_key: "PutYourPushBulletAPIKeyHere" # PushBullet API key
@@ -29,11 +29,18 @@ CONFIG:
 # OVERRIDES optional items allowing you to override default beahvior
 # The values shown below are to highlight the options, all are set to the default
 OVERRIDES:
-  skip_utils: false       # if true the install/update script will skip the launch of the consolepi-extras menu
-  cloud_pull_only: false  # Retrieve data from cloud, but don't update cloud with your data
-  compact_mode: false     # Experimental - All Remotes collapsed into a single section in menu
-  disable_ztp: false      # If the ZTP section exists, and wired_dhcp: true, then ztp is enabled. Unless overriden with this option
-  ztp_lease_time: 2m      # When ztp in configured using consolepi-ztp the lease time is set to an aggressive 2min
+  skip_utils: false       # if true the install/update script will skip the launch of the consolepi-extras menu.
+  cloud_pull_only: false  # Retrieve data from cloud, but don't update cloud with your data.
+  compact_mode: false     # Experimental - All Remotes collapsed into a single section in menu.
+  disable_ztp: false      # If the ZTP section exists, and wired_dhcp: true, then ztp is enabled. Unless overriden with this option.
+  ztp_lease_time: 2m      # When ztp in configured using consolepi-ztp the lease time is set to an aggressive 2min.
+  remote_timeout: 3       # seconds to wait for response from discovered remote ConsolePis before failing them.  Can increase for slow net/Pis.
+  dli_timeout: 7          # seconds to wait for Digital Loggers dli web power switch to respond before failing.
+  smartoutlet_timeout: 3  # seconds to wait for smart outlets (esphome / tasmota) to respond before failing.
+  cycle_time: 3           # When cycling outlets, delay this many seconds (power off, wait cycle_time seconds, power on).
+  ovpn_share: false       # Set to true to allow hotspot traffic to egress via the tunnel (vs. just the wired interface)
+  hide_legend: false      # Set to true to hide the legend by default in the menu, can still toggle it back on with 'TL'.
+  api_port: 5000          # Change this to use a different API port (for this ConsolePi).
 
 # ZTP (Zero Touch Provisioning) Allows you to leverage ConsolePi to automate the deployment of hardware from factory default.
 # Once the configuration and associated templates/variables are defined you must run `consolepi-ztp` to Generate the Configuration

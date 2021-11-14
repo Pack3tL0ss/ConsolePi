@@ -506,7 +506,7 @@ get_pi_info() {
     [[ ! -z $git_rem ]] && [[ $(echo $git_rem | awk '{print $2}') != $consolepi_source ]] && logit "Using alternative repo: ${_green}$git_rem${_norm}"
     cpu=$(cat /proc/cpuinfo | grep 'Hardware' | awk '{print $3}')
     rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}') # | sed 's/^1000//')
-    model_pretty=$(get_pi_info_pretty $rev)
+    model_pretty=$(get_pi_info_pretty $rev 2>/dev/null)
     [ -n "$model_pretty" ] && is_pi=true || is_pi=false
     # echo -e "$version running on $cpu Revision: $rev\n    $model_pretty"
     logit "$model_pretty"

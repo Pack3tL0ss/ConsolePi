@@ -17,7 +17,9 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 ------
 <!-- prettier-ignore-start -->
 # Contents
+- [Known Issues](#known-issues)
 - [What's New](#whats-new)
+- [Planned Enhancements](#planned-enhancements)
 - [Features](#features)
   - [Serial Console Server](#serial-console-server)
   - [AutoHotSpot](#autoHotSpot)
@@ -64,9 +66,30 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 ------
 
 
+# Known Issues
+
+Bullseye updates the ser2net available from the package repo from 3.x to 4.x this is a significant change.  Functionality wise it's a very good thing, ser2net 4.x brings a lot more flexibility and connectivity options.
+
+However: ser2net 4.x uses `/etc/ser2net.yaml` as it's config.
+`consolepi-menu`: Uses `/etc/ser2net.conf` (used by ser2net 3.x) to extract the serial settings for any defined adapters.  Adapters can be defined via `consolepi-addconsole` or via the "Predictable Console ports" section at the end of the install.  The `rn` (rename) adapter option within the menu, also updates `/etc/ser2net.conf`.  The installer creates a default `ser2net.conf` with the default serial settings configured for adapters that lack an alias (ttyUSB0, ttyACM0, etc).
+
+So
+  - If you use `consolepi-menu` and never access the adapters directly via TELNET (which utilizes ser2net), then this won't impact you.
+  - If you do access adapters directly via TELNET, then you need to populate `/etc/ser2net.yaml` as you like, re-building your 3.x setup in the new 4.x file/format.  There are a lot more options available (including accessing them via SSH vs. TELNET).
+  - If you use both.  Let the menu rename/define update the old `/etc/ser2net.conf`, but to also have the adapter available directly, for now, you'll have to manually create an equivalent entry in `ser2net.yaml`
+
+ConsolePi will eventually be updated to detect the ser2net version installed, and extract/update to the corresponding config.  This won't convert your ser2net.conf to ser2net.yaml, it will just update the ConsolePi functions to use the new config (`ser2net.yaml`) .
+
 # What's New
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
+### Nov 2021 (v2021-1.5)
+  - Fix: RPI.GPIO set to use 0.7.1a4+ to accommodate known issue with python3.9 (bullseye default)
+  - Fix: bluetooth.service template updated for bullseye (dynamically handles both bullseye where exec path changed and prev rel)
+  - Enhancement: New OVERRIDE `api_port` actually merged previously is now documented in ConsolePi.yaml.example
+  - Enhancement: New OVERRIDE `hide_legend` will hide the legend by default in the menu (`consolepi-menu`).  `TL` in the menu will restore it.
+  - Documentation: `ConsolePi.yaml.example` Now has all of the supported OVERRIDES listed with the default value and description.
+
 ### Feb 2021 (v2021-1.2)
   - Fix: new menu and options from previous commit broke baud rate change during rename.
   - Fix: A remote with no local adapters would fail to launch rename (to rename an adapter on a remote another remote ConsolePi)
@@ -100,6 +123,14 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
   -  A couple of other menu options (some already existed, but were hidden options):
       - sp: Show Ports (main-menu & rename-menu: currently still hidden in main-menu).  Switches from the default of displaying the connection settings (baud...) to showing the configured TELNET port for the device.
       - rl (RL): (main-menu).  This is a hidden option, if you don't use cloud-sync r and `rl` are equivalent.  For those that do use cloud-sync, `rl` refreshes detected adapters, and does a refresh from locally cached data.  It doesn't sync with the cloud, just re-checks reachability for all cached remotes.
+
+# Planned enhancements
+
+  - The ser2net update highlighted in [Known Issues](#known-issues)
+  - Non RPI & wsl (menu accessing all remotes) support for the installer.  Can be done now, but normally at least portions need to be tweaked manually.
+  - Ability to pick a non sequential port when using `rn` in menu or `consolepi-addconsole`
+  - *Most excited about* launch menu in byobu session (tmux).  With any connections in a new tab.
+  - Eventually... formatting tweaks, and TUI.  Also consolepi-commands turn into `consolepi command [options]` with auto complete and help text for all (transition to typer CLI).
 
 # Features
 ## **Feature Summary Image**
@@ -746,7 +777,7 @@ ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 a
 
   You can verify by checking `/etc/udev/rules.d/10-ConsolePi.rules` for `KERNEL=="ttyAMA[1-4]*", GOTO="TTYAMA-DEVS"` near the top of the file (line 2).
 
-  If `/etc/udev/rules.d/10-ConsolePi.rules` does not exist, nothing needs to be done.  If it does and the verification above indicates it needs to be updated you can either delete it (which will remove any current aliases, you'll be startig over, but the file will take on the new format). -- or -- if you want to avoid the need to rename the serial devices you've already set aliases for, you can...
+  If `/etc/udev/rules.d/10-ConsolePi.rules` does not exist, nothing needs to be done.  If it does and the verification above indicates it needs to be updated you can either delete it (which will remove any current aliases, you'll be starting over, but the file will take on the new format). -- or -- if you want to avoid the need to rename the serial devices you've already set aliases for, you can...
   ```bash
   sudo mv /etc/udev/rules.d/10-ConsolePi.rules ~/ # move the file out of the rules dir (to your home dir)
   sudo cp /etc/ConsolePi/src/10-ConsolePi.rules /etc/udev/rules.d  # copy the new file template to the rules dir
@@ -821,7 +852,7 @@ Refer to [ZTP Orchestration](readme_content/ztp.md)
 
 **Optional Overrides to prevent `consolepi-upgrade` from updating ConsolePi related system files**
 
-To Upgrade ConsolePi it's recommended to use the `consolepi-upgrade` command.  This runs the install/upgrade script which on upgrade will verify some of the system configuration related to ConsolePi functionality.  If you've made customizations to any of the system files ConsolePi initially configures, the upgrade script will backup the file (to /etc/ConsolePi/bak) and replace it.  This may be undesired if you've made customizations, to prevent this from occuring simply create an empty file (doesn't technically have to be empty) with the same name as the file you want to prevent being modified by ConsolePi in '/etc/ConsolePi/overrides' (i.e. `touch /etc/ConsolePi/overrides/dhcpcd.conf`)
+To Upgrade ConsolePi it's recommended to use the `consolepi-upgrade` command.  This runs the install/upgrade script which on upgrade will verify some of the system configuration related to ConsolePi functionality.  If you've made customizations to any of the system files ConsolePi initially configures, the upgrade script will backup the file (to /etc/ConsolePi/bak) and replace it.  This may be undesired if you've made customizations, to prevent this from occurring simply create an empty file (doesn't technically have to be empty) with the same name as the file you want to prevent being modified by ConsolePi in '/etc/ConsolePi/overrides' (i.e. `touch /etc/ConsolePi/overrides/dhcpcd.conf`)
 
 > `consolepi-upgrade` is the preferred method, but you can run `consolepi-sync` described in [Convenience Commands](#convenience-commands) or alternatively simply do a git pull from within /etc/ConsolePi to Upgrade.  However there is some risk, as references to system paths/symlinks etc. may have changed, and `consolepi-sync` doesn't automate any of the system changes that may be part of the upgrade.
 
@@ -837,12 +868,12 @@ To Upgrade ConsolePi it's recommended to use the `consolepi-upgrade` command.  T
 
 Overriding Service files not only turns off validation of the contents of the systemd unit file, but also the state of the service (enabled/disabled)
 
-- hostapd.service *If AutoHotSpot is enabled, Script will configure based on config and ensure the servie is disabled as startup is handled by AutoHotSpot*
+- hostapd.service *If AutoHotSpot is enabled, Script will configure based on config and ensure the service is disabled as startup is handled by AutoHotSpot*
 - bluetooth.service
 - rfcomm.service *You can override rfcomm.service if running ConsolePi on older hardware lacking bluetooth (it'll fail given no hardware is present)*
 
  *On ConsolePis Built prior to v2020.2 (merged in April 2020) the following may also apply (AutoHotSpot now uses it's own dnsmasq service separate from the default dnsmasq service)*
-- dnsmasq.service *Script will modify for hotspot and ensure the servie is disabled as startup is handled by AutoHotSpot*
+- dnsmasq.service *Script will modify for hotspot and ensure the service is disabled as startup is handled by AutoHotSpot*
 
 
 **Optional override Variables in ConsolePi.yaml**
@@ -855,6 +886,15 @@ A summary of available overrides:
 - **cloud_pull_only:** Primary use case is for Non-rPi where you want to launch the menu and access adapters on remotes (i.e. a laptop).  This only applies if cloud-sync is enabled.  Will result in pulling data from the cloud, but not updating the cloud with the laptops details (so the laptop would never show up in the menu if accessed from one of the other ConsolePis)
 - **compact_mode:**  This feature is still a bit of a test use, and will only apply if you have multiple remotes (multiple ConsolePis that discover each other via mdns or cloud sync).  Remotes are typically broken into groupings by remote ConsolePi, `compact_mode: true` will result in all remote adapters appearing in the same group.
 - **remote_timeout:**  If remotes have been discovered ConsolePi fetches current adapter details from that remote when the menu is launched to ensure adapter data is current and verify the remote is reachable.  The default timeout is 3 seconds, if the request takes longer it's considered unreachable and doesn't show up in the menu.  This is normally a good balance.  If it's too high verification and menu_load is delayed when remotes are not reachable, however I have seen cases where 3 seconds may be too low.  Typically on very old Raspberry Pis with a lot of adapters connected (i.e. had the issue on original Pi B with ~ 20 adapters).
+- **dli_timeout:**  (Power outlet control) Applies to dli web power switches (digital-loggers).  If the dli does not respond in `dli_timeout` seconds it is considered failed, and is excluded from the menu.  Use this to override the default which is 7.
+- **smartoutlet_timeout:**  (Power outlet control) Same as dli_timeout, but for esphome/tasmota outlets, default is 3.
+- **cycle_time:**  (Power outlet control) When cycling power on outlets (turning off then back on), this setting will override the default wait period between off and on.  Default is 3 (seconds).
+- **ovpn_share:**  Set this to true to allow traffic from hotspot users to egress the tunnel (along with the wired interface).  Default is false.
+- **skip_utils:**  The utilities/extras installer allows you to select optional components external to ConsolePi, but often handy for the type of users that would utilize it.  This option skips that section when doing `consolepi-update` (or `consolepi-install` if you stage a populated `ConsolePi.yaml`).  It just removes that step if you know you are never going to add any of them.  The utilities/extras installer can also be ran outside the installer via `consolepi-extras`.
+- **disable_ztp:**  When a ZTP configuration exists (`ZTP:` section of `ConsolePi.yaml`), and wired_dhcp is enabled, then ZTP is enabled.  Setting this to false, will override that / disable ztp (wired_dhcp is still left enabled, be careful)
+- **ztp_lease_time:**  Used to override the default lease time (2 min `2m`) the wired_dhcp process uses for ZTP.
+- **hide_legend:**  Set to true to hide the legend by default in the menu, can still toggle it back on with `TL`.
+- **api_port:**  Used to override the default API port (5000), It's how other ConsolePis gather information from this ConsolePi when multiple ConsolePis exist on the network or learn about each other via Gdrive sync.
 
 ## Console Server
 
@@ -865,11 +905,11 @@ A summary of available overrides:
 - Serial/Console adapters that show up as ttyUSB# devices when plugged in are reachable starting with telnet port 8001 +1 for each subsequent adapter plugged in (8002, 8003...). If you use multiple adapters then it may be a crap shoot which will be assigned to each telnet port (or which root dev (ttyUSB#) they appear as).  Hence the next step.
 
 - Serial/Console adapters that show up as ttyACM# devices start at 9001 +1 for each subsequent device.
-> Most USB to serial adapters present as ttyUSB, some embeded adapters; i.e. network devices with built in USB consoles typically show up as ttyACM#
+> Most USB to serial adapters present as ttyUSB, some embedded adapters; i.e. network devices with built in USB consoles typically show up as ttyACM#
 
 - The install script automates the mapping of specific adapters to specific ports (provided you don't skip the step).  The defined predictable adapters start with 7001 +1 for each adapter you define.  The reasoning behind this is so you can label the adapters and always know what port you would reach them on.  This can also be accomplished after the install via the `consolepi-addconsole` command or via rename (`rn`) option in `consolepi-menu`.
 
-> **!!** It is recomended to use `consolepi-addconsole` or the `rn` option in the menu to provide a consistent alias for each adapter/device.  If more than one adapter is plugged in, they are assigned the root device names (ttyUSB#/ttyACM#) in the order they are detected by the kernel.  The can occasionally change after reboot / or if an adapter is disconnected.  Setting the aliases is the only way to ensure predictability.
+> **!!** It is recommended to use `consolepi-addconsole` or the `rn` option in the menu to provide a consistent alias for each adapter/device.  If more than one adapter is plugged in, they are assigned the root device names (ttyUSB#/ttyACM#) in the order they are detected by the kernel.  The can occasionally change after reboot / or if an adapter is disconnected.  Setting the aliases is the only way to ensure predictability.
 
   >Note: Some cheap a@# serial console adapters don't define serial #s, which is one of the attributes used to uniquely identify the adapter.  The rename function/`consolepi-addconsole` command now support these adapters, but with caveats explained by the script when such a case is detected.
 
@@ -897,11 +937,10 @@ There are a few convenience commands created for ConsolePi during the automated 
     - Connection options for serial adapters connected to remote ConsolePis (discovered via mdns or cloud-sync as described [here](#consolepi-cluster--cloud-sync))
     - Connection options for any [manually defined hosts](#configuring-manual-host-entries)
     - sub-menu to automate distribution of ssh keys to remote ConsolePis.
-      
-      > *Distributing SSH keys allows you to securely connect to the remote adapter seemlessly without the need to enter a password.*
+      > *Distributing SSH keys allows you to securely connect to the remote adapter seamlessly without the need to enter a password.*
     - Remote Shell sub-menu, providing options to ssh directly to the shell of any discovered remote ConsolePis.
     - Power Control sub-menu if power relays have been defined (as described [here](#power-control))
-    - Refresh option: Refresh will detect any new serail adapters directly attahced, as well as connect to Gdrive to sync.
+    - Refresh option: Refresh will detect any new serial adapters directly attached, as well as connect to Gdrive to sync.
       - If Cloud-Sync is enabled ConsolePi only reaches out to the cloud when the refresh option is used, *NOT* during initial menu-load.
     - Rename option: rename/define predictable names for a local or remote adapter
       
@@ -909,9 +948,9 @@ There are a few convenience commands created for ConsolePi during the automated 
 
 
 
-  > `consolepi-menu` also accepts a single argument "sh".  Which will launch the original consolepi-menu created in bash.  It's been crippled so it only displays local connections, it loads faster because it's local only, and doens't need to import any modules.  This is currently the default menu that launches when connecting via bluetooth.  If running on an older Raspberry Pi (certainly the original Pi you may notice a difference in load time vs the full menu)
+  > `consolepi-menu` also accepts a single argument "sh".  Which will launch the original consolepi-menu created in bash.  It's been crippled so it only displays local connections, it loads faster because it's local only, and doesn't need to import any modules.  This is currently the default menu that launches when connecting via bluetooth.  If running on an older Raspberry Pi (certainly the original Pi you may notice a difference in load time vs the full menu)
   >
-  > Bonus Funny Story: I spent a bunch of time improving the adapter data for use in the rename function, had it all ready to merge until I went to test it on my original Pi B+ (256M RAM).  27 seconds... That's how long it took just to detect the locally connected adapters.  No noticable difference on my Pi4 used for dev, but this is why I have the old ones around :( ... some time later and a re-write in a dict-comprehension and it was back to normal.
+  > Bonus Funny Story: I spent a bunch of time improving the adapter data for use in the rename function, had it all ready to merge until I went to test it on my original Pi B+ (256M RAM).  27 seconds... That's how long it took just to detect the locally connected adapters.  No noticeable difference on my Pi4 used for dev, but this is why I have the old ones around :( ... some time later and a re-write in a dict-comprehension and it was back to normal.
 
 - `consolepi-upgrade`:  Upgrades ConsolePi:  **Preferred method to properly update ConsolePi**.  In general this verifies that all configurations system services etc related to ConsolePi functionality are configured as expected.  This means if you've customized any of the related system files the upgrade might revert them.  It will back up the original if that occurs, but to facilitate customizations for anything you don't want the upgrade script to validate simply place a file by the same name in the overrides directory (just touch an empty file with the same name i.e. `touch /etc/ConsolePi/overrides/dhcpcd.conf`) will tell the upgrade script *not* to validate dhcpcd.conf.
 

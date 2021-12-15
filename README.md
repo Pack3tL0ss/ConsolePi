@@ -100,7 +100,7 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
   - Fix: menu item mapping, when a refresh resulted in an additional adapter being added.
   - Enhancement: Expose previously hidden 'tl' and 'tp' menu items.
   - Enhancement: Display current tty size when connecting to a serial or TELNET device.
-    
+
     >Handy when connecting to a device that needs the terminal adjusted to use the full display size.
 
 ### Jan 2021 (v2021-1.0)
@@ -217,7 +217,7 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
   2. When consolepi-menu is launched and the `'r'` (refresh) option is selected.
 
   3. When a USB to Serial adapter is added or removed.  (This happens on a 30 second delay, so if multiple add/removes are made in a 30 second window, only 1 update to the cloud will occur, that update will include everything that happened within the 30 second window)
-     
+
       > Note: The plan is to disable this update scenario in a future release, as we only need address information for the remote, not a full snapshot of the data.  The remote is queried via API to ensure reachability and get the current list of adapters available, so we no longer need that data stored in the cloud.
 
   >The Gdrive function uses the hostname as a unique identifier.  If all of your ConsolePis have the same hostname only one of them will be synchronized.  **Make Hostnames unique for each ConsolePi**
@@ -252,11 +252,11 @@ The Power Control Function allows you to control power to external outlets.  Con
   - External relays controlled by ConsolePi GPIO ( Like this one [Digital-Loggers IoT Relay](https://dlidirect.com/products/iot-power-relay) ).
   - [espHome](https://esphome.io) flashed WiFi smart outlets (i.e. SonOff S31).  These are low cost outlets based on ESP8266/ESP32 microcontrollers.
   - [Tasmota](https://blakadder.github.io/templates/) flashed WiFi smart [outlets](https://blakadder.github.io/templates/) These are also esp8266 based outlets similar to espHome.
-    
+
       > espHome/Tasmota were chosen because it allows for local control without reliance on a cloud service.  So your 'kit' can include a small relatively portable smart outlet which can be programmed to connect to the ConsolePi hotspot.  Then ConsolePi can control that outlet even if an internet connection is not available.
 - If the function is enabled and outlets are defined, an option in `consolepi-menu` will be presented allowing access to a sub-menu where those outlets can be controlled (toggle power on/off, cycle).
 - Outlets can be linked to Console Adapter(s) (best if the adapter is pre-defined using `consolepi-addconsole` or `rn` option in the menu) or manually defined host connections.  If there is a link defined between the outlet and the adapter/host, anytime you initiate a connection to the adapter/host via `consolepi-menu` ConsolePi will ensure the outlet is powered on.  Otherwise if the link is defined you can connect to a device and power it on, simply by initiating the connection from the menu **Only applies when connecting via `consolepi-menu`**.
-  
+
     > The power sub-menu **currently** only appears in the menu on the ConsolePi where the outlets are defined (Menu does not display outlets defined on remote ConsolePis).  The auto-power-on when connecting to an adapter linked to an outlet works for both local and remote connections (establishing a connection to an adapter on a remote ConsolePi (clustering / cloud-sync function) via another ConsolePis menu)
 
 ### The Power Control Menu
@@ -554,7 +554,7 @@ Examples:
 - automatically pull the most recent RaspiOS image (lite by default) if one is not found in the script-dir (whatever dir you run it from)
   - It will check to see if a more current image is available and prompt for image selection even if an image exists in the script dir.
 - Make an attempt to determine the correct drive to be flashed, and display details ... User to verify/confirm before writing.
-  
+
   > As a fail-safe the script will exit if it finds more than 1 USB storage device on the system.
 - Flash image to micro-sd card
 - Enable SSH (handy for headless install)
@@ -566,7 +566,7 @@ Examples:
 - You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the stage dir.  This will be copied to the /etc/wpa_supplicant dir on the micro-sd card.  This method supports the typical methods along with EAP-TLS with certificates.  Just place the cert files referenced in the provided wpa_supplicant.conf file in a 'cert' folder inside the stage dir.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ), the image creator will then move the certs to the micro-sd to the path specified in the provided wap_supplicant.conf.
 - create a quick command 'consolepi-install' to simplify the command string to pull the installer from this repo and launch.  If cmd_line= argument is provided to consolepi-image-creator.sh those arguments are passed on to the auto-install.
 - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled with `--auto_install=false`.
-  
+
   > If you set `--auto_install=false`, `--cmd_line=...` is ignored.  You would specify arguments for the installer manually.
 - If the `consolepi-image-creator.sh` script is ran from a ConsolePi, the script will detect that it's a ConsolePi and offer to pre-stage it's existing settings.  If a file has already been pre-staged (via consolepi-stage dir) it will skip it.  It will give you the chance to edit ConsolePi.yaml if pre-staged, so you can deploy multiple ConsolePis and edit the specifics for each as you stage them.
 - Entire home directory imports:  If you place /root and/or /home/pi inside the consolepi-stage directory.  Those contents/sub-dirs will be imported to the respective users directory on the image.
@@ -760,7 +760,7 @@ HOSTS:
 - LagDigi1 does not define a group or set show_in_main (both are optional).  It will show up in the rshell menu in group "user-defined".
 - omv will show up in the rshell menu under group "WADELAB-HOSTS"
 - outlet bindings with these devices are supported by adding the device name in linked_devs for an outlet defined in the [POWER: section](readme_content/power.md#power-control-setup) of `ConsolePi.yaml`.
-  
+
     > Ensure names are unique across both hosts defined here and the adapters defined via the menu or `consolepi-addconsole`.  If there is a conflict the serial adapter wins.
 
 ### Local UART Support
@@ -943,7 +943,7 @@ There are a few convenience commands created for ConsolePi during the automated 
     - Refresh option: Refresh will detect any new serial adapters directly attached, as well as connect to Gdrive to sync.
       - If Cloud-Sync is enabled ConsolePi only reaches out to the cloud when the refresh option is used, *NOT* during initial menu-load.
     - Rename option: rename/define predictable names for a local or remote adapter
-      
+
       >Some menu items only appear if the feature is enabled.
 
 
@@ -985,7 +985,7 @@ There are a few convenience commands created for ConsolePi during the automated 
 - `consolepi-addssids`: Automates the creation of additional SSIDs which ConsolePi will attempt to connect to on boot.  Supports psk and open SSIDs.
 - `consolepi-addconsole`: Automates the process of detecting USB to serial adapters so friendly names can be defined for them (used in `consolepi-menu`) and mapping them to specific TELNET ports.  It does this by collecting the data required to create a udev rule.  It then creates the udev rule starting with the next available port (if rules already exist).
 - `consolepi-showaliases`: This is a validation utility/command, It will display all configured aliases (configured via `consolepi-addconsole` or the `rn` option in the menu).  This utility will show if there are any orphaned aliases.
-  
+
   > An orphaned alias is an alias that only exists in 1 of the 2 files involved (`/etc/udev/rules.d/10-ConsolePi.rules` and `/etc/ser2net.conf`)
 - `consolepi-autohotspot`: This script re-runs the autohotspot script which runs at boot (or periodically via cron although the installer currently doesn't configure that).  If the wlan adapter is already connected to an SSID it doesn't do anything.  If it's acting as a hotspot or not connected, it will scan for known SSIDs and attempt to connect, then fallback to a hotspot if it's unable to find/connect to a known SSID.
 - `consolepi-testhotspot`: Toggles (Disables/Enables) the SSIDs ConsolePi is configured to connect to as a client before falling back to hotspot mode.  This is done to aid in testing hotspot mode.  After toggling the SSIDs run consolepi-autohotspot to trigger a change in state.  (specifically it prepends 'DISABLED_' to all configured SSIDs)
@@ -1017,6 +1017,9 @@ ConsolePi Should work on all variants of the RaspberryPi and will work on other 
 - RaspberryPi 4 Model B
     - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery)
     - Tested all variations of connection types
+- RaspberryPi Compute Module 4
+    - Tested with official Raspberry Pi CM4 io board.
+- RaspberryPi zero w 2
 - RaspberryPi 3 Model B+
   - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery)
   - Tested all variations of connection types

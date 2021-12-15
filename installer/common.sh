@@ -494,6 +494,11 @@ get_pi_info_pretty() {
         hw_array["c03114"]="Raspberry Pi 4 Model B  hw rev 1.4  4 GB  (Mfg by Sony)"
         hw_array["d03114"]="Raspberry Pi 4 Model B  hw rev 1.4  8 GB  (Mfg by Sony)"
         hw_array["c03130"]="Raspberry Pi 400 hw rev 1.0  4 GB  (Mfg by Sony)"
+        hw_array["a03140"]="Raspberry Pi Compute Module 4 hw rev 1.0 1GB (Mfg by Sony UK)"
+        hw_array["b03140"]="Raspberry Pi Compute Module 4 hw rev 1.0 2GB (Mfg by Sony UK)"
+        hw_array["c03140"]="Raspberry Pi Compute Module 4 hw rev 1.0 4GB (Mfg by Sony UK)"
+        hw_array["d03140"]="Raspberry Pi Compute Module 4 hw rev 1.0 8GB (Mfg by Sony UK)"
+        hw_array["902120"]="Raspberry Pi Zero 2 W hw rev 1.0 512MB (Mfg by Sony UK)"
     fi
     $compat_bash && echo ${hw_array["$1"]} || echo $1
 }

@@ -430,7 +430,7 @@ class ConsolePiMenu(Rename):
             # if config.debug:
             #     prompt = f'pg[{menu.cur_page}] m[r:{menu.page.rows}, c:{menu.page.cols}] ' \
             #              f'a[r:{menu.tty.rows}, c:{menu.tty.cols}]{prompt}'
-            if config.debug:
+            if config.debug and self.cur_menu is not None:
                 prompt = f'pg[{self.cur_menu.cur_page}] m[r:{self.cur_menu.page.rows}, c:{self.cur_menu.page.cols}] ' \
                          f'a[r:{self.cur_menu.tty.rows}, c:{self.cur_menu.tty.cols}]' \
                          f'{prompt}'

@@ -35,7 +35,9 @@ class ConsolePiExec:
                 "are Powered \033[1;32mON\033[0m"
             )
             _dots = "-" * (len(_msg) + 4)
-            _msg = f"\n{_dots}\n  {_msg}  \n{_dots}\n"  # TODO send to formatter in menu ... __init__
+            _msg = (
+                f"\n{_dots}\n  {_msg}  \n{_dots}\n"  # TODO send to formatter in menu ... __init__
+            )
             print(_msg)
             threading.Thread(
                 target=self.auto_pwron_thread,
@@ -81,11 +83,10 @@ class ConsolePiExec:
                 _addr = outlet["address"]
             else:
                 log.error(
-                    f"Skipping Auto Power On {pwr_key} for {o}. Unable to pull outlet details from defined outlets.", show=True
+                    f"Skipping Auto Power On {pwr_key} for {o}. Unable to pull outlet details from defined outlets.",
+                    show=True,
                 )
-                log.debugv(
-                    f"Outlet Dict:\n{json.dumps(outlets)}"
-                )
+                log.debugv(f"Outlet Dict:\n{json.dumps(outlets)}")
                 continue
 
             # -- // DLI web power switch Auto Power On \\ --
@@ -102,10 +103,10 @@ class ConsolePiExec:
                         f"[Auto PwrOn] Power ON {pwr_key} Linked Outlet {outlet['type']}:{_addr} p{p}"
                     )
 
-                    if not outlet["is_on"][p]["state"]:  # This is just checking what's in the dict not querying the DLI
-                        r = self.pwr.pwr_toggle(
-                            outlet["type"], _addr, desired_state=True, port=p
-                        )
+                    if not outlet["is_on"][p][
+                        "state"
+                    ]:  # This is just checking what's in the dict not querying the DLI
+                        r = self.pwr.pwr_toggle(outlet["type"], _addr, desired_state=True, port=p)
                         if isinstance(r, bool):
                             if r:
                                 threading.Thread(
@@ -127,11 +128,9 @@ class ConsolePiExec:
                         f"[Auto PwrOn] Power ON {pwr_key} Linked Outlet {outlet['type']}:{_addr} p{p}"
                     )
                     if not outlet["is_on"][p]["state"]:  # This is just checking what's in the dict
-                        r = self.pwr.pwr_toggle(
-                            outlet["type"], _addr, desired_state=True, port=p
-                        )
+                        r = self.pwr.pwr_toggle(outlet["type"], _addr, desired_state=True, port=p)
                         if isinstance(r, bool):
-                            self.pwr.data['defined'][o.split(':')[0]]['is_on'][p]['state'] = r
+                            self.pwr.data["defined"][o.split(":")[0]]["is_on"][p]["state"] = r
                         else:
                             log.show(r)
                             log.warning(
@@ -141,16 +140,12 @@ class ConsolePiExec:
 
             # -- // GPIO & TASMOTA Auto Power On \\ --
             else:
-                log.debug(
-                    f"[Auto PwrOn] Power ON {pwr_key} Linked Outlet {outlet['type']}:{_addr}"
-                )
+                log.debug(f"[Auto PwrOn] Power ON {pwr_key} Linked Outlet {outlet['type']}:{_addr}")
                 r = self.pwr.pwr_toggle(
                     outlet["type"],
                     _addr,
                     desired_state=True,
-                    noff=outlet.get("noff", True)
-                    if outlet["type"].upper() == "GPIO"
-                    else True,
+                    noff=outlet.get("noff", True) if outlet["type"].upper() == "GPIO" else True,
                 )
                 if isinstance(r, int) and r > 1:  # return is an error
                     r = False
@@ -193,8 +188,8 @@ class ConsolePiExec:
                 print("")
                 input("Press Enter to Continue... ")
             except (KeyboardInterrupt, EOFError):
-                log.show('Operation Aborted')
-                print('')  # prevents header and prompt on same line in debug
+                log.show("Operation Aborted")
+                print("")  # prevents header and prompt on same line in debug
 
             return True
 
@@ -240,7 +235,7 @@ class ConsolePiExec:
                 )
                 return True
 
-    # TODO REMOVE - Depricated
+    # TODO REMOVE - Deprecated
     def launch_shell(self):
         iam = config.loc_user
         os.system(
@@ -252,9 +247,7 @@ class ConsolePiExec:
             "sudo -u {0} bash -rcfile /tmp/prompt ; rm /tmp/prompt".format(iam)
         )
 
-    def outlet_update(
-        self, upd_linked=False, refresh=False, key="defined", outlets=None
-    ):
+    def outlet_update(self, upd_linked=False, refresh=False, key="defined", outlets=None):
         """
         Called by consolepi-menu refresh and exec_auto_pwron (to update outlets in menu)
         """
@@ -274,9 +267,7 @@ class ConsolePiExec:
             if key in _outlets:
                 return _outlets[key]
             else:
-                msg = (
-                    f'Invalid key ({key}) passed to outlet_update. Returning "defined"'
-                )
+                msg = f'Invalid key ({key}) passed to outlet_update. Returning "defined"'
                 log.error(msg, show=True)
                 return _outlets["defined"]
 
@@ -299,7 +290,8 @@ class ConsolePiExec:
         if not os.path.isfile(loc_home + "/.ssh/id_rsa"):
             print("\nNo Local ssh cert found, generating...\n")
             utils.do_shell_cmd(
-                f'sudo -u {loc_user} ssh-keygen -m pem -t rsa -C "{loc_user}@{hostname}"', timeout=360
+                f'sudo -u {loc_user} ssh-keygen -m pem -t rsa -C "{loc_user}@{hostname}"',
+                timeout=360,
             )
 
         # -- copy keys to remote(s)
@@ -308,7 +300,11 @@ class ConsolePiExec:
         return_list = []
         for _rem in rem_data:
             rem, rem_ip, rem_user = _rem
-            print(self.menu.format_line("{{magenta}}Attempting to copy ssh cert to " + rem + "{{norm}}").text)
+            print(
+                self.menu.format_line(
+                    "{{magenta}}Attempting to copy ssh cert to " + rem + "{{norm}}"
+                ).text
+            )
             if not utils.is_reachable(rem_ip, 22, timeout=5, silent=True):
                 return_list.append(f"{rem}: is not reachable... Skipped")
             else:
@@ -333,28 +329,22 @@ class ConsolePiExec:
 
     # ------ // EXECUTE MENU SELECTIONS \\ ------ #
     def menu_exec(self, choice, menu_actions, calling_menu="main_menu"):
-        '''Execute Menu Selection.  This method needs to be overhauled.
+        """Execute Menu Selection.  This method needs to be overhauled.
 
         The ConsolePiAction object defined but not used in __init__ is part of the plan for overhaul
-        menu will build insance of the object for each selection. That will be used to determine what
+        menu will build instance of the object for each selection. That will be used to determine what
         action to perform and what to do after etc.
-        '''
+        """
         pwr = self.pwr
 
         if not config.debug and calling_menu not in ["dli_menu", "power_menu"]:
             os.system("clear")
 
-        if (
-            not choice.lower
-            or choice.lower in menu_actions
-            and menu_actions[choice.lower] is None
-        ):
+        if not choice.lower or choice.lower in menu_actions and menu_actions[choice.lower] is None:
             (
                 self.menu.rows,
                 self.menu.cols,
-            ) = (
-                utils.get_tty_size()
-            )  # re-calc tty size in case they've adjusted the window
+            ) = utils.get_tty_size()  # re-calc tty size in case they've adjusted the window
             return
 
         else:
@@ -368,16 +358,18 @@ class ConsolePiExec:
                         )
 
                         # -- // AUTO POWER ON LINKED OUTLETS \\ --
-                        if (
-                            config.power and "pwr_key" in menu_actions[ch]
-                        ):
+                        if config.power and "pwr_key" in menu_actions[ch]:
                             self.exec_auto_pwron(menu_actions[ch]["pwr_key"])
 
                         # -- // Print pre-connect messsage if provided \\ --
                         if menu_actions[ch].get("pre_msg"):
                             print(menu_actions[ch]["pre_msg"])
                             c = menu_actions[ch].get("cmd")
-                            if calling_menu != 'rename_menu' and '/dev/' in c or 'telnet' in c.lower():
+                            if (
+                                calling_menu != "rename_menu"
+                                and "/dev/" in c
+                                or "telnet" in c.lower()
+                            ):
                                 print(self.menu.tty)
 
                         # --// execute the command \\--
@@ -385,19 +377,13 @@ class ConsolePiExec:
                             _error = None
                             if "exec_kwargs" in menu_actions[ch]:
                                 c = menu_actions[ch]["cmd"]
-                                _error = utils.do_shell_cmd(
-                                    c, **menu_actions[ch]["exec_kwargs"]
-                                )
+                                _error = utils.do_shell_cmd(c, **menu_actions[ch]["exec_kwargs"])
                                 if _error and self.autopwr_wait:
                                     # TODO simplify this after moving to action object
                                     _h = None
                                     _method = "ssh -t" if "ssh" in c else "telnet"
                                     if "ssh" in _method:
-                                        _h = (
-                                            c.split(f"{_method} ")[1]
-                                            .split(" -p")[0]
-                                            .split("@")[1]
-                                        )
+                                        _h = c.split(f"{_method} ")[1].split(" -p")[0].split("@")[1]
                                         _p = int(c.split("-p ")[1])
                                     elif _method == "telnet":
                                         c_list = c.split()
@@ -426,7 +412,9 @@ class ConsolePiExec:
                                             wait_for_boot,
                                         )
                                         if self.autopwr_wait:
-                                            _error = utils.do_shell_cmd(c, **menu_actions[ch]["exec_kwargs"])
+                                            _error = utils.do_shell_cmd(
+                                                c, **menu_actions[ch]["exec_kwargs"]
+                                            )
                                             self.autopwr_wait = False
                             else:
                                 c = shlex.split(menu_actions[ch]["cmd"])
@@ -439,25 +427,18 @@ class ConsolePiExec:
                                 log.show(_error)
 
                             # -- // resize the terminal to handle serial connections that jack the terminal size \\ --
-                            if "picocom" in menu_actions[ch]["cmd"] or "telnet" in menu_actions[ch]["cmd"]:
-                                os.system(
-                                    "/etc/ConsolePi/src/consolepi-commands/resize >/dev/null"
-                                )
+                            if (
+                                "picocom" in menu_actions[ch]["cmd"]
+                                or "telnet" in menu_actions[ch]["cmd"]
+                            ):
+                                os.system("/etc/ConsolePi/src/consolepi-commands/resize >/dev/null")
 
                         except (KeyboardInterrupt, EOFError):
                             log.show("Aborted last command based on user input")
 
                     elif "function" in menu_actions[ch]:
-                        args = (
-                            menu_actions[ch]["args"]
-                            if "args" in menu_actions[ch]
-                            else []
-                        )
-                        kwargs = (
-                            menu_actions[ch]["kwargs"]
-                            if "kwargs" in menu_actions[ch]
-                            else {}
-                        )
+                        args = menu_actions[ch]["args"] if "args" in menu_actions[ch] else []
+                        kwargs = menu_actions[ch]["kwargs"] if "kwargs" in menu_actions[ch] else {}
                         confirmed, spin_text, name = self.confirm_and_spin(
                             menu_actions[ch], *args, **kwargs
                         )
@@ -467,22 +448,16 @@ class ConsolePiExec:
                                 kwargs["name"] = name
 
                             # // -- CALL THE FUNCTION \\--
-                            if (
-                                spin_text
-                            ):  # start spinner if spin_text set by confirm_and_spin
+                            if spin_text:  # start spinner if spin_text set by confirm_and_spin
                                 with Halo(text=spin_text, spinner="dots2"):
-                                    response = menu_actions[ch]["function"](
-                                        *args, **kwargs
-                                    )
+                                    response = menu_actions[ch]["function"](*args, **kwargs)
                             else:  # no spinner
                                 response = menu_actions[ch]["function"](*args, **kwargs)
 
                             # --// Power Menus \\--
                             if calling_menu in ["power_menu", "dli_menu"]:
                                 if menu_actions[ch]["function"].__name__ == "pwr_all":
-                                    with Halo(
-                                        text="Refreshing Outlet States", spinner="dots"
-                                    ):
+                                    with Halo(text="Refreshing Outlet States", spinner="dots"):
                                         self.outlet_update(
                                             refresh=True, upd_linked=True
                                         )  # TODO can I move this to Outlets Class
@@ -495,10 +470,7 @@ class ConsolePiExec:
                                         host_short = utils.get_host_short(_addr)
                                         _port = menu_actions[ch]["kwargs"]["port"]
                                         # --// Operations performed on ALL outlets \\--
-                                        if (
-                                            isinstance(response, bool)
-                                            and _port is not None
-                                        ):
+                                        if isinstance(response, bool) and _port is not None:
                                             if (
                                                 menu_actions[ch]["function"].__name__
                                                 == "pwr_toggle"
@@ -509,9 +481,7 @@ class ConsolePiExec:
                                                 # threading.Thread(target=self.get_dli_outlets,
                                                 # kwargs={'upd_linked': True, 'refresh': True}, name='pwr_toggle_refresh').start()
                                                 upd_linked = (
-                                                    True
-                                                    if calling_menu == "power_menu"
-                                                    else False
+                                                    True if calling_menu == "power_menu" else False
                                                 )  # else dli_menu
                                                 threading.Thread(
                                                     target=self.outlet_update,
@@ -522,19 +492,16 @@ class ConsolePiExec:
                                                     name="pwr_toggle_refresh",
                                                 ).start()
                                                 if _grp in pwr.data["defined"]:
-                                                    pwr.data["defined"][_grp]["is_on"][
-                                                        _port
-                                                    ]["state"] = response
+                                                    pwr.data["defined"][_grp]["is_on"][_port][
+                                                        "state"
+                                                    ] = response
                                                 elif _port != "all":
                                                     pwr.data["dli_power"][_addr][_port][
                                                         "state"
                                                     ] = response
                                                 else:  # dli toggle all
                                                     for t in threading.enumerate():
-                                                        if (
-                                                            t.name
-                                                            == "pwr_toggle_refresh"
-                                                        ):
+                                                        if t.name == "pwr_toggle_refresh":
                                                             t.join()  # if refresh thread is running join ~
                                                             # wait for it to complete.
                                                             # TODO Don't think this works or below
@@ -544,18 +511,15 @@ class ConsolePiExec:
                                                             # successfully sent.  In reality the ports
                                                             # may not be in the  state yet, but dli is working it.
                                                             # Update menu items to reflect end state
-                                                            for p in pwr.data[
-                                                                "dli_power"
-                                                            ][_addr]:
-                                                                pwr.data["dli_power"][
-                                                                    _addr
-                                                                ][p]["state"] = response
+                                                            for p in pwr.data["dli_power"][_addr]:
+                                                                pwr.data["dli_power"][_addr][p][
+                                                                    "state"
+                                                                ] = response
                                                             break
                                                 self.spin.stop()
                                             # Cycle operation returns False if outlet is off, only valid on powered outlets
                                             elif (
-                                                menu_actions[ch]["function"].__name__
-                                                == "pwr_cycle"
+                                                menu_actions[ch]["function"].__name__ == "pwr_cycle"
                                                 and not response
                                             ):
                                                 log.show(
@@ -567,12 +531,10 @@ class ConsolePiExec:
                                             ):
                                                 if response:
                                                     _name = pwr._dli[_addr].name(_port)
-                                                    if _grp in pwr.data.get(
-                                                        "defined", {}
-                                                    ):
-                                                        pwr.data["defined"][_grp][
-                                                            "is_on"
-                                                        ][_port]["name"] = _name
+                                                    if _grp in pwr.data.get("defined", {}):
+                                                        pwr.data["defined"][_grp]["is_on"][_port][
+                                                            "name"
+                                                        ] = _name
                                                     else:
                                                         threading.Thread(
                                                             target=self.outlet_update,
@@ -587,16 +549,12 @@ class ConsolePiExec:
                                                     ] = _name
                                         # --// str responses are errors append to error_msgs \\--
                                         # TODO refactor response to use new cpi.response(...)
-                                        elif (
-                                            isinstance(response, str)
-                                            and _port is not None
-                                        ):
+                                        elif isinstance(response, str) and _port is not None:
                                             log.show(response)
                                         # --// Can Remove After Refactoring all responses to bool or str \\--
                                         elif isinstance(response, int):
                                             if (
-                                                menu_actions[ch]["function"].__name__
-                                                == "pwr_cycle"
+                                                menu_actions[ch]["function"].__name__ == "pwr_cycle"
                                                 and _port == "all"
                                             ):
                                                 if response != 200:
@@ -613,9 +571,7 @@ class ConsolePiExec:
                                                         "DEV NOTE: check pwr library ret=200 or 204"
                                                     )
                                                 else:
-                                                    _action = menu_actions[ch][
-                                                        "function"
-                                                    ].__name__
+                                                    _action = menu_actions[ch]["function"].__name__
                                                     log.show(
                                                         f"Error returned from dli {host_short} when "
                                                         f"attempting to {_action} port {_port}"
@@ -625,49 +581,43 @@ class ConsolePiExec:
                                         host_short = utils.get_host_short(_addr)
                                         _port = menu_actions[ch]["kwargs"]["port"]
                                         # --// Operations performed on ALL outlets \\--
-                                        if (isinstance(response, bool) and _port is not None):
-                                            pwr.data['defined'][_grp]['is_on'][_port]['state'] = response
+                                        if isinstance(response, bool) and _port is not None:
+                                            pwr.data["defined"][_grp]["is_on"][_port][
+                                                "state"
+                                            ] = response
                                             if (
-                                                menu_actions[ch]["function"].__name__
-                                                == "pwr_cycle"
+                                                menu_actions[ch]["function"].__name__ == "pwr_cycle"
                                                 and not response
                                             ):
-                                                _msg = f"{_grp}({host_short})" if _grp != host_short else f"{_grp}"
+                                                _msg = (
+                                                    f"{_grp}({host_short})"
+                                                    if _grp != host_short
+                                                    else f"{_grp}"
+                                                )
                                                 if _msg != _port:
                                                     _msg = f"{_msg} Port {_port} is Off. Cycle is not valid"
                                                 else:
                                                     _msg = f"{_msg} is Off. Cycle is not valid"
                                                 log.show(_msg)
-                                        elif (isinstance(response, str) and _port is not None):
+                                        elif isinstance(response, str) and _port is not None:
                                             log.show(response)
 
                                     # --// EVAL responses for GPIO and tasmota outlets \\--
                                     else:
-                                        if (
-                                            menu_actions[ch]["function"].__name__
-                                            == "pwr_toggle"
-                                        ):
+                                        if menu_actions[ch]["function"].__name__ == "pwr_toggle":
                                             if _grp in pwr.data.get("defined", {}):
                                                 if isinstance(response, bool):
-                                                    pwr.data["defined"][_grp][
-                                                        "is_on"
-                                                    ] = response
+                                                    pwr.data["defined"][_grp]["is_on"] = response
                                                 else:
-                                                    pwr.data["defined"][_grp][
-                                                        "errors"
-                                                    ] = response
+                                                    pwr.data["defined"][_grp]["errors"] = response
                                         elif (
-                                            menu_actions[ch]["function"].__name__
-                                            == "pwr_cycle"
+                                            menu_actions[ch]["function"].__name__ == "pwr_cycle"
                                             and not response
                                         ):
                                             log.show(
                                                 "Cycle is not valid for Outlets in the off state"
                                             )
-                                        elif (
-                                            menu_actions[ch]["function"].__name__
-                                            == "pwr_rename"
-                                        ):
+                                        elif menu_actions[ch]["function"].__name__ == "pwr_rename":
                                             log.show(
                                                 "rename not yet implemented for {} outlets".format(
                                                     _type
@@ -686,8 +636,8 @@ class ConsolePiExec:
                 if len(choice.orig) <= 2 or not self.exec_shell_cmd(choice.orig):
                     log.show(f"Invalid selection {e}, please try again.")
             except (KeyboardInterrupt, EOFError):
-                log.show('Operation Aborted')
-                print('')  # prevents header and prompt on same line in debug
+                log.show("Operation Aborted")
+                print("")  # prevents header and prompt on same line in debug
         return True
 
     def confirm_and_spin(self, action_dict: dict, *args, **kwargs):
@@ -721,7 +671,7 @@ class ConsolePiExec:
             elif _type == "esphome":
                 port = port_name = kwargs["port"]
                 if not port == "all":
-                    to_state = not pwr.data['defined'][_grp]['is_on'][port]['state']
+                    to_state = not pwr.data["defined"][_grp]["is_on"][port]["state"]
             else:
                 port = f"{_type}:{_addr}"
                 port_name = _grp
@@ -774,9 +724,7 @@ class ConsolePiExec:
                 name = input(
                     "New name for{} Outlet {}: ".format(
                         " " + host_short if host_short else "",
-                        port_name
-                        if not _type == "dli"
-                        else str(port) + "(" + port_name + ")",
+                        port_name if not _type == "dli" else str(port) + "(" + port_name + ")",
                     )
                 )
             except (KeyboardInterrupt, EOFError):
@@ -793,14 +741,10 @@ class ConsolePiExec:
                     name=name,
                 )
                 if _type == "dli":
-                    prompt = "Rename {} Outlet {}: {} ".format(
-                        host_short, port, _rnm_str
-                    )
+                    prompt = "Rename {} Outlet {}: {} ".format(host_short, port, _rnm_str)
                 else:
                     old_name = _grp
-                    prompt = "Rename Outlet {}:{} {} ".format(
-                        _type, host_short, _rnm_str
-                    )
+                    prompt = "Rename Outlet {}:{} {} ".format(_type, host_short, _rnm_str)
 
                 spin_text = "Renaming Port"
 
@@ -808,9 +752,7 @@ class ConsolePiExec:
             if _type == "dli" and port == "all":
                 prompt = "Power {} ALL {} Outlets".format(_cycle_str, host_short)
             elif _type == "dli":
-                prompt = "Cycle Power on {} Outlet {}({})".format(
-                    host_short, port, port_name
-                )
+                prompt = "Cycle Power on {} Outlet {}({})".format(host_short, port, port_name)
             elif _type == "esphome":
                 _msg = f"{_grp}({host_short})" if _grp != host_short else f"{_grp}"
                 prompt = f"Cycle Power on {_msg} Outlet {port}"
@@ -822,9 +764,7 @@ class ConsolePiExec:
 
         if prompt:
             prompt = menu.format_line(prompt).text
-            confirmed = (
-                confirmed if confirmed is not None else utils.user_input_bool(prompt)
-            )
+            confirmed = confirmed if confirmed is not None else utils.user_input_bool(prompt)
         else:
             if _func != "pwr_rename":
                 confirmed = True

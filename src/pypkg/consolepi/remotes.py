@@ -74,10 +74,8 @@ class Remotes:
                 log.warning(
                     f"[GET REM] Found {remotepi} in Local Cloud Cache: UNREACHABLE"
                 )
-                this["fail_cnt"] = (
-                    1 if not this.get("fail_cnt") else this["fail_cnt"] + 1
-                )
-                self.pop_list.append(remotepi)
+                this["fail_cnt"] = (this.get("fail_cnt", 0) + 1)
+                self.pop_list += [remotepi]
                 self.cache_update_pending = True
             else:
                 self.connected = True
@@ -158,6 +156,9 @@ class Remotes:
                         log.show(f"Cached Remote '{remotepi}' is unreachable")
 
             # update local cache file if rem_ip or adapter data changed
+            # TODO check logic I think both this method and update_local_cloud_file are checking reachability
+            #      During debug manually pop a device from data dict, then below command re-adds it think update_local_cloud_file
+            #      is merging with config.remotes and checking reachability?
             data = self.update_local_cloud_file(data)
             self.pop_list = []
             self.cache_update_pending = False

@@ -33,11 +33,11 @@ ztp_hosts_conf = '/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-hosts/ztp-hosts.conf'
 ZTP_CLI_FILE = config.static.get('ZTP_CLI_FILE', '/etc/ConsolePi/ztp/.ztpcli')
 
 ztp_main_lines = [
-                    "enable-tftp\n",
-                    "tftp-root=/srv/tftp\n"
-                    f"dhcp-option=option:tftp-server,\"{local.interfaces[ztp_iface]['ip']}\"\n",
-                    "dhcp-optsdir=/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-opts\n"
-                    "dhcp-hostsdir=/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-hosts\n"
+    "enable-tftp\n",
+    "tftp-root=/srv/tftp\n"
+    f"dhcp-option=option:tftp-server,\"{local.interfaces[ztp_iface]['ip']}\"\n",
+    "dhcp-optsdir=/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-opts\n"
+    "dhcp-hostsdir=/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp-hosts\n"
 ]
 
 
@@ -222,18 +222,18 @@ class ConsolePiZtp(Ztp):
             dhcp_main_lines = f.readlines()
 
         line = [
-                f"{','.join(_line.split(',')[0:-1])},{ztp_lease_time}\n" for _line in dhcp_main_lines
-                if _line.strip().startswith('dhcp-range=')
-                ]
+            f"{','.join(_line.split(',')[0:-1])},{ztp_lease_time}\n" for _line in dhcp_main_lines
+            if _line.strip().startswith('dhcp-range=')
+        ]
         if line and len(line) == 1:
             self.ztp_main_lines.insert(0, line[0])
         else:
             print("!! Error occured getting dhcp-range from wired-dhcp.conf lease-time will not be updated for ZTP")
 
         for _file, _lines in zip(
-                [ztp_main_conf, ztp_hosts_conf, ztp_opts_conf],
-                [self.ztp_main_lines, self.ztp_host_lines, utils.unique(self.ztp_opt_lines)]
-                ):
+            [ztp_main_conf, ztp_hosts_conf, ztp_opts_conf],
+            [self.ztp_main_lines, self.ztp_host_lines, utils.unique(self.ztp_opt_lines)]
+        ):
             with open(_file, "w") as f:
                 f.writelines(_lines)
 

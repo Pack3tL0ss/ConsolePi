@@ -377,6 +377,7 @@ collect() {
 }
 
 verify() {
+    selected_prompts=false
     header
     echo "-------------------------------------------->>PLEASE VERIFY VALUES<<--------------------------------------------"
     echo

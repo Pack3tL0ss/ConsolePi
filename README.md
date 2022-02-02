@@ -22,6 +22,7 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 - [Planned Enhancements](#planned-enhancements)
 - [Features](#features)
   - [Serial Console Server](#serial-console-server)
+    - [Guidance on LAME USB to RS232 adapters](#guidance-on-lame-usb-to-rs232-adapters)
   - [AutoHotSpot](#autoHotSpot)
   - [Automatic VPN](#automatic-openvpn-tunnel)
   - [Automatic PushBullet Notifications](#automatic-pushbullet-notification)
@@ -143,9 +144,13 @@ This is the core feature of ConsolePi.  Connect USB to serial adapters to Consol
 - The `consolepi` user can also be configured to auto-launch the menu on login (option during install), this user doesn't auto-login, so it's created with typical rights and launches the full menu.
 > To disable auto-login via Bluetooth, modify /etc/systemd/system/rfcomm.service and remove `-a blue` from the end of the `ExecStart` line.  Then issue the following to create an empty file telling `consolepi-upgrade` not to update the file on upgrade: `touch /etc/ConsolePi/overrides/rfcomm.service`.
 
-For guidance on USB to serial adapters check out the sh#t list [here](adapters.md)
 
-> There are some lame adapters that don't burn a serial # to the chip, this makes assigning a unique name/TELNET port more challenging).  The link above is a page where we note what chipsets are solid and which ones are a PITA.
+### Guidance on LAME USB to RS232 adapters
+
+There are some lame adapters that don't burn a serial # to the chip, this makes assigning a unique name/TELNET port more challenging.  Refer to the [adapters](adapters.md) page for more guidance.
+
+>Spoiler alert, Adapters based on an FTDI chipset FTW!
+
 
 ## AutoHotSpot
 
@@ -946,11 +951,7 @@ There are a few convenience commands created for ConsolePi during the automated 
 
       >Some menu items only appear if the feature is enabled.
 
-
-
-  > `consolepi-menu` also accepts a single argument "sh".  Which will launch the original consolepi-menu created in bash.  It's been crippled so it only displays local connections, it loads faster because it's local only, and doesn't need to import any modules.  This is currently the default menu that launches when connecting via bluetooth.  If running on an older Raspberry Pi (certainly the original Pi you may notice a difference in load time vs the full menu)
-  >
-  > Bonus Funny Story: I spent a bunch of time improving the adapter data for use in the rename function, had it all ready to merge until I went to test it on my original Pi B+ (256M RAM).  27 seconds... That's how long it took just to detect the locally connected adapters.  No noticeable difference on my Pi4 used for dev, but this is why I have the old ones around :( ... some time later and a re-write in a dict-comprehension and it was back to normal.
+  > `consolepi-menu` also accepts a single argument `sh`.  Which will launch the original consolepi-menu created in bash.  It's been crippled so it only displays local connections, it loads faster because it's local only, and doesn't need to import any modules.  This is currently the default menu that launches when connecting via bluetooth.  If running on an older Raspberry Pi (certainly the original Pi you may notice a difference in load time vs the full menu)
 
 - `consolepi-upgrade`:  Upgrades ConsolePi:  **Preferred method to properly update ConsolePi**.  In general this verifies that all configurations system services etc related to ConsolePi functionality are configured as expected.  This means if you've customized any of the related system files the upgrade might revert them.  It will back up the original if that occurs, but to facilitate customizations for anything you don't want the upgrade script to validate simply place a file by the same name in the overrides directory (just touch an empty file with the same name i.e. `touch /etc/ConsolePi/overrides/dhcpcd.conf`) will tell the upgrade script *not* to validate dhcpcd.conf.
 
@@ -997,6 +998,8 @@ There are a few convenience commands created for ConsolePi during the automated 
 - `consolepi-btoff`: Stop advertising via BlueTooth.  Previously paired devices will still be able to Pair.
 - `consolepi-extras`: Launches optional [utilities installer](#consolepi-extras)
 - `consolepi-version`: Displays ConsolePi version (which is in the format YYYY-MajorRel.MinorRel)
+- `consolepi-wlanreset`: Disables hotspot if enabled, disconnects from AP if connected as a station.  Then starts wpa_supplicant.  Otherwise attempts to reset WLAN adapter to initial bootup state, autohotspot will not run (use `consolepi-autohotspot` after reset to force autohotspot logic to run).
+- `consolepi-wlanscan`: Scan and display SSIDs visible to this ConsolePi, does not impact existing connection.
 - `consolepi-help`: Shows this output
 
 ## Upgrading ConsolePi
@@ -1033,11 +1036,6 @@ ConsolePi Should work on all variants of the RaspberryPi and will work on other 
     - Pretty slow to load the Google Drive Libraries, slower menu-load, slower for about everything, but works.  `consolepi-menu sh` which loads the faster local-only shell menu loads faster given it has no libraries to pull in, but these are best relegated to seldomly used remotes if used at all.
 
 > ConsolePi will also work on other Linux systems as described in [Alternative Hardware Installs](#alternative-hardware-installs).
-
-## Serial Console
-As previously mentioned, some USB to Serial adapter vendors get cheap and either don't burn in a serial numbers or burn the same serial number over and over. This can create challenges for the OS to match configuration to the same physical adapter between reboots. Navigating which devices behave nicely can be a challenge.
-
-- [Tripp Lite USB to RJ45 (U209-006-RJ45-X)](https://www.amazon.com/gp/product/B016A4CAF2/ref=ppx_yo_dt_b_asin_title_o00_s01?ie=UTF8&psc=1)
 
 # ConsolePi @ Work!
 

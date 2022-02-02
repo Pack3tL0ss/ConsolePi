@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# scan wlan environment and list unique SSIDs
+# sudo iw dev wlan0 scan ap-force | grep "\sSSID:" -B 2  ## gets ssid and signal need to parse where SSID is under OWE Transition Mode:
+
+ssids=($(sudo iw dev wlan0 scan ap-force | grep "\sSSID:\s*\w" | cut -d' ' -f 2 |grep -v "^_owetm_"))
+_IFS=$IFS;IFS=" " read -r -a ssids <<< "$(tr ' ' '\n' <<< "${ssids[@]}" | sort -u | tr '\n' ' ')";IFS=$_IFS
+for s in ${ssids[@]}; do
+    echo $s
+done

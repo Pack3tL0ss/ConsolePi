@@ -1,33 +1,32 @@
 #!/etc/ConsolePi/venv/bin/python3
 
-import subprocess
-import shlex
-import os
+from rich.console import Console
+from rich.markdown import Markdown
+from pathlib import Path
+
+console = Console(emoji=False)
 
 
 def help_from_md():
     md = []
-    with open('/etc/ConsolePi/README.md', 'r') as readme:
-        capture = False
-        for line in readme:
-            if '## **Convenience Commands:**' in line:
-                capture = True
-            elif '# Tested Hardware / Software' in line:
-                capture = False
-                break
-            if capture:
-                md.append(line)
+    readme_file = Path("/etc/ConsolePi/README.md")
+    readme_txt = readme_file.read_text()
+    capture = False
+    for line in readme_txt.splitlines():
+        if '## **Convenience Commands:**' in line:
+            capture = True
+        elif capture and line.startswith("#"):
+            capture = False
+            break
+        if capture:
+            md += [line]
 
-    with open('/tmp/help.md', 'w') as mdout:
-        for line in md:
-            mdout.write(line)
+    md = Markdown("\n".join(md))
 
-    cmd = '/usr/bin/env bash -c "/etc/ConsolePi/venv/bin/mdv -t 884.0134 -u h -x /tmp/help.md | more"'
-    subprocess.run(['bash', '-c', '. /etc/ConsolePi/installer/common.sh; header'])
-    print('\n The Following is extracted from the readme.\n\n')
-    subprocess.run(shlex.split(cmd))
-    if os.path.isfile('/tmp/help.md'):
-        os.remove('/tmp/help.md')
+    print()
+    console.rule('The Following is extracted from the readme')
+    console.print(md)
+    console.rule()
 
 
 help_from_md()

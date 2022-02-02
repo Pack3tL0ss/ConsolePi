@@ -26,7 +26,6 @@ get_util_status () {
     [ -f /tmp/ansible ] && aoss_dir=$(grep "ansible python module location" /tmp/ansible_ver | cut -d'=' -f 2 | cut -d' ' -f 2)/modules/network/arubaoss ||
         aoss_dir=""
     [ -f /tmp/ansible ] && pycmd=python$(tail -1 /tmp/ansible_ver | awk '{print $4}' | cut -d'.' -f 1) || pycmd=python
-    # [WARNING][UNDEFINED] Failed to determine Ansible Python Ver  Occurs if ansible is not installed
     which $pycmd >/dev/null 2>&1 || ( logit "Failed to determine Ansible Python Ver" "WARNING" && pycmd=python)
 
     cpit_status=$(dpkg -l | grep " cockpit " | awk '{print $1,$3}')

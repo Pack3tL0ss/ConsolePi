@@ -15,7 +15,7 @@ def help_from_md():
     for line in readme_txt.splitlines():
         if '## **Convenience Commands:**' in line:
             capture = True
-        elif '# Tested Hardware / Software' in line:
+        elif capture and line.startswith("#"):
             capture = False
             break
         if capture:

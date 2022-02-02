@@ -25,7 +25,7 @@ lazy-object-proxy>=1.4.1
 # libffi>=0.1
 MarkupSafe>=1.1.1
 mccabe>=0.6.1
-mdv>=1.7.4
+# mdv>=1.7.4
 netifaces>=0.10.9
 oauthlib>=3.0.1
 paramiko>=2.4.2
@@ -51,3 +51,4 @@ uvicorn>=0.10.8
 Werkzeug>=0.15.4
 # wrapt>=1.11.2
 zeroconf>=0.23.0
+rich

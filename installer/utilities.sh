@@ -18,13 +18,15 @@ get_util_status () {
     UTIL_VER['lldpd']=$(lldpd -v 2>/dev/null)
     PKG_EXPLAIN['lldpd']="Enables lldp on wired ports, for discovery of ConsolePi info from lldp capable device it's connected to"
 
-    ansible --version > /tmp/ansible_ver 2>/dev/null
-    UTIL_VER['ansible']=$(head -1 /tmp/ansible_ver | awk '{print $2}')
+    which ansible >/dev/null 2>&1 && ansible --version > /tmp/ansible_ver 2>/dev/null
+    [ -f /tmp/ansible ] && UTIL_VER['ansible']=$(head -1 /tmp/ansible_ver | awk '{print $2}') || UTIL_VER['ansible']=""
     PKG_EXPLAIN['ansible']="open source automation framework/engine."
 
     a_role="${home_dir}/.ansible/roles/arubanetworks.aoscx_role"
-    aoss_dir=$(grep "ansible python module location" /tmp/ansible_ver | cut -d'=' -f 2 | cut -d' ' -f 2)/modules/network/arubaoss
-    pycmd=python$(tail -1 /tmp/ansible_ver | awk '{print $4}' | cut -d'.' -f 1)
+    [ -f /tmp/ansible ] && aoss_dir=$(grep "ansible python module location" /tmp/ansible_ver | cut -d'=' -f 2 | cut -d' ' -f 2)/modules/network/arubaoss ||
+        aoss_dir=""
+    [ -f /tmp/ansible ] && pycmd=python$(tail -1 /tmp/ansible_ver | awk '{print $4}' | cut -d'.' -f 1) || pycmd=python
+    # [WARNING][UNDEFINED] Failed to determine Ansible Python Ver  Occurs if ansible is not installed
     which $pycmd >/dev/null 2>&1 || ( logit "Failed to determine Ansible Python Ver" "WARNING" && pycmd=python)
 
     cpit_status=$(dpkg -l | grep " cockpit " | awk '{print $1,$3}')

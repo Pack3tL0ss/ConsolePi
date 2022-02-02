@@ -25,8 +25,7 @@ def help_from_md():
 
     print()
     console.rule('The Following is extracted from the readme')
-    print()
-    print(md)
+    console.print(md)
     console.rule()
 
 

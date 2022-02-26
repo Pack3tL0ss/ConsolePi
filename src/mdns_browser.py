@@ -23,8 +23,8 @@ RESTART_INTERVAL = 300  # time in seconds browser service will restart
 class MDNS_Browser:
 
     def __init__(self, show=False):
-        self.cpi = ConsolePi()
         config.cloud = False  # mdns doesn't need to sync w cloud
+        self.cpi = ConsolePi(bypass_outlets=True)
         self.debug = config.cfg.get('debug', False)
         self.show = show
         self.stop = False

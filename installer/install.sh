@@ -577,7 +577,7 @@ show_usage() {
     _help "-silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
     _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
     echo "    Copy the example file to your home dir and make edits to use"
-    _help "-post" "~/consolepi-stage/consolepi-post.sh if found is executed after initial install.  This flag instructs installer to run the custom script after upgrade."
+    _help "-post" "~/consolepi-stage/consolepi-post.sh if found is executed after initial install.  Use this to run after upgrade."
     _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  This flag disables it. If silent and not set, no action is taken"
     _help "-btpan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
     _help "-reboot" "reboot automatically after silent install (Only applies to silent install)"

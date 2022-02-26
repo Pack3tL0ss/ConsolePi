@@ -5,17 +5,16 @@
 
 import json
 import time
+import sys
 from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 
-import sys
+from rich.traceback import install
+install(show_locals=True)
+
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
 from consolepi import log, config  # type: ignore # NoQA
 from consolepi.consolepi import ConsolePi  # type: ignore # NoQA
 
-try:
-    import better_exceptions  # type: ignore # NoQA
-except Exception:
-    pass
 
 RESTART_INTERVAL = 300  # time in seconds browser service will restart
 

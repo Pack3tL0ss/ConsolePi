@@ -4,7 +4,6 @@
 # Author: Wade Wells
 
 # -- Installation Defaults --
-# wired_dhcp=false  # temp until a config option
 cur_dir=$(pwd)
 iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
 tty_cols=$(stty -a 2>/dev/null | grep -o "columns [0-9]*" | awk '{print $2}')
@@ -44,8 +43,6 @@ _yellow='\e[33;1m'
 _green='\e[32m'
 _cyan='\e[96m' # technically light cyan
 
-# vpn_dest=$(sudo grep -G "^remote\s.*" /etc/openvpn/client/ConsolePi.ovpn | awk '{print $2}')
-
 [[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
 ( [[ -f $final_log ]] && [ -z $upgrade ] ) && upgrade=true || upgrade=false
 
@@ -55,10 +52,6 @@ $upgrade && log_file=$final_log || log_file=$tmp_log
 
 
 # -- External Sources --
-# ser2net_source="https://sourceforge.net/projects/ser2net/files/latest/download" ## now points to gensio not ser2net
-# ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-3.5.1.tar.gz/download"
-# ser2net_source_version="3.5.1"
-# ser2net_source="https://sourceforge.net/projects/ser2net/files/ser2net/ser2net-4.0.tar.gz/download"
 consolepi_source="https://github.com/Pack3tL0ss/ConsolePi.git"
 
 # header reqs 144 cols to display properly
@@ -154,7 +147,7 @@ menu_print() {
                 [[ "$str" =~ "\e[" ]] && ((len-=11))
                 [[ "$str" =~ ';1m' ]] && ((len-=2))
                 pad_len=$(( ((line_len-len-5)) ))
-                printf -v pad "%*s" $pad_len # && pad=${pad// /-}
+                printf -v pad "%*s" $pad_len
                 printf '%s %b %s %s\n' "$style" "$str" "$pad" "$style"
                 shift
                 ;;
@@ -510,19 +503,15 @@ get_pi_info() {
     git_rem=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git remote -v | head -1 | cut -d '(' -f-1 ; popd >/dev/null 2>&1)
     [[ ! -z $git_rem ]] && [[ $(echo $git_rem | awk '{print $2}') != $consolepi_source ]] && logit "Using alternative repo: ${_green}$git_rem${_norm}"
     cpu=$(cat /proc/cpuinfo | grep 'Hardware' | awk '{print $3}')
-    rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}') # | sed 's/^1000//')
+    rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}')
     model_pretty=$(get_pi_info_pretty $rev 2>/dev/null)
     [ -n "$model_pretty" ] && is_pi=true || is_pi=false
-    # echo -e "$version running on $cpu Revision: $rev\n    $model_pretty"
     logit "$model_pretty"
-    # logit "$version running on $cpu Revision: $rev"
     [ -f /etc/os-release ] && . /etc/os-release && logit "$NAME $(head -1 /etc/debian_version) ($VERSION_CODENAME) running on $cpu Revision: $rev"
-    # _mem=$(free -h |grep "^Mem:" | awk '{print $2}');_mem=$(echo "$((${_mem:0:1}+1))${_mem:3:1}")
-    # logit "$(grep '^Model' /proc/cpuinfo | cut -d: -f2 |cut -d' ' -f2-) $_mem"
     logit "$(uname -a)"
     dpkg -l | grep -q raspberrypi-ui && (desktop=true && logit "RaspiOS with Desktop") || (desktop=false && logit "RaspiOS Lite")
     logit "Python 3 Version $(python3 -V)"
-    [ $py3ver -lt 6 ] && logit "${_red}DEPRICATION WARNING:${_norm} Python 3.5 will no longer be supported by ConsolePi in a future release." "warning" &&
+    [ $py3ver -lt 6 ] && logit "${_red}DEPRICATION WARNING:${_norm} Python 3.5 and lower is no longer be supported." "warning" &&
         logit "You should re-image ConsolePi using the current RaspiOS release" "warning"
     unset process
 }
@@ -757,7 +746,6 @@ process_cmds() {
                         logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
                         sleep 5
                         logit "Starting ${pmsg/Success - /} ~ retry $x"
-                        # if eval "$cmd" >>"$out" 2>>"$err"; then
                         logit -L "process_cmds executing: $cmd"
                         if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err"); then
                             local cmd_failed=false

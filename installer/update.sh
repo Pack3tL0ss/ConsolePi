@@ -540,7 +540,7 @@ do_blue_config() {
     # [ "$btmode" == "serial" ] && local btsrc="${src_dir}systemd/bluetooth.service" || local btsrc="${src_dir}systemd/bluetooth_pan.service"
     # btsrc="${src_dir}systemd/bluetooth.service"  # Temp until btpan configuration vetted/implemented
     # file_diff_update $btsrc /lib/systemd/system/bluetooth.service
-    bt_exec=$(grep 'ExecStart=' /lib/systemd/system/bluetooth.service |grep bluetoothd| cut -d'=' -f2)
+    bt_exec=$(grep 'ExecStart=' /lib/systemd/system/bluetooth.service |grep bluetoothd| cut -d'=' -f2|awk '{print $1}')
     systemctl is-enabled bluetooth.service >/dev/null && bt_enabled=true || bt_enabled=false
     if [ ! -z "$bt_exec" ]; then
         if [ ! -f "$bt_exec" ]; then
@@ -858,7 +858,7 @@ do_wifi_country() {
 
 # -- run custom post install script --
 custom_post_install_script() {
-    if ! $upgrade; then
+    if $do_consolepi_post || ! $upgrade; then
         found_path=$(get_staged_file_path "consolepi-post.sh")
         if [[ $found_path ]]; then
             process="Run Custom Post-install script"

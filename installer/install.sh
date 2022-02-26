@@ -29,7 +29,7 @@ get_common() {
     else
         if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
             local _iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
-            sudo -u $_iam sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
+            sudo -u $_iam sftp $_iam@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
             echo "ERROR: -dev sftp get failed"
         else
             [[ -f /etc/ConsolePi/installer/common.sh ]] && cp /etc/ConsolePi/installer/common.sh /tmp ||
@@ -577,6 +577,7 @@ show_usage() {
     _help "-silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
     _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
     echo "    Copy the example file to your home dir and make edits to use"
+    _help "-post" "~/consolepi-stage/consolepi-post.sh if found is executed after initial install.  This flag instructs installer to run the custom script after upgrade."
     _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  This flag disables it. If silent and not set, no action is taken"
     _help "-btpan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
     _help "-reboot" "reboot automatically after silent install (Only applies to silent install)"
@@ -615,6 +616,7 @@ process_args() {
     dopip=true
     doapt=true
     do_reboot=false
+    do_consolepi_post=false
     while (( "$#" )); do
         # echo "$1" # -- DEBUG --
         case "$1" in
@@ -641,6 +643,10 @@ process_args() {
                 ;;
             -install)  # dev flag run as if initial install
                 upgrade=false
+                shift
+                ;;
+            -post)  # ~/consolepi-stage/consolepi-post.sh if exists is executed only after initial installs, this sets to run regardless of install/upgrade
+                do_consolepi_post=true
                 shift
                 ;;
             # -- silent install options --

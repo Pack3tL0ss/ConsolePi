@@ -65,7 +65,6 @@ do_apt_update() {
         # Only update if initial install (no install.log) or if last update was not today
         if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
             res=$(apt update 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$log_file")) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
-            # res=$(apt update 2>>$log_file) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
             [[ "$res" =~ "--upgradable" ]] && mapfile -t _upgd < <(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         else
             logit "Skipping Source Update - Already Updated today"
@@ -74,7 +73,7 @@ do_apt_update() {
 
         if [[ "${#_upgd[@]}" > 0 ]]; then
             logit "${_cyan}Your system has "${#_upgd[@]}" Packages that can be Upgraded${_norm}"
-            logit "${_cyan}ConsolePi now *only* ensures packages it requires are current${_norm}"
+            logit "${_cyan}ConsolePi *only* ensures packages it requires are current${_norm}"
         fi
 
     else
@@ -459,9 +458,13 @@ do_pyvenv() {
             logit "Success - pip upgrade" ||
             logit "WARNING - pip upgrade returned error" "WARNING"
 
-        # -- Update venv packages based on requirements file --
         logit "pip install/upgrade ConsolePi requirements - This can take some time."
         echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
+        # TODO consider if not $is_pi then skip RPi.GPIO and remove from requirements.
+        # -- RPi.GPIO is done separately as it's a distutils package installed by apt, but pypi may be newer.  this is in a venv, should do no harm
+        sudo ${consolepi_dir}venv/bin/python3 -m pip install RPi.GPIO --ignore-installed 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) ||
+            logit "pip install/upgrade RPi.GPIO (separately) returned an error." "WARNING"
+        # -- Update venv packages based on requirements file --
         sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"

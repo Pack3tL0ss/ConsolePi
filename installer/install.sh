@@ -430,7 +430,7 @@ do_pyvenv() {
     # -- Check that release upgrade or manual python upgrade hasnt made the venv python ver differ from system --
     if [ -d ${consolepi_dir}venv ] && [ -x "${consolepi_dir}venv/bin/python3" ]; then
         venv_py3ver=$(${consolepi_dir}venv/bin/python3 -V | cut -d. -f2)
-        if [ "$venv_py3ver" != "$py3ver"]; then
+        if [ "$venv_py3ver" != "$py3ver" ]; then
             mv ${consolepi_dir}venv $bak_dir && logit "The Python version on the system has been upgraded moving existing venv to bak dir." &&
                 logit "A New venv will be created. (it is OK to delete anything in bak)"
         fi

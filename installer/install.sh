@@ -161,13 +161,13 @@ do_users(){
 
         if ! grep -q "^consolepi:" /etc/group; then
             if [ ! -z "${consolepi_pass}" ]; then
-                echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
+                echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos ",,,," consolepi >/dev/null 2>> $log_file &&
                     logit "consolepi user created silently with config/cmd-line argument" || logit "Error silently creating consolepi user" "ERROR"
                 unset consolepi_pass
             else
                 echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
                 ask_pass  # provides _pass in global context
-                echo -e "${_pass}\n${_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
+                echo -e "${_pass}\n${_pass}\n" | adduser --conf /tmp/adduser.conf --gecos ",,,," consolepi >/dev/null 2>> $log_file &&
                     (
                         logit "consolepi user created."
                         do_user_dir_import consolepi || logit -L "User dir import for consolepi user returned error"
@@ -205,22 +205,30 @@ do_users(){
                 _res=$result
                 if $result; then
                     user_input "" "Username for new user"
-                    if adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null; then
-                        logit "Successfully added new user $result"
+                    # We silently allow user to pass args to adduser
+                    local user=$result
+                    result=($result)
+                    local args=()
+                    i=0; while [ $i -lt "${#result[@]}" ]; do
+                        case "${result[i]}" in
+                            -*)
+                                args+=(${result[@]:i:$((i+2))})
+                                ((i+=2))
+                            ;;
+                            *)
+                                user="${result[i]}"
+                                ((i+=1))
+                            ;;
+                        esac
+                    done
+                    if adduser --conf /tmp/adduser.conf --gecos ",,,," ${args[@]} ${user} 1>/dev/null; then
+                        logit "Successfully added new user $user"
 
                         # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
-                        do_user_dir_import $result || logit -L "User dir import for $result user returned error"
-
-                        # if [[ -d "$stage_dir/home/$result" ]]; then
-                        #     logit "Found staged files for $result, copying to users home"
-                        #     chown -R $(grep "^$result:" /etc/passwd | cut -d: -f3-4) "$stage_dir/home/$result" &&
-                        #     cp -r "$stage_dir/home/$result" "/home/$result" &&
-                        #     logit "Success - copy staged files for user $result" ||
-                        #         logit "An error occurred when attempting cp pre-staged files for user $result" "WARNING"
-                        # fi
+                        do_user_dir_import $user || logit -L "User dir import for $user user returned error"
 
                     else
-                        logit "Error adding new user $result" "WARNING"
+                        logit "Error adding new user $user" "WARNING"
                     fi
                 else
                     header

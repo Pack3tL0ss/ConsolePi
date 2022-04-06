@@ -14,6 +14,9 @@
 wifidev=wlan0
 ethdev=eth0
 override_dir="/etc/ConsolePi/overrides"
+wansim=false
+debug=false
+do_wpa=true
 
 start_stop_dnsmasq() {
     # if all files are in place to use new separate instance for hotspot dhcp do so otherwise assume using dnsmasq default instance
@@ -50,9 +53,6 @@ show_usage() {
 }
 
 process_args() {
-    wansim=false
-    debug=false
-    do_wpa=true
     while (( "$#" )); do
         # echo "$1" # -- DEBUG --
         case "$1" in
@@ -60,7 +60,7 @@ process_args() {
                 wansim=true
                 shift
                 ;;
-            -deubg|--debug)
+            -debug|--debug)
                 debug=true
                 shift
                 ;;
@@ -82,12 +82,13 @@ process_args() {
 }
 
 disable_forwarding() {
+    echo diable_forwarding hit
     iptables -D FORWARD -i "$ethdev" -o "$wifidev" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null
     iptables -D FORWARD -i "$wifidev" -o "$ethdev" -j ACCEPT 2>/dev/null
     echo 0 > /proc/sys/net/ipv4/ip_forward
 }
 
-process_args
+process_args "${@}"
 wpa_cli terminate >/dev/null 2>&1
 ip addr flush $wifidev 2>/dev/null
 ip link set dev $wifidev down

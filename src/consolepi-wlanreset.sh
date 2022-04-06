@@ -29,6 +29,51 @@ start_stop_dnsmasq() {
     fi
 }
 
+_help() {
+    local pad=$(printf "%0.1s" " "{1..40})
+    printf " %s%*.*s%s.\n" "$1" 0 $((40-${#1})) "$pad" "$2"
+}
+
+show_usage() {
+    # common is not imported here can't use common funcs
+    _green='\e[32;1m' # bold green
+    _cyan='\e[96m'
+    _norm='\e[0m'
+    local _cmd="consolepi-wlanreset"
+    echo -e "\n${_green}USAGE:${_norm} $_cmd [OPTIONS]\n"
+    echo -e "${_cyan}Available Options${_norm}"
+    _help "--help | -help | help" "Display this help text"
+    _help "-wansim" "Keep ip-forwarding state, and IP Tables rules in place.  Necessary for WAN Simulator"
+    echo
+}
+
+process_args() {
+    wansim=false
+    while (( "$#" )); do
+        # echo "$1" # -- DEBUG --
+        case "$1" in
+            -wansim)
+                wansim=true
+                shift
+                ;;
+            # -- \silent install options --
+            help|-help|--help)
+                show_usage
+                exit 0
+                ;;
+            *) # -*|--*=) # unsupported flags
+                echo "Error: Unsupported flag passed to process_args $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+
+    # -- Set defaults applied when using silent mode if not specified --
+    $silent && btmode=${btmode:-serial}
+}
+
+
+process_args
 wpa_cli terminate >/dev/null 2>&1
 ip addr flush $wifidev 2>/dev/null
 ip link set dev $wifidev down

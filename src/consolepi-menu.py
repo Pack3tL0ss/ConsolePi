@@ -906,7 +906,7 @@ class ConsolePiMenu(Rename):
                     if rem[host].get('rem_ip') and rem[host].get('adapters'):
                         slines.append(f'Rename Adapters on {host}')
                         mlines, rem_menu_actions, item = self.gen_adapter_lines(rem[host]['adapters'], item=item,
-                                                                                remote=True, rem_user=rem[host].get('rem_user'),
+                                                                                remote=True, rem_user=rem[host].get('user'),
                                                                                 host=host, rename=True)
                         outer_body.append(mlines)
                         menu_actions = {**menu_actions, **rem_menu_actions}

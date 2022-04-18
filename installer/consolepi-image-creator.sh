@@ -638,13 +638,13 @@ main() {
             echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${@}" && sudo rm -f /tmp/ConsolePi' >> /mnt/usb2/usr/local/bin/consolepi-install
         fi
 
-        $LOCAL_DEV && cmd_line="-dev $cmd_line"
+        $LOCAL_DEV && cmd_line="-dev ${cmd_line/-dev/}"
         grep -q "consolepi-install" $IMG_HOME/.profile || echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.profile
 
         # make install command/script executable
         sudo chmod +x /mnt/usb2/usr/local/bin/consolepi-install &&
-            echo OK && echo "     Configured with the following args $(cyan ${cmd_line})" ||
-            ( echo "ERROR"; echo -e "\tERROR making consolepi-install command executable" )
+            green OK && echo "     Configured with the following args $(cyan ${cmd_line})" ||
+            ( red "ERROR"; echo -e "\tERROR making consolepi-install command executable" )
     fi
 
     # -- pre-stage-configs --

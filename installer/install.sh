@@ -29,7 +29,7 @@ get_common() {
     else
         if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
             local _iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
-            sudo -u $_iam sftp pi@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
+            sudo -u $_iam sftp $_iam@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
             echo "ERROR: -dev sftp get failed"
         else
             [[ -f /etc/ConsolePi/installer/common.sh ]] && cp /etc/ConsolePi/installer/common.sh /tmp ||
@@ -65,7 +65,6 @@ do_apt_update() {
         # Only update if initial install (no install.log) or if last update was not today
         if ! $upgrade || [[ ! $(ls -l --full-time /var/cache/apt/pkgcache.bin 2>/dev/null | cut -d' ' -f6) == $(echo $(date +"%Y-%m-%d")) ]]; then
             res=$(apt update 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$log_file")) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
-            # res=$(apt update 2>>$log_file) && logit "Update Successful" || logit "FAILED to Update" "ERROR"
             [[ "$res" =~ "--upgradable" ]] && mapfile -t _upgd < <(apt list --upgradable 2>/dev/null | grep -v "^Listing.*$")
         else
             logit "Skipping Source Update - Already Updated today"
@@ -74,7 +73,7 @@ do_apt_update() {
 
         if [[ "${#_upgd[@]}" > 0 ]]; then
             logit "${_cyan}Your system has "${#_upgd[@]}" Packages that can be Upgraded${_norm}"
-            logit "${_cyan}ConsolePi now *only* ensures packages it requires are current${_norm}"
+            logit "${_cyan}ConsolePi *only* ensures packages it requires are current${_norm}"
         fi
 
     else
@@ -162,13 +161,13 @@ do_users(){
 
         if ! grep -q "^consolepi:" /etc/group; then
             if [ ! -z "${consolepi_pass}" ]; then
-                echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
+                echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos ",,,," consolepi >/dev/null 2>> $log_file &&
                     logit "consolepi user created silently with config/cmd-line argument" || logit "Error silently creating consolepi user" "ERROR"
                 unset consolepi_pass
             else
                 echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
                 ask_pass  # provides _pass in global context
-                echo -e "${_pass}\n${_pass}\n" | adduser --conf /tmp/adduser.conf --gecos "" consolepi >/dev/null 2>> $log_file &&
+                echo -e "${_pass}\n${_pass}\n" | adduser --conf /tmp/adduser.conf --gecos ",,,," consolepi >/dev/null 2>> $log_file &&
                     (
                         logit "consolepi user created."
                         do_user_dir_import consolepi || logit -L "User dir import for consolepi user returned error"
@@ -206,22 +205,30 @@ do_users(){
                 _res=$result
                 if $result; then
                     user_input "" "Username for new user"
-                    if adduser --conf /tmp/adduser.conf --gecos "" ${result} 1>/dev/null; then
-                        logit "Successfully added new user $result"
+                    # We silently allow user to pass args to adduser
+                    local user=$result
+                    result=($result)
+                    local args=()
+                    i=0; while [ $i -lt "${#result[@]}" ]; do
+                        case "${result[i]}" in
+                            -*)
+                                args+=(${result[@]:i:$((i+2))})
+                                ((i+=2))
+                            ;;
+                            *)
+                                user="${result[i]}"
+                                ((i+=1))
+                            ;;
+                        esac
+                    done
+                    if adduser --conf /tmp/adduser.conf --gecos ",,,," ${args[@]} ${user} 1>/dev/null; then
+                        logit "Successfully added new user $user"
 
                         # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
-                        do_user_dir_import $result || logit -L "User dir import for $result user returned error"
-
-                        # if [[ -d "$stage_dir/home/$result" ]]; then
-                        #     logit "Found staged files for $result, copying to users home"
-                        #     chown -R $(grep "^$result:" /etc/passwd | cut -d: -f3-4) "$stage_dir/home/$result" &&
-                        #     cp -r "$stage_dir/home/$result" "/home/$result" &&
-                        #     logit "Success - copy staged files for user $result" ||
-                        #         logit "An error occurred when attempting cp pre-staged files for user $result" "WARNING"
-                        # fi
+                        do_user_dir_import $user || logit -L "User dir import for $user user returned error"
 
                     else
-                        logit "Error adding new user $result" "WARNING"
+                        logit "Error adding new user $user" "WARNING"
                     fi
                 else
                     header
@@ -426,10 +433,15 @@ post_git() {
 do_pyvenv() {
     process="Prepare/Check Python venv"
     logit "$process - Starting"
+    venv_py3ver=""
 
-    # -- Check that git pull didn't bork venv ~ I don't think I handled the removal of venv from git properly seems to break things if it was already installed --
-    if [ -d ${consolepi_dir}venv ] && [ ! -x ${consolepi_dir}venv/bin/python3 ]; then
-        mv ${consolepi_dir}venv $bak_dir && logit "existing venv found, moved to bak, new venv will be created (it is OK to delete anything in bak)"
+    # -- Check that release upgrade or manual python upgrade hasnt made the venv python ver differ from system --
+    if [ -d ${consolepi_dir}venv ] && [ -x "${consolepi_dir}venv/bin/python3" ]; then
+        venv_py3ver=$(${consolepi_dir}venv/bin/python3 -V | cut -d. -f2)
+        if [ "$venv_py3ver" != "$py3ver" ]; then
+            mv ${consolepi_dir}venv $bak_dir && logit "The Python version on the system has been upgraded moving existing venv to bak dir." &&
+                logit "A New venv will be created. (it is OK to delete anything in bak)"
+        fi
     fi
 
     if [ ! -d ${consolepi_dir}venv ]; then
@@ -459,9 +471,13 @@ do_pyvenv() {
             logit "Success - pip upgrade" ||
             logit "WARNING - pip upgrade returned error" "WARNING"
 
-        # -- Update venv packages based on requirements file --
         logit "pip install/upgrade ConsolePi requirements - This can take some time."
         echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
+        # TODO consider if not $is_pi then skip RPi.GPIO and remove from requirements.
+        # -- RPi.GPIO is done separately as it's a distutils package installed by apt, but pypi may be newer.  this is in a venv, should do no harm
+        sudo ${consolepi_dir}venv/bin/python3 -m pip install RPi.GPIO --ignore-installed 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) ||
+            logit "pip install/upgrade RPi.GPIO (separately) returned an error." "WARNING"
+        # -- Update venv packages based on requirements file --
         sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
@@ -574,6 +590,7 @@ show_usage() {
     _help "-silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
     _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
     echo "    Copy the example file to your home dir and make edits to use"
+    _help "-post" "~/consolepi-stage/consolepi-post.sh if found is executed after initial install.  Use this to run after upgrade."
     _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  This flag disables it. If silent and not set, no action is taken"
     _help "-btpan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
     _help "-reboot" "reboot automatically after silent install (Only applies to silent install)"
@@ -612,6 +629,7 @@ process_args() {
     dopip=true
     doapt=true
     do_reboot=false
+    do_consolepi_post=false
     while (( "$#" )); do
         # echo "$1" # -- DEBUG --
         case "$1" in
@@ -638,6 +656,10 @@ process_args() {
                 ;;
             -install)  # dev flag run as if initial install
                 upgrade=false
+                shift
+                ;;
+            -post)  # ~/consolepi-stage/consolepi-post.sh if exists is executed only after initial installs, this sets to run regardless of install/upgrade
+                do_consolepi_post=true
                 shift
                 ;;
             # -- silent install options --

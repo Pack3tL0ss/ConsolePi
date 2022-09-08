@@ -594,12 +594,15 @@ class Menu:
 
                 # Update sub-header for section if CONTINUED
                 _sub_key = 0 if not self.reverse else -1
-                if sub and sub_section[_sub_key].split()[0] != self.body_in[sec][0].split()[0]:
-                    if "Local Adapters" in sub:
-                        # if self.name != "rename_menu":
-                        sub = f"[CONTINUED] {sub.replace('Rename ', '')}"
-                    else:
-                        sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0].split(' on ')[-1]}"
+                try:
+                    if sub and sub_section[_sub_key].split()[0] != self.body_in[sec][0].split()[0]:
+                        if "Local Adapters" in sub:
+                            # if self.name != "rename_menu":
+                            sub = f"[CONTINUED] {sub.replace('Rename ', '')}"
+                        else:
+                            sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0].split(' on ')[-1]}"
+                except Exception as e:
+                    sub = f"{sub} <-- Exception ({e.__class__.__name__})"
 
                 # if debug enabled Add index of section to section header (sub)
                 if sub and config.debug and not sub.startswith(f"-{sec}-"):

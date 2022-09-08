@@ -11,6 +11,8 @@ cloud.data
 /installer/ConsolePi_image_creator.sh
 *__pycache__*
 .idea/*
+*.swp
+
 # /cloud/*/.credentials/*  # ignored via file in that dir
 .vscode/*
 /cloud/gdrive/headless-auth/*

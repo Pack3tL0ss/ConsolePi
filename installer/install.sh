@@ -434,6 +434,7 @@ do_pyvenv() {
     process="Prepare/Check Python venv"
     logit "$process - Starting"
     venv_py3ver=""
+    export DEB_PYTHON_INSTALL_LAYOUT='deb'  # see https://askubuntu.com/questions/1406304/virtualenv-installs-envs-into-local-bin-instead-of-bin
 
     # -- Check that release upgrade or manual python upgrade hasnt made the venv python ver differ from system --
     if [ -d ${consolepi_dir}venv ] && [ -x "${consolepi_dir}venv/bin/python3" ]; then

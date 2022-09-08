@@ -14,7 +14,7 @@ fi
 if [ ! -z "$device" ]; then
     sudo sdptool add --channel=1 SP
     echo -e ${_cyan}initiating connection...${_norm}
-    sudo -b rfcomm connect /dev/rfcomm0 ${device} 1 >>/tmp/btclient 2>&1
+    sudo -b rfcomm connect /dev/rfcomm0 ${device} >/tmp/btclient 2>&1 ;
 
     printf "waiting for connection" # && sleep 5
     out=$(cat /tmp/btclient)
@@ -24,17 +24,16 @@ if [ ! -z "$device" ]; then
         sleep 1
         out=$(cat /tmp/btclient)
         printf '.'
-        [ $i -ge 10 ] && echo -e "\ntimeout" && break
+        [ $i -ge 20 ] && echo -e "\ntimeout" && break
     done
     echo
-    cat /tmp/btclient
 
-    if [[ ! "$rf_res" =~ "t connect" ]]; then
+    if [[ ! "$out" =~ "t connect" ]]; then
         su $iam -c "picocom /dev/rfcomm0 -b 115200 2>/dev/null"
     else
-        echo $rf_res
+        echo $out
     fi
+
 fi
 
-##cat /tmp/btclient
 rm -f /tmp/btclient

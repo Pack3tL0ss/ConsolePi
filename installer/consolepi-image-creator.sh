@@ -208,14 +208,14 @@ show_disk_details() {
     echo -e "------------------------------------------------------------------------------------------------"
 }
 
-do_unzip() {
+do_extract() {
     if [ -f "$1" ]; then
         dots "Extracting image from $1"
-        unzip $1 >/dev/null >/dev/null
-        img_file=$(ls -1 "${1%zip}img" 2>/dev/null)
-        [ ! -z "$img_file" ] ; do_error $? 'Something went wrong img file not found after unzip... exiting'
+        tar -xf $1 >/dev/null 2>&1
+        img_file=$(ls -1 "${1%xz}img" 2>/dev/null)
+        [ ! -z "$img_file" ] ; do_error $? 'Something went wrong img file not found after extracting... exiting'
     else
-        echo Error "$1" 'not found.  Bad File passed to do_unzip? Exiting.'
+        echo Error "$1" 'not found.  Bad File passed to do_extract? Exiting.'
     fi
 }
 
@@ -427,8 +427,8 @@ do_select_image() {
             fi
         fi
     done
-    if [[ "${args[${input}]}" =~ ".zip" ]]; then
-        do_unzip "${args[((${input}-1))]}" # do_unzip sets img_file
+    if [[ "${args[${input}]}" =~ ".xz" ]]; then
+        do_extract "${args[((${input}-1))]}" # do_extract sets img_file
     else
         # echo "$input ${args[0]} ${args[1]} ${args[2]} ${args[3]} ${args[${input}]}"
         img_file="${args[((${input}-1))]}"
@@ -501,6 +501,7 @@ main() {
     echo -e "\nGetting latest raspios image (${IMG_TYPE})"
 
     # Find out what current raspios release is
+    # https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2022-09-07/2022-09-06-raspios-bullseye-armhf-lite.img.xz
     [ ! $IMG_TYPE = 'desktop' ] && img_url="https://downloads.raspberrypi.org/raspios_${IMG_TYPE}_armhf_latest" ||
         img_url="https://downloads.raspberrypi.org/raspios_armhf_latest"
 
@@ -511,11 +512,11 @@ main() {
 
     # Check to see if any images exist in script dir already
     found_img_file=$(ls -lc | grep ".*rasp[bian\|ios].*\.img" | awk '{print $9}')
-    found_img_zip=$(ls -lc | grep ".*rasp[bian\|ios].*\.zip" | awk '{print $9}')
+    found_img_xz=$(ls -lc | grep ".*rasp[bian\|ios].*\.xz" | awk '{print $9}')
     readarray -t found_img_files <<<"$found_img_file"
-    readarray -t found_img_zips <<<"$found_img_zip"
+    readarray -t found_img_xzs <<<"$found_img_xz"
 
-    # If img or zip raspios-lite image exists in script dir see if it is current
+    # If img or xz raspios-lite image exists in script dir see if it is current
     # if not prompt user to determine if they want to download current
     if [[ $found_img_file ]]; then
         if [[ ! " ${found_img_files[@]} " =~ ${cur_rel_date}.*\.img ]]; then
@@ -530,19 +531,19 @@ main() {
             _msg="found in $(pwd). It is the current release"
             img_file=${cur_rel}.img
         fi
-    elif [[ $found_img_zip ]]; then
-        if [[ ! " ${found_img_zips[@]} " =~ ${cur_rel_date}.*\.zip ]]; then
+    elif [[ $found_img_xz ]]; then
+        if [[ ! " ${found_img_xzs[@]} " =~ ${cur_rel_date}.*\.xz ]]; then
             echo "the following images were found:"
             idx = 1
-            for i in ${found_img_zips[@]}; do echo ${idx}. ${i} && ((idx+=1));  done
+            for i in ${found_img_xzs[@]}; do echo ${idx}. ${i} && ((idx+=1));  done
             echo -e "\nbut the current release is $(cyan $cur_rel)"
             prompt="Would you like to download and use the latest release? ($(cyan ${cur_rel})):"
             get_input
-            $input || do_select_image "${$found_img_zips[@]}" # TODO selecting NO broke right now # $img_file set in do_select_image/do_unzip
+            $input || do_select_image "${$found_img_xzs[@]}" # TODO selecting NO broke right now # $img_file set in do_select_image/do_extract
         else
             # echo "Using $(cyan ${cur_rel}) found in $(pwd).
             _msg="It is the current release"
-            do_unzip ${cur_rel}.zip #img_file assigned in do_unzip
+            do_extract ${cur_rel}.xz #img_file assigned in do_extract
         fi
     else
         echo "no image found in $(pwd)"
@@ -554,8 +555,8 @@ main() {
     while [[ -z $img_file ]] ; do
         [[ $retry > 3 ]] && echo "Exceeded retries exiting " && exit 1
         echo "downloading image from raspberrypi.org.  Attempt: ${retry}"
-        wget -q --show-progress $img_url -O ${cur_rel}.zip
-        do_unzip "${cur_rel}.zip"
+        wget -q --show-progress $img_url -O ${cur_rel}.xz
+        do_extract "${cur_rel}.xz"
         ((retry++))
     done
 

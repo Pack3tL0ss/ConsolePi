@@ -209,11 +209,17 @@ show_disk_details() {
 }
 
 do_extract() {
+    $debug && echo do_extract sent arg $1
     if [ -f "$1" ]; then
         dots "Extracting image from $1"
-        tar -xf $1 >/dev/null 2>&1
-        img_file=$(ls -1 "${1%xz}img" 2>/dev/null)
-        [ ! -z "$img_file" ] ; do_error $? 'Something went wrong img file not found after extracting... exiting'
+        $(which unxz >/dev/null 2>&1) || do_error $? 'unxz utility is required, please install with "apt install xz-utils"'
+        if $debug; then
+            unxz_res=$(unxz -k $1 2>&1) || do_error $? "$unxz_res"
+        else
+            unxz_res=$(unxz $1 2>&1) || do_error $? "$unxz_res"
+        fi
+        img_file=$(ls -1 "${1%'.xz'}" 2>/dev/null)
+        [ ! -z "$img_file" ] ; do_error $? "Something went wrong img file (${1%'.xz'}) not found after extracting... exiting"
     else
         echo Error "$1" 'not found.  Bad File passed to do_extract? Exiting.'
     fi
@@ -506,48 +512,51 @@ main() {
         img_url="https://downloads.raspberrypi.org/raspios_armhf_latest"
 
     # remove DH cipher security improvement in curl broke this, need this until raspberrypi.org changes to use a larger key
-    cur_rel=$(curl -sIL --ciphers 'DEFAULT:!DH' $img_url | grep location);cur_rel=$(echo ${cur_rel//*\/} | cut -d'.' -f1)
-    [[ -z $cur_rel ]]  && red "Script Failed to determine current image... exiting" && exit 1
-    cur_rel_date=$(echo $cur_rel | cut -d'-' -f1-3)
+    cur_rel_url=$(curl -sIL --ciphers 'DEFAULT:!DH' $img_url | grep location | cut -d' ' -f2 | strings)
+    cur_rel_full=$(echo ${cur_rel_url//*\/})
+    cur_rel_img=$(echo $cur_rel_full | cut -d'.' -f1-2)
+    cur_rel_base=$(echo $cur_rel_full | cut -d'.' -f1)
+    [[ -z $cur_rel_full ]]  && red "Script Failed to determine current image... exiting" && exit 1
+    cur_rel_date=$(echo $cur_rel_full | cut -d'-' -f1-3)
 
     # Check to see if any images exist in script dir already
-    found_img_file=$(ls -lc | grep ".*rasp[bian\|ios].*\.img" | awk '{print $9}')
-    found_img_xz=$(ls -lc | grep ".*rasp[bian\|ios].*\.xz" | awk '{print $9}')
-    readarray -t found_img_files <<<"$found_img_file"
-    readarray -t found_img_xzs <<<"$found_img_xz"
+    found_img_files=($(ls -1 | grep ".*rasp[bian\|ios].*\.img"$))
+    found_xz_files=($(ls -1 | grep ".*rasp[bian\|ios].*\.xz"$))
 
     # If img or xz raspios-lite image exists in script dir see if it is current
     # if not prompt user to determine if they want to download current
-    if [[ $found_img_file ]]; then
+    if (( ${#found_img_files[@]} )); then
         if [[ ! " ${found_img_files[@]} " =~ ${cur_rel_date}.*\.img ]]; then
             echo "the following images were found:"
             idx=1
-            for i in ${found_img_files[@]}; do echo ${idx}. ${i} && ((idx+=1));  done
-            echo -e "\nbut the current release is $(cyan $cur_rel)"
-            prompt="Would you like to download and use the latest release? ($(cyan $cur_rel)):"
+            for i in ${found_img_files[@]}; do echo "${idx}. ${i}" && ((idx+=1));  done
+            echo -e "\nbut the current release is $(cyan $cur_rel_base)"
+            prompt="Would you like to download and use the latest release? ($(cyan $cur_rel_base)):"
             get_input
             $input || do_select_image "${found_img_files[@]}"  # Selecting No currently broken # $img_file set in do_select_image
         else
             _msg="found in $(pwd). It is the current release"
-            img_file=${cur_rel}.img
+            img_file=$cur_rel_img
         fi
-    elif [[ $found_img_xz ]]; then
-        if [[ ! " ${found_img_xzs[@]} " =~ ${cur_rel_date}.*\.xz ]]; then
+    fi
+    if (( ${#found_xz_files[@]} )); then
+        if [[ ! " ${found_xz_files[@]} " =~ ${cur_rel_date}.*\.xz ]]; then
             echo "the following images were found:"
             idx = 1
-            for i in ${found_img_xzs[@]}; do echo ${idx}. ${i} && ((idx+=1));  done
-            echo -e "\nbut the current release is $(cyan $cur_rel)"
-            prompt="Would you like to download and use the latest release? ($(cyan ${cur_rel})):"
+            for i in ${found_xz_files[@]}; do echo ${idx}. ${i} && ((idx+=1));  done
+            echo -e "\nbut the current release is $(cyan $cur_rel_base)"
+            prompt="Would you like to download and use the latest release? ($(cyan ${cur_rel_base})):"
             get_input
-            $input || do_select_image "${$found_img_xzs[@]}" # TODO selecting NO broke right now # $img_file set in do_select_image/do_extract
+            $input || do_select_image "${$found_xz_files[@]}" # TODO selecting NO broke right now # $img_file set in do_select_image/do_extract
         else
-            # echo "Using $(cyan ${cur_rel}) found in $(pwd).
+            # echo "Using $(cyan ${cur_rel_base}) found in $(pwd)."
             _msg="It is the current release"
-            do_extract ${cur_rel}.xz #img_file assigned in do_extract
+            do_extract $cur_rel_full #img_file assigned in do_extract
         fi
     else
         echo "no image found in $(pwd)"
     fi
+
     [ ! -z "$img_file" ] && echo "Using $(cyan ${img_file}) $_msg"
 
     # img_file will only be assigned if an image was found in the script dir
@@ -555,8 +564,8 @@ main() {
     while [[ -z $img_file ]] ; do
         [[ $retry > 3 ]] && echo "Exceeded retries exiting " && exit 1
         echo "downloading image from raspberrypi.org.  Attempt: ${retry}"
-        wget -q --show-progress $img_url -O ${cur_rel}.xz
-        do_extract "${cur_rel}.xz"
+        wget -q --show-progress $img_url -O $cur_rel_full
+        do_extract $cur_rel_full
         ((retry++))
     done
 

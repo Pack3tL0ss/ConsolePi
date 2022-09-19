@@ -16,8 +16,8 @@
 # --  were to select the wrong drive, you would wipe out anything on that drive.  So don't do that.  I did add a validation check which detect if the drive contains
 # --  a partition with the boot flag in fdisk
 # --
-# --  To further expedite testing this script will look for a consolepi-stage subdir and if found it will copy the entire directory and any subdirs to /home/pi/consolepi-stage
-# --  This script also searches the script dir (the dir this script is ran from) for the following which are copied to the /home/pi directory on the ConsolePi image if found.
+# --  To further expedite testing this script will look for a consolepi-stage subdir and if found it will copy the entire directory and any subdirs to /home/consolepi/consolepi-stage
+# --  This script also searches the script dir (the dir this script is ran from) for the following which are copied to the /home/consolepi directory on the ConsolePi image if found.
 # --    ConsolePi.conf, ConsolePi.ovpn, ovpn_credentials *.dtbo
 # --
 # --    The install script (not this one this is the image creator) looks for these files in the home dir of whatever user your logged in with and in 'consolepi-stage' subdir.
@@ -35,7 +35,7 @@
 # --  The install script (again not this script) also handles a few other files, they just need to be provided in the consolepi-stage subdir
 # --    This includes:
 # --      - 10-ConsolePi.rules: udev rules file mapping specific serial adapters to specific telnet ports
-# --      - ConsolePi_init.sh: Custom post-install script, the installer will run this script at the end of the process, it can be used to automate any additional tweaks
+# --      - consolepi-post.sh: Custom post-install script, the installer will run this script at the end of the process, it can be used to automate any additional tweaks
 # --          you might want to make.  i.e. copy additional custom scripts you like to have on hand from the consolepi-stage dir to wherever you want them.
 # --      - authorized_keys: imported for both consolepi and root user (for now)
 # --      - rpi-poe-overlay.dts: Used to adjust thresholds for when and how fast the fan will kick on (PoE hat). Install script will create the dtbo overlay based on this dts.
@@ -867,7 +867,7 @@ show_usage() {
     echo "  This example overrides the default RaspiOS image type (lite) in favor of the desktop image and configures a psk SSID (use single quotes if special characters exist)"
     echo -e "\tsudo ./consolepi-image-creator.sh --img-type desktop --ssid MySSID --psk 'ConsolePi!!!'"
     echo "  This example passes the -C option to the installer (telling it to get some info from the specified config) as well as the silent install option (no prompts)"
-    echo -e "\tsudo ./consolepi-image-creator.sh --cmd-line='-C /home/pi/consolepi-stage/installer.conf --silent'"
+    echo -e "\tsudo ./consolepi-image-creator.sh --cmd-line='-C /home/consolepi/consolepi-stage/installer.conf --silent'"
     echo
 }
 

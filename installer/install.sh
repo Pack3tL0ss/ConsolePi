@@ -598,7 +598,7 @@ show_usage() {
     if [[ ! "$_cmd" =~ "upgrade" ]]; then
         echo -e "  ${_cyan}NOTE:${_norm} In order to perform a silent install ConsolePi.yaml needs to be pre-staged/pre-configured in /home/<user>/consolepi-stage directory"
     fi
-    echo -e "\t> $_cmd -C /home/pi/consolepi-stage/installer.conf --silent"
+    echo -e "\t> $_cmd -C /home/consolepi/consolepi-stage/installer.conf --silent"
     echo
     echo "  Alternatively the necessary arguments can be passed in via cmd line arguments"
     echo -e "  ${_cyan}NOTE:${_norm} Showing minimum required options for a silent install.  ConsolePi.yaml has to exist"

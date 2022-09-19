@@ -450,13 +450,13 @@ do_import_configs() {
 
     # prompt to modify staged config
     if [ -n "$STAGED_CONFIG" ]; then
-        cfg_ssid=$(grep '  wlan_ssid: ' $STAGED_CONFIG | awk '{print $2}')
         if [ -z "$EDIT" ]; then
             echo
             get_input "Do you want to edit the pre-staged ConsolePi.yaml to change details"
             EDIT=$input
         fi
         $EDIT && nano -ET2 $IMG_STAGE/ConsolePi.yaml
+        cfg_ssid=$(grep '  wlan_ssid: ' $STAGED_CONFIG | awk '{print $2}')
     fi
 
     # -- set hostname based on flag or based on pre-staged config if found

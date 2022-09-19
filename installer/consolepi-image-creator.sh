@@ -79,7 +79,8 @@ do_defaults() {
     IMG_TYPE=${img_type:-'lite'}
     IMG_ONLY=${img_only:-false}  # burn image and enable ssh only, nothing else
     AUTO_INSTALL=${auto_install:-true}
-    [ -z "$CONSOLEPI_PASS" ] && [ -n "$consolepi_pass" ] && CONSOLEPI_PASS=$consolepi_pass
+    CONSOLEPI_PASS=$consolepi_pass
+    [ -z "$CONSOLEPI_PASS" ] && get_pass
     NEW_HOSTNAME=${img_hostname:-'consolepi'}
 
     # -- these skip prompts and perform the actions based on the value provided
@@ -95,7 +96,6 @@ do_defaults() {
     # -----------// silent install \\----------------------------------------
     # IMG_DRV=$img_drv  # required with --silent to run without prompts
     # [ -n $IMG_DRV ] && SILENT=true || SILENT=false
-    [ -z "$CONSOLEPI_PASS" ] && get_pass  # may implement silent later
 
     # Some static variables
     STAGE_DIR='consolepi-stage'
@@ -269,12 +269,17 @@ do_extract() {
     fi
 }
 
-get_pass() {
-    # sets CONSOLEPI_PASS in global context
+get_pass(){
+    header -c
     echo -e "\nPlease provide credentials for 'consolepi' user..."
-    ask_pass  # provides _pass in global context
+    match=false; while ! $match; do
+        read -sep "New password: " _pass && echo "$_pass" | echo  # sed -r 's/./*/g'
+        read -sep "Retype new password: " _pass2 && echo "$_pass2" | echo  # sed -r 's/./*/g'
+        [[ "${_pass}" == "${_pass2}" ]] && match=true || match=false
+        ! $match && echo -e "ERROR: Passwords Do Not Match\n"
+    done
     CONSOLEPI_PASS=$_pass
-    unset _pass
+    unset _pass; unset _pass2
 }
 
 # -- Check for ConsolePi.yaml collect info if not found --
@@ -455,7 +460,7 @@ do_import_configs() {
             get_input "Do you want to edit the pre-staged ConsolePi.yaml to change details"
             EDIT=$input
         fi
-        $EDIT && nano -ET2 $IMG_STAGE/ConsolePi.yaml
+        $EDIT && nano -ET2 $STAGED_CONFIG
         cfg_ssid=$(grep '  wlan_ssid: ' $STAGED_CONFIG | awk '{print $2}')
     fi
 
@@ -464,7 +469,7 @@ do_import_configs() {
     if [ "$NEW_HOSTNAME" = consolepi ] || [ "$NEW_HOSTNAME" != "$cfg_ssid" ]; then
         if [ -n "$cfg_ssid" ]; then
             get_input "Do you want to pre-stage the hostname as $cfg_ssid"
-            $input && $NEW_HOSTNAME=$cfg_ssid
+            $input && NEW_HOSTNAME=$cfg_ssid
         fi
     fi
 

@@ -29,7 +29,7 @@ CONFIG:
 # OVERRIDES optional items allowing you to override default beahvior
 # The values shown below are to highlight the options, all are set to the default
 OVERRIDES:
-  skip_utils: false       # if true the install/update script will skip the launch of the consolepi-extras menu.
+  skip_extras: false      # if true the install/update script will skip the launch of the consolepi-extras menu.
   cloud_pull_only: false  # Retrieve data from cloud, but don't update cloud with your data.
   compact_mode: false     # Experimental - All Remotes collapsed into a single section in menu.
   disable_ztp: false      # If the ZTP section exists, and wired_dhcp: true, then ztp is enabled. Unless overriden with this option.

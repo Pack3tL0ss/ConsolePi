@@ -1,26 +1,40 @@
 #
 # example silent intall configuration use with installer and the -C flag `consolepi-install -C install.conf`
-# Note: Silent install also reqs pre-configured ConsolePi.yaml in /home/<user>/consolepi-stage
+# Note: Silent install also reqs pre-configured ConsolePi.yaml in /home/<user>/consolepi-stage or /home/<user>/consolepi-stage/$HOSTNAME
 #
+# All options can also be provided via cmd line flags.
+# The associated cmd line flags are shown in the comments below
+#
+# **** Use single quoates around password values to avoid shell issues with any special characters (as shown below)
+#
+
 
 # required minimum for silent install
 
-silent=true
-consolepi_pass='Cons0LePi!' # consolepi users password
-pi_pass='R3d@cted'          # pi users password
+silent=true                 # -s|--silent) Silent install [Default: false]
+passwd='Cons0LePi!'         # -p|--passwd) consolepi users password
 
 # Settings that assume a default if not provided (for silent install)
 
-wlan_country=us             # wifi reg domain (default: us)
-btmode=serial               # How to setup BlueTooth (serial or PAN default: serial)
-do_reboot=false             # reboot automatically after silent install (default: false)
+bt_pan=false # !!IGNORED!!  # --bt-pan) BlueTooth PAN mode is planned, but not implemented yet, this option is ignored
+do_reboot=false             # -R|--reboot) reboot automatically after silent install (default: false)
+
+
+wlan_country=us             # -w|--wlan-country) wifi reg domain [Default: us]``
+                            #   Ignored if already set, or if wpa_supplicant.conf is provided for import (with COUNTRY=xx)
 
 # The following are skipped during silent install if not provided
 
-dis_ipv6=true               # disable IPv6 (set via cmd line with '-noipv6' flag)
-tz=America/Chicago          # Set TimeZone
-hostname=ConsolePi3         # Set Hostname
-auto_launch=true            # auto launch consolepi menu when logging in with consolepi user
+no_ipv6=false               # -6|--no-ipv6) disable IPv6. [Default: false]
+tz=America/Chicago          # --tz) Set TimeZone, Skipped if tz is not the default.  Format: America/Chicago
+                            #   Use tz database format: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+hostname=ConsolePi3         # -h|--hostname) Set Hostname, If a non-default hostname is already set, this is skipped,
+                            #   but impacts import behavior.  The installer will first look in consolepi-stage/<hostname>
+                            #   for files to import, before checking consolepi-stage/.
+                            #   Handy if you have a lot of ConsolePis or for dev (along with the image creator)
+auto_launch=true            # -L|--auto-launch) Auto launch consolepi menu when logging in with consolepi user. [Default: False]
+locale=us                   # --locale) i.e. "us" Set keyboard layout, and locale, locale will be set to en_xx.UTF-8
+                            #   This is only performed if flag is provided.
 
 
 

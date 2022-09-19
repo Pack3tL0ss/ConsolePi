@@ -22,6 +22,8 @@ py3ver=$(python3 -V | cut -d. -f2)
 yml_script="/etc/ConsolePi/src/yaml2bash.py"
 tmp_src="/tmp/consolepi-temp"
 warn_cnt=0
+INIT="$(ps --no-headers -o comm 1)"
+DEV_USER=${dev_user:-wade}  # User to use for ssh/sftp/git to local dev
 
 # Unused for now interface logic
 # _gw=$(ip route get 8.8.8.8 | awk -- '{printf $5}')
@@ -43,7 +45,14 @@ _yellow='\e[33;1m'
 _green='\e[32m'
 _cyan='\e[96m' # technically light cyan
 
-[[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
+is_ssh() {
+  if pstree -p | egrep --quiet --extended-regexp ".*sshd.*\($$\)"; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 ( [[ -f $final_log ]] && [ -z $upgrade ] ) && upgrade=true || upgrade=false
 
 # log file is referenced thoughout the script.  During install dest changes from tmp to final
@@ -553,6 +562,8 @@ get_staged_file_path() {
     [[ -z $1 ]] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
     if [[ -f "${home_dir}/${1}" ]]; then
         found_path="${home_dir}/${1}"
+    elif [[ -f ${stage_dir}/$HOSTNAME/$1 ]]; then
+        found_path="${stage_dir}/$HOSTNAME/${1}"  # Need to verify this is updated in update.sh set_hostname so it's valid to use here.
     elif [[ -f ${stage_dir}/$1 ]]; then
         found_path="${stage_dir}/${1}"
     else
@@ -589,6 +600,11 @@ spaces() {
     local pad=$(printf "%0.1s" " "{1..70})
     printf "  %s%*.*s" "$1" 0 $((70-${#1})) "$pad" "$2"; echo
     return 0;
+}
+
+missing_param(){
+    echo $1 requires an argument. >&2
+    exit 1
 }
 
 process_cmds() {

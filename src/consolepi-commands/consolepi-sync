@@ -15,7 +15,7 @@ iam=$(who -m |  awk '{print $1}')
 [[ $iam == "root" ]] && [[ ! -z $SUDO_USER ]] && iam=$SUDO_USER
 [ "$iam" = "root" ] && home_dir="/${iam}" || home_dir="/home/${iam}"
 loc_pull_file=$home_dir/local_pull
-rem_user='pi'
+rem_user='consolepi'
 loc_pull_host='ConsolePi-dev'
 upgrade_pip=false
 cp_lib=false
@@ -26,7 +26,7 @@ perms_done=false
 reload_svcs=false
 skip_pull=false
 SVCS=("consolepi-mdnsbrowse" "consolepi-mdnsreg" "consolepi-api")
-[[ -z $DEBUG ]] && DEBUG=false
+[ -z "$DEBUG" ] && DEBUG=false
 
 dots() {
     local pad=$(printf "%0.1s" "."{1..70})
@@ -119,22 +119,25 @@ do_git_pull() {
 }
 
 do_loc_pull() {
-  if [[ -f $loc_pull_file ]] ; then
-      echo -e "\n -- Performing local only Pull"
-      orig_IFS=$IFS
-      IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file}))"
-      for f in "${sync_files[@]}" ; do
-          [[ $f =~ ^#.* ]] && continue
-          pushd $consolepi_dir/${f%/*} >/dev/null
-          dots "GET ${f##/*}"
-          sftp $rem_user@$loc_pull_host:${consolepi_dir}/${f} >/dev/null 2>&1 ; local rc=$?
-          popd >/dev/null
-          do_error $rc
-      done
-      IFS=$orig_IFS
-  else
-      echo '!! No Local Pull File Found... exitting !!' ; exit 1
-  fi
+    if [[ -f $loc_pull_file ]] ; then
+        echo -e "\n -- Performing local only Pull"
+        orig_IFS=$IFS
+        IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file}))"
+        for f in "${sync_files[@]}" ; do
+            [[ $f =~ ^#.* ]] && continue  # skip commented lines
+            f=${f#/*}  # strip leading / if they included it
+            local path=$(dirname $f)
+            local file=$(basename $f)
+            pushd $consolepi_dir/$path >/dev/null
+            dots "GET ${f##/*}"
+            sftp $rem_user@$loc_pull_host:$consolepi_dir/$path/$file >/dev/null 2>&1 ; local rc=$?
+            popd >/dev/null
+            do_error $rc
+        done
+        IFS=$orig_IFS
+    else
+        echo '!! No Local Pull File Found... exitting !!' ; exit 1
+    fi
 }
 
 do_stash_local() {
@@ -215,74 +218,84 @@ show_help() {
     [[ ! "$1" =~ ^(help|-help|--help)$ ]] && echo "Invalid Input $1"
     echo -e "\nBy default this Script will do a 'git pull' and if necessary fix permissions so members of the consolepi group can pull without sudo\n"
     echo -e "valid command line options:"
-    line_dots "-pip" "Update pip and dependencies (skipped by default)"
-    line_dots "-reload" "reload/restart consolepi systemd Services (api, mdnsbrowse, mdnsreg)"
-    line_dots "-nopull" "Don't do a git pull to update the repo, script will do nothing if there are not other options with this"
+    line_dots "-p|--pip" "Update pip and dependencies (skipped by default)"
+    line_dots "-R|--reload" "reload/restart consolepi systemd Services (api, mdnsbrowse, mdnsreg)"
+    line_dots "--no-pull" "Don't do a git pull to update the repo, script will do nothing if there are not other options with this"
     echo -e "\nThe Following Options are generally only useful for the developer"
-    line_dots "-cp" "Copy consolpi-library to venv after git pull (Should never have to do this - new library)."
-    line_dots "-local" "Syncs files via SFTP from the dev ConsolePi."
-    line_dots "-stash" "Stashes files previoulsy synced via SFTP to clean local working dir for git pull"
-    line_dots "-perms" "Force a Permissions Check/Fix *prior* to pull So member of consolepi group can pull without sudo (script will do this now anyway then retry pull if necessary)"
-    line_dots "--local-host <ip or host>" "Override the default local dev ConsolePi ($loc_pull_host)"
-    line_dots "--rem_user <username>" "Override the default user ($rem_user) used during local_pull (sftp to $loc_pull_host)"
+    line_dots "--cp" "Copy consolpi-library to venv after git pull (Should never have to do this - new library)."
+    line_dots "-L|--local|--dev" "Syncs files via SFTP from the dev ConsolePi."
+    line_dots "-S|--stash" "Stashes files previoulsy synced via SFTP to clean local working dir for git pull"
+    line_dots "-P|--perms" "Force a Permissions Check/Fix *prior* to pull So member of consolepi group can pull without sudo (script will do this now anyway then retry pull if necessary)"
+    line_dots "--me" "Applies only if using --local.  Alternative to --rem-user. Uses the current user ($iam) to access the remote system via SFTP."
+    line_dots "-h|--local-host <ip or host>" "Override the default local dev ConsolePi ($loc_pull_host)"
+    line_dots "-u|--rem-user <username>" "Override the default user ($rem_user) used during local_pull (sftp to $loc_pull_host)"
     echo
 }
 
 process_args() {
     $DEBUG && echo "DEBUG: Args Passed to process_args() ${@}"  ## -- DEBUG LINE --
+    if $DEBUG; then
+        echo -e "DEBUG: ------------ initial variable values ------------\n"
+            echo -e "upgrade_pip=${upgrade_pip}\ncp_lib=$cp_lib\nloc_pull=${loc_pull}\nloc_pull_host=${loc_pull_host}\nrem_user=$rem_user\nstash_local=${stash_local}"
+            echo -e "reload_svcs=${reload_svcs}\nskip_pull=${skip_pull}\n"
+    fi
     while (( "$#" )); do
-      if $DEBUG; then
-          echo -e "DEBUG: ------------ initial variable values ------------"
-          echo -e "upgrade_pip=${upgrade_pip}\ncp_lib=$cp_lib\nloc_pull=${loc_pull}\nloc_pull_host=${loc_pull_host}\nstash_local=${stash_local}\nrem_user=$rem_user\n"
-          echo -e "reload_svcs=${reload_svcs}\nskip_pull=${skip_pull}\n"
-          echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
-      fi
+        $DEBUG && echo -e "------------ Now processing $1\n"
 
       case "$1" in
-        -pip)
+        -p|--pip)
             upgrade_pip=true
             shift
             ;;
-        -cp)
+        -*cp)
             cp_lib=true
             shift
             ;;
-        -local)
+        -L|-*local|-*dev)
             loc_pull=true
             shift
             ;;
-        -stash)
+        -S|--stash)
             stash_local=true
             shift
             ;;
-        -debug)
+        --debug)
             DEBUG=true
             shift
             ;;
-        -perms)
+        -P|--perms)
             perms=true
             shift
             ;;
-        -nopull)
+        -*no*pull)
             skip_pull=true
             shift
             ;;
-        -reload)
+        -R|-*reload)
             reload_svcs=true
             shift
             ;;
-        --local-host) # override default local_pull_host (consolepi-dev)
-            [[ ! -z "$2" ]] && loc_pull_host=$2 || (
+        -*me)
+            rem_user=$iam
+            shift
+            ;;
+        -h|--local-host) # override default local_pull_host (consolepi-dev)
+            if [ -n "$2" ]; then
+                loc_pull_host=$2
+                shift 2
+            else
                 echo "Missing 1 required parameter with $1 option"
                 exit 1
-              )
-            shift 2
+            fi
             ;;
-        --rem-user) # override default rem_user (pi)
-          [[ ! -z "$2" ]] && rem_user=$2 || (
-            echo "Missing 1 required parameter with $1 option"
-            exit 1
-            )
+        -u|--rem-user) # override default rem_user (consolepi)
+            if [ -n "$2" ]; then
+                rem_user=$2
+                shift 2
+            else
+                echo "Missing 1 required parameter with $1 option"
+                exit 1
+            fi
           ;;
         *)
           show_help $1
@@ -291,7 +304,8 @@ process_args() {
       esac
 
         if $DEBUG; then
-            echo -e "upgrade_pip=${upgrade_pip}\ncp_lib=$cp_lib\nloc_pull=${loc_pull}\nloc_pull_host=${loc_pull_host}\nstash_local=${stash_local}\nrem_user=$rem_user\n"
+            echo -e "upgrade_pip=${upgrade_pip}\ncp_lib=$cp_lib\nloc_pull=${loc_pull}\nloc_pull_host=${loc_pull_host}\nrem_user=$rem_user\nstash_local=${stash_local}"
+            echo -e "reload_svcs=${reload_svcs}\nskip_pull=${skip_pull}\n"
             echo "--------------------------------------------------------" # -- DEBUG Line --
         fi
     done
@@ -304,16 +318,16 @@ dev_host_check() {
 }
 
 main() {
-  process_args "${@}"
-  ! $skip_pull && dev_host_check
-  $perms && do_perms
-  ! $loc_pull && ! $skip_pull && do_git_pull  # stash_local will be called from here if option set
-  $loc_pull && do_loc_pull
-  $cp_lib && do_cp_lib
-  $upgrade_pip && do_pip_upgrade
-  $reload_svcs && do_reload_svcs
-  [[ -f $log_file ]] && dump_log
-  echo
+    process_args "${@}"
+    ! $loc_pull && ! $skip_pull && dev_host_check
+    $perms && do_perms
+    ! $loc_pull && ! $skip_pull && do_git_pull  # stash_local will be called from here if option set
+    $loc_pull && do_loc_pull
+    $cp_lib && do_cp_lib
+    $upgrade_pip && do_pip_upgrade
+    $reload_svcs && do_reload_svcs
+    [ -f "$log_file" ] && dump_log
+    echo
 }
 
 main "${@}"

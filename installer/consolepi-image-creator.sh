@@ -85,7 +85,7 @@ do_defaults() {
 
     # -- these skip prompts and perform the actions based on the value provided
     # if not set user is prompted (Default is Not set)
-    MASS_IMPORT=${mass_import}
+    MASS_IMPORT=${import}
     EDIT=${edit}
 
     # -- development flags
@@ -441,7 +441,7 @@ do_import_configs() {
                 fi
             done
 
-        # We still prompt for ConsolePi.yaml even if not doing mass_import
+        # We still prompt for ConsolePi.yaml even if not doing import
         elif [ -z $STAGED_CONFIG ] && [ -f /etc/ConsolePi/ConsolePi.yaml ]; then
             echo
             get_input "Do you want to pre-stage configuration using the config from this ConsolePi (you will be given the chance to edit)"
@@ -938,11 +938,11 @@ parse_args() {
                 shift 2
                 ;;
             --import) # import from this system to the image (if this is a ConsolePi)
-                mass_import=true
+                import=true
                 shift
                 ;;
             --no-import) # import from this system to the image (if this is a ConsolePi)
-                mass_import=false
+                import=false
                 shift
                 ;;
             -*edit) # skip do you want to edit prompt that appears if script imports a ConsolePi.yaml

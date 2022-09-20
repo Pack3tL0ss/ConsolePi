@@ -89,13 +89,12 @@ do_defaults() {
     EDIT=${edit}
 
     # -- development flags
-    DEBUG=${debug:-false}
+    [ -n "$debug" ] && DEBUG=$debug  # allow envvar unless overridden by --debug flag
+    [ -z "$DEBUG" ] && DEBUG=false
+
     CP_ONLY=${cp_only:-false}  # cp consolepi-stage dir as __consolepi-stage (installer won't look there)
     NODD=${nodd:-false}  # skip writing image to scipt (expedite repeat testing)
     LOCAL_DEV=${local_dev:-false} # Configures image to pull installer from local (dev) repo
-    # -----------// silent install \\----------------------------------------
-    # IMG_DRV=$img_drv  # required with --silent to run without prompts
-    # [ -n $IMG_DRV ] && SILENT=true || SILENT=false
 
     # Some static variables
     STAGE_DIR='consolepi-stage'
@@ -838,7 +837,7 @@ show_usage() {
     [ -x /etc/ConsolePi/src/consolepi-commands/consolepi-image ] && local cmd=consolepi-image || local cmd="sudo $(echo $SUDO_COMMAND | cut -d' ' -f1)"
     echo -e "\n$(green USAGE:) $cmd [OPTIONS]\n"
     echo -e "$(cyan Available Options)"
-    _help "--help" "Display this help text"
+    _help "-h|--help" "Display this help text"
     _help "-C <location of config file>" "Look @ Specified config file loc to get command line values vs. the default consolepi-image-creator.conf (in cwd)"
     _help "--ssid <ssid>" "Configure SSID on image (configure wpa_supplicant.conf)"
     _help "--psk '<psk>'" "Use single quotes: psk for SSID (must be provided if ssid is provided)"
@@ -849,7 +848,7 @@ show_usage() {
     _help "--[no-]auto-install" "image will not be configured to auto launch the installer on first login (Default true)"
     _help "--[no-]import" "whether or not to import files from this system to the image, if this is a ConsolePi.  Prompted if not set."
     _help "--[no-]edit" "Skips prompt asking if you want to edit (nano) the imported ConsolePi.yaml."
-    _help "-h|--hostname" "pre-configure hostname on image."
+    _help "-H|--hostname" "pre-configure hostname on image."
     _help "-p|--passwd <consolepi passwdrd>" "The password to set for the consolepi user."
     _help "--cmd-line '<cmd_line arguments>'" "*Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image"
     if [ -n "$1" ] && [ "$1" = "dev" ]; then  # hidden dev flags --help dev to display them.
@@ -885,9 +884,34 @@ parse_args() {
     while (( "$#" )); do
         # echo -e "DEBUG ~ Currently evaluating: '$1'"
         case "$1" in
+            -h|--help)
+                show_usage $2
+                exit 0
+                ;;
+            -C) # override the default location script looks for config file (consolepi-image-creator.conf)
+                if [ -f "$2" ]; then
+                    . "$2"
+                    shift 2
+                else
+                    echo -e "Config File $2 not found"
+                    exit 1
+                fi
+                ;;
+            -H|--hostname) # preconfigure hostname on image.  Handy as installer looks for files in $HOME/consolepi-stage/$HOSTNAME
+                [ -n "$2" ] && img_hostname=$2 || missing_param $1
+                shift 2
+                ;;
+            -p|--passwd) # consolepi pass prompted if not provided
+                [ -n "$2" ] && consolepi_pass=$2 || missing_param $1
+                shift 2
+                ;;
             -D|-*dev) # used for development/testing
                 local_dev=true
                 shift
+                ;;
+            --cmd-line) # arguments passed on to install script (auto-install)
+                [ -n "$2" ] && cmd_line=$2 || missing_param $1
+                shift 2
                 ;;
             --cp-only) # copy stage dir prefixed with __ so the files are there but installer doesn't import them
                 cp_only=true
@@ -900,19 +924,6 @@ parse_args() {
             --no-dd) # used for development/testing
                 nodd=true
                 shift
-                ;;
-            -C) # override the default location script looks for config file (consolepi-image-creator.conf)
-                if [ -f "$2" ]; then
-                    . "$2"
-                    shift 2
-                else
-                    echo -e "Config File $2 not found"
-                    exit 1
-                fi
-                ;;
-            *help)
-                show_usage $2
-                exit 0
                 ;;
             --ssid) # psk ssid to pre-configure on img
                 [ -n "$2" ] && ssid=$2 || missing_param $1
@@ -934,7 +945,7 @@ parse_args() {
                 [ -n "$2" ] && img_type=$2 || missing_param $1
                 shift 2
                 ;;
-            --img-only) # Only deploy img (and enable SSH) no further pre-config beyond that
+            --img-only) # Only deploy img (and enable SSH) no further pre-config beyond that default to false
                 img_only=true
                 shift
                 ;;
@@ -945,10 +956,6 @@ parse_args() {
             --no-auto-install) # configure image to launch installer on first login
                 auto_install=false
                 shift
-                ;;
-            --cmd-line) # arguments passed on to install script
-                [ -n "$2" ] && cmd_line=$2 || missing_param $1
-                shift 2
                 ;;
             --import) # import from this system to the image (if this is a ConsolePi)
                 import=true
@@ -961,14 +968,6 @@ parse_args() {
             -*edit) # skip do you want to edit prompt that appears if script imports a ConsolePi.yaml
                 [ "$1" = "--no-edit" ] && edit=false || edit=true
                 shift
-                ;;
-            -h|--hostname) # preconfigure hostname on image.  Handy as installer looks for files in $HOME/consolepi-stage/$HOSTNAME
-                [ -n "$2" ] && img_hostname=$2 || missing_param $1
-                shift 2
-                ;;
-            -p|--passwd) # consolepi pass need to check if set +H is needed to avoid special char issues !
-                [ -n "$2" ] && consolepi_pass=$2 || missing_param $1
-                shift 2
                 ;;
             *) ## -*|--*=) # unsupported flags
                 echo "Error: Unsupported flag $1" >&2

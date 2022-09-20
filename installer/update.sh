@@ -1030,7 +1030,7 @@ update_main() {
     do_consolepi_mdns
     ! $upgrade && do_locale
     do_resize
-    if ( [ -n "$skip_extras" ] && $skip_extras ) || $silent; then
+    if ( [ -n "$skip_utils" ] && $skip_utils ) || $silent; then
         logit -t "optional utilities installer" "utilities menu bypassed by config variable"
     else
         get_utils

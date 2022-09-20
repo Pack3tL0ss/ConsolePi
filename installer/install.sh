@@ -711,7 +711,7 @@ process_args() {
                 ;;
             # -- \silent install options --
             -*help|help)
-                show_usage
+                show_usage $2
                 exit 0
                 ;;
             *) # -*|--*=) # unsupported flags

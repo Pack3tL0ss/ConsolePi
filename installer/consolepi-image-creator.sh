@@ -857,7 +857,6 @@ show_usage() {
         _help "--cp-only" "import consolepi-stage dir as __consolepi-stage.  So it's there, but won't be picked up by installer."
         _help "--no-dd" "Don't actually write the image, for repeat testing of this script."
         _help "--debug" "Additional logging"
-        # _help "-s|--silent <sd card device>" "Don't prompt use defaults for all, specifiy dev to burn image to in the form sda.  If it doesn't match detection user is prompted"
     fi
     echo
     echo -e "The consolepi-image-creator will also look for consolepi-image-creator.conf in the current working directory for the above settings"

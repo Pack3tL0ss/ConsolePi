@@ -74,7 +74,7 @@ do_apt_update() {
         fi
 
     else
-        logit "apt updates skipped based on -noapt argument" "WARNING"
+        logit "apt updates skipped based on --no-apt flag" "WARNING"
     fi
     unset process
 }
@@ -462,7 +462,7 @@ do_pyvenv() {
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
     else
-        logit "pip upgrade / requirements upgrade skipped based on -nopip argument" "WARNING"
+        logit "pip upgrade / requirements upgrade skipped based on --no-pip flag" "WARNING"
     fi
 
     unset process

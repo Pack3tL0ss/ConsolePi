@@ -1025,10 +1025,11 @@ update_main() {
     ConsolePi_cleanup  # TODO change service to consolepi-cleanup
     $ovpn_enable && install_ovpn
     # TODO new flow below needs to be tested (accomodate case where wired true hotspot false during install)
+    $no_ipv6 || $hotspot || $wired_dhcp && gen_dhcpcd_conf
     if $hotspot || $wired_dhcp; then
         check_install_dnsmasq
         gen_dnsmasq_conf
-        gen_dhcpcd_conf
+        # gen_dhcpcd_conf
         $hotspot && install_autohotspot || disable_autohotspot
         $wired_dhcp && do_wired_dhcp
     fi

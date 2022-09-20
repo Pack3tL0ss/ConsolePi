@@ -21,7 +21,7 @@ CONFIG:
   btmode: serial # Bluetooth Mode: 'serial' or 'pan'
   cloud: false # enable ConsolePi cloud sync for Clustering (mdns enabled either way)
   cloud_svc: gdrive # must be gdrive (all that is supported now)
-  rem_user: pi # The user account remotes should use to access this ConsolePi
+  rem_user: consolepi # The user account remotes should use to access this ConsolePi
   power: false # Enable Power Outlet Control
   debug: false # Turns on additional debugging
 

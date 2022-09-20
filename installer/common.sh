@@ -22,6 +22,8 @@ py3ver=$(python3 -V | cut -d. -f2)
 yml_script="/etc/ConsolePi/src/yaml2bash.py"
 tmp_src="/tmp/consolepi-temp"
 warn_cnt=0
+INIT="$(ps --no-headers -o comm 1)"
+DEV_USER=${dev_user:-wade}  # User to use for ssh/sftp/git to local dev
 
 # Unused for now interface logic
 # _gw=$(ip route get 8.8.8.8 | awk -- '{printf $5}')
@@ -43,7 +45,14 @@ _yellow='\e[33;1m'
 _green='\e[32m'
 _cyan='\e[96m' # technically light cyan
 
-[[ $( ps -o comm -p $PPID | tail -1 ) == "sshd" ]] && ssh=true || ssh=false
+is_ssh() {
+  if pstree -p | egrep --quiet --extended-regexp ".*sshd.*\($$\)"; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 ( [[ -f $final_log ]] && [ -z $upgrade ] ) && upgrade=true || upgrade=false
 
 # log file is referenced thoughout the script.  During install dest changes from tmp to final
@@ -358,17 +367,18 @@ systemd_diff_update() {
                 # TODO consider logic change. to only enable on upgrade if we find it in enabled state
                 #  This logic would appear to always enable the service in some cases we don't want that
                 #  installer will disable / enable after if necessary, but this would retain user customizations
-                if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
+                if ! systemctl -q is-enabled ${1}.service; then
                     if [[ -f /etc/systemd/system/${1}.service ]]; then
                         # sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file  # TODO this seems unnecessary reason for it or just copy / paste error?
-                        sudo systemctl enable ${1}.service 1>/dev/null 2>> $log_file ||
+                        sudo systemctl enable ${1}.service 1>/dev/null 2>> $log_file &&
+                            logit "Success enable $1 service" ||
                             logit "FAILED to enable ${1} systemd service" "WARNING"
                     else
                         logit "Failed ${1}.service file not found in systemd after move"
                     fi
                 fi
                 # -- if the service is enabled and active currently restart the service --
-                if systemctl is-enabled ${1}.service >/dev/null ; then
+                if systemctl -q is-enabled ${1}.service >/dev/null ; then
                     if systemctl is-active ${1}.service >/dev/null ; then
                         # sudo systemctl daemon-reload 2>>$log_file # redundant
                         if [[ ! "${1}" =~ "autohotspot" ]] ; then
@@ -553,6 +563,8 @@ get_staged_file_path() {
     [[ -z $1 ]] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
     if [[ -f "${home_dir}/${1}" ]]; then
         found_path="${home_dir}/${1}"
+    elif [[ -f ${stage_dir}/$HOSTNAME/$1 ]]; then
+        found_path="${stage_dir}/$HOSTNAME/${1}"  # Need to verify this is updated in update.sh set_hostname so it's valid to use here.
     elif [[ -f ${stage_dir}/$1 ]]; then
         found_path="${stage_dir}/${1}"
     else
@@ -590,6 +602,7 @@ spaces() {
     printf "  %s%*.*s" "$1" 0 $((70-${#1})) "$pad" "$2"; echo
     return 0;
 }
+
 
 process_cmds() {
     reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' '_silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')

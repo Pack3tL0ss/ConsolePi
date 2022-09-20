@@ -27,35 +27,32 @@ get_common() {
             wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/${branch}/installer/common.sh -O /tmp/common.sh
         fi
     else
-        if [ ! ${HOSTNAME,,} == "consolepi-dev" ]; then
+        if [ "${HOSTNAME,,}" != "consolepi-dev" ]; then
             local _iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
-            sudo -u $_iam sftp $_iam@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
+            sudo -u $_iam sftp $dev_user@consolepi-dev:/etc/ConsolePi/installer/common.sh /tmp/common.sh >/dev/null ||
             echo "ERROR: -dev sftp get failed"
         else
-            [[ -f /etc/ConsolePi/installer/common.sh ]] && cp /etc/ConsolePi/installer/common.sh /tmp ||
+            [ -f /etc/ConsolePi/installer/common.sh ] && cp /etc/ConsolePi/installer/common.sh /tmp ||
             echo "ERROR: This is the dev ConsolePi, script called with -dev flag, but common.sh not found in installer dir"
         fi
     fi
     . /tmp/common.sh
-    [[ $? -gt 0 ]] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
+    [ "$?" -gt 0 ] && echo "FATAL ERROR: Unable to import common.sh Exiting" && exit 1
 
     # overwrite the default source directory to local repo when running local tests
-    $local_dev && consolepi_source='pi@consolepi-dev:/etc/ConsolePi'
+    $local_dev && consolepi_source="$dev_user@consolepi-dev:/etc/ConsolePi"
     [ -f /tmp/common.sh ] && rm /tmp/common.sh
     header 2>/dev/null || ( echo "FATAL ERROR: common.sh functions not available after import" && exit 1 )
-
-    # the following captures the date string for the start of this run used to parse file for WARNINGS
-    # after the install
-    # process="Script Starting"; logit -start "Install/Ugrade Scipt Starting"; unset process
 }
 
 remove_first_boot() {
     # SD-Card created using Image Creator Script launches installer automatically - remove first-boot launch
     process="Remove exec on first-boot"
-    # sudo sed -i "s#consolepi-install.*##g" /home/pi/.profile
-    sudo sed -i "s#consolepi-install.*##g" $home_dir/.profile
-    grep -q consolepi-install $home_dir/.profile &&
-        logit "Failed to remove first-boot verify $home_dir/.profile" "WARNING"
+    if grep -q consolepi-install $home_dir/.profile; then
+        sudo sed -i "s#consolepi-install.*##g" $home_dir/.profile
+        grep -q consolepi-install $home_dir/.profile &&
+            logit "Failed to remove first-boot verify $home_dir/.profile" "WARNING"
+    fi
 }
 
 do_apt_update() {
@@ -77,7 +74,7 @@ do_apt_update() {
         fi
 
     else
-        logit "apt updates skipped based on -noapt argument" "WARNING"
+        logit "apt updates skipped based on --no-apt flag" "WARNING"
     fi
     unset process
 }
@@ -121,50 +118,34 @@ do_user_dir_import(){
     fi
 }
 
+do_autolaunch() {
+    if echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile; then
+        logit "consolepi user configured to auto-launch menu on login"
+        return 0
+    else
+        logit "Failed to cofnigure auto-launch menu on login for consolepi user"
+        return 1
+    fi
+}
+
 do_users(){
     if ! $upgrade; then
         # -- // ONLY PERFORMED ON FRESH INSTALLS \\ --
 
-        # Update passwd for pi user if it is the default.
-        process="pi user password change"
-        [ -e /run/sshwarn ] || logit "/run/sshwarn failed eval" "DEBUG"
-        if grep -q "^pi:" /etc/passwd && [[ "$iam" == "pi" ]] && [ -e /run/sshwarn ]; then
-            if [ ! -z "$pi_pass" ]; then
-                echo "pi:${pi_pass}" | chpasswd 2>> $log_file && logit "Successfully changed pi password using conf/cmd_line arg" ||
-                    logit "Error occurred changing pi password using conf/cmd_line arg" "WARNING"
-            elif ! $silent; then
-                header
-                echo "You are logged in as pi, and the default password has not been changed"
-                prompt="Do You want to change the password for user pi"
-                response=$(user_input_bool)
-                if $response; then
-                    ask_pass
-                    echo "pi:${_pass}" | sudo chpasswd 2>> $log_file && logit "Success" ||
-                    ( logit "Failed to Change Password for pi user" "WARNING" &&
-                    echo -e "\n!!! There was an issue changing password.  Installation will continue, but continue to use existing password and update manually !!!" )
-                    unset _pass
-                fi
-            fi
-        fi
-
-        # import any pi user stuff after header so usesr can see the import msg
-        header
-        do_user_dir_import pi || logit -L "User dir import for pi user returned error"
-
-
+        # when using the image creator consolepi is the default user
         process="Create consolepi user/group"
         cp /etc/adduser.conf /tmp/adduser.conf
-        extra_groups="adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
-        extra_groups2="consolepi adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
-        echo "EXTRA_GROUPS=\"$extra_groups\"" >> /tmp/adduser.conf
+        extra_groups="consolepi adm dialout cdrom sudo audio video plugdev games users input netdev spi i2c gpio"
+        echo "EXTRA_GROUPS=\"${extra_groups#"consolepi "}\"" >> /tmp/adduser.conf
         echo 'ADD_EXTRA_GROUPS=1' >> /tmp/adduser.conf
 
-        if ! grep -q "^consolepi:" /etc/group; then
-            if [ ! -z "${consolepi_pass}" ]; then
+        if ! getent group consolepi >/dev/null; then
+            # -- non interactive --
+            if [ -n "${consolepi_pass}" ]; then
                 echo -e "${consolepi_pass}\n${consolepi_pass}\n" | adduser --conf /tmp/adduser.conf --gecos ",,,," consolepi >/dev/null 2>> $log_file &&
                     logit "consolepi user created silently with config/cmd-line argument" || logit "Error silently creating consolepi user" "ERROR"
                 unset consolepi_pass
-            else
+            else  # -- interactive --
                 echo -e "\nAdding 'consolepi' user.  Please provide credentials for 'consolepi' user..."
                 ask_pass  # provides _pass in global context
                 echo -e "${_pass}\n${_pass}\n" | adduser --conf /tmp/adduser.conf --gecos ",,,," consolepi >/dev/null 2>> $log_file &&
@@ -179,17 +160,14 @@ do_users(){
 
         # -- consolepi user auto-launch menu (The grep verification is for re-testing scenarios to prevent duplicate lines)
         if ! grep -q "^consolepi-menu" /home/consolepi/.profile; then
-            if [ ! -z "${auto_launch}" ]; then
-                echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile &&
-                    logit "consolepi user configured to auto-launch menu on login" ||
-                    logit "Failed to cofnigure auto-launch menu on login for consolepi user"
+            if [ -n "${auto_launch}" ]; then
+                $auto_launch && do_autolaunch
             else
                 if ! $silent; then
                     user_input true "Make consolepi user auto-launch menu on login"
-                    $result && ( echo -e '\n# Auto-Launch consolepi-menu on login\nconsolepi-menu' >> /home/consolepi/.profile ||
-                        logit "Failed to cofnigure auto-launch menu on login for consolepi user" )
+                    $result && do_autolaunch
                 else
-                    logit "consolepi user auto-launch menu bypassed -silent install lacking --auto_launch flag="
+                    logit "consolepi user auto-launch menu bypassed -silent install lacking --auto-launch flag"
                 fi
             fi
         fi
@@ -198,7 +176,7 @@ do_users(){
         # Create additional Users (with appropriate rights for ConsolePi)
         process="Add Users"
         if ! $silent; then
-            sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups2\"/" /tmp/adduser.conf
+            sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups\"/" /tmp/adduser.conf
             _res=true; while $_res; do
                 echo
                 user_input false "Would you like to create additional users"
@@ -237,8 +215,8 @@ do_users(){
         fi
 
         # if pi user exists ensure it has correct group memberships for ConsolePi
-        process="Verify pi user groups"
-        if grep -q "^pi:" /etc/passwd; then
+        process="Verify pi user groups (Legacy Support)"
+        if getent passwd pi >/dev/null; then
             _groups=('consolepi' 'dialout')
             for grp in "${_groups[@]}"; do
                 if [[ ! $(groups pi) == *"${grp}"* ]]; then
@@ -253,31 +231,25 @@ do_users(){
 
         rm /tmp/adduser.conf
 
-        # Provide option to remove default pi user
-        # process="Remove Default pi User"
-        # if [[ $iam == "pi" ]]; then
-        #     user_input false "Do You want to remove the default pi user?"
-        #     if $result; then
-        #         userdel pi 2>> $log_file && logit "pi user removed" || "Error returned when attempting to remove pi user" "WARNING"
-        #     fi
-        # fi
-
     else  # --- UPGRADE VERIFICATIONS ---
         # verify group membership -- upgrade only -- checks
-        process="create consolepi group"
-        if ! grep -q consolepi /etc/group; then
+
+        # This is for backward compatability.  Previous versions did not have a consolepi user, just the group
+        process="create consolepi user"
+        if ! getent group consolepi >/dev/null; then
             sudo groupadd consolepi &&
             logit "Added consolepi group" ||
             logit "Error adding consolepi group" "WARNING"
         else
             logit "consolepi group already exists"
         fi
+
         process="Verify Group Membership"
         [[ "$iam" == "pi" ]] && _users=pi || _users=("pi" "$iam")
         _groups=('consolepi' 'dialout')
         for user in "${_users[@]}"; do
-            if ! grep -q "^${user}:" /etc/passwd; then
-                logit "$user does not exist. Skipping"
+            if ! getent passwd $user >/dev/null; then
+                [ $user != pi ] && logit "$user does not exist. Skipping"
                 continue
             fi
             for grp in "${_groups[@]}"; do
@@ -367,7 +339,7 @@ pre_git_prep() {
             if ! $grpok || ! $modok; then
                 chgrp -R consolepi ${d} 2>> $log_file ; local rc=$?
                 chmod g+w -R ${d} 2>> $log_file ; ((rc+=$?))
-                [[ $rc > 0 ]] && logit "Error Returned while setting perms for $d" "WARNING" ||
+                [ "$rc" -gt 0 ] && logit "Error Returned while setting perms for $d" "WARNING" ||
                     logit "Success ~ Update Permissions for $d"
             else
                 logit "Permissions for $d already OK"
@@ -391,7 +363,12 @@ git_ConsolePi() {
         # -- ConsolePi dir does not exist clone from repo --
         logit "Clean Install git clone ConsolePi"
         pushd $home_dir >/dev/null
-        git clone "${consolepi_source}" 1>/dev/null 2>> $log_file && logit "ConsolePi clone Success" || logit "Failed to Clone ConsolePi" "ERROR"
+        if git clone "${consolepi_source}" 1>/dev/null 2>> $log_file; then
+            logit "ConsolePi clone Success"
+        else
+            logit "Failed to Clone ConsolePi" "ERROR"
+            echo "command \"git clone ${consolepi_source}\" failed!!" >> $log_file
+        fi
         popd >/dev/null
 
         # -- change group ownership to consolepi --
@@ -414,6 +391,7 @@ git_ConsolePi() {
     unset process
 }
 
+# DELME -- This should be safe to remove now
 post_git() {
     process="relocate overrides"
     if [ -d ${src_dir}override ]; then
@@ -438,16 +416,17 @@ do_pyvenv() {
 
     # -- Check that release upgrade or manual python upgrade hasnt made the venv python ver differ from system --
     if [ -d ${consolepi_dir}venv ] && [ -x "${consolepi_dir}venv/bin/python3" ]; then
-        venv_py3ver=$(${consolepi_dir}venv/bin/python3 -V | cut -d. -f2)
+        venv_py3ver=$(basename ${consolepi_dir}venv/bin/python3.* | grep -v '*' | cut -d. -f2)
         if [ "$venv_py3ver" != "$py3ver" ]; then
             mv ${consolepi_dir}venv $bak_dir && logit "The Python version on the system has been upgraded moving existing venv to bak dir." &&
                 logit "A New venv will be created. (it is OK to delete anything in bak)"
         fi
     fi
 
+    # TODO Think we can lose the sudo now
     if [ ! -d ${consolepi_dir}venv ]; then
         # -- Ensure python3 virtualenv is installed --
-        venv_ver=$(sudo python3 -m pip list --format columns | grep virtualenv | awk '{print $2}')
+        venv_ver=$(sudo python3 -m pip show virtualenv 2>/dev/null | grep -i version | cut -d' ' -f2)
         if [ -z "$venv_ver" ]; then
             logit "python virtualenv not installed... installing"
             sudo python3 -m pip install virtualenv 1>/dev/null 2>> $log_file &&
@@ -483,7 +462,7 @@ do_pyvenv() {
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
     else
-        logit "pip upgrade / requirements upgrade skipped based on -nopip argument" "WARNING"
+        logit "pip upgrade / requirements upgrade skipped based on --no-pip flag" "WARNING"
     fi
 
     unset process
@@ -502,7 +481,6 @@ do_logging() {
     # Create Log Files
     touch /var/log/ConsolePi/ovpn.log || logit "Failed to create OpenVPN log file" "WARNING"
     touch /var/log/ConsolePi/push_response.log || logit "Failed to create PushBullet log file" "WARNING"
-    # touch /var/log/ConsolePi/cloud.log || logit "Failed to create consolepi log file" "WARNING"
     touch /var/log/ConsolePi/install.log || logit "Failed to create install log file" "WARNING"
     touch /var/log/ConsolePi/consolepi.log || logit "Failed to create install log file" "WARNING"
 
@@ -548,6 +526,7 @@ update_banner() {
         fi
     fi
 
+    # DELME Should be safe to remove at this point
     # remove old path update from /etc/profile
     if grep -q consolepi-commands /etc/profile ; then
         sed -i '/export.*PATH.*consolepi-commands/d'  /etc/profile &&
@@ -574,7 +553,7 @@ _help() {
 }
 
 show_usage() {
-    # common is not imported here can't use common funcs
+    ## !! common is not imported here can't use common funcs
     _green='\e[32;1m' # bold green
     _cyan='\e[96m'
     _norm='\e[0m'
@@ -587,43 +566,54 @@ show_usage() {
     fi
     echo -e "\n${_green}USAGE:${_norm} $_cmd [OPTIONS]\n"
     echo -e "${_cyan}Available Options${_norm}"
-    _help "--help | -help | help" "Display this help text"
-    _help "-silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
-    _help "-C|-config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
-    echo "    Copy the example file to your home dir and make edits to use"
-    _help "-post" "~/consolepi-stage/consolepi-post.sh if found is executed after initial install.  Use this to run after upgrade."
-    _help "-noipv6" "bypass 'Do you want to disable ipv6 during install' prompt.  This flag disables it. If silent and not set, no action is taken"
-    _help "-btpan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
-    _help "-reboot" "reboot automatically after silent install (Only applies to silent install)"
-    _help "--wlan_country=<wlan_country>" "wlan regulatory domain (Default: US)"
-    _help "--hostname=<hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
-    _help "--tz=<i.e. 'America/Chicago'>" "If set will bypass tz prompt on install and configure based on this value"
-    _help "--auto_launch='<true|false>'" "Bypass prompt 'Auto Launch menu when consolepi user logs in' - set based on this value"
-    _help "--consolepi_pass='<password>'" "Use single quotes: Bypass prompt on install set consolepi user pass to this value"
-    _help "--pi_pass='<password>'" "Use single quotes: Bypass prompt on install set pi user pass to this value"
-    echo "    pi user can be deleted after initial install if desired, A non silent install will prompt for additional users and set appropriate group perms"
+    _help "--help" "Display this help text"
+    _help "-s|--silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
+    _help "-C | --config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
+    echo "    Copy the example file to your home dir and make edits to use."
+    _help "-6|--no-ipv6" "Disable IPv6 (Only applies to initial install)"
+    _help "--bt-pan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
+    _help "-R|--reboot" "reboot automatically after silent install (Only applies to silent install)"
+    _help "-w|--wlan_country <2 char country code>" "wlan regulatory domain (Default: US)"
+    _help "--locale <2 char country code>" "Update locale and keyboard layout. i.e. '--locale us' will result in locale being updated to en_US.UTF-8"
+    _help "--us" "Alternative to the 2 above, implies us for wlan country, locale, and keyboard."
+    _help "-h|--hostname <hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
+    _help "--tz <tz>" "Configure TimeZone i.e. America/Chicago"
+    _help "-L|--auto-launch" "Automatically launch consolepi-menu for consolepi user.  Defaults to False."
+    _help "-p|--passwd '<password>'" "Use single quotes: The password to configure for consolepi user during install."
     echo -e "    ${_cyan}Any manually added users should be members of 'dialout' and 'consolepi' groups for ConsolePi to function properly${_norm}"
     echo
     echo "The Following optional arguments are more for dev, but can be useful in some other scenarios"
-    _help "-noapt" "Skip the apt update/upgrade portion of the Upgrade.  Should not be used on initial installs."
-    _help "-nopip" "Skip pip install -r requirements.txt.  Should not be used on initial installs."
+    if [ -n "$1" ] && [ "$1" = "dev" ]; then  # hidden dev flags --help dev to display them.
+        _help "-D|--dev" "Install from ConsolePi-dev using dev branch"
+        _help "--dev-user <user>" "Override the default user used for sftp/ssh/git to ConsolePi-dev"
+        _help "--me" "Override the default user used for sftp/ssh/git to ConsolePi-dev, use current user."
+        _help "-I|--install" "Run as if it's the initial install"
+    fi
+    _help "-P|--post" "~/consolepi-stage/consolepi-post.sh if found is executed after initial install.  Use this to run after upgrade."
+    _help "--no-apt" "Skip the apt update/upgrade portion of the Upgrade.  Should not be used on initial installs."
+    _help "--no-pip" "Skip pip install -r requirements.txt.  Should not be used on initial installs."
     echo
     echo -e "${_cyan}Examples:${_norm}"
     echo "  This example specifies a config file with -C (telling it to get some info from the specified config) as well as the silent install option (no prompts)"
     if [[ ! "$_cmd" =~ "upgrade" ]]; then
         echo -e "  ${_cyan}NOTE:${_norm} In order to perform a silent install ConsolePi.yaml needs to be pre-staged/pre-configured in /home/<user>/consolepi-stage directory"
     fi
-    echo -e "\t> $_cmd -C /home/pi/consolepi-stage/installer.conf -silent"
+    echo -e "\t> $_cmd -C /home/consolepi/consolepi-stage/installer.conf --silent"
     echo
     echo "  Alternatively the necessary arguments can be passed in via cmd line arguments"
     echo -e "  ${_cyan}NOTE:${_norm} Showing minimum required options for a silent install.  ConsolePi.yaml has to exist"
     echo -e "        wlan_country will default to US, No changes will be made re timezone, ipv6 & hostname"
-    echo -e "\t> $_cmd -silent --consolepi-pass='c0nS0lePi!' --pi-pass='c0nS0lePi!'"
+    echo -e "\t> $_cmd -silent -p 'c0nS0lePi!'"
     echo
 }
 
+missing_param(){
+    echo $1 requires an argument. >&2
+    show_usage
+    exit 1
+}
+
 process_args() {
-    # All currently supported arguments are for dev/testing use
     branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
     silent=false
     local_dev=false
@@ -631,84 +621,97 @@ process_args() {
     doapt=true
     do_reboot=false
     do_consolepi_post=false
+    dev_user=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
     while (( "$#" )); do
         # echo "$1" # -- DEBUG --
         case "$1" in
-            -dev)
+            -D|-*dev)
                 branch=dev
                 local_dev=true
                 shift
                 ;;
-            -nopip)
+            -*dev-user)
+                [ -n "$2" ] && dev_user=$2 || missing_param "$@" # override of static var set in common.sh
+                shift 2
+                ;;
+            -*me)
+                dev_user=${SUDO_USER:-$(who -m | awk '{ print $1 }')} # can remove... it's now the default
+                shift
+                ;;
+            -*no-pip)
                 dopip=false
                 shift
                 ;;
-            -noapt)
+            -*no-apt)
                 doapt=false
                 shift
                 ;;
-            -silent)  # silent install
+            -s|--silent)  # silent install
                 silent=true
                 shift
                 ;;
-            -reboot)  # reboot automatically after silent install
+            -R|--reboot)  # reboot automatically after silent install
                 do_reboot=true
                 shift
                 ;;
-            -install)  # dev flag run as if initial install
+            -I|-*install)  # dev flag run as if initial install
                 upgrade=false
                 shift
                 ;;
-            -post)  # ~/consolepi-stage/consolepi-post.sh if exists is executed only after initial installs, this sets to run regardless of install/upgrade
+            -P|-*post)  # Run post-install script even on upgrade
                 do_consolepi_post=true
                 shift
                 ;;
             # -- silent install options --
-            -C|-config)
+            -C|--config)
                 if [ -f "$2" ]; then
                    . "$2"
-                   [ ! -z "$noipv6" ] && dis_ipv6=$noipv6
                 else
                     echo "Specified Config $2 not found"
                     exit 1
                 fi
                 shift 2
                 ;;
-            -noipv6) # disable ipv6
-                dis_ipv6=true
+            -6|--no-ipv6) # disable ipv6
+                no_ipv6=true
                 shift
                 ;;
-            -btpan) # Setup bt to use PAN
+            --bt-pan) # Setup bt to use PAN, default is serial
                 btmode=pan
                 shift
                 ;;
-            --hostname=*)
-                hostname=$(echo "$1"| cut -d= -f2)
+            -h|--hostname)
+                [ -n "$2" ] && hostname=$2 || missing_param "$@"
+                shift 2
+                ;;
+            --tz) # timezone, provide in America/Chicago format
+                [ -n "$2" ] && tz=$2 || missing_param "$@"
+                shift 2
+                ;;
+            -w|--wlan-country)
+                [ -n "$2" ] && wlan_country="${2^^}" || missing_param "$@"
+                shift 2
+                ;;
+            --locale)  # do_locale() in update.sh will run if locale has value
+                [ -n "$2" ] && locale=$2 || missing_param "$@"
+                shift 2
+                ;;
+            --us)
+                locale=us
+                wlan_country=us
                 shift
                 ;;
-            --tz=*) # timezone
-                tz=$(echo "$1"| cut -d= -f2)
-                shift
+            -p|--passwd) # consolepi user's password
+                [ -n "$2" ] && consolepi_pass=$2 || missing_param "$@"
+                shift 2
                 ;;
-            --wlan_country=*)
-                wlan_country=$(echo "${1^^}"| cut -d= -f2)
-                shift
-                ;;
-            --consolepi_pass=*) # consolepi user's password
-                consolepi_pass=$(echo "$1"| cut -d= -f2)
-                shift
-                ;;
-            --auto_launch=*)
-                auto_launch=$(echo "$1"| cut -d= -f2)
-                shift
-                ;;
-            --pi_pass=*) # pi user's password
-                pi_pass=$(echo "$1"| cut -d= -f2)
+            -L|--auto-launch)
+                auto_launch=true
                 shift
                 ;;
             # -- \silent install options --
-            help|-help|--help)
-                show_usage
+            -*help|help)
+                show_usage $2
                 exit 0
                 ;;
             *) # -*|--*=) # unsupported flags
@@ -720,6 +723,8 @@ process_args() {
 
     # -- Set defaults applied when using silent mode if not specified --
     $silent && btmode=${btmode:-serial}
+    $silent && auto_launch=${auto_launch:-false}
+    $silent && wlan_country=${wlan_country:-US}
 }
 
 main() {
@@ -729,7 +734,7 @@ main() {
         cmd_line="$@"
         process_args "$@"
         get_common                          # get and import common functions script
-        [ ! -z "$cmd_line" ] && logit -L -t "ConsolePi Installer" "Called with the following args: $cmd_line"
+        [ -n "$cmd_line" ] && logit -L -t "ConsolePi Installer" "Called with the following args: $cmd_line"
         get_pi_info                         # (common.sh func) Collect some version info for logging
         remove_first_boot                   # if auto-launch install on first login is configured remove
         do_users                            # USER INPUT - create / update users and do staged imports

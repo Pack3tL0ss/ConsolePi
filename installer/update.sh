@@ -12,11 +12,11 @@
 
 set_hostname() {
     process="Change Hostname"
-    hostn=$(cat /etc/hostname)
-    if [[ "${hostn}" == "raspberrypi" ]]; then
+    hostn=$(tr -d " \t\n\r" < /etc/hostname)
+    if [ "${hostn}" = "raspberrypi" ]; then
 
         # -- collect desired hostname from user - bypass collection if set via cmd line or config --
-        [ ! -z "$hostname" ] && newhost=$hostname && unset hostname
+        [ -n "$hostname" ] && newhost=$hostname && unset hostname
         if [ -z "$newhost" ]; then
             if $silent; then
                 logit "Set hostname bypassed silent install with no desired hostname provided"
@@ -48,14 +48,19 @@ set_hostname() {
         fi
 
         # -- apply new hostname --
-        if [ ! -z "$newhost" ]; then
+        if [ -n "$newhost" ]; then
             # change hostname in /etc/hosts & /etc/hostname
             sed -i "s/$hostn/$newhost/g" /etc/hosts
             sed -i "s/$hostn\.$(grep -o "$hostn\.[0-9A-Za-z].*" /etc/hosts | cut -d. -f2-)/$newhost.$local_domain/g" /etc/hosts
 
             # change hostname via command
-            hostname "$newhost" 1>&2 2>>/dev/null
-            [ $? -gt 0 ] && logit "Error returned from hostname command" "WARNING"
+            if [ "$INIT" = "systemd" ]; then
+                hostnamectl set-hostname "$newhost"; rc=$?
+            else
+                hostname "$newhost" 1>&2 2>>/dev/null; rc=$?
+            fi
+
+            [ $rc -gt 0 ] && logit "Error returned from hostname command" "WARNING"
 
             # add hotspot IP to hostfile for DHCP connected clients to resolve this host
             wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)
@@ -113,26 +118,26 @@ set_timezone() {
 # -- if ipv6 is enabled present option to disable it --
 disable_ipv6()  {
     process="Disable ipv6"
-    [ -f /etc/sysctl.d/99-noipv6.conf ] && dis_ipv6=true # just bypases prompt when testing using -install flag
+    [ -f /etc/sysctl.d/99-noipv6.conf ] && no_ipv6=true # just bypases prompt when testing using -install flag
     if ! $silent; then
-        if [ -z "$dis_ipv6" ]; then
+        if [ -z "$no_ipv6" ]; then
             prompt="Do you want to disable ipv6"
-            dis_ipv6=$(user_input_bool)
+            no_ipv6=$(user_input_bool)
         fi
-    elif [ -z "$dis_ipv6" ]; then
-        dis_ipv6=false
+    elif [ -z "$no_ipv6" ]; then
+        no_ipv6=false
         logit "Disable IPv6 bypassed silent install with no desired state provided"
     fi
 
-    if $dis_ipv6; then
+    if $no_ipv6; then
         file_diff_update "${src_dir}99-noipv6.conf" /etc/sysctl.d/99-noipv6.conf
     fi
     unset process
 }
 
-misc_imports(){
+get_staged_imports(){
     # additional imports occur in related functions if import file exists
-    process="Perform misc imports"
+    process="Staged imports"
 
     # -- ssh authorized keys --
     found_path=$(get_staged_file_path "authorized_keys")
@@ -153,10 +158,10 @@ misc_imports(){
     fi
 
     # -- pre staged cloud creds --
-    if $cloud && [[ -f ${stage_dir}/.credentials/credentials.json ]]; then
+    if $cloud && [ -f "${stage_dir}/.credentials/credentials.json" ]; then
         found_path=${stage_dir}/.credentials
         mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
-        logit "Found ${cloud_svc} credentials. Moving to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
+        logit "Found ${cloud_svc} credentials. Moved to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
         logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
     elif $cloud ; then
         if [ ! -f "$CLOUD_CREDS_FILE" ]; then
@@ -166,6 +171,7 @@ misc_imports(){
     fi
 
     # -- custom overlay file for PoE hat (fan control) --
+    # TODO looks like there is a gpiofan overlay now.
     found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
     [[ $found_path ]] && logit "overlay file found creating dtbo"
     if [[ $found_path ]]; then
@@ -228,17 +234,17 @@ misc_imports(){
     # -- imported in phase 1 (install.sh)
     # /home/pi/.ssh/known_hosts
     # /home/pi/.ssh/authorized_keys
-    # /home/<user>/. for non pi user contents of <stage-dir>/home/<user> is imported after the user is created
+    # /home/<user>/. contents of <stage-dir>/home/<user> is imported after the user is created
 
     unset process
 }
 
 install_ser2net () {
-    # To Do add check to see if already installed / update
+    # TODO add check to see if already installed / update
     process="Install ser2net via apt"
     logit "${process} - Starting"
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
-    if [[ -z "$ser2net_ver" ]]; then
+    if [ -z "$ser2net_ver" ]; then
         process_cmds -apt-install "ser2net"
     else
         logit "Ser2Net ${ser2net_ver} is current"
@@ -247,18 +253,20 @@ install_ser2net () {
     do_ser2net=true
     if ! $upgrade; then
         found_path=$(get_staged_file_path "ser2net.conf")
-        if [[ $found_path ]]; then
-        cp $found_path "/etc" &&
-            logit "Found ser2net.conf in ${found_path}.  Copying to /etc" ||
-            logit "Error Copying your pre-staged ${found_path} file" "WARNING"
-            do_ser2net=false
+        [ -z "$found_path" ] && found_path=$(get_staged_file_path "ser2net.yaml")
+        if [ -n "$found_path" ]; then
+            cp $found_path "/etc" &&
+                logit "Found ser2net.conf in ${found_path}.  Copying to /etc" ||
+                logit "Error Copying your pre-staged ${found_path} file" "WARNING"
+                do_ser2net=false
         fi
     fi
 
     if $do_ser2net && [[ ! $(head -1 /etc/ser2net.conf 2>>$log_file) =~ "ConsolePi" ]] ; then
         logit "Building ConsolePi Config for ser2net"
-        [[ -f "/etc/ser2net.conf" ]]  && cp /etc/ser2net.conf $bak_dir  ||
-            logit "Failed to Back up default ser2net to back dir" "WARNING"
+        if [ -f "/etc/ser2net.conf" ]; then
+            cp /etc/ser2net.conf $bak_dir  || logit "Failed to backup default ser2net to bak dir" "WARNING"
+        fi
         cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $log_file ||
             logit "ser2net Failed to copy config file from ConsolePi src" "ERROR"
     fi
@@ -297,6 +305,7 @@ dhcp_run_hook() {
 }
 
 # TODO place ConsolePi_cleanup in src dir and change to systemd
+# TODO refactor hook scipts to export a variable, vs stashing in a file.
 ConsolePi_cleanup() {
     # ConsolePi_cleanup is an init script that runs on startup / shutdown.  On startup it removes tmp files used by ConsolePi script to determine if the ip
     # address of an interface has changed (PB notifications only occur if there is a change). So notifications are always sent after a reboot.
@@ -376,13 +385,13 @@ install_autohotspot () {
     systemd_diff_update autohotspot
     if ! head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
         logit "Using New autohotspot specific dnsmasq instance"
-        systemctl is-active consolepi-autohotspot-dhcp >/dev/null 2>&1 && was_active=true || was_active=false
+        systemctl -q is-active consolepi-autohotspot-dhcp && was_active=true || was_active=false
         systemd_diff_update consolepi-autohotspot-dhcp
-        if ! $was_active && systemctl is-active consolepi-autohotspot-dhcp >/dev/null 2>&1; then
+        if ! $was_active && systemctl -q is-active consolepi-autohotspot-dhcp; then
             systemctl stop consolepi-autohotspot-dhcp 2>>$log_file ||
                 logit "Failed to stop consolepi-autohotspot-dhcp.service check log" "WARNING"
         fi
-        if systemctl is-enabled consolepi-autohotspot-dhcp >/dev/null 2>&1; then
+        if systemctl -q is-enabled consolepi-autohotspot-dhcp; then
             systemctl disable consolepi-autohotspot-dhcp 2>>$log_file &&
                 logit "consolepi-autohotspot-dhcp autostart disabled Successfully, startup handled by autohotspot" ||
                 logit "Failed to disable consolepi-autohotspot-dhcp.service check log" "WARNING"
@@ -452,11 +461,11 @@ install_autohotspot () {
 disable_autohotspot() {
     process="Verify Auto HotSpot is disabled"
     rc=0
-    if systemctl is-active autohotspot >/dev/null 2>&1; then
+    if systemctl -q is-active autohotspot; then
         systemctl stop autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
     fi
     # TODO remove except-interface=wlan0 or entire file from dnsmasq.d
-    if systemctl is-enabled autohotspot >/dev/null 2>&1; then
+    if systemctl -q is-enabled autohotspot; then
         systemctl disable autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
     fi
     [[ $rc -eq 0 ]] && logit "Success Auto HotSpot Service is Disabled" || logit "Error Disabling Auto HotSpot Service" "WARNING"
@@ -572,12 +581,12 @@ do_blue_config() {
     fi
 
     # add blue user and set to launch menu on login
-    if $(! grep -q ^blue:.* /etc/passwd); then
+    if getent passwd blue >/dev/null; then
+        logit "BlueTooth User already exists"
+    else
         echo -e 'ConsoleP1!!\nConsoleP1!!\n' | sudo adduser --gecos "" blue 1>/dev/null 2>> $log_file &&
         logit "BlueTooth User created" ||
         logit "FAILED to create Bluetooth user" "WARNING"
-    else
-        logit "BlueTooth User already exists"
     fi
 
     # add blue user to dialout group so they can access /dev/ttyUSB_ devices
@@ -701,6 +710,7 @@ get_known_ssids() {
         # if wpa_supplicant.conf exist in stage dir cp it to /etc/wpa_supplicant
         # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
         #   certs should be in 'consolepi-stage/cert, subdir cert_names are extracted from the pre-staged wpa_supplicant.conf.
+        # TODO consider moving to get_staged_imports()
         found_path=$(get_staged_file_path "wpa_supplicant.conf")
         if [[ -f $found_path ]]; then
             logit "Found stage file ${found_path} Applying"
@@ -735,7 +745,7 @@ get_known_ssids() {
     fi
 
     $hotspot && echo -e "\nConsolePi will attempt to connect to configured SSIDs prior to going into HotSpot mode.\n"
-    prompt="Do You want to configure${word} WLAN SSIDs"
+    prompt="Do you want to configure${word} WLAN SSIDs"
     user_input false "${prompt}"
     continue=$result
 
@@ -758,28 +768,39 @@ get_known_ssids() {
     unset process
 }
 
-misc_stuff() {
-    if $hotspot && [ ${wlan_country^^} == "US" ]; then
-        process="Set Keyboard Layout"
-        logit "${process} - Starting"
-        sudo sed -i "s/gb/${wlan_country,,}/g" /etc/default/keyboard &&
-            logit "Success - KeyBoard Layout changed to ${wlan_country,,}" ||
-            logit "${process} - Failed ~ verify contents of /etc/default/keyboard" "WARNING"
-        unset process
-    fi
+# -- these funcs rely on raspi-config
+do_locale() {
+    if [ -n "$locale" ]; then
+        if hash raspi-config 2>/dev/null; then
+            # -- update keyboard layout --
+            if ! grep XKBLAYOUT /etc/default/keyboard | grep -q ${locale,,}; then
+                process="Set Keyboard Layout"
+                logit "${process} - Starting"
+                sudo raspi-config nonint do_configure_keyboard ${locale,,} >/dev/null
 
-    # -- Commented out for now because it apparently didn't work as expected, get occasional error msg
-    # -- set locale -- # if US haven't verified others use same code as wlan_country
-    # if [ ${wlan_country^^} == "US" ]; then
-    #     process="Set locale"
-    #     logit "${process} - Starting"
-    #     sudo sed -i "s/GB/${wlan_country^^}/g" /etc/default/locale && logit "all locale vars changed to en_${wlan_country^^}.UTF-8" &&
-    #     grep -q LANGUAGE= /etc/default/locale || echo LANGUAGE=en_${wlan_country^^}.UTF-8 >> /etc/default/locale
-    #     grep -q LC_ALL= /etc/default/locale || echo LC_ALL=en_${wlan_country^^}.UTF-8 >> /etc/default/locale
-    #     ! $(grep -q GB /etc/default/locale) && grep -q LANGUAGE= /etc/default/locale && grep -q LC_ALL= /etc/default/locale &&
-    #         logit "${process} - Success" || logit "${process} - Failed ~ verify contents of /etc/default/locale" "WARNING"
-    #     unset process
-    # fi
+                grep XKBLAYOUT /etc/default/keyboard | grep -q ${locale,,} &&
+                    logit "Success - KeyBoard Layout changed to ${locale,,}" ||
+                    logit "${process} - Failed ~ verify contents of /etc/default/keyboard" "WARNING"
+                unset process
+            fi
+            # -- update locale --
+            new_locale=en_${locale^^}.UTF-8
+            cur_locale=$(locale | head -1 | cut -d'=' -f2)
+            if [ "$cur_locale" != "$new_locale" ]; then
+                process="Set locale $new_locale"
+                logit "$process - Starting"
+                res=$(sudo raspi-config nonint do_change_locale $new_locale 2>&1)
+                if [ "$?" -eq 0 ]; then
+                    logit "$process - Success. locale changed to $new_locale"
+                else
+                    logit "Error occured changing locale to $new_locale" "WARNING"
+                    echo -e $res >> $log_file
+                fi
+            fi
+        else
+            logit "locale change utilizes raspi-config which was not found.  Skipping" "WARNING"
+        fi
+    fi
 }
 
 get_serial_udev() {
@@ -823,19 +844,17 @@ get_serial_udev() {
 
 list_wlan_interfaces() {
     for dir in /sys/class/net/*/wireless; do
-        if [ -d "$dir" ]; then
-            basename "$(dirname "$dir")"
-        fi
+        [ -d "$dir" ] && basename "$(dirname "$dir")"
     done
 }
 
 do_wifi_country() {
     process="Set WiFi Country"
     IFACE="$(list_wlan_interfaces | head -n 1)"
-    [ -z "$IFACE" ] && IFACE=wlan0
+    [ -z "$IFACE" ] && logit "Skipping no WLAN interfaces found." && return 1
 
     if ! wpa_cli -i "$IFACE" status > /dev/null 2>&1; then
-        logit "Could not communicate with wpa_supplicant ~ normal if there is no wlan interface" "WARNING"
+        logit "Could not communicate with wpa_supplicant" "WARNING"
         # return 1
     fi
 
@@ -849,7 +868,7 @@ do_wifi_country() {
             logit "Error Code returned when setting WLAN country" "WARNING"
     fi
 
-    # -- always check to see if rfkill is blocking wifi --
+    # -- Always check to see if rfkill is blocking wifi --
     if hash rfkill 2> /dev/null; then
         rfkill unblock wifi
     fi
@@ -860,7 +879,7 @@ do_wifi_country() {
 custom_post_install_script() {
     if $do_consolepi_post || ! $upgrade; then
         found_path=$(get_staged_file_path "consolepi-post.sh")
-        if [[ $found_path ]]; then
+        if [ -n  "$found_path" ]; then
             process="Run Custom Post-install script"
             logit "Post Install Script ${found_path} Found. Executing"
             $found_path && logit "Post Install Script Complete No Errors" ||
@@ -868,6 +887,13 @@ custom_post_install_script() {
             unset process
         fi
     fi
+}
+
+# -- a debugging command to dump all ser vars to log file
+dump_vars() {
+    echo "---- Install Script var dump -----" >> $log_file
+    ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS >> $log_file
+    echo "---------" >> $log_file
 }
 
 # -- Display Post Install Message --
@@ -992,26 +1018,27 @@ update_main() {
         set_timezone
         disable_ipv6
         do_wifi_country
-        misc_imports
+        get_staged_imports
     fi
     install_ser2net
     dhcp_run_hook
-    ConsolePi_cleanup
+    ConsolePi_cleanup  # TODO change service to consolepi-cleanup
     $ovpn_enable && install_ovpn
     # TODO new flow below needs to be tested (accomodate case where wired true hotspot false during install)
+    $no_ipv6 || $hotspot || $wired_dhcp && gen_dhcpcd_conf
     if $hotspot || $wired_dhcp; then
         check_install_dnsmasq
         gen_dnsmasq_conf
-        gen_dhcpcd_conf
+        # gen_dhcpcd_conf
         $hotspot && install_autohotspot || disable_autohotspot
         $wired_dhcp && do_wired_dhcp
     fi
     do_blue_config
     do_consolepi_api
     do_consolepi_mdns
-    ! $upgrade && misc_stuff
+    ! $upgrade && do_locale
     do_resize
-    if ( [ ! -z "$skip_utils" ] && $skip_utils ) || $silent; then
+    if ( [ -n "$skip_utils" ] && $skip_utils ) || $silent; then
         logit -t "optional utilities installer" "utilities menu bypassed by config variable"
     else
         get_utils
@@ -1026,6 +1053,7 @@ update_main() {
     fi
     custom_post_install_script
     process=Complete
+    $local_dev && dump_vars
     if ! $silent; then
         post_install_msg
     else
@@ -1034,5 +1062,3 @@ update_main() {
     fi
     $silent && $do_reboot && echo -e "\n${_green}Install Complete${_norm}\n  system will reboot in 10 seconds (CTRL+C to abort reboot)" && sleep 10 && reboot
 }
-
-# ( set -o posix ; set ) | grep -v _xspecs | grep -v LS_COLORS # DEBUG Line

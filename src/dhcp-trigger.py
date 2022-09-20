@@ -20,7 +20,7 @@ import in_place
 import socket
 
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import utils, log, config # NoQA
+from consolepi import utils, log, config # type: ignore # NoQA
 
 ZTP_CLI_DEFAULT_TIMEOUT = config.static.get('ZTP_CLI_DEFAULT_TIMEOUT', 75)
 ZTP_CLI_LOGIN_MAX_WAIT = config.static.get('ZTP_CLI_LOGIN_MAX_WAIT', 60)
@@ -107,7 +107,7 @@ class Cli:
             if hostname.search(command):
                 new_hostname = command.split(" ")[-1]
                 if validhostname.search(new_hostname):
-                    self.prompt = new_hostname+"#"
+                    self.prompt = new_hostname + "#"
                     prompt = re.compile(r'\r\n' + re.escape(new_hostname) + '.*# ')
                 else:
                     self.fail_json(

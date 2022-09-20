@@ -370,7 +370,8 @@ systemd_diff_update() {
                 if [[ ! $(sudo systemctl list-unit-files ${1}.service | grep enabled) ]]; then
                     if [[ -f /etc/systemd/system/${1}.service ]]; then
                         # sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file  # TODO this seems unnecessary reason for it or just copy / paste error?
-                        sudo systemctl enable ${1}.service 1>/dev/null 2>> $log_file ||
+                        sudo systemctl enable ${1}.service 1>/dev/null 2>> $log_file &&
+                            logit "Success enable $1 service" ||
                             logit "FAILED to enable ${1} systemd service" "WARNING"
                     else
                         logit "Failed ${1}.service file not found in systemd after move"

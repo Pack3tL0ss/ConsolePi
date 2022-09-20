@@ -871,6 +871,14 @@ show_usage() {
     echo
 }
 
+
+missing_param(){
+    echo $1 requires an argument. >&2
+    show_usage
+    exit 1
+}
+
+
 parse_args() {
     # echo "DEBUG: ${@}"  ## -- DEBUG LINE --
     [[ ! "${@}" =~ "-C" ]] && [ -f consolepi-image-creator.conf ] && . consolepi-image-creator.conf
@@ -894,31 +902,36 @@ parse_args() {
                 shift
                 ;;
             -C) # override the default location script looks for config file (consolepi-image-creator.conf)
-                [ -f "$2" ] && . "$2" || ( echo -e "Config File $2 not found" && exit 1 )
-                shift 2
+                if [ -f "$2" ]; then
+                    . "$2"
+                    shift 2
+                else
+                    echo -e "Config File $2 not found"
+                    exit 1
+                fi
                 ;;
             *help)
                 show_usage $2
                 exit 0
                 ;;
             --ssid) # psk ssid to pre-configure on img
-                [ -n "$2" ] && ssid=$2 || ( echo $1 flag requires an argument >&2 ; exit 1 )
+                [ -n "$2" ] && ssid=$2 || missing_param $1
                 shift
                 ;;
             --psk) # psk of ssid (both must be specified)
-                [ -n "$2" ] && psk=$2 || ( echo $1 flag requires an argument >&2 ; exit 1 )
+                [ -n "$2" ] && psk=$2 || missing_param $1
                 shift
                 ;;
             --wlan-country) # for pre-configured ssid defaults to US
-                [ -n "$2" ] && wlan_country=$2 || ( echo $1 flag requires an argument >&2 ; exit 1 )
+                [ -n "$2" ] && wlan_country=$2 || missing_param $1
                 shift 2
                 ;;
             --priority) # for pre-configured ssid defaults to 0
-                [ -n "$2" ] && priority=$2 || ( echo $1 flag requires an argument >&2 ; exit 1 )
+                [ -n "$2" ] && priority=$2 || missing_param $1
                 shift 2
                 ;;
             --img-type) # Type of raspiOS to write to img, defaults to lite
-                [ -n "$2" ] && img_type=$2 || ( echo $1 flag requires an argument >&2 ; exit 1 )
+                [ -n "$2" ] && img_type=$2 || missing_param $1
                 shift 2
                 ;;
             --img-only) # Only deploy img (and enable SSH) no further pre-config beyond that
@@ -934,7 +947,7 @@ parse_args() {
                 shift
                 ;;
             --cmd-line) # arguments passed on to install script
-                [ -n "$2" ] && cmd_line=$2 || ( echo $1 flag requires an argument >&2 ; exit 1 )
+                [ -n "$2" ] && cmd_line=$2 || missing_param $1
                 shift 2
                 ;;
             --import) # import from this system to the image (if this is a ConsolePi)
@@ -950,11 +963,11 @@ parse_args() {
                 shift
                 ;;
             -h|--hostname) # preconfigure hostname on image.  Handy as installer looks for files in $HOME/consolepi-stage/$HOSTNAME
-                [ -n "$2" ] && img_hostname=$2 || ( echo $1 flag requires an argument >&2 ; exit 1 )
+                [ -n "$2" ] && img_hostname=$2 || missing_param $1
                 shift 2
                 ;;
             -p|--passwd) # consolepi pass need to check if set +H is needed to avoid special char issues !
-                [ -n "$2" ] && consolepi_pass=$2 || ( echo $1 flag requires an argument >&2 ; exit 1 )
+                [ -n "$2" ] && consolepi_pass=$2 || missing_param $1
                 shift 2
                 ;;
             *) ## -*|--*=) # unsupported flags

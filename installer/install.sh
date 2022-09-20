@@ -607,6 +607,12 @@ show_usage() {
     echo
 }
 
+missing_param(){
+    echo $1 requires an argument. >&2
+    show_usage
+    exit 1
+}
+
 process_args() {
     branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
     silent=false

@@ -603,10 +603,6 @@ spaces() {
     return 0;
 }
 
-missing_param(){
-    echo $1 requires an argument. >&2
-    exit 1
-}
 
 process_cmds() {
     reset_vars=('cmd' 'pmsg' 'fmsg' 'cmd_pfx' 'fail_lvl' '_silent' 'out' 'stop' 'err' 'showstart' 'pname' 'pexclude' 'pkg' 'do_apt_install')

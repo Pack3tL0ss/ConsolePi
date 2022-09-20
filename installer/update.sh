@@ -770,8 +770,8 @@ get_known_ssids() {
 
 # -- these funcs rely on raspi-config
 do_locale() {
-    if hash raspi-config 2>/dev/null; then
-        if [ -n "$locale" ]; then
+    if [ -n "$locale" ]; then
+        if hash raspi-config 2>/dev/null; then
             # -- update keyboard layout --
             if ! grep XKBLAYOUT /etc/default/keyboard | grep -q ${locale,,}; then
                 process="Set Keyboard Layout"
@@ -790,9 +790,15 @@ do_locale() {
                 process="Set locale $new_locale"
                 logit "$process - Starting"
                 res=$(sudo raspi-config nonint do_change_locale $new_locale 2>&1)
-                $? && logit "$process - Success. locale changed to $new_locale" ||
+                if [ "$?" -eq 0 ]; then
+                    logit "$process - Success. locale changed to $new_locale"
+                else
+                    logit "Error occured changing locale to $new_locale" "WARNING"
                     echo -e $res >> $log_file
+                fi
             fi
+        else
+            logit "locale change utilizes raspi-config which was not found.  Skipping" "WARNING"
         fi
     fi
 }

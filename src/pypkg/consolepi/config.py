@@ -384,4 +384,102 @@ class Config():
                     'line': _line
                 }
 
+    def get_ser2net_yaml(self):
+        '''Parse ser2net.yaml (ser2net 4.x) to extract connection info for serial adapters
+
+        retruns 2 level dict (empty dict if ser2net.conf not found or empty):
+            {
+                <adapter name or alias>: {
+                    "baud": <baud>,
+                    "dbits": <data bits>,
+                    "flow": "<flow control>",
+                    "parity": "<parity>",
+                    "sbits": <stop bits>,
+                    "port": <telnet port (ser2net),
+                    "logfile": None or logfile if defined in ser2net.conf
+                    "cmd": picocom command string used in menu
+                    "line": The config lines from ser2net.yaml
+                }
+            }
+        '''
+        ########################################################
+        # --- ser2net (4.x) config lines look like this ---
+        # TODO
+        ########################################################
+        # TODO detect ser2net version
+        if not utils.valid_file(self.static.get('SER2NET_FILE')):
+            log.warning('No ser2net.yaml file found unable to extract port definition', show=True)
+            return {}
+
+        ser2net_file = Path(self.static.get('SER2NET_FILE'))
+        ser2net_conf = {}
+        trace_files = {}
+        raw = ser2net_file.read_text()
+        raw_mod = "\n".join([line if not line.startswith("connection") else f"{line.split('&')[-1]}:" for line in raw.splitlines()])
+        ser_dict = yaml.safe_load(raw_mod)
+
+        # TODO need to handle duplicate keys supported by ser2net.yaml (raw_mod)
+        # # Set all baud rates to 115200n81 by default.
+        # default:
+        #   name: speed
+        #   value: 115200n81
+
+        # # Enable CLOCAL by default
+        # default:
+        #   name: local
+        #   value: true
+        #   class: serialdev
+        for k, v in ser_dict.items():
+            if not isinstance(v, dict):
+                continue
+            if "accepter" not in v or "connector" not in v:
+                continue
+
+            con_dict = {f"connection: &{k}": v}
+            tty_port = v["accepter"].split(",")[-1]
+            _connector = v.get["connector"]
+            _connector_list = [part.strip() for part in _connector.split(",")]
+            tty_dev = _connector_list[1]
+            baud = int("".join([n for n in _connector_list[2] if n.isdigit()]))
+            parity = _connector_list[2][-3]
+            flow = "n"  # TODO what is format in ser2net.yaml
+            dbits = int(_connector_list[2][-2])
+            sbits = int(_connector_list[2][-1])
+            if dbits < 5 or dbits > 8:
+                log.warning(
+                    f'{tty_dev}: Invalid value for "data bits" found in ser2net.conf falling back to 8',
+                    show=True)
+                dbits = 8
+            keys = [k for k in v.keys() if k.startswith("trace")]
+            logfile = log_ptr = None if not keys else v[keys[0]]  # TODO is more than one possible
+
+            # parse TRACEFILE defined in ser2net.conf
+            cmd_base = f'picocom {tty_dev} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}'
+            if self.picocom_ver > 1:  # picocom ver 1.x in Stretch doesn't support "--stopbits"
+                cmd_base = cmd_base + f' --stopbits {sbits}'
+            if logfile:
+                logfile = trace_files[logfile]
+                logfile = logfile.replace('\\p', str(tty_port)).replace('\\d', tty_dev.split('/')[-1])
+                logfile = logfile.replace('\\s', f'{baud}_{dbits}{parity.upper()}{sbits}')
+                logfile = logfile.split('\\')[0] + '-{{timestamp}}.log'  # + time.strftime('%H.%M.log')
+                cmd = cmd_base + f' --logfile {logfile}'
+                utils.do_shell_cmd(f"mkdir -p {'/'.join(logfile.split('/')[0:-1])}")
+                utils.set_perm('/'.join(logfile.split('/')[0:-1]))
+            else:
+                cmd = cmd_base
+
+            # update dict with values for this device
+            ser2net_conf[tty_dev] = {
+                'port': tty_port,
+                'baud': baud,
+                'dbits': dbits,
+                'parity': parity,
+                'flow': flow,
+                'sbits': sbits,
+                'logfile': logfile,
+                'log_ptr': log_ptr,
+                'cmd': cmd,
+                'line': json.dumps(con_dict, indent=4)
+            }
+
         return ser2net_conf

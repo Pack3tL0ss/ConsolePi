@@ -470,7 +470,7 @@ class ConsolePiMenu(Rename):
     def dli_menu(self, calling_menu: str = 'power_menu'):
         cpi = self.cpi
         pwr = cpi.pwr
-        menu = Menu()
+        menu = Menu("dli_menu")
         menu.legend_options = {
             'power': ['p', 'Power Control Menu'],
             'refresh': ['r', 'Refresh'],
@@ -1099,7 +1099,7 @@ class ConsolePiMenu(Rename):
         cpi = self.cpi
         local = cpi.local
         rem = cpi.remotes.data
-        menu = Menu()
+        menu = Menu("rshell_menu")
         menu.legend_options = {
             'refresh': ['r', 'Refresh'],
             'back': ['b', 'Back'],

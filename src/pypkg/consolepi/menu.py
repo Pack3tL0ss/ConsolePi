@@ -526,7 +526,16 @@ class Menu:
         max_section = max([len(section) + addl_rows for section in _body])
         for idx, _section in enumerate(_body):
             if subs:
-                sec = self.subs_in.index(subs[idx])
+                try:
+                    sec = self.subs_in.index(subs[idx])
+                except ValueError as e:
+                    log.debug(f"{e.__class__.__name__}: {e}", show=log.DEBUG or config.debug)
+                    match = [i for i, x in enumerate(self.subs_in) if x.startswith(subs[idx].split(" @")[0])]
+                    if match and len(match) == 1:
+                        sec = match[0]
+                        self.subs_in[sec] = subs[idx]  # update original all subs list to include updated sub entry
+                    else:
+                        sec = idx
                 sub = subs[idx]
             else:
                 sec = idx

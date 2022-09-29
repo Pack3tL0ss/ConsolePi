@@ -384,6 +384,8 @@ class Config():
                     'line': _line
                 }
 
+        return ser2net_conf
+
     def get_ser2net_yaml(self):
         '''Parse ser2net.yaml (ser2net 4.x) to extract connection info for serial adapters
 

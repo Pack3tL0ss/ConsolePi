@@ -35,9 +35,13 @@ dots() {
 }
 
 do_error() {
-    local status=$1
-    if [[ $status != 0 ]]; then
-        echo 'Failed!!' ; echo -e "\n"
+    if [ -z "$1" ] || [ "$1" -gt 0 ]; then
+        if [ -z "$1" ]; then
+            echo -e "Error: No rc sent to do_error\n"
+        else
+            echo 'Failed!!' ; echo -e "\n"
+        fi
+        [ -n "$2" ] && echo "$2"
         [[ $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
         popd > /dev/null 2>&1
         dump_log true
@@ -227,7 +231,7 @@ show_help() {
     line_dots "-S|--stash" "Stashes files previoulsy synced via SFTP to clean local working dir for git pull"
     line_dots "-P|--perms" "Force a Permissions Check/Fix *prior* to pull So member of consolepi group can pull without sudo (script will do this now anyway then retry pull if necessary)"
     line_dots "--me" "Applies only if using --local.  Alternative to --rem-user. Uses the current user ($iam) to access the remote system via SFTP."
-    line_dots "-h|--local-host <ip or host>" "Override the default local dev ConsolePi ($loc_pull_host)"
+    line_dots "-H|--local-host <ip or host>" "Override the default local dev ConsolePi ($loc_pull_host)"
     line_dots "-u|--rem-user <username>" "Override the default user ($rem_user) used during local_pull (sftp to $loc_pull_host)"
     echo
 }
@@ -279,7 +283,7 @@ process_args() {
             rem_user=$iam
             shift
             ;;
-        -h|--local-host) # override default local_pull_host (consolepi-dev)
+        -H|--local-host) # override default local_pull_host (consolepi-dev)
             if [ -n "$2" ]; then
                 loc_pull_host=$2
                 shift 2
@@ -297,6 +301,10 @@ process_args() {
                 exit 1
             fi
           ;;
+        -h|-*help)
+            show_usage
+            exit 0
+            ;;
         *)
           show_help $1
           exit 1

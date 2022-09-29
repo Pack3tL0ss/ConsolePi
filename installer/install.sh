@@ -680,7 +680,7 @@ process_args() {
                 btmode=pan
                 shift
                 ;;
-            -h|--hostname)
+            -H|--hostname)
                 [ -n "$2" ] && hostname=$2 || missing_param "$@"
                 shift 2
                 ;;
@@ -710,7 +710,7 @@ process_args() {
                 shift
                 ;;
             # -- \silent install options --
-            -*help|help)
+            -h|-*help)
                 show_usage $2
                 exit 0
                 ;;

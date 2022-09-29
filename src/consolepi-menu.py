@@ -11,7 +11,7 @@ from pprint import pprint
 from collections import OrderedDict as od
 from typing import Union
 from halo import Halo
-from rich.console import Console
+# from rich.console import Console
 
 # --// ConsolePi imports \\--
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
@@ -33,15 +33,15 @@ class Actions():
         pass
 
 
-console = Console()
+# console = Console()
 
 
 class Choice():
     def __init__(self, prompt: str, clear=False):
         if not clear:
-            console.begin_capture()
-            console.print(f"[bright_green]{prompt}[reset]", end="")
-            prompt = console.end_capture()
+            # console.begin_capture()
+            # console.print(f"[bright_green]{prompt}[/]", end="")
+            # prompt = console.end_capture()
             ch = input(prompt)
             self.lower = ch.lower()
             self.orig = ch
@@ -448,6 +448,7 @@ class ConsolePiMenu(Rename):
             if ch.lower == 'debug':
                 log.show(f'debug toggled {self.states[config.debug]} --> {self.states[not config.debug]}')
                 config.debug = not config.debug
+                log.DEBUG = not log.DEBUG
                 if config.debug:
                     log.setLevel(10)  # logging.DEBUG = 10
                 ch = Choice(prompt, clear=True)

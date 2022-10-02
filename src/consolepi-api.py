@@ -97,6 +97,7 @@ app = FastAPI(title='ConsolePi.API',
 def log_request(request: Request, route: str):
     log.info('[NEW API RQST IN] {} Requesting -- {} -- Data via API'.format(request.client.host, route))
 
+
 #  -- Haven't yet cracked the code on properly updating swagger-ui with examples and schema --
 # @app.get('/api/v1.0/adapters', responses={200: {'model': Adapters}})
 @app.get('/api/v1.0/adapters')

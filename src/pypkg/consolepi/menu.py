@@ -442,6 +442,7 @@ class Menu:
                 self.page.prev_slice = {}
                 self.reverse = False
 
+        # This sets the menu items (the numbers the user selects) as a list of List[int]
         if not self.items_in or refresh:
             x = 1
             self.items_in = []
@@ -807,7 +808,7 @@ class Menu:
             def get_cols(self, body_avail_rows: int = None):
                 body_avail_rows = self.body_avail_rows if body_avail_rows is None else body_avail_rows
                 # first pass to determine what is possible then break, second pass populates menu
-                self.addl_rows = addl_rows
+                self.addl_rows = addl_rows  # FIXME why does addl_rows have value here
                 for _pass in range(2):
                     col_lines = []
                     section_slices = {}
@@ -818,14 +819,14 @@ class Menu:
                     for idx, lines in enumerate(body):
                         rows = self.rows[idx]
 
-                        if self.body_avail_rows - len(col_lines) >= 3 + addl_rows:
-                            _end = self.body_avail_rows - len(col_lines) - addl_rows
+                        if self.body_avail_rows - len(lines) >= 3 + addl_rows:
+                            _end = self.body_avail_rows - len(lines) - addl_rows
                         else:
                             _end = self.body_avail_rows - addl_rows
 
                         # -- break sections with too many rows to fit tty into list of slices for each col that fit into tty
                         if 0 < _end < len(lines):
-                            _slice = [slice(0, _end)]
+                            _slice = [slice(0, _end, 1)]
                             while len([lines[s] for s in _slice]) > self.body_avail_rows:
                                 _start, _end = _end, _end + (self.body_avail_rows - addl_rows)
                                 _slice += [slice(_start, _end, 1)]
@@ -979,7 +980,7 @@ class Menu:
     def toggle_legend(self):
         '''Toggles Display of the Legend.
         '''
-        self.page.legend.hide = not self.page.legend.hide
+        config.hide_legend = self.page.legend.hide = not self.page.legend.hide
         # if self.page.legend.hide:
         #     self.page.legend.lines = []
         #     self.page.legend.rows, self.page.legend.cols = 0, 0

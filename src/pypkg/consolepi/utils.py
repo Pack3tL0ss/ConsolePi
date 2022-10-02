@@ -29,9 +29,9 @@ class Convert:
             mac = '0'
         self.clean = ''.join([c for c in list(mac) if c in string.hexdigits])
         self.ok = True if len(self.clean) == 12 else False
-        self.cols = ':'.join(self.clean[i:i+2] for i in range(0, 12, 2))
-        self.dashes = '-'.join(self.clean[i:i+2] for i in range(0, 12, 2))
-        self.dots = '.'.join(self.clean[i:i+4] for i in range(0, 12, 4))
+        self.cols = ':'.join(self.clean[i:i + 2] for i in range(0, 12, 2))
+        self.dashes = '-'.join(self.clean[i:i + 2] for i in range(0, 12, 2))
+        self.dots = '.'.join(self.clean[i:i + 4] for i in range(0, 12, 4))
         self.tag = f"ztp-{self.clean[-4:]}"
         self.dec = int(self.clean, 16) if self.ok else 0
 
@@ -356,7 +356,7 @@ class Utils:
                     proc.wait()
                     return err
                 except (TimeoutExpired, TimeoutError):
-                    return f"Timed Out.  Host is likely unreachable."
+                    return "Timed Out.  Host is likely unreachable."
 
     def check_install_apt_pkg(self, pkg: str, verify_cmd=None):
         verify_cmd = "which {}".format(pkg) if verify_cmd is None else verify_cmd
@@ -394,18 +394,18 @@ class Utils:
                 'r': 0,  # stat.S_IRUSR,
                 'w': 0,  # stat.S_IWUSR,
                 'x': stat.S_IXUSR
-                },
+            },
             'group': {
                 'r': 0,  # stat.S_IRGRP,
                 'w': 0,  # stat.S_IWGRP,
                 'x': stat.S_IXGRP
-                },
+            },
             'other': {
                 'r': stat.S_IROTH,
                 'w': stat.S_IWOTH,
                 'x': stat.S_IXOTH
-                }
             }
+        }
         # -- by default set group ownership to consolepi and rw for user and group
         gid = grp.getgrnam("consolepi").gr_gid
         if os.geteuid() == 0:

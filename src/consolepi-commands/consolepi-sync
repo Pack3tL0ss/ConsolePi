@@ -217,7 +217,7 @@ do_reload_svcs() {
     echo
 }
 
-show_help() {
+show_usage() {
     echo
     [[ ! "$1" =~ ^(help|-help|--help)$ ]] && echo "Invalid Input $1"
     echo -e "\nBy default this Script will do a 'git pull' and if necessary fix permissions so members of the consolepi group can pull without sudo\n"
@@ -306,7 +306,7 @@ process_args() {
             exit 0
             ;;
         *)
-          show_help $1
+          show_usage $1
           exit 1
           ;;
       esac

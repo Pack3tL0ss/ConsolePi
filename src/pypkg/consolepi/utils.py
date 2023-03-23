@@ -1,5 +1,7 @@
 #!/etc/ConsolePi/venv/bin/python3
 
+from __future__ import annotations
+
 import string
 import subprocess
 import shlex
@@ -483,6 +485,23 @@ class Utils:
             return 0
         else:
             return float(x)
+
+    def get_ser2net_ver(self) -> str | None:
+        """return version of picocom"""
+        x = subprocess.run(
+            "which ser2net >/dev/null && ser2net -v | cut -d' ' -f3",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+        )
+        x = x.stdout.decode("UTF-8").strip()
+        if not x:
+            # print("\nConsolePi Menu Requires picocom which doesn't appear to be installed")
+            # print("Install with 'sudo apt install picocom'")
+            # sys.exit(1)
+            return
+        else:
+            return x
 
     def verify_telnet_installed(self, host_dict):
         """Install TELNET pkg if not already and TELNET hosts are defined

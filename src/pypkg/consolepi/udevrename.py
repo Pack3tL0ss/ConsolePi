@@ -133,18 +133,18 @@ class Rename():
                     id_vendor = _tty.get('id_vendor')  # NoQA pylint: disable=unused-variable
                     id_serial = _tty.get('id_serial_short')
                     id_ifnum = _tty.get('id_ifnum')
-                    id_path = _tty.get('id_path')  # NoQA
+                    id_path = _tty.get('id_path')  # NoQA pylint: disable=unused-variable
                     lame_devpath = _tty.get('lame_devpath')
-                    root_dev = _tty.get('root_dev')
+                    root_dev = _tty.get('root_dev')  # NoQA pylint: disable=unused-variable
                 else:
                     return 'ERROR: Adapter no longer found'
 
                 # -- // ADAPTERS WITH ALL ATTRIBUTES AND GPIO UART (TTYAMA) \\ --
                 if id_prod and id_serial and id_vendorid:
                     if id_serial not in devs['_dup_ser']:
-                        udev_line = ('ATTRS{{idVendor}}=="{}", ATTRS{{idProduct}}=="{}", '
-                                     'ATTRS{{serial}}=="{}", SYMLINK+="{}"'.format(
-                                        id_vendorid, id_prod, id_serial, to_name))
+                        udev_line = (
+                            'ATTRS{{idVendor}}=="{}", ATTRS{{idProduct}}=="{}", ATTRS{{serial}}=="{}", SYMLINK+="{}"'.format(id_vendorid, id_prod, id_serial, to_name)
+                        )
 
                         error = None
                         while not error:
@@ -156,16 +156,15 @@ class Rename():
                     # -- // MULTI-PORT ADAPTERS WITH COMMON SERIAL (different ifnums) \\ --
                     else:
                         # SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", ATTRS{serial}=="FT4XXXXP", GOTO="FTXXXXP"  # NoQA
-                        udev_line = ('ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", '
-                                     'ATTRS{{serial}}=="{2}", GOTO="{2}"'.format(
-                                      id_vendorid, id_prod, id_serial))
+                        udev_line = (
+                            'ATTRS{{idVendor}}=="{0}", ATTRS{{idProduct}}=="{1}", ATTRS{{serial}}=="{2}", GOTO="{2}"'.format(id_vendorid, id_prod, id_serial)
+                        )
 
                         error = None
                         while not error:
                             error = self.add_to_udev(udev_line, '# END BYPORT-POINTERS')
                             # ENV{ID_USB_INTERFACE_NUM}=="00", SYMLINK+="FT4232H_port1", GOTO="END"
-                            udev_line = ('ENV{{ID_USB_INTERFACE_NUM}}=="{}", SYMLINK+="{}"'.format(
-                                    id_ifnum, to_name))
+                            udev_line = ('ENV{{ID_USB_INTERFACE_NUM}}=="{}", SYMLINK+="{}"'.format(id_ifnum, to_name))
                             error = self.add_to_udev(udev_line, '# END BYPORT-DEVS', label=id_serial)
                             error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
                                                          parity=parity, flow=flow)
@@ -176,8 +175,7 @@ class Rename():
                         devname = devs[f'/dev/{from_name}'].get('devname', '')
                         # -- // local ttyAMA adapters \\ --
                         if 'ttyAMA' in devname:
-                            udev_line = ('KERNEL=="{}", SYMLINK+="{}"'.format(
-                                            devname.replace('/dev/', ''), to_name))
+                            udev_line = ('KERNEL=="{}", SYMLINK+="{}"'.format(devname.replace('/dev/', ''), to_name))
 
                             # Testing simplification not using separate file for ttyAMA
                             error = None
@@ -324,6 +322,7 @@ class Rename():
         Returns:
             {str|None} -- Returns error text if an error occurs or None if no issues.
         '''
+        # TODO add rename support for ser2net.yaml (v4)
         # don't add the new entry to ser2net if one already exists for the alias
         if from_name != to_name and config.ser2net_conf.get(f"/dev/{to_name}"):
             log.info(f"ser2net: {to_name} already mapped to port {config.ser2net_conf[f'/dev/{to_name}'].get('port')}", show=True)

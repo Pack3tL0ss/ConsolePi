@@ -450,6 +450,7 @@ class Config():
 
             con_dict = {f"connection: &{k}": v}
             tty_port = v["accepter"].split(",")[-1]
+            tty_port = 0 if not tty_port.isdigit() else int(tty_port)
             _connector = v["connector"]
             _connector_list = [part.strip() for part in _connector.split(",")]
             tty_dev = _connector_list[1]

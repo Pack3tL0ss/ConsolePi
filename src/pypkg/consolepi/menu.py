@@ -575,9 +575,9 @@ class Menu:
                 elif (len(col_lines) + len(_section) + addl_rows) >= self.page.body_avail_rows:
                     if self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.page.body_avail_rows:
                         _end = len(_section)
-                    else:
-                        _end = self.page.body_avail_rows - (len(col_lines) + addl_rows)
-                elif len(_section) + addl_rows <= self.page.body_avail_rows:
+                    else:                                       # HACK the -1 below is a hack
+                        _end = self.page.body_avail_rows - (len(col_lines) + addl_rows) - 1  # FIXME avail rows 52 cols 190 hide legend.  wsl menu 108 through sec 15 on 1st page 2nd page sec 16 gets stripped to slice(12, 13, 1) rather than (0, 13, 1)
+                elif len(_section) + addl_rows <= self.page.body_avail_rows:             # It's the first col of the next page shouldn't be stripped.  _end should be 11 it's being set to 12 body_avail_rows is 45 disregarding space at top and bot body is 43
                     _end = len(_section)
                 else:
                     _end = self.page.body_avail_rows - len(col_lines) - addl_rows
@@ -767,7 +767,7 @@ class Menu:
                 self.pages = {}
                 self.col_width: int = 0
                 self.page_width: int = 0
-                self.vert_cols: int = 0
+                # self.vert_cols: int = 0  # TODO Remove once verified no side effects
                 self.page: int = 1
                 self.body = body  # original unformatted data
                 self.subs = subs
@@ -865,8 +865,8 @@ class Menu:
                                 else:
                                     self.pager_write_other_col(col_lines, page=self.page)
 
-                                if self.page == self.cur_page:
-                                    self.vert_cols += 1
+                                # if self.page == self.cur_page:
+                                #     self.vert_cols += 1
 
                                 if tty.cols and self.page_width + self.col_width > tty.cols:
                                     self.page += 1
@@ -907,8 +907,8 @@ class Menu:
                 else:
                     self.pager_write_other_col(col_lines, page=self.page)  # type: ignore
 
-                if self.page == self.cur_page:
-                    self.vert_cols += 1
+                # if self.page == self.cur_page:
+                #     self.vert_cols += 1
 
                 if self.page == self.cur_page:
                     self.this_slice = {**self.this_slice, **section_slices}  # type: ignore

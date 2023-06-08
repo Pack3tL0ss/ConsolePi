@@ -17,7 +17,7 @@ class Rename():
         self.flow_pretty = {'x': 'Xon/Xoff', 'h': 'RTS/CTS', 'n': 'No'}
         self.rules_file = config.static.get('RULES_FILE', '/etc/udev/rules.d/10-ConsolePi.rules')
         self.ttyama_rules_file = config.static.get('TTYAMA_RULES_FILE', '/etc/udev/rules.d/11-ConsolePi-ttyama.rules')
-        self.ser2net_file = config.static.get('SER2NET_FILE', '/etc/ser2net.conf')
+        self.ser2net_file = config.static.get('SER2NET_FILE', '/etc/ser2net.conf')  # TODO Not Used Remove once verified all refs switched to config.ser2net_file
         self.reserved_names = ['ttyUSB', 'ttyACM', 'ttyAMA']
 
     # --- // START MONSTER RENAME FUNCTION \\ --- # TODO maybe break this up a bit
@@ -267,9 +267,11 @@ class Rename():
                     error = self.do_ser2net_line(from_name=from_name, to_name=to_name, baud=baud, dbits=dbits,
                                                  parity=parity, flow=flow)
                 else:
-                    return [error.split('\n'), 'Failed to change {} --> {} in {}'.format(from_name, to_name, self.ser2net_file)]
+                    return [error.split('\n'), 'Failed to change {} --> {} in {}'.format(from_name, to_name, config.ser2net_file)]
 
-            if not error:
+            if error:
+                log.error(error, show=True)
+            else:
                 # Update adapter variables with new_name
                 local.adapters[f'/dev/{to_name}'] = local.adapters[f'/dev/{from_name}']
                 local.adapters[f'/dev/{to_name}']['config']['port'] = config.ser2net_conf[f'/dev/{to_name}'].get('port', 0)
@@ -354,37 +356,55 @@ class Rename():
                 log_ptr = ''
         else:
             new_entry = True
-            if utils.valid_file(self.ser2net_file):
+            if utils.valid_file(config.ser2net_file):
                 ports = [a['port'] for a in config.ser2net_conf.values() if 7000 < a.get('port', 0) <= 7999]
                 next_port = 7001 if not ports else int(max(ports)) + 1
             else:
                 next_port = 7001
-                error = utils.do_shell_cmd(f'sudo cp {self.ser2net_file} /etc/', handle_errors=False)
+                error = utils.do_shell_cmd(f'sudo cp {config.ser2net_file} /etc/', handle_errors=False)
                 if error:
-                    log.error(f'Rename Menu Error while attempting to cp ser2net.conf from src {error}')
+                    log.error(f'Rename Menu Error while attempting to cp ser2net.conf from src {error}', show=True)
                     return error  # error added to display in calling method
 
-        ser2net_line = ('{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} '
-                        '{sbits}STOPBIT {flow} banner {log_ptr}'.format(
-                            telnet_port=next_port,
-                            alias=to_name,
-                            baud=baud,
-                            dbits=dbits,
-                            sbits=sbits,
-                            parity=ser2net_parity[parity],
-                            flow=ser2net_flow[flow],
-                            log_ptr=log_ptr))
+        if config.ser2net_ver.startswith("4"):
+            ser2net_line = f"""connection: &{to_name}
+  accepter: tcp,{next_port}
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
+  connector: serialdev,
+             /dev/{to_name},
+             {baud}{parity}{dbits}{sbits},
+             local
+"""
+            if flow != "n":
+                ser2net_line = ser2net_line.rstrip("\n")
+                ser2net_line = f'{ser2net_line},\n            {ser2net_flow[flow].lower()}\n'
+        else:
+            ser2net_line = (
+                '{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} {sbits}STOPBIT {flow} banner {log_ptr}'.format(
+                    telnet_port=next_port,
+                    alias=to_name,
+                    baud=baud,
+                    dbits=dbits,
+                    sbits=sbits,
+                    parity=ser2net_parity[parity],
+                    flow=ser2net_flow[flow],
+                    log_ptr=log_ptr)
+            )
 
         # -- // Append to ser2net.conf \\ --
         if new_entry:
-            error = utils.append_to_file(self.ser2net_file, ser2net_line)
+            error = utils.append_to_file(config.ser2net_file, ser2net_line)
         # -- // Rename Existing Definition in ser2net.conf \\ --
         # -- for devices with existing definitions cur_line is the existing line
         else:
             ser2net_line = ser2net_line.strip().replace('/', r'\/')
             cur_line = cur_line.replace('/', r'\/')
             cmd = "sudo sed -i 's/^{}$/{}/'  {}".format(
-                cur_line, ser2net_line, self.ser2net_file
+                cur_line, ser2net_line, config.ser2net_file
             )
             error = utils.do_shell_cmd(cmd, shell=True)
 

@@ -487,7 +487,7 @@ class Utils:
             return float(x)
 
     def get_ser2net_ver(self) -> str | None:
-        """return version of picocom"""
+        """return version of ser2net"""
         x = subprocess.run(
             "which ser2net >/dev/null && ser2net -v | cut -d' ' -f3",
             stdout=subprocess.PIPE,
@@ -495,13 +495,8 @@ class Utils:
             shell=True,
         )
         x = x.stdout.decode("UTF-8").strip()
-        if not x:
-            # print("\nConsolePi Menu Requires picocom which doesn't appear to be installed")
-            # print("Install with 'sudo apt install picocom'")
-            # sys.exit(1)
-            return
-        else:
-            return x
+
+        return "" if not x else x
 
     def verify_telnet_installed(self, host_dict):
         """Install TELNET pkg if not already and TELNET hosts are defined

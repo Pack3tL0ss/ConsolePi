@@ -283,6 +283,9 @@ class Config():
 
         return host_dict
 
+    def get_ser2net(self):
+        return self.get_ser2netv4() if self.ser2net_ver.startswith("4") else self.get_ser2netv3()
+
     def get_ser2netv3(self):
         '''Parse ser2net.conf to extract connection info for serial adapters
 

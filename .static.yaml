@@ -2,7 +2,7 @@
 # This file should not be modified.  Static variables/paths used throughout ConsolePi
 # Versioning = YYYY.Major.Patch/Minor
 ---
-CONSOLEPI_VER: 2022-3.2
+CONSOLEPI_VER: 2022-4.0
 INSTALLER_VER: 61
 CFG_FILE_VER: 10
 CONFIG_FILE_YAML: /etc/ConsolePi/ConsolePi.yaml

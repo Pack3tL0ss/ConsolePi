@@ -35,6 +35,19 @@ class Config():
         self.ztp = self.cfg_yml.get('ZTP', {})
         self.ovrd = self.cfg_yml.get('OVERRIDES', {})
         self.do_overrides()
+        self.picocom_ver = utils.get_picocom_ver()
+        self.ser2net_ver = utils.get_ser2net_ver()
+        if utils.valid_file("/etc/ser2net.conf"):
+            self.ser2net_file = Path("/etc/ser2net.conf")
+            self.ser2net_conf = self.get_ser2netv3()
+        elif utils.valid_file("/etc/ser2net.yaml"):
+            self.ser2net_file = Path("/etc/ser2net.yaml")
+            self.ser2net_conf = self.get_ser2netv4()
+        else:
+            self.ser2net_file = None
+            self.ser2net_conf = {}
+            log.warning("No ser2net configuration found to extract serial port settings from, using defaults", show=True)
+
         self.debug = self.cfg.get('debug', False)
         self.cloud = self.cfg.get('cloud', False)
         self.cloud_svc = self.cfg.get('cloud_svc', 'gdrive')
@@ -44,8 +57,6 @@ class Config():
             self.loc_user = os.getenv('SUDO_USER', os.getenv('USER'))
 
         self.linked_exists = False  # updated in get_outlets_from_file()
-        self.picocom_ver = utils.get_picocom_ver()
-        self.ser2net_conf = self.get_ser2net()
         self.hosts = self.get_hosts()
         self.power = self.cfg.get('power', False)
         self.do_dli_menu = None  # updated in get_outlets_from_file()
@@ -273,6 +284,9 @@ class Config():
         return host_dict
 
     def get_ser2net(self):
+        return self.get_ser2netv4() if self.ser2net_ver.startswith("4") else self.get_ser2netv3()
+
+    def get_ser2netv3(self):
         '''Parse ser2net.conf to extract connection info for serial adapters
 
         retruns 2 level dict (empty dict if ser2net.conf not found or empty):
@@ -295,101 +309,107 @@ class Config():
         # ... 9600 NONE 1STOPBIT 8DATABITS XONXOFF LOCAL -RTSCTS
         # ... 9600 8DATABITS NONE 1STOPBIT banner
         ########################################################
-        # utils = self.utils
-        if not utils.valid_file(self.static.get('SER2NET_FILE')):
-            log.warning('No ser2net.conf file found unable to extract port definition', show=True)
-            return {}
+        if self.ser2net_ver and int(self.ser2net_ver[0]) == 4:
+            log.warning("You are running ser2net v4 which uses /etc/ser2net.yaml for it's config.  However the v3 config /etc/ser2net.conf was found.", show=True)
+            log.warning("The menu will continue to use ser2net.conf if present in case ser2net config has not been migrated.", show=True)
+            log.warning("/etc/ser2net.yaml will be used to extract serial settings once /etc/ser2net.conf is removed", show=True)
 
         ser2net_conf = {}
         trace_files = {}
-        with open(self.static['SER2NET_FILE']) as cfg:
-            for line in cfg:
-                if 'TRACEFILE:' in line:
-                    line = line.split(':')
-                    trace_files[line[1]] = line[2]
-                    continue
-                elif not line[0].isdigit():
-                    continue
-                _line = line.strip('\n')
+        cfg = self.ser2net_file.read_text()
+        for line in cfg.splitlines():
+            if line.lstrip().startswith("#"):
+                continue
+            elif not line.strip():
+                continue
+            elif 'TRACEFILE:' in line:
                 line = line.split(':')
-                tty_port = int(line[0])
-                tty_dev = line[3]
+                trace_files[line[1]] = line[2]
+                continue
+            elif not line[0].isdigit():
+                continue
+            _line = line.strip('\n')
+            line = line.split(':')
+            tty_port = int(line[0])
+            tty_dev = line[3]
 
-                # Reset defaults
-                # baud is used to determine parsing failure
-                dbits = 8
-                parity = 'n'
-                flow = 'n'
-                sbits = 1
-                logfile = None
-                log_ptr = None
+            # Reset defaults
+            # baud is used to determine parsing failure
+            dbits = 8
+            parity = 'n'
+            flow = 'n'
+            sbits = 1
+            logfile = None
+            log_ptr = None
 
-                connect_params = line[4].replace(',', ' ').split()
-                baud = None
-                for option in connect_params:
-                    if option in self.static.get('VALID_BAUD',
-                                                 ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']):
-                        baud = int(option)
-                    elif 'DATABITS' in option:
-                        dbits = int(option.replace('DATABITS', ''))  # int 5 - 8
-                        if dbits < 5 or dbits > 8:
-                            log.warning(
-                                f'{tty_dev}: Invalid value for "data bits" found in ser2net.conf falling back to 8',
-                                show=True)
-                            dbits = 8
-                    elif option in ['EVEN', 'ODD', 'NONE']:
-                        parity = option[0].lower()  # converts to e o n used by picocom
-                    elif option == 'XONXOFF':
-                        flow = 'x'
-                    elif option == 'RTSCTS':
-                        flow = 'h'
-                    elif 'STOPBIT' in option:   # Not used by picocom
-                        sbits = int(option[0]) if option[0].isdigit else 1
-                    elif 'tb=' in option or 'tr=' in option or 'tw=' in option:
-                        log_ptr = option
-                        logfile = option.split('=')[1]
+            connect_params = line[4].replace(',', ' ').split()
+            baud = None
+            for option in connect_params:
+                if option in self.static.get(
+                    'VALID_BAUD',
+                    ['300', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']
+                ):
+                    baud = int(option)
+                elif 'DATABITS' in option:
+                    dbits = int(option.replace('DATABITS', ''))  # int 5 - 8
+                    if dbits < 5 or dbits > 8:
+                        log.warning(
+                            f'{tty_dev}: Invalid value for "data bits" found in ser2net.conf falling back to 8',
+                            show=True)
+                        dbits = 8
+                elif option in ['EVEN', 'ODD', 'NONE']:
+                    parity = option[0].lower()  # converts to e o n used by picocom
+                elif option == 'XONXOFF':
+                    flow = 'x'
+                elif option == 'RTSCTS':
+                    flow = 'h'
+                elif 'STOPBIT' in option:   # Not used by picocom
+                    sbits = int(option[0]) if option[0].isdigit else 1
+                elif 'tb=' in option or 'tr=' in option or 'tw=' in option:
+                    log_ptr = option
+                    logfile = option.split('=')[1]
 
-                # Use baud to determine if options were parsed correctly
-                if baud is None:
-                    log.warning(f'{tty_dev} found in ser2net but unable to parse baud falling back to {self.default_baud}',
-                                show=True)
-                    baud = self.default_baud
+            # Use baud to determine if options were parsed correctly
+            if baud is None:
+                log.warning(f'{tty_dev} found in ser2net but unable to parse baud falling back to {self.default_baud}',
+                            show=True)
+                baud = self.default_baud
 
-                # parse TRACEFILE defined in ser2net.conf
-                cmd_base = f'picocom {tty_dev} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}'
-                if self.picocom_ver > 1:  # picocom ver 1.x in Stretch doesn't support "--stopbits"
-                    cmd_base = cmd_base + f' --stopbits {sbits}'
-                if logfile:
-                    logfile = trace_files[logfile]
-                    logfile = logfile.replace('\\p', str(tty_port)).replace('\\d', tty_dev.split('/')[-1])
-                    logfile = logfile.replace('\\s', f'{baud}_{dbits}{parity.upper()}{sbits}')
-                    logfile = logfile.split('\\')[0] + '-{{timestamp}}.log'  # + time.strftime('%H.%M.log')
-                    cmd = cmd_base + f' --logfile {logfile}'
-                    utils.do_shell_cmd(f"mkdir -p {'/'.join(logfile.split('/')[0:-1])}")
-                    utils.set_perm('/'.join(logfile.split('/')[0:-1]))
-                else:
-                    cmd = cmd_base
+            # parse TRACEFILE defined in ser2net.conf
+            cmd_base = f'picocom {tty_dev} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}'
+            if self.picocom_ver > 1:  # picocom ver 1.x in Stretch doesn't support "--stopbits"
+                cmd_base = cmd_base + f' --stopbits {sbits}'
+            if logfile:
+                logfile = trace_files[logfile]
+                logfile = logfile.replace('\\p', str(tty_port)).replace('\\d', tty_dev.split('/')[-1])
+                logfile = logfile.replace('\\s', f'{baud}_{dbits}{parity.upper()}{sbits}')
+                logfile = logfile.split('\\')[0] + '-{{timestamp}}.log'  # + time.strftime('%H.%M.log')
+                cmd = cmd_base + f' --logfile {logfile}'
+                utils.do_shell_cmd(f"mkdir -p {'/'.join(logfile.split('/')[0:-1])}")
+                utils.set_perm('/'.join(logfile.split('/')[0:-1]))
+            else:
+                cmd = cmd_base
 
-                # update dict with values for this device
-                ser2net_conf[tty_dev] = {
-                    'port': tty_port,
-                    'baud': baud,
-                    'dbits': dbits,
-                    'parity': parity,
-                    'flow': flow,
-                    'sbits': sbits,
-                    'logfile': logfile,
-                    'log_ptr': log_ptr,
-                    'cmd': cmd,
-                    'line': _line
-                }
+            # update dict with values for this device
+            ser2net_conf[tty_dev] = {
+                'port': tty_port,
+                'baud': baud,
+                'dbits': dbits,
+                'parity': parity,
+                'flow': flow,
+                'sbits': sbits,
+                'logfile': logfile,
+                'log_ptr': log_ptr,
+                'cmd': cmd,
+                'line': _line
+            }
 
         return ser2net_conf
 
-    def get_ser2net_yaml(self):
+    def get_ser2netv4(self):
         '''Parse ser2net.yaml (ser2net 4.x) to extract connection info for serial adapters
 
-        retruns 2 level dict (empty dict if ser2net.conf not found or empty):
+        retruns 2 level dict (empty dict if ser2net.yaml not found or empty):
             {
                 <adapter name or alias>: {
                     "baud": <baud>,
@@ -406,67 +426,92 @@ class Config():
         '''
         ########################################################
         # --- ser2net (4.x) config lines look like this ---
-        # TODO
+        # connection: &con0096
+        # accepter: tcp,2000
+        #   enable: on
+        #   options:
+        #     banner: *banner
+        #     kickolduser: true
+        #     telnet-brk-on-sync: true
+        #   connector: serialdev,
+        #             /dev/ttyS0,
+        #             9600n81,local
         ########################################################
-        # TODO detect ser2net version
-        if not utils.valid_file(self.static.get('SER2NET_FILE')):
-            log.warning('No ser2net.yaml file found unable to extract port definition', show=True)
-            return {}
-
-        ser2net_file = Path(self.static.get('SER2NET_FILE'))
         ser2net_conf = {}
-        trace_files = {}
-        raw = ser2net_file.read_text()
+        raw = self.ser2net_file.read_text()
         raw_mod = "\n".join([line if not line.startswith("connection") else f"{line.split('&')[-1]}:" for line in raw.splitlines()])
         ser_dict = yaml.safe_load(raw_mod)
 
-        # TODO need to handle duplicate keys supported by ser2net.yaml (raw_mod)
-        # # Set all baud rates to 115200n81 by default.
-        # default:
-        #   name: speed
-        #   value: 115200n81
-
-        # # Enable CLOCAL by default
-        # default:
-        #   name: local
-        #   value: true
-        #   class: serialdev
         for k, v in ser_dict.items():
             if not isinstance(v, dict):
                 continue
             if "accepter" not in v or "connector" not in v:
                 continue
+            if "serialdev" not in v["connector"]:
+                log.info(f"skipping ser2net config for {v['connector']} as it is not a serialdev")
+                continue
 
             con_dict = {f"connection: &{k}": v}
             tty_port = v["accepter"].split(",")[-1]
-            _connector = v.get["connector"]
+            tty_port = 0 if not tty_port.isdigit() else int(tty_port)
+            _connector = v["connector"]
             _connector_list = [part.strip() for part in _connector.split(",")]
             tty_dev = _connector_list[1]
-            baud = int("".join([n for n in _connector_list[2] if n.isdigit()]))
-            parity = _connector_list[2][-3]
-            flow = "n"  # TODO what is format in ser2net.yaml
-            dbits = int(_connector_list[2][-2])
-            sbits = int(_connector_list[2][-1])
+            _baud_str = _connector_list[2].rstrip() if " " not in _connector_list[2].rstrip() else _connector_list[2].split(" ")[0]
+            _parity_options = "neoms"  # None Even Odd Mark Space
+            parity = [x for x in list(_parity_options) if x in _baud_str]
+            if not parity:
+                log.warning(f"unable to extract parity from {_baud_str} for {_connector} defaulting to 'n'")
+                parity = "n"
+            else:
+                parity = parity[0]
+            baud = _baud_str[0:_baud_str.index(parity)]
+            if not baud.isdigit():
+                log.warning(f"parse error extracting baud ({baud}) from ser2net.yaml for {_connector}, defaulting to {self.default_baud}", show=True)
+                baud = self.default_baud
+            else:
+                baud = int(baud)
+
+            if parity in ["m", "s"]:
+                parity = "n"
+                log.warning(f"Setting parity to none for {_connector} when launched via menu. picocom does not support 'm'ark or 's'pace", show=True)
+            # parity = _connector_list[2][-3]
+            if "rtscts" in str(_connector_list).lower():
+                flow = "h"
+            elif "xonxoff" in str(_connector_list).lower():  # TODO need to verify this is the format ser2net.yaml accepts, documentation doesn't mention what the options are
+                flow = "x"
+            else:
+                flow = "n"
+            dbits = int(_baud_str[-2])
+            sbits = int(_baud_str[-1])
+            if sbits not in range(1, 3):
+                log.warning(f"parse error of config error stop bit ({sbits}) extracted from ser2net.yaml for {_connector}, is invalid defaulting to 1", show=True)
+                sbits = 1
             if dbits < 5 or dbits > 8:
                 log.warning(
                     f'{tty_dev}: Invalid value for "data bits" found in ser2net.conf falling back to 8',
                     show=True)
                 dbits = 8
-            keys = [k for k in v.keys() if k.startswith("trace")]
-            logfile = log_ptr = None if not keys else v[keys[0]]  # TODO is more than one possible
+            if "options" in v:
+                keys = [k for k in v["options"].keys() if k.startswith("trace")]
+                # picocom just has the simple log option ser2net allows multiple with various options use trace-both if specified
+                # it's the closest to what picocom will do.  otherwise simply base it on whatever the first trace entry is.
+                if keys:
+                    _log_key = "trace-both" if len(keys) > 1 and "trace-both" in keys else keys[0]
+                logfile = log_ptr = None if not keys else v["options"][_log_key]
 
-            # parse TRACEFILE defined in ser2net.conf
+            # parse TRACEFILE defined in ser2net.yaml se we can pass a similar log file format to picocom when launched from menu
             cmd_base = f'picocom {tty_dev} --baud {baud} --flow {flow} --databits {dbits} --parity {parity}'
             if self.picocom_ver > 1:  # picocom ver 1.x in Stretch doesn't support "--stopbits"
                 cmd_base = cmd_base + f' --stopbits {sbits}'
             if logfile:
-                logfile = trace_files[logfile]
                 logfile = logfile.replace('\\p', str(tty_port)).replace('\\d', tty_dev.split('/')[-1])
                 logfile = logfile.replace('\\s', f'{baud}_{dbits}{parity.upper()}{sbits}')
-                logfile = logfile.split('\\')[0] + '-{{timestamp}}.log'  # + time.strftime('%H.%M.log')
+                logfile = logfile.split('\\')[0] + '-{{timestamp}}.log'  # + menu will convert totime.strftime('%H.%M.log') when session is launched
                 cmd = cmd_base + f' --logfile {logfile}'
-                utils.do_shell_cmd(f"mkdir -p {'/'.join(logfile.split('/')[0:-1])}")
-                utils.set_perm('/'.join(logfile.split('/')[0:-1]))
+                if not Path(logfile).parent.is_dir():
+                    Path(logfile).parent.mkdir()
+                    utils.set_perm(str(Path(logfile).parent))
             else:
                 cmd = cmd_base
 

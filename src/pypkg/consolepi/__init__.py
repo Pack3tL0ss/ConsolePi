@@ -68,6 +68,7 @@ class ConsolePiLog:
         _msgs = []
         _logged = []
         for i in msgs:
+            i = i if isinstance(i, str) else str(i)
             if log and i not in _logged:
                 getattr(self._log, level)(i)
                 _logged.append(i)

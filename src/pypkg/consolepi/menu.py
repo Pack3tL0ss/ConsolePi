@@ -442,6 +442,7 @@ class Menu:
                 self.page.prev_slice = {}
                 self.reverse = False
 
+        # This sets the menu items (the numbers the user selects) as a list of List[int]
         if not self.items_in or refresh:
             x = 1
             self.items_in = []
@@ -574,9 +575,9 @@ class Menu:
                 elif (len(col_lines) + len(_section) + addl_rows) >= self.page.body_avail_rows:
                     if self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.page.body_avail_rows:
                         _end = len(_section)
-                    else:
-                        _end = self.page.body_avail_rows - (len(col_lines) + addl_rows)
-                elif len(_section) + addl_rows <= self.page.body_avail_rows:
+                    else:                                       # HACK the -1 below is a hack
+                        _end = self.page.body_avail_rows - (len(col_lines) + addl_rows) - 1  # FIXME avail rows 52 cols 190 hide legend.  wsl menu 108 through sec 15 on 1st page 2nd page sec 16 gets stripped to slice(12, 13, 1) rather than (0, 13, 1)
+                elif len(_section) + addl_rows <= self.page.body_avail_rows:             # It's the first col of the next page shouldn't be stripped.  _end should be 11 it's being set to 12 body_avail_rows is 45 disregarding space at top and bot body is 43
                     _end = len(_section)
                 else:
                     _end = self.page.body_avail_rows - len(col_lines) - addl_rows
@@ -766,7 +767,7 @@ class Menu:
                 self.pages = {}
                 self.col_width: int = 0
                 self.page_width: int = 0
-                self.vert_cols: int = 0
+                # self.vert_cols: int = 0  # TODO Remove once verified no side effects
                 self.page: int = 1
                 self.body = body  # original unformatted data
                 self.subs = subs
@@ -807,7 +808,7 @@ class Menu:
             def get_cols(self, body_avail_rows: int = None):
                 body_avail_rows = self.body_avail_rows if body_avail_rows is None else body_avail_rows
                 # first pass to determine what is possible then break, second pass populates menu
-                self.addl_rows = addl_rows
+                self.addl_rows = addl_rows  # FIXME why does addl_rows have value here
                 for _pass in range(2):
                     col_lines = []
                     section_slices = {}
@@ -818,14 +819,14 @@ class Menu:
                     for idx, lines in enumerate(body):
                         rows = self.rows[idx]
 
-                        if self.body_avail_rows - len(col_lines) >= 3 + addl_rows:
-                            _end = self.body_avail_rows - len(col_lines) - addl_rows
+                        if self.body_avail_rows - len(lines) >= 3 + addl_rows:
+                            _end = self.body_avail_rows - len(lines) - addl_rows
                         else:
                             _end = self.body_avail_rows - addl_rows
 
                         # -- break sections with too many rows to fit tty into list of slices for each col that fit into tty
                         if 0 < _end < len(lines):
-                            _slice = [slice(0, _end)]
+                            _slice = [slice(0, _end, 1)]
                             while len([lines[s] for s in _slice]) > self.body_avail_rows:
                                 _start, _end = _end, _end + (self.body_avail_rows - addl_rows)
                                 _slice += [slice(_start, _end, 1)]
@@ -864,8 +865,8 @@ class Menu:
                                 else:
                                     self.pager_write_other_col(col_lines, page=self.page)
 
-                                if self.page == self.cur_page:
-                                    self.vert_cols += 1
+                                # if self.page == self.cur_page:
+                                #     self.vert_cols += 1
 
                                 if tty.cols and self.page_width + self.col_width > tty.cols:
                                     self.page += 1
@@ -906,8 +907,8 @@ class Menu:
                 else:
                     self.pager_write_other_col(col_lines, page=self.page)  # type: ignore
 
-                if self.page == self.cur_page:
-                    self.vert_cols += 1
+                # if self.page == self.cur_page:
+                #     self.vert_cols += 1
 
                 if self.page == self.cur_page:
                     self.this_slice = {**self.this_slice, **section_slices}  # type: ignore
@@ -979,7 +980,7 @@ class Menu:
     def toggle_legend(self):
         '''Toggles Display of the Legend.
         '''
-        self.page.legend.hide = not self.page.legend.hide
+        config.hide_legend = self.page.legend.hide = not self.page.legend.hide
         # if self.page.legend.hide:
         #     self.page.legend.lines = []
         #     self.page.legend.rows, self.page.legend.cols = 0, 0

@@ -8,7 +8,12 @@ from halo import Halo
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
 from consolepi import utils, log, config, json, requests  # type: ignore
+# from pydantic import BaseModel
 # from consolepi.gdrive import GoogleDrive  !!--> Import burried in refresh method to speed menu load times on older platforms
+
+# Source = Literal["cloud", "mdns"]
+
+# from .models import Remote
 
 
 class Remotes:
@@ -30,7 +35,7 @@ class Remotes:
         if not CLOUD_CREDS_FILE:
             self.no_creds_error()
         if self.do_cloud and config.cloud_svc == "gdrive":
-            if utils.is_reachable("www.googleapis.com", 443):
+            if utils.is_reachable("www.googleapis.com", 443, silent=False):
                 self.local_only = False
                 if not utils.valid_file(CLOUD_CREDS_FILE):
                     self.no_creds_error()
@@ -163,6 +168,8 @@ class Remotes:
             self.pop_list = []
             self.cache_update_pending = False
 
+        # TODO this is working, prob change adapters to a list of models
+        # remotes = [Remote(**{"name": k, **data[k]}) for k in data]
         return data
 
     # Update with Data from ConsolePi.csv on Gdrive and local cache populated by mdns.  Update Gdrive with our data

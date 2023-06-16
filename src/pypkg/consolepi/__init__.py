@@ -16,6 +16,11 @@ except ImportError:
 LOG_FILE = '/var/log/ConsolePi/consolepi.log'
 
 
+# For working in vscode, vscode no longer provides full path
+if os.environ.get("TERM_PROGRAM"):
+    os.environ["PATH"] = f'{os.environ["PATH"]}:/usr/local/sbin:/usr/sbin'
+
+
 class Response():
     def __init__(self, ok: bool, output=None, error=None, status_code=None, state=None, do_json=False, **kwargs):
         self.ok = ok

@@ -99,6 +99,10 @@ do_apt_deps() {
         process_cmds -pf "install libssl-dev" -apt-install "libssl-dev"
     fi
 
+    # If it's an RPI we ensure RPi.GPIO is up to date.
+    [ "$is_pi" = true ] && apt upgrade -y python3-rpi.gpio >/dev/null 2> >(grep -v "^$" | grep -v "stable CLI" | tee -a $log_file) ||
+        logit "apt upgrade python3-rpi.gpio returned an error, check logs in $log_file"
+
     # TODO add picocom, maybe ser2net, ensure process_cmds can accept multiple packages
 
     logit "$process - Complete"
@@ -455,8 +459,10 @@ do_pyvenv() {
         echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
         # TODO consider if not $is_pi then skip RPi.GPIO and remove from requirements.
         # -- RPi.GPIO is done separately as it's a distutils package installed by apt, but pypi may be newer.  this is in a venv, should do no harm
-        sudo ${consolepi_dir}venv/bin/python3 -m pip install RPi.GPIO --ignore-installed 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) ||
-            logit "pip install/upgrade RPi.GPIO (separately) returned an error." "WARNING"
+            # -- Removed we just ensure the system pkg python3-rpi.gpio is up to date.
+        # sudo ${consolepi_dir}venv/bin/python3 -m pip install RPi.GPIO --ignore-installed 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) ||
+        #     logit "pip install/upgrade RPi.GPIO (separately) returned an error." "WARNING"
+        # TODO verify there is logic in py files that use RPi.GPIO to allow for systems to not have it installed and just disable the GPIO power outlets.
         # -- Update venv packages based on requirements file --
         sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||

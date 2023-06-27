@@ -601,7 +601,14 @@ main() {
         #     ! $input && echo "Exiting based on user input" && exit 1
         # fi
         # drive_list=( $(sudo fdisk -l | grep 'Disk /dev/' | awk '{print $2}' | cut -d'/' -f3 | cut -d':' -f1) )
-        [[ ! ${my_usb[@]} =~ $drive ]] && echo "$drive not found on system. Exiting..." && exit 1
+        if [[ ! ${my_usb[@]} =~ $drive ]]; then
+            if [ "$drive" = "$ROOT_DEV" ]; then
+                echo $(red "$drive is mounted at / it's the drive you are booted on.  Not a good idea")
+            else
+                echo "$drive not found on system. Exiting..."
+            fi
+            exit 1
+        fi
         out_usb=$drive
     fi
 

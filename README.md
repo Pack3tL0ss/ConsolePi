@@ -76,6 +76,7 @@ However: ser2net 4.x uses `/etc/ser2net.yaml` as it's config.
 
 So
   - If you use `consolepi-menu` and never access the adapters directly via TELNET (which utilizes ser2net), then this won't impact you.
+    - If you don't use ser2net (access adapters directly via TELNET),
   - If you do access adapters directly via TELNET, then you need to populate `/etc/ser2net.yaml` as you like, re-building your 3.x setup in the new 4.x file/format.  There are a lot more options available (including accessing them via SSH vs. TELNET).
   - If you use both.  Let the menu rename/define update the old `/etc/ser2net.conf`, but to also have the adapter available directly, for now, you'll have to manually create an equivalent entry in `ser2net.yaml`
 
@@ -84,6 +85,11 @@ ConsolePi will eventually be updated to detect the ser2net version installed, an
 # What's New
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
+### June 2023 (v2023-5.0)
+  - ser2netv4 Parsing.  Rename is not refactored yet, but parsing the baud rate from defined adapters now works with ser2netv3 and ser2netv4.
+    - Rename still functional if still using ser2netv3
+    - If ser2netv4 is installed but the ser2netv3 config file still exists (`/etc/ser2net.conf`).  ConsolePi will continue to use the v3 config for parsing.  This is to allow time for manual conversion to the v4 format (`/etc/ser2net.yaml`)
+  - Fix issue introduced in v2022-4.x (which should have been v2023-xx.yy).  Issue relates to handling optional requirement for RPi.GPIO module.
 ### Sep 2022 (v2022-3.0)  **Breaking Change for silent installs**
   - Changed cmd-line flags for `consolepi-image` and `consolepi-install`/`consolepi-upgrade`.  Use `--help` with those commands to see the changes.
     - This is a breaking change for silent install.  If using an install.conf file refer to the new example as some varirables have changed.
@@ -91,55 +97,13 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
     - This is necessary for headless installs, as there is no default pi user anymore.
   - Updated installation script... worked-around some dependencies that required rust build environment.
   - Various other improvements to both of the above mentioned scripts.
-
-### Nov 2021 (v2021-1.5)
-  - Fix: RPI.GPIO set to use 0.7.1a4+ to accommodate known issue with python3.9 (bullseye default)
-  - Fix: bluetooth.service template updated for bullseye (dynamically handles both bullseye where exec path changed and prev rel)
-  - Enhancement: New OVERRIDE `api_port` actually merged previously is now documented in ConsolePi.yaml.example
-  - Enhancement: New OVERRIDE `hide_legend` will hide the legend by default in the menu (`consolepi-menu`).  `TL` in the menu will restore it.
-  - Documentation: `ConsolePi.yaml.example` Now has all of the supported OVERRIDES listed with the default value and description.
-
-### Feb 2021 (v2021-1.2)
-  - Fix: new menu and options from previous commit broke baud rate change during rename.
-  - Fix: A remote with no local adapters would fail to launch rename (to rename an adapter on a remote another remote ConsolePi)
-  *Next commit will add support for custom port for the API on a per ConsolePi basis.*
-
-### Feb 2021 (v2021-1.1)
-  - Fix: dhcpcd.exit-hook had an issue that impacted shared vpn on wired, a previously undocumented feature.
-  - Fix: menu item mapping, when a refresh resulted in an additional adapter being added.
-  - Enhancement: Expose previously hidden 'tl' and 'tp' menu items.
-  - Enhancement: Display current tty size when connecting to a serial or TELNET device.
-
-    >Handy when connecting to a device that needs the terminal adjusted to use the full display size.
-
-### Jan 2021 (v2021-1.0)
-  **DHCP based Automation Enhancements**
-  - Fix an issue that was overlooked, where AutoHotSpot is *not* selected and wired-dhcp is.
-  - Improve the way PushBullet Notifications are constructed/sent.
-  - Add Additional Test flags to `consolepi-pbtest`
-  - ovpn_share: true|false option in OVERRIDES of config = share VPN connection with wired devices when utilizing wired-dhcp (wired fallback to DHCP, where the uplink is the wlan.  ConsolePi will configure wired traffic to NAT out wlan, this option will do the same for OpenVPN tunnel if there is one established.).  This was added to test the functionality, it will eventually end up as a config option.
-
-> There were a lot of other minor tweaks throughout during this time frame.  Review commit log for details.
-
-### Oct 2020 (v2020-5.0) *MAJOR Update!* Posted Jan 2021
-  - **Paging Support in Menu:**
-    The previous Menu supported some formatting (would build columns to utilize space more efficiently).  It lacked support for Paging when the menu content was too much for a single screen given the terminal size.  The old menu would just overrun, causing word-wrap.
-    **The New Menu Library** now supports paging.  Pages will dynamically adapt to terminal size, even if you re-size after launching the menu.  Default menu-options at bottom of menu now take less space (split into to columns)
-    ***I don't want to talk about the asinine amount of time I spent working out the logic for this… and there is more to come.***
-> The lag in posting this update was an attempt to re-write the re-write, or make it more elegant.  In the end I decided I should get the repo current, and create a new branch for further enhancing the menu.
-
-  > If you have suggestions on different ways to accomplish this, how to organize the menu-formatting module [menu.py](src/pypkg/consolepi/menu.py), etc.  let me know.  I'm absolutely more than happy to leverage an existing module, but I was unable to find one with the flexibility I wanted (custom item numbering/prefixes, etc)
-  -  A couple of other menu options (some already existed, but were hidden options):
-      - sp: Show Ports (main-menu & rename-menu: currently still hidden in main-menu).  Switches from the default of displaying the connection settings (baud...) to showing the configured TELNET port for the device.
-      - rl (RL): (main-menu).  This is a hidden option, if you don't use cloud-sync r and `rl` are equivalent.  For those that do use cloud-sync, `rl` refreshes detected adapters, and does a refresh from locally cached data.  It doesn't sync with the cloud, just re-checks reachability for all cached remotes.
-
 # Planned enhancements
-
-  - The ser2net update highlighted in [Known Issues](#known-issues)
+  - The ser2net update highlighted in [Known Issues](#known-issues) (partially complete as of v2023-5.0)
   - Non RPI & wsl (menu accessing all remotes) support for the installer.  Can be done now, but normally at least portions need to be tweaked manually.
   - Ability to pick a non sequential port when using `rn` in menu or `consolepi-addconsole`
   - *Most excited about* launch menu in byobu session (tmux).  With any connections in a new tab.
   - Eventually... formatting tweaks, and TUI.  Also consolepi-commands turn into `consolepi command [options]` with auto complete and help text for all (transition to typer CLI).
+  - Investigate options to provide ssh direct to adapter discussed in [issue #119](https://github.com/Pack3tL0ss/ConsolePi/issues/119)
 
 # Features
 ## **Feature Summary Image**

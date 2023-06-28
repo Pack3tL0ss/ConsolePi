@@ -225,17 +225,6 @@ get_staged_imports(){
             sudo udevadm control --reload-rules && sudo udevadm trigger
         fi
     fi
-
-    # -- imported elsewhere during the install
-    # /etc/ser2net.conf in install_ser2net()
-    # /etc/openvpn/client/ConsolePi.ovpn and ovpn_credentials in install_openvpn()
-    # /etc/wpa_supplicant/wpa_supplicant.conf in get_known_ssids()
-    #
-    # -- imported in phase 1 (install.sh)
-    # /home/pi/.ssh/known_hosts
-    # /home/pi/.ssh/authorized_keys
-    # /home/<user>/. contents of <stage-dir>/home/<user> is imported after the user is created
-
     unset process
 }
 
@@ -246,29 +235,53 @@ install_ser2net () {
     ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
     if [ -z "$ser2net_ver" ]; then
         process_cmds -apt-install "ser2net"
+        ser2net_ver=$(ser2net -v 2>> /dev/null | cut -d' ' -f3 && installed=true || installed=false)
     else
         logit "Ser2Net ${ser2net_ver} is current"
     fi
 
+    ser2net_major_ver=$(echo $ser2net_ver | cut -d'.' -f1)
+    if [ "$ser2net_major_ver" -eq 4 ]; then
+        ser2net_conf="ser2net.yaml"
+        ser2net_alt="ser2net.conf"
+    else
+        ser2net_conf="ser2net.conf"
+        ser2net_alt="ser2net.yaml"
+    fi
+
     do_ser2net=true
     if ! $upgrade; then
-        found_path=$(get_staged_file_path "ser2net.conf")
-        [ -z "$found_path" ] && found_path=$(get_staged_file_path "ser2net.yaml")
+        found_path=$(get_staged_file_path "$ser2net_conf")
+        [ -z "$found_path" ] && found_path=$(get_staged_file_path "$ser2net_alt")
         if [ -n "$found_path" ]; then
-            cp $found_path "/etc" &&
-                logit "Found ser2net.conf in ${found_path}.  Copying to /etc" ||
+            if cp $found_path "/etc"; then
+                logit "Found ser2net config in ${found_path}.  Copying to /etc"
+            else
                 logit "Error Copying your pre-staged ${found_path} file" "WARNING"
                 do_ser2net=false
+            fi
         fi
     fi
 
-    if $do_ser2net && [[ ! $(head -1 /etc/ser2net.conf 2>>$log_file) =~ "ConsolePi" ]] ; then
-        logit "Building ConsolePi Config for ser2net"
-        if [ -f "/etc/ser2net.conf" ]; then
-            cp /etc/ser2net.conf $bak_dir  || logit "Failed to backup default ser2net to bak dir" "WARNING"
+    if $do_ser2net; then
+        if [ "$ser2net_major_ver" -eq 3 ] && [[ ! $(head -1 /etc/ser2net.conf 2>>$log_file) =~ "ConsolePi" ]]; then
+            logit "Building ConsolePi Config for ser2netv3"
+            _go=true
+        elif [ "$ser2net_major_ver" -eq 4 ] && [[ ! $(head -3 /etc/ser2net.yaml | tail -1 2>>$log_file) =~ "ConsolePi" ]]; then
+            logit "Building ConsolePi Config for ser2netv4"
+            _go=true
+        else
+            logit "Error in install ser2net not touching configs.  expected ser2net_major_ver in 3,4 found $ser2net_magor_Ver" "WARNING"
+            _go=false
         fi
-        cp /etc/ConsolePi/src/ser2net.conf /etc/ 2>> $log_file ||
-            logit "ser2net Failed to copy config file from ConsolePi src" "ERROR"
+
+        if $_go; then
+            if [ -f "/etc/$ser2net_conf" ]; then
+                cp /etc/$ser2net_conf $bak_dir  || logit "Failed to backup default ser2net to bak dir" "WARNING"
+            fi
+            cp /etc/ConsolePi/src/$ser2net_conf /etc/ 2>> $log_file ||
+                logit "ser2net Failed to copy config file from ConsolePi src" "ERROR"
+        fi
     fi
 
     systemctl daemon-reload ||

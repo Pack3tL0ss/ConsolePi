@@ -464,7 +464,7 @@ do_pyvenv() {
                 logit "pip install/upgrade RPi.GPIO (separately) returned an error." "WARNING"
         fi
         # -- Update venv packages based on requirements file --
-        sudo ${consolepi_dir}venv/bin/python3 -m fpip install --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
+        sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
     else

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Tuple, Union
 try:
     import RPi.GPIO as GPIO
     is_rpi = True
-except RuntimeError:
+except (RuntimeError, ModuleNotFoundError, ImportError):
     is_rpi = False
 
 from consolepi import log, config, requests, utils  # type: ignore
@@ -613,9 +613,9 @@ class Outlets:
                 # if not outlet['type'] == 'dli' or outlet.get('linked_devs')):
                 if outlet['type'] == 'dli':
                     if outlet.get('linked_devs'):
-                        responses.append(self.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state,
-                                        port=self.update_linked_devs(outlet)[1] ,  # NoQA
-                                        noff=noff, noconfirm=True))
+                        responses.append(
+                            self.pwr_toggle(outlet['type'], outlet['address'], desired_state=desired_state, port=self.update_linked_devs(outlet)[1], noff=noff, noconfirm=True)
+                        )
                 elif outlet['type'] == 'esphome':
                     _relays = utils.listify(outlet.get('relays'))
                     for p in _relays:

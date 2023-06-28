@@ -556,12 +556,6 @@ main() {
     # constructs a list in form sda_(58.2G)
     my_usb=($(lsblk -no name,type,size | grep disk | grep -v ${ROOT_DEV#'/dev/'} | awk '{print $1 "_(" $3 ")"}'))
 
-    ### OLD LOGIC
-    # [[ $my_usb ]] && boot_list=($(sudo fdisk -l |grep -o '/dev/sd[a-z][0-9]  \*'| cut -d'/' -f3| awk '{print $1}'))
-    # [[ $boot_list =~ $my_usb ]] && my_usb=    # if usb device found make sure it's not marked as bootable if so reset my_usb so we can check for sd card adapter
-    # # basename $(mount | grep 'on / '|awk '{print $1}')
-    # [[ -z $my_usb ]] && my_usb=$( sudo fdisk -l | grep 'Disk /dev/mmcblk' | awk '{print $2}' | cut -d: -f1 | cut -d'/' -f3)
-
     SCRIPT_TITLE=$(green "ConsolePi Image Creator")
     $LOCAL_DEV && SCRIPT_TITLE+=" ${_lred}${_blink}Local DEV${_norm}"
     echo -e "\n\n$SCRIPT_TITLE \n'exit' (which will terminate the script) is valid at all prompts\n"
@@ -580,15 +574,6 @@ main() {
 
     show_disk_details ${out_usb}
 
-    ### OLD LOGIC
-    # -- check if detected media is mounted to / or /boot and exit if so This is a fail-safe Should not happen --
-    # if mount | grep "^.* on /\s.*\|^.* on /boot\s.*" | grep -q "/dev/${my_usb}[p]\{0,1\}1\|/dev/${my_usb}[p]\{0,1\}2"; then
-    #     oh_shit=$(mount | grep "^.* on /\s.*\|^.* on /boot\s.*" | grep "/dev/${my_usb}[p]\{0,1\}1\|/dev/${my_usb}[p]\{0,1\}2")
-    #     echo -e "${_excl}\t$(green ${my_usb}) $(red "Appears to be mounted as a critical system directory if this is a script flaw please report it.")\t${_excl}"
-    #     echo -e "\t$(green ${my_usb}) mount: $oh_shit\n\tScript will now exit to prevent borking the running image."
-    #     exit 1
-    # fi
-
     # Give user chance to change target drive
     echo -e "\n\nPress enter to accept $(green "${out_usb}") as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')"
 
@@ -596,11 +581,6 @@ main() {
     [[ ${drive,,} == "exit" ]] && echo "Exit based on user input." && exit 1
 
     if [[ $drive ]]; then  ## They made a change
-        # if [[ $boot_list =~ $drive ]]; then   ### OLD LOGIC
-        #     prompt="The selected drive contains a bootable partition, are you sure about this?" && get_input
-        #     ! $input && echo "Exiting based on user input" && exit 1
-        # fi
-        # drive_list=( $(sudo fdisk -l | grep 'Disk /dev/' | awk '{print $2}' | cut -d'/' -f3 | cut -d':' -f1) )
         if [[ ! ${my_usb[@]} =~ $drive ]]; then
             if [ "$drive" = "$ROOT_DEV" ]; then
                 echo $(red "$drive is mounted at / it's the drive you are booted on.  Not a good idea")

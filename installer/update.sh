@@ -271,7 +271,11 @@ install_ser2net () {
             logit "Building ConsolePi Config for ser2netv4"
             _go=true
         else
-            logit "Error in install ser2net not touching configs.  expected ser2net_major_ver in 3,4 found $ser2net_magor_Ver" "WARNING"
+            if [ -n "$ser2net_major_ver" ]; then
+                logit "ser2net v$ser2net_major_ver installed. but already prepped for ConsolePi Skipping config" "INFO"
+            else
+                logit "Unable to determine ser2net version skipping related configs" "WARNING"
+            fi
             _go=false
         fi
 

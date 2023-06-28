@@ -766,7 +766,7 @@ main() {
             echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${@}" && sudo rm -f /tmp/ConsolePi' >> $auto_install_file
         fi
 
-        $LOCAL_DEV && cmd_line="--dev ${cmd_line#"--dev"}"
+        $LOCAL_DEV && cmd_line="--dev ${cmd_line#"--dev "}"
         grep -q "consolepi-install" $IMG_HOME/.profile || echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.profile
 
         # make install command/script executable

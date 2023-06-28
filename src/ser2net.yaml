@@ -22,7 +22,6 @@ connection: &ttyUSB0
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB0,9600n81,local
-
 connection: &ttyUSB1
   accepter: tcp,8001
   enable: on
@@ -31,7 +30,6 @@ connection: &ttyUSB1
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB1,9600n81,local
-
 connection: &ttyUSB2
   accepter: tcp,8002
   enable: on
@@ -40,7 +38,6 @@ connection: &ttyUSB2
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB2,9600n81,local
-
 connection: &ttyUSB3
   accepter: tcp,8003
   enable: on
@@ -49,7 +46,6 @@ connection: &ttyUSB3
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB3,9600n81,local
-
 connection: &ttyUSB4
   accepter: tcp,8004
   enable: on
@@ -58,7 +54,6 @@ connection: &ttyUSB4
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB4,9600n81,local
-
 connection: &ttyUSB5
   accepter: tcp,8005
   enable: on
@@ -67,7 +62,6 @@ connection: &ttyUSB5
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB5,9600n81,local
-
 connection: &ttyUSB6
   accepter: tcp,8006
   enable: on
@@ -76,7 +70,6 @@ connection: &ttyUSB6
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB6,9600n81,local
-
 connection: &ttyUSB7
   accepter: tcp,8007
   enable: on
@@ -85,7 +78,6 @@ connection: &ttyUSB7
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB7,9600n81,local
-
 connection: &ttyUSB8
   accepter: tcp,8008
   enable: on
@@ -94,7 +86,6 @@ connection: &ttyUSB8
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB8,9600n81,local
-
 connection: &ttyUSB9
   accepter: tcp,8009
   enable: on
@@ -103,7 +94,6 @@ connection: &ttyUSB9
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB9,9600n81,local
-
 connection: &ttyUSB10
   accepter: tcp,8010
   enable: on
@@ -112,7 +102,6 @@ connection: &ttyUSB10
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB10,9600n81,local
-
 connection: &ttyUSB11
   accepter: tcp,8011
   enable: on
@@ -121,7 +110,6 @@ connection: &ttyUSB11
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB11,9600n81,local
-
 connection: &ttyUSB12
   accepter: tcp,8012
   enable: on
@@ -130,7 +118,6 @@ connection: &ttyUSB12
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB12,9600n81,local
-
 connection: &ttyUSB13
   accepter: tcp,8013
   enable: on
@@ -139,7 +126,6 @@ connection: &ttyUSB13
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB13,9600n81,local
-
 connection: &ttyUSB14
   accepter: tcp,8014
   enable: on
@@ -148,7 +134,6 @@ connection: &ttyUSB14
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB14,9600n81,local
-
 connection: &ttyUSB15
   accepter: tcp,8015
   enable: on
@@ -157,7 +142,6 @@ connection: &ttyUSB15
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB15,9600n81,local
-
 connection: &ttyUSB16
   accepter: tcp,8016
   enable: on
@@ -166,7 +150,6 @@ connection: &ttyUSB16
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB16,9600n81,local
-
 connection: &ttyUSB17
   accepter: tcp,8017
   enable: on
@@ -175,7 +158,6 @@ connection: &ttyUSB17
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB17,9600n81,local
-
 connection: &ttyUSB18
   accepter: tcp,8018
   enable: on
@@ -184,7 +166,6 @@ connection: &ttyUSB18
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB18,9600n81,local
-
 connection: &ttyUSB19
   accepter: tcp,8019
   enable: on
@@ -193,7 +174,6 @@ connection: &ttyUSB19
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB19,9600n81,local
-
 connection: &ttyUSB20
   accepter: tcp,8020
   enable: on
@@ -202,7 +182,6 @@ connection: &ttyUSB20
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyUSB20,9600n81,local
-
 # -- Some Networking Devices with built-in USB Console Ports show up as ttyACM --
 connection: &ttyACM0
   accepter: tcp,9000
@@ -212,7 +191,6 @@ connection: &ttyACM0
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM0,9600n81,local
-
 connection: &ttyACM1
   accepter: tcp,9001
   enable: on
@@ -221,7 +199,6 @@ connection: &ttyACM1
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM1,9600n81,local
-
 connection: &ttyACM2
   accepter: tcp,9002
   enable: on
@@ -230,7 +207,6 @@ connection: &ttyACM2
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM2,9600n81,local
-
 connection: &ttyACM3
   accepter: tcp,9003
   enable: on
@@ -239,7 +215,6 @@ connection: &ttyACM3
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM3,9600n81,local
-
 connection: &ttyACM4
   accepter: tcp,9004
   enable: on
@@ -248,7 +223,6 @@ connection: &ttyACM4
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM4,9600n81,local
-
 connection: &ttyACM5
   accepter: tcp,9005
   enable: on
@@ -257,7 +231,6 @@ connection: &ttyACM5
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM5,9600n81,local
-
 connection: &ttyACM6
   accepter: tcp,9006
   enable: on
@@ -266,7 +239,6 @@ connection: &ttyACM6
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM6,9600n81,local
-
 connection: &ttyACM7
   accepter: tcp,9007
   enable: on
@@ -275,7 +247,6 @@ connection: &ttyACM7
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM7,9600n81,local
-
 connection: &ttyACM8
   accepter: tcp,9008
   enable: on
@@ -284,7 +255,6 @@ connection: &ttyACM8
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM8,9600n81,local
-
 connection: &ttyACM9
   accepter: tcp,9009
   enable: on
@@ -293,7 +263,6 @@ connection: &ttyACM9
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM9,9600n81,local
-
 connection: &ttyACM10
   accepter: tcp,9010
   enable: on
@@ -302,7 +271,6 @@ connection: &ttyACM10
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM10,9600n81,local
-
 connection: &ttyACM11
   accepter: tcp,9011
   enable: on
@@ -311,7 +279,6 @@ connection: &ttyACM11
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM11,9600n81,local
-
 connection: &ttyACM12
   accepter: tcp,9012
   enable: on
@@ -320,7 +287,6 @@ connection: &ttyACM12
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM12,9600n81,local
-
 connection: &ttyACM13
   accepter: tcp,9013
   enable: on
@@ -329,7 +295,6 @@ connection: &ttyACM13
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM13,9600n81,local
-
 connection: &ttyACM14
   accepter: tcp,9014
   enable: on
@@ -338,7 +303,6 @@ connection: &ttyACM14
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM14,9600n81,local
-
 connection: &ttyACM15
   accepter: tcp,9015
   enable: on
@@ -347,7 +311,6 @@ connection: &ttyACM15
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM15,9600n81,local
-
 connection: &ttyACM16
   accepter: tcp,9016
   enable: on
@@ -356,7 +319,6 @@ connection: &ttyACM16
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM16,9600n81,local
-
 connection: &ttyACM17
   accepter: tcp,9017
   enable: on
@@ -365,7 +327,6 @@ connection: &ttyACM17
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM17,9600n81,local
-
 connection: &ttyACM18
   accepter: tcp,9018
   enable: on
@@ -374,7 +335,6 @@ connection: &ttyACM18
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM18,9600n81,local
-
 connection: &ttyACM19
   accepter: tcp,9019
   enable: on
@@ -383,7 +343,6 @@ connection: &ttyACM19
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM19,9600n81,local
-
 connection: &ttyACM20
   accepter: tcp,9020
   enable: on
@@ -392,5 +351,4 @@ connection: &ttyACM20
     kickolduser: true
     telnet-brk-on-sync: true
   connector: serialdev,/dev/ttyACM20,9600n81,local
-
 # -- predictable ports based on udev rules (use consolepi-addconsole or rename option in consolepi-menu)

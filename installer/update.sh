@@ -264,10 +264,10 @@ install_ser2net () {
     fi
 
     if $do_ser2net; then
-        if [ "$ser2net_major_ver" -eq 3 ] && [[ ! $(head -1 /etc/ser2net.conf 2>>$log_file) =~ "ConsolePi" ]]; then
+        if [ "$ser2net_major_ver" -eq 3 ] && ( [ ! -f /etc/ser2net.yaml ] || [[ ! $(head -1 /etc/ser2net.conf 2>>$log_file) =~ "ConsolePi" ]] ); then
             logit "Building ConsolePi Config for ser2netv3"
             _go=true
-        elif [ "$ser2net_major_ver" -eq 4 ] && [[ ! $(head -3 /etc/ser2net.yaml | tail -1 2>>$log_file) =~ "ConsolePi" ]]; then
+        elif [ "$ser2net_major_ver" -eq 4 ] && ( [ ! -f /etc/ser2net.yaml ] || [[ ! $(head -3 /etc/ser2net.yaml | tail -1 2>>$log_file) =~ "ConsolePi" ]] ); then
             logit "Building ConsolePi Config for ser2netv4"
             _go=true
         else

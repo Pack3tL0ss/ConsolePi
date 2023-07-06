@@ -57,7 +57,7 @@ get_util_status () {
         unset process
     fi
     [ -z "$model_pretty" ] && get_pi_info > /dev/null
-    if [[ "$model_pretty" =~ "Pi 4" ]] ; then
+    if [ "$is_pi" == "false" ] || [[ "$model_pretty" =~ "Pi 4" ]] ; then
         UTIL_VER['speed_test']=$( [ -f /var/www/speedtest/speedtest.js ] && echo installed )
         PKG_EXPLAIN['speed_test']="self-hosted network speed-test"
     else

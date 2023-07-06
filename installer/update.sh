@@ -272,7 +272,7 @@ install_ser2net () {
             _go=true
         else
             if [ -n "$ser2net_major_ver" ]; then
-                logit "ser2net v$ser2net_major_ver installed. but already prepped for ConsolePi Skipping config" "INFO"
+                logit "ser2net v$ser2net_major_ver installed... already prepped for ConsolePi Skipping config" "INFO"
             else
                 logit "Unable to determine ser2net version skipping related configs" "WARNING"
             fi

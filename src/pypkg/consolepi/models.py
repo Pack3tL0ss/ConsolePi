@@ -78,4 +78,3 @@ class Remote(BaseModel):
     source: str
     upd_time: int
     user: str
-

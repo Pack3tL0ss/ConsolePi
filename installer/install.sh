@@ -459,6 +459,9 @@ do_pyvenv() {
         logit "pip install/upgrade ConsolePi requirements - This can take some time."
         echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
         # -- RPi.GPIO is done separately as it's a distutils package installed by apt, but pypi may be newer.  this is in a venv, should do no harm
+        # if we do --upgrade below ERROR: Cannot uninstall 'RPi.GPIO'. It is a distutils installed project and thus we cannot accurately determine which files belong to it which would lead to only a partial uninstall.
+        # if we include RPi.GPIO in the requirements file then pip install --upgrade -r requirements.txt ... it will result in the same error.
+        #  SO we simply do pip install RPi.GPIO to ensure it's installed in the venv, log a WARNING which allows script to continue if there is a failure.  RPi.GPIO would be upgraded only when venv is re-created. (or manually)
         if [ "$is_pi" = true ]; then  # removed --ignore-installed from below need to verify what's needed here
             sudo ${consolepi_dir}venv/bin/python3 -m pip install RPi.GPIO 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) ||
                 logit "pip install/upgrade RPi.GPIO (separately) returned an error." "WARNING"

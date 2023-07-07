@@ -3,7 +3,7 @@
 # Versioning = YYYY.Major.Patch/Minor
 ---
 CONSOLEPI_VER: 2023-5.1
-INSTALLER_VER: 65
+INSTALLER_VER: 66
 CFG_FILE_VER: 10
 CONFIG_FILE_YAML: /etc/ConsolePi/ConsolePi.yaml
 CONFIG_FILE: /etc/ConsolePi/ConsolePi.conf # For backward compat, use yaml config going forward

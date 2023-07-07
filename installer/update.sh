@@ -264,15 +264,15 @@ install_ser2net () {
     fi
 
     if $do_ser2net; then
-        if [ "$ser2net_major_ver" -eq 3 ] && [[ ! $(head -1 /etc/ser2net.conf 2>>$log_file) =~ "ConsolePi" ]]; then
+        if [ "$ser2net_major_ver" -eq 3 ] && ( [ ! -f /etc/ser2net.yaml ] || [[ ! $(head -1 /etc/ser2net.conf 2>>$log_file) =~ "ConsolePi" ]] ); then
             logit "Building ConsolePi Config for ser2netv3"
             _go=true
-        elif [ "$ser2net_major_ver" -eq 4 ] && [[ ! $(head -3 /etc/ser2net.yaml | tail -1 2>>$log_file) =~ "ConsolePi" ]]; then
+        elif [ "$ser2net_major_ver" -eq 4 ] && ( [ ! -f /etc/ser2net.yaml ] || [[ ! $(head -3 /etc/ser2net.yaml | tail -1 2>>$log_file) =~ "ConsolePi" ]] ); then
             logit "Building ConsolePi Config for ser2netv4"
             _go=true
         else
             if [ -n "$ser2net_major_ver" ]; then
-                logit "ser2net v$ser2net_major_ver installed. but already prepped for ConsolePi Skipping config" "INFO"
+                logit "ser2net v$ser2net_major_ver installed... already prepped for ConsolePi Skipping config" "INFO"
             else
                 logit "Unable to determine ser2net version skipping related configs" "WARNING"
             fi

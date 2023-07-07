@@ -513,6 +513,9 @@ get_pi_info() {
     if ! git config --global -l | grep -q "safe.directory=/etc/ConsolePi"; then
         logit "Adding /etc/ConsolePi as git safe.directory globally"
         git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
+    fi
+    if ! sudo -u $iam git config --global -l | grep -q "safe.directory=/etc/ConsolePi"; then
+        logit "Adding /etc/ConsolePi as git safe.directory globally for user $iam"
         sudo -u $iam git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
     fi
     [ ! -z $branch ] && [ $branch != "master" ] && logit "Running alternate branch: ${_green}$branch${_norm}"

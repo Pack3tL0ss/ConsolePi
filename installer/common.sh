@@ -509,6 +509,11 @@ get_pi_info_pretty() {
 # Gather Some info about the Pi useful in triage of issues
 get_pi_info() {
     process="Collect Pi Info"
+    # Prevent fatal: detected dubious ownership in repository at '/etc/ConsolePi'
+    if ! git config --global -l | grep -q "safe.directory=/etc/ConsolePi"; then
+        logit "Adding /etc/ConsolePi as git safe.directory globally"
+        git config --global --add safe.directory /etc/ConsolePi
+    fi
     [ ! -z $branch ] && [ $branch != "master" ] && logit "Running alternate branch: ${_green}$branch${_norm}"
     git_rem=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git remote -v | head -1 | cut -d '(' -f-1 ; popd >/dev/null 2>&1)
     [[ ! -z $git_rem ]] && [[ $(echo $git_rem | awk '{print $2}') != $consolepi_source ]] && logit "Using alternative repo: ${_green}$git_rem${_norm}"

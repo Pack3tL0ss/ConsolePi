@@ -512,7 +512,8 @@ get_pi_info() {
     # Prevent fatal: detected dubious ownership in repository at '/etc/ConsolePi'
     if ! git config --global -l | grep -q "safe.directory=/etc/ConsolePi"; then
         logit "Adding /etc/ConsolePi as git safe.directory globally"
-        git config --global --add safe.directory /etc/ConsolePi
+        git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
+        sudo -u $iam git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
     fi
     [ ! -z $branch ] && [ $branch != "master" ] && logit "Running alternate branch: ${_green}$branch${_norm}"
     git_rem=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git remote -v | head -1 | cut -d '(' -f-1 ; popd >/dev/null 2>&1)

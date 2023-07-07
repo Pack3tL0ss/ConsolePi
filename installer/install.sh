@@ -81,34 +81,38 @@ do_apt_update() {
 
 do_apt_deps() {
     process="Install Reqd Pkgs"
-    logit "$process - Starting"
+    if $doapt; then
+        logit "$process - Starting"
 
-    which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
+        which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
 
-    # -- Ensure python3-pip is installed --
-    [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
-        process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
+        # -- Ensure python3-pip is installed --
+        [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
+            process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
 
-    # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
-    # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
-    if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
-        process_cmds -pf "install libffi-dev" -apt-install "libffi-dev"
+        # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
+        # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
+        if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
+            process_cmds -pf "install libffi-dev" -apt-install "libffi-dev"
+        fi
+
+        # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
+        # TODO check if this is required
+        if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
+            process_cmds -pf "install libssl-dev" -apt-install "libssl-dev"
+        fi
+
+        # If it's an RPI we ensure RPi.GPIO is up to date.
+        # TODO this may not be necessary with restoration of pip install RPi.GPIO below
+        [ "$is_pi" = true ] && apt upgrade -y python3-rpi.gpio >/dev/null 2> >(grep -v "^$" | grep -v "stable CLI" | tee -a $log_file) ||
+            logit "apt upgrade python3-rpi.gpio returned an error, check logs in $log_file" "WARNING"
+
+        # TODO add picocom, maybe ser2net, ensure process_cmds can accept multiple packages
+
+        logit "$process - Complete"
+    else
+        logit "apt deps skipped based on --no-apt flag" "WARNING"
     fi
-
-    # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
-    # TODO check if this is required
-    if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
-        process_cmds -pf "install libssl-dev" -apt-install "libssl-dev"
-    fi
-
-    # If it's an RPI we ensure RPi.GPIO is up to date.
-    # TODO this may not be necessary with restoration of pip install RPi.GPIO below
-    [ "$is_pi" = true ] && apt upgrade -y python3-rpi.gpio >/dev/null 2> >(grep -v "^$" | grep -v "stable CLI" | tee -a $log_file) ||
-        logit "apt upgrade python3-rpi.gpio returned an error, check logs in $log_file" "WARNING"
-
-    # TODO add picocom, maybe ser2net, ensure process_cmds can accept multiple packages
-
-    logit "$process - Complete"
 }
 
 do_user_dir_import(){

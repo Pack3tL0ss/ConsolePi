@@ -628,8 +628,20 @@ missing_param(){
     exit 1
 }
 
+do_safe_dir(){
+    # Prevent fatal: detected dubious ownership in repository at '/etc/ConsolePi'
+    if ! git config --global -l | grep -q "safe.directory=/etc/ConsolePi"; then
+        logit "Adding /etc/ConsolePi as git safe.directory globally"
+        git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
+    fi
+    if ! sudo -u $iam git config --global -l | grep -q "safe.directory=/etc/ConsolePi"; then
+        logit "Adding /etc/ConsolePi as git safe.directory globally for user $iam"
+        sudo -u $iam git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
+    fi
+}
+
 process_args() {
-    branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
+    branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD 2>/dev/null && popd >/dev/null || echo "master")
     silent=false
     local_dev=false
     dopip=true
@@ -747,6 +759,7 @@ main() {
     if [ "${script_iam}" = "root" ]; then
         set +H                              # Turn off ! history expansion
         cmd_line="$@"
+        do_safe_dir                         # Ensures /etc/ConsolePi is git safe.directory
         process_args "$@"
         get_common                          # get and import common functions script
         [ -n "$cmd_line" ] && logit -L -t "ConsolePi Installer" "Called with the following args: $cmd_line"

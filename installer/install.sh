@@ -630,12 +630,17 @@ missing_param(){
 
 do_safe_dir(){
     # Prevent fatal: detected dubious ownership in repository at '/etc/ConsolePi'
+    # common is not loaded yet, hence the need to define the local vars
+    local iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
+    local tmp_log="/tmp/consolepi_install.log"
+    local final_log="/var/log/ConsolePi/install.log"
+    [ -f "$final_log" ] && local log_file=$final_log || local log_file=$tmp_log
     if ! git config --global -l | grep -q "safe.directory=/etc/ConsolePi"; then
-        logit "Adding /etc/ConsolePi as git safe.directory globally"
+        echo "$(date +"%b %d %T") [$$][INFO][Verify git safe.directory] Adding /etc/ConsolePi as git safe.directory globally" | tee -a $log_file
         git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
     fi
     if ! sudo -u $iam git config --global -l | grep -q "safe.directory=/etc/ConsolePi"; then
-        logit "Adding /etc/ConsolePi as git safe.directory globally for user $iam"
+        echo "$(date +"%b %d %T") [$$][INFO][Verify git safe.directory] Adding /etc/ConsolePi as git safe.directory globally for user $iam" | tee -a $log_file
         sudo -u $iam git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
     fi
 }

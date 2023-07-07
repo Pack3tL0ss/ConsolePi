@@ -81,32 +81,38 @@ do_apt_update() {
 
 do_apt_deps() {
     process="Install Reqd Pkgs"
-    which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
+    if $doapt; then
+        logit "$process - Starting"
 
-    # -- Ensure python3-pip is installed --
-    [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
-        process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
+        which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
 
-    # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
-    # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
-    if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
-        process_cmds -pf "install libffi-dev" -apt-install "libffi-dev"
+        # -- Ensure python3-pip is installed --
+        [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
+            process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
+
+        # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
+        # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
+        if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
+            process_cmds -pf "install libffi-dev" -apt-install "libffi-dev"
+        fi
+
+        # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
+        # TODO check if this is required
+        if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
+            process_cmds -pf "install libssl-dev" -apt-install "libssl-dev"
+        fi
+
+        # If it's an RPI we ensure RPi.GPIO is up to date.
+        # TODO this may not be necessary with restoration of pip install RPi.GPIO below
+        [ "$is_pi" = true ] && apt upgrade -y python3-rpi.gpio >/dev/null 2> >(grep -v "^$" | grep -v "stable CLI" | tee -a $log_file) ||
+            logit "apt upgrade python3-rpi.gpio returned an error, check logs in $log_file" "WARNING"
+
+        # TODO add picocom, maybe ser2net, ensure process_cmds can accept multiple packages
+
+        logit "$process - Complete"
+    else
+        logit "apt deps skipped based on --no-apt flag" "WARNING"
     fi
-
-    # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
-    # TODO check if this is required
-    if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
-        process_cmds -pf "install libssl-dev" -apt-install "libssl-dev"
-    fi
-
-    # If it's an RPI we ensure RPi.GPIO is up to date.
-    # TODO this may not be necessary with restoration of pip install RPi.GPIO below
-    [ "$is_pi" = true ] && apt upgrade -y python3-rpi.gpio >/dev/null 2> >(grep -v "^$" | grep -v "stable CLI" | tee -a $log_file) ||
-        logit "apt upgrade python3-rpi.gpio returned an error, check logs in $log_file"
-
-    # TODO add picocom, maybe ser2net, ensure process_cmds can accept multiple packages
-
-    logit "$process - Complete"
 }
 
 do_user_dir_import(){
@@ -622,8 +628,25 @@ missing_param(){
     exit 1
 }
 
+do_safe_dir(){
+    # Prevent fatal: detected dubious ownership in repository at '/etc/ConsolePi'
+    # common is not loaded yet, hence the need to define the local vars
+    local iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
+    local tmp_log="/tmp/consolepi_install.log"
+    local final_log="/var/log/ConsolePi/install.log"
+    [ -f "$final_log" ] && local log_file=$final_log || local log_file=$tmp_log
+    if ! git config --global -l | grep -q "safe.directory=/etc/ConsolePi"; then
+        echo "$(date +"%b %d %T") [$$][INFO][Verify git safe.directory] Adding /etc/ConsolePi as git safe.directory globally" | tee -a $log_file
+        git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
+    fi
+    if ! sudo -u $iam git config --global -l | grep -q "safe.directory=/etc/ConsolePi"; then
+        echo "$(date +"%b %d %T") [$$][INFO][Verify git safe.directory] Adding /etc/ConsolePi as git safe.directory globally for user $iam" | tee -a $log_file
+        sudo -u $iam git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
+    fi
+}
+
 process_args() {
-    branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD && popd >/dev/null || echo "master")
+    branch=$(pushd /etc/ConsolePi >/dev/null 2>&1 && git rev-parse --abbrev-ref HEAD 2>/dev/null && popd >/dev/null || echo "master")
     silent=false
     local_dev=false
     dopip=true
@@ -741,6 +764,7 @@ main() {
     if [ "${script_iam}" = "root" ]; then
         set +H                              # Turn off ! history expansion
         cmd_line="$@"
+        do_safe_dir                         # Ensures /etc/ConsolePi is git safe.directory
         process_args "$@"
         get_common                          # get and import common functions script
         [ -n "$cmd_line" ] && logit -L -t "ConsolePi Installer" "Called with the following args: $cmd_line"

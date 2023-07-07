@@ -299,14 +299,22 @@ FindSSID() {
     # uptime on initial hit on Pi4 was consistently 14 seconds
     i=0; j=1
     until [ $i -eq 1 ] ; do # wait for wifi if busy, usb wifi is slower.
-        ssidreply=$((iw dev "$wifidev" scan ap-force | egrep "^BSS|SSID:") 2>&1) >/dev/null 2>&1
+        ssidreply=$((iw dev "$wifidev" scan ap-force | grep -v HESSID | egrep "^BSS|SSID:") 2>&1) >/dev/null 2>&1
+        # FIXME handle SSID with space i.e. 'Sun Room.k,'
+        # _IFS=$IFS
+        # IFS=$'\n'
+        # x=($(echo -e ${ssidreply//BSS/\\nBSS} | tail -n +2))
+        # # close but bash: warning: command substitution: ignored null byte in input
+        # x=($(for line in ${ssidlines[@]}; do ssid=$(echo $line | rev | cut -d: -f1 | rev); echo ${ssid//' '/};done))
+        # IFS=$_IFS
 
         if ! $DEBUG ; then
-            x=($(echo "$ssidreply" | grep "SSID:" | cut -d' ' -f 2))
+            x=($(echo "$ssidreply" |  grep -v '\\x00\\x00' | grep "SSID:" | cut -d' ' -f 2))
+            # x=($(echo "$ssidreply" |  grep -v '\\x00\\x00' | grep "SSID:" | cut -d' ' -f 2-))
             for ssid in "${x[@]}" ; do if [[ ! "$ssids_pretty" =~ "$ssid" ]] ; then ssids_pretty="$ssids_pretty, $ssid"; fi; done
-            logit "SSid's in range: ${ssids_pretty/, /}"
+            logit "SSID's in range: ${ssids_pretty/, /}"
         else
-            logit "SSid's in range: $ssidreply" "DEBUG"
+            logit "SSID's in range: $ssidreply" "DEBUG"
         fi
 
         (($j > 1)) # && logit "Device Available Check try $j"

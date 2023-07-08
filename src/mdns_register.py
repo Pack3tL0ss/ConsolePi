@@ -8,18 +8,20 @@ import pyudev
 import threading
 import struct
 import sys
-try:
-    import better_exceptions  # NoQA pylint: disable=import-error
-except ImportError:
-    pass
+import setproctitle
+
+from rich.traceback import install
+install(show_locals=True)
 
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import log, config  # NoQA
-from consolepi.consolepi import ConsolePi  # NoQA
-from consolepi.gdrive import GoogleDrive  # NoQA
+from consolepi import log, config  # type: ignore # NoQA
+from consolepi.consolepi import ConsolePi  # type: ignore # NoQA
+from consolepi.gdrive import GoogleDrive  # type: ignore # NoQA
 
 
 UPDATE_DELAY = 30
+
+setproctitle.setproctitle("consolepi-mdnsreg")
 
 
 class MDNS_Register:
@@ -129,8 +131,11 @@ class MDNS_Register:
                     info = self.build_info(squash='interfaces')
                 except (struct.error, ValueError):
                     log.critical('[MDNS REG] data is still too big for mdns')
-                    log.debug('[MDNS REG] offending interface data \n    {}'.format(
-                            json.dumps(local.interfaces, indent=4, sort_keys=True)))
+                    log.debug(
+                        '[MDNS REG] offending interface data \n    {}'.format(
+                            json.dumps(local.interfaces, indent=4, sort_keys=True)
+                        )
+                    )
 
         return info
 

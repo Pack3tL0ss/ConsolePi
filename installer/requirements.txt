@@ -52,3 +52,6 @@ Werkzeug>=0.15.4
 # wrapt>=1.11.2
 zeroconf>=0.23.0
 rich
+setproctitle
+aiohttp
+asyncio

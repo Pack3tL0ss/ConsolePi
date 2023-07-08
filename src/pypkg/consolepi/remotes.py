@@ -1,13 +1,15 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import time
-import threading
 import socket
 from typing import Any, Dict, List, Union
 from halo import Halo
 from sys import stdin
 from log_symbols import LogSymbols as log_sym  # Enum
-from consolepi import utils, log, config, json, requests  # type: ignore
+from consolepi import utils, log, config, json  # type: ignore
+from aiohttp import ClientSession
+import asyncio
+from aiohttp.client_exceptions import ContentTypeError
 # from pydantic import BaseModel
 # from consolepi.gdrive import GoogleDrive  !!--> Import burried in refresh method to speed menu load times on older platforms
 
@@ -17,9 +19,12 @@ from consolepi import utils, log, config, json, requests  # type: ignore
 
 
 class Remotes:
-    """Remotes Object Contains attributes for discovered remote ConsolePis"""
+    """Remotes Object Contains attributes for discovered remote ConsolePis
 
-    def __init__(self, local, cpiexec):
+    bypass_cloud overrides the config value for cloud (gdrive sync)
+        Used by mdns services which don't need cloud updates.
+    """
+    def __init__(self, local, cpiexec, bypass_cloud: bool = False):
         self.cpiexec = cpiexec
         self.pop_list = []
         self.old_api_log_sent = False
@@ -29,8 +34,9 @@ class Remotes:
         self.connected: bool = False
         self.cache_update_pending = False
         self.spin = Halo(spinner="dots")
+        self.running_spinners = []
         self.cloud = None  # Set in refresh method if reachable
-        self.do_cloud = config.cfg.get("cloud", False)
+        self.do_cloud = False if bypass_cloud is True else config.cfg.get("cloud", False)
         CLOUD_CREDS_FILE = config.static.get("CLOUD_CREDS_FILE")
         if not CLOUD_CREDS_FILE:
             self.no_creds_error()
@@ -45,9 +51,11 @@ class Remotes:
                     show=True,
                 )
                 self.local_only = True
-        self.data = self.get_remote(
-            data=config.remote_update()
-        )  # re-get cloud.json to capture any updates via mdns
+        self.data = asyncio.run(
+            self.get_remote(
+                data=config.remote_update()
+            )  # re-get cloud.json to capture any updates via mdns
+        )
 
     def no_creds_error(self):
         cloud_svc = config.cfg.get("cloud_svc", "UNDEFINED!")
@@ -59,18 +67,41 @@ class Remotes:
         self.do_cloud = config.cfg["do_cloud"] = False
 
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
-    def get_remote(self, data: dict = None, rename: bool = False) -> Dict[str, Any]:
+    async def get_remote(self, data: dict = None, rename: bool = False) -> Dict[str, Any]:
         spin = self.spin
+        _get_remote_start = time.perf_counter()
 
-        def verify_remote_thread(remotepi: str, data: dict, rename: bool) -> None:
+        async def verify_remote(remotepi: str, data: dict, rename: bool) -> None:
             """sub to verify reachability and api data for remotes
 
             params:
             remotepi: The hostname currently being processed
             data: dict remote ConsolePi dict with hostname as key
+            rename: bool set True to perform rename request (TODO not sure this is used.)
             """
             this = data[remotepi]
-            res = self.api_reachable(remotepi, this, rename=rename)
+            if stdin.isatty():
+                self.spin.stop()
+                self.spin.start(f"verifying {remotepi}")
+            self.running_spinners += [remotepi]
+            res = await self.api_reachable(remotepi, this, rename=rename)
+            _ = self.running_spinners.pop(self.running_spinners.index(remotepi))
+            if stdin.isatty():  # restore spin text to any spinners that are still runnning
+                self.spin.stop() if res.reachable else self.spin.fail()
+                if self.running_spinners:
+                    self.spin.start(f"verifying {self.running_spinners[-1]}")
+                else:
+                    if config.remotes:
+                        self.spin.succeed(
+                            "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
+                            f"Found {len(config.remotes)} Remote ConsolePis in {time.perf_counter() - _get_remote_start:.2f}"
+                        )
+                    else:
+                        self.spin.warn(
+                            "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
+                            "No Reachable Remote ConsolePis Discovered"
+                        )
+
             this = res.data
             if res.update:
                 self.cache_update_pending = True
@@ -97,7 +128,6 @@ class Remotes:
             data = config.remotes  # remotes from local cloud cache
 
         if not data:
-            # print(self.log_sym_warn + " No Remotes in Local Cache")
             log.info("No Remotes found in Local Cache")
             data = {}  # convert None type to empy dict
         else:
@@ -113,38 +143,14 @@ class Remotes:
                 spin.start(
                     "Querying Remotes via API to verify reachability and adapter data"
                 )
-            for remotepi in data:
-                # -- // Launch Threads to verify all remotes in parallel \\ --
-                threading.Thread(
-                    target=verify_remote_thread,
-                    args=(remotepi, data, rename),
-                    name=f"vrfy_{remotepi}",
-                ).start()
-                # verify_remote_thread(remotepi, data)  # Non-Threading DEBUG
 
-            # -- wait for threads to complete --
-            if not self.cpiexec.wait_for_threads(name="vrfy_", thread_type="remote"):
-                if config.remotes:
-                    if stdin.isatty():
-                        spin.succeed(
-                            "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
-                            f"Found {len(config.remotes)} Remote ConsolePis"
-                        )
-                else:
-                    if stdin.isatty():
-                        spin.warn(
-                            "[GET REM] Querying Remotes via API to verify reachability and adapter data\n\t"
-                            "No Reachable Remote ConsolePis Discovered"
-                        )
-            else:
-                log.error(
-                    "[GET REM] Remote verify threads Still running / exceeded timeout"
-                )
-                if stdin.isatty():
-                    spin.stop()
+            _ = await asyncio.gather(*[verify_remote(remotepi, data, rename) for remotepi in data])
 
         # update local cache if any ConsolePis found UnReachable
         if self.cache_update_pending:
+            _start = time.perf_counter()
+            if stdin.isatty():
+                spin.start("Updating local cloud cache...")
             if self.pop_list:
                 for remotepi in self.pop_list:
                     if (
@@ -167,6 +173,8 @@ class Remotes:
             data = self.update_local_cloud_file(data)
             self.pop_list = []
             self.cache_update_pending = False
+            if stdin.isatty():
+                spin.succeed(f"Updating local cloud cache... Completed in {time.perf_counter() - _start:.2f}s")
 
         # TODO this is working, prob change adapters to a list of models
         # remotes = [Remote(**{"name": k, **data[k]}) for k in data]
@@ -257,7 +265,7 @@ class Remotes:
                 )
 
         # Update Remote data with data from local_cloud cache / cloud
-        self.data = self.get_remote(data=remote_consoles)
+        self.data = asyncio.run(self.get_remote(data=remote_consoles))
 
     def update_local_cloud_file(
         self, remote_consoles=None, current_remotes=None, local_cloud_file=None
@@ -422,46 +430,7 @@ class Remotes:
 
         return remote_consoles
 
-    # Currently not Used
-    def do_api_request(self, ip: str, path: str, *args, **kwargs):
-        """Send RestFul GET request to Remote ConsolePi to collect data
-
-        params:
-        ip(str): ip address or FQDN of remote ConsolePi
-        path(str): path beyond /api/v1.0/
-
-        returns:
-        response object
-        """
-        url = f"http://{ip}:5000/api/v1.0/{path}"
-        log.debug(f'[do_api_request] URL: {url}')
-
-        headers = {
-            "Accept": "*/*",
-            "Cache-Control": "no-cache",
-            "Host": f"{ip}:5000",
-            "accept-encoding": "gzip, deflate",
-            "Connection": "keep-alive",
-            "cache-control": "no-cache",
-        }
-
-        try:
-            response = requests.request(
-                "GET", url, headers=headers, timeout=config.remote_timeout
-            )
-        except (OSError, TimeoutError):
-            log.warning(f"[API RQST OUT] Remote ConsolePi @ {ip} TimeOut when querying via API - Unreachable.")
-            return False
-
-        if response.ok:
-            log.info(f"[API RQST OUT] {url} Response: OK")
-            log.debugv(f"[API RQST OUT] Response: \n{json.dumps(response.json(), indent=4, sort_keys=True)}")
-        else:
-            log.error(f"[API RQST OUT] API Request Failed {url}")
-
-        return response
-
-    def get_adapters_via_api(self, ip: str, port: int = 5000, rename: bool = False, log_host: str = None):
+    async def get_adapters_via_api(self, ip: str, port: int = 5000, rename: bool = False, log_host: str = None):
         """Send RestFul GET request to Remote ConsolePi to collect adapter info
 
         params:
@@ -490,30 +459,40 @@ class Remotes:
             "cache-control": "no-cache",
         }
 
+        ret = None
         try:
-            response = requests.request("GET", url, headers=headers, timeout=config.remote_timeout)
-        except (OSError, TimeoutError):
-            log.warning(f"[API RQST OUT] Remote ConsolePi: {log_host} TimeOut when querying via API - Unreachable.")
-            return False
-
-        if response.ok:
-            ret = response.json()
-            ret = ret["adapters"] if ret["adapters"] else response.status_code
-            _msg = f"Adapters Successfully retrieved via API for Remote ConsolePi: {log_host}"
-            log.info("[API RQST OUT] {}".format(_msg))
-            log.debugv(
-                "[API RQST OUT] Response: \n{}".format(
-                    json.dumps(ret, indent=4, sort_keys=True)
+            _start = time.perf_counter()
+            async with ClientSession() as client:
+                resp = await client.request(
+                    method="GET",
+                    url=url,
+                    headers=headers,
+                    timeout=config.remote_timeout,
                 )
-            )
-        else:
-            ret = response.status_code
-            log.error(
-                f"[API RQST OUT] Failed to retrieve adapters via API for Remote ConsolePi: {log_host}\n{ret}:{response.text}"
-            )
+                _elapsed = time.perf_counter() - _start
+                if resp.ok:
+                    try:
+                        ret = await resp.json()
+                        ret = ret["adapters"] if ret["adapters"] else resp.status
+                        _msg = f"Adapters Successfully retrieved via API for Remote ConsolePi: {log_host}, elapsed {_elapsed:.2f}s"
+                        log.info("[API RQST OUT] {}".format(_msg))
+                        log.debugv(
+                            "[API RQST OUT] Response: \n{}".format(
+                                json.dumps(ret, indent=4, sort_keys=True)
+                            )
+                        )
+                    except (json.decoder.JSONDecodeError, ContentTypeError):
+                        log.error(f'[API RQST OUT] Puked on payload from {log_host} \n{await resp.text()}')
+                        ret = resp.status
+        except asyncio.TimeoutError:
+            log.warning(f"[API RQST OUT] Remote ConsolePi: {log_host} TimeOut when querying via API - Unreachable.")
+        except Exception as e:
+            log.show(f'Exception: {e.__class__.__name__}, in remotes.get_adapters_via_api() check logs')
+            log.exception(e)
+
         return ret
 
-    def api_reachable(self, remote_host: str, cache_data: dict, rename: bool = False):
+    async def api_reachable(self, remote_host: str, cache_data: dict, rename: bool = False):
         """Check Rechability & Fetch adapter data via API for remote ConsolePi
 
         params:
@@ -524,8 +503,10 @@ class Remotes:
                 changed as a result of remote rename operation.
 
         returns:
-            tuple [0]: Bool, indicating if data is different than cache
-                  [1]: dict, Updated ConsolePi dictionary for the remote
+            APIReachableResponse object with the following attributes
+                update: bool flag indicating if data was updated (I think)
+                data: dict remote consolepi dict
+                rechable: bool if the consolepi is reachable
         """
 
         class ApiReachableResponse:
@@ -554,7 +535,7 @@ class Remotes:
         rem_ip = _adapters = None
         for _ip in rem_ip_list:
             log.debug(f"[API_REACHABLE] verifying {remote_host}")
-            _adapters = self.get_adapters_via_api(_ip, port=int(cache_data.get("api_port", 5000)), rename=rename, log_host=f"{remote_host}({_ip})")
+            _adapters = await self.get_adapters_via_api(_ip, port=int(cache_data.get("api_port", 5000)), rename=rename, log_host=f"{remote_host}({_ip})")
             if _adapters:
                 rem_ip = _ip  # Remote is reachable
                 if not isinstance(_adapters, int):  # indicates status_code returned (error or no adapters found)

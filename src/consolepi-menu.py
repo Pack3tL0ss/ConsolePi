@@ -11,6 +11,7 @@ from pprint import pprint
 from collections import OrderedDict as od
 from typing import Union
 from halo import Halo
+import asyncio
 # from rich.console import Console
 
 # --// ConsolePi imports \\--
@@ -891,7 +892,7 @@ class ConsolePiMenu(Rename):
             if choice == 'r':
                 local.adapters = local.build_adapter_dict(refresh=True)
                 if not direct_launch:
-                    remotes.data = remotes.get_remote(data=config.remote_update())
+                    remotes.data = asyncio.run(remotes.get_remote(data=config.remote_update()))
             loc = local.adapters
             rem = remotes.data if not direct_launch else []
 
@@ -956,7 +957,7 @@ class ConsolePiMenu(Rename):
             if choice.isdigit() and int(choice) >= rem_item:
                 print('Triggering Refresh due to Remote Name Change')
                 # remotes.refresh(bypass_cloud=True)  # NoQA TODO would be more ideal just to query the remote involved in the rename and update the dict
-                remotes.data = remotes.get_remote(data=config.remote_update(), rename=True)
+                remotes.data = asyncio.run(remotes.get_remote(data=config.remote_update(), rename=True))
 
             # TODO Temp need more elegant way to handle back to main_menu
             elif menu_actions.get(choice, {}) is None and choice == "b":
@@ -973,12 +974,7 @@ class ConsolePiMenu(Rename):
         cpi = self.cpi
         remotes = cpi.remotes
         cpi.local.adapters = cpi.local.build_adapter_dict(refresh=True)
-        remotes.data = remotes.get_remote(data=config.remote_update())
-        # loc = cpi.local.adapters
-        # rem = remotes.data
-
-    # def toggle_show_legend(self):
-    #     self.menu.show_legend = not self.menu.show_legend
+        remotes.data = asyncio.run(remotes.get_remote(data=config.remote_update()))
 
     # ------ // MAIN MENU \\ ------ #
     def main_menu(self):

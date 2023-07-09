@@ -8,6 +8,7 @@ import time
 import sys
 from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 import setproctitle
+import asyncio
 
 from rich.traceback import install
 install(show_locals=True)
@@ -108,7 +109,7 @@ class MDNS_Browser:
             # TODO check this don't think needed had a hung process on one of my Pis added it to be safe
             try:
                 # TODO we are setting update time here so always result in a cache update with the restart timer
-                res = cpi.remotes.api_reachable(hostname, mdns_data[hostname])
+                res = asyncio.run(cpi.remotes.api_reachable(hostname, mdns_data[hostname]))
                 update_cache = res.update
                 if not res.data.get('adapters'):
                     self.no_adapters.append(hostname)

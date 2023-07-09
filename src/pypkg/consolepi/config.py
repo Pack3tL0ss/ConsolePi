@@ -122,6 +122,8 @@ class Config():
         self.cycle_time = int(ovrd.get('cycle_time', DEFAULT_CYCLE_TIME))
         self.api_port = int(ovrd.get("api_port", DEFAULT_API_PORT))
         self.hide_legend = ovrd.get("hide_legend", False)
+        # Additional override settings not needed by the python files
+        # ovpn_share:  Share VPN connection when wired_dhcp enabled with hotspot connected devices
 
     def get_outlets_from_file(self):
         '''Get outlets defined in config

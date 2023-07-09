@@ -429,7 +429,7 @@ class Config():
         ########################################################
         # --- ser2net (4.x) config lines look like this ---
         # connection: &con0096
-        # accepter: tcp,2000
+        # accepter: telnet(rfc2217),tcp,2000
         #   enable: on
         #   options:
         #     banner: *banner

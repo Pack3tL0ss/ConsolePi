@@ -366,9 +366,10 @@ class Rename():
                     log.error(f'Rename Menu Error while attempting to cp ser2net.conf from src {error}', show=True)
                     return error  # error added to display in calling method
 
+        # FIXME we use the precense of v3 file if it exists vs the ser2net ver
         if config.ser2net_ver.startswith("4"):
             ser2net_line = f"""connection: &{to_name}
-  accepter: tcp,{next_port}
+  accepter: telnet(rfc2217),tcp,{next_port}
   enable: on
   options:
     banner: *banner

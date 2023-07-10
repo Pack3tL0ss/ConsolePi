@@ -87,7 +87,7 @@ class Remotes:
             res = await self.api_reachable(remotepi, this, rename=rename)
             _ = self.running_spinners.pop(self.running_spinners.index(remotepi))
             if stdin.isatty():  # restore spin text to any spinners that are still runnning
-                self.spin.stop() if res.reachable else self.spin.fail()
+                self.spin.stop() if res.reachable else self.spin.fail(f'verifying {remotepi}')
                 if self.running_spinners:
                     self.spin.start(f"verifying {self.running_spinners[-1]}")
                 else:

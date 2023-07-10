@@ -9,7 +9,7 @@ from log_symbols import LogSymbols as log_sym  # Enum
 from consolepi import utils, log, config, json  # type: ignore
 from aiohttp import ClientSession
 import asyncio
-from aiohttp.client_exceptions import ContentTypeError
+from aiohttp.client_exceptions import ContentTypeError, ClientConnectorError
 # from pydantic import BaseModel
 # from consolepi.gdrive import GoogleDrive  !!--> Import burried in refresh method to speed menu load times on older platforms
 
@@ -484,7 +484,7 @@ class Remotes:
                     except (json.decoder.JSONDecodeError, ContentTypeError):
                         log.error(f'[API RQST OUT] Puked on payload from {log_host} \n{await resp.text()}')
                         ret = resp.status
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, ClientConnectorError):
             log.warning(f"[API RQST OUT] Remote ConsolePi: {log_host} TimeOut when querying via API - Unreachable.")
         except Exception as e:
             log.show(f'Exception: {e.__class__.__name__}, in remotes.get_adapters_via_api() check logs')

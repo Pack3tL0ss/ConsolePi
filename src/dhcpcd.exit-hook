@@ -136,6 +136,7 @@ check_test_mode() {
                     echo -e "Run via consolepi-pbtest [OPTIONS]\n"
                     echo -e "Options:"
                     echo -e "    'static': Test wired fallback to static flow (wired-dhcp, configure nat if wlan has valid connection)"
+                    echo -e "    'eth0|wlan0': Simulate new IP from specified interface"
                     echo -e "    --no-cloud: bypass cloud update"
                     echo -e "    --no-push: bypass PushBullet notification"
                     echo -e "    -L|--logs: Forces output of all logs for this test session after test is ran."

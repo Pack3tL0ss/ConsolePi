@@ -39,7 +39,8 @@ class GoogleDrive:
                 result = _request.execute()
                 break
             except Exception as e:
-                log.error(('[GDRIVE]: Exception while communicating with Gdrive\n {}'.format(e)))
+                log.show(f'Exception while communicating with Gdrive: {e.__class__.__name__}', show=True)
+                log.exception(f'[GDRIVE]: Exception while communicating with Gdrive\n{e}')
             if attempt > 2:
                 log.error(('[GDRIVE]: Giving up after {} attempts'.format(attempt)))
                 break
@@ -172,7 +173,7 @@ class GoogleDrive:
                 spreadsheetId=spreadsheet_id, range='A:B')
             result = self.exec_request(request)
             log.info('[GDRIVE]: Reading from Cloud Config')
-            if result.get('values') is not None:
+            if result and result.get('values') is not None:
                 x = 1
                 for row in result.get('values'):
                     if k == row[0]:  # k is hostname row[0] is column A of current row

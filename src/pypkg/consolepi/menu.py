@@ -382,7 +382,8 @@ class Menu:
         legend: Union[dict, list] = None,
         format_subs: bool = False,
         by_tens: bool = False,
-        menu_actions: dict = {}
+        menu_actions: dict = {},
+        hide_legend: bool = None,
     ) -> dict:
         """Format and print current menu, sized to fit terminal.  Pager implemented if required.
 
@@ -415,6 +416,7 @@ class Menu:
                                       Defaults to False.
             menu_actions (dict, optional): The Actions dict (TODO make object).  Determines what function is called when a menu
                                            item is selected Defaults to {}.
+            menu_actions (bool, optional): Override config option for menus where you always want legend printed.
 
         Returns:
             [dict]: Returns the menu_actions dict which may include paging actions if warranted.
@@ -463,10 +465,12 @@ class Menu:
             elif isinstance(legend, list):
                 self.legend_in = {"opts": legend}
 
-        self.legend_options = {**DEF_LEGEND_OPTIONS, **self.legend_options}
+        self.legend_options = DEF_LEGEND_OPTIONS if not self.legend_options else {**DEF_LEGEND_OPTIONS, **self.legend_options}
         header = self.format_header(header)
         subhead = self.format_subhead(subhead)
         self.format_legend(self.legend_in)
+        if hide_legend is not None:
+            self.page.legend.hide = hide_legend
         self.format_footer()
 
         if not subs:
@@ -699,6 +703,9 @@ class Menu:
 
         # update slices (first/last items) in the event tty was resized and no page change was selected
         self.update_slices()
+
+        # FIXME this was issue with con menu where legend was widest section
+        self.cur_page_width = max([self.cur_page_width, self.page.legend.cols, self.page.footer.cols, self.page.header.cols])
 
         for menu_part in [self.page.legend, self.page.footer, self.page.header]:
             menu_part.update(width=self.cur_page_width)
@@ -1278,7 +1285,7 @@ class Menu:
             name="header",
             update_method=self.format_header,
             update_args=(text, ),
-            update_kwargs={"width": width},
+            update_kwargs={"width": max(width_list)},
         )
         # _header.update_method = self.format_header
         # _header.update_args = (text)
@@ -1389,7 +1396,7 @@ class Menu:
         pre_text, post_text, legend_text = [], [], []  # init
 
         # replace any pre-defined options with those passed in as overrides
-        legend_options = self.legend_options
+        legend_options = self.legend_options or DEF_LEGEND_OPTIONS
         if legend.get("overrides") and isinstance(legend["overrides"], dict):
             legend_options = {**legend_options, **legend["overrides"]}
             no_match_overrides = [

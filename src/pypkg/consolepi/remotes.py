@@ -148,9 +148,6 @@ class Remotes:
 
         # update local cache if any ConsolePis found UnReachable
         if self.cache_update_pending:
-            _start = time.perf_counter()
-            if stdin.isatty():
-                spin.start("Updating local cloud cache...")
             if self.pop_list:
                 for remotepi in self.pop_list:
                     if (
@@ -173,8 +170,6 @@ class Remotes:
             data = self.update_local_cloud_file(data)
             self.pop_list = []
             self.cache_update_pending = False
-            if stdin.isatty():
-                spin.succeed(f"Updating local cloud cache... Completed in {time.perf_counter() - _start:.2f}s")
 
         # TODO this is working, prob change adapters to a list of models
         # remotes = [Remote(**{"name": k, **data[k]}) for k in data]

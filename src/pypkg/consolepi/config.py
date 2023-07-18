@@ -1,4 +1,5 @@
 #!/etc/ConsolePi/venv/bin/python3
+from __future__ import annotations
 import os
 from typing import Any, Dict
 import yaml
@@ -288,6 +289,33 @@ class Config():
     def get_ser2net(self):
         return self.get_ser2netv4() if self.ser2net_file.suffix in [".yaml", ".yml"] else self.get_ser2netv3()
 
+    @staticmethod
+    def get_v4_line(tty_dev: str, *, port: int, baud: int, parity: str, dbits: int, sbits: int, flow: str, logfile: str | Path, log_ptr: str, **kwargs) -> str:
+        ser2net_flow = {
+            'n': '',
+            'x': ' XONXOFF',
+            'h': ' RTSCTS'
+        }
+        ser2netv4_line = f"""connection: &{tty_dev.replace("/dev/", "")}
+  accepter: telnet(rfc2217),tcp,{port}
+  connector: serialdev,{tty_dev},{baud}{parity}{dbits}{sbits},local{'' if flow == 'n' else ',' + ser2net_flow[flow].lower()}
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
+"""
+        if logfile and log_ptr:
+            log_type = log_ptr.split("=")[0]
+            log_alias = "".join(log_ptr.split("=")[1:])
+            pointers = {
+                "tr": "trace-read",
+                "tw": "trace-write",
+                "tb": "trace-both",
+            }
+            ser2netv4_line = f'{ser2netv4_line}    {pointers[log_type]}: *{log_alias}'
+        return ser2netv4_line
+
     def get_ser2netv3(self):
         '''Parse ser2net.conf to extract connection info for serial adapters
 
@@ -326,7 +354,7 @@ class Config():
                 continue
             elif 'TRACEFILE:' in line:
                 line = line.split(':')
-                trace_files[line[1]] = line[2]
+                trace_files[line[1]] = "".join(line[2:])
                 continue
             elif not line[0].isdigit():
                 continue
@@ -403,13 +431,20 @@ class Config():
                 'logfile': logfile,
                 'log_ptr': log_ptr,
                 'cmd': cmd,
-                'line': _line
+                'line': _line,
             }
+            ser2net_conf[tty_dev]['v4line'] = self.get_v4_line(tty_dev, **ser2net_conf[tty_dev])
+            if trace_files:
+                _v4_tracefiles = [f'define: &{k} {v}' for k, v in trace_files.items()]
+                ser2net_conf["_v4_tracefiles"] = "# TRACEFILE DEFINITIONS\n" + "\n".join(_v4_tracefiles)
 
         return ser2net_conf
 
     def get_ser2netv4(self):
-        '''Parse ser2net.yaml (ser2net 4.x) to extract connection info for serial adapters
+        """Parse ser2net.yaml (ser2net 4.x) to extract connection info for serial adapters
+
+        Args:
+            ser_dict (dict, optional): Used to convert ser2netv3 to v4. Defaults to None.
 
         retruns 2 level dict (empty dict if ser2net.yaml not found or empty):
             {
@@ -425,7 +460,7 @@ class Config():
                     "line": The config lines from ser2net.yaml
                 }
             }
-        '''
+        """
         ########################################################
         # --- ser2net (4.x) config lines look like this ---
         # connection: &con0096

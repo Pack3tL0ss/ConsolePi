@@ -1,6 +1,7 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import os
+import yaml
 from consolepi import log, config, utils  # type: ignore
 
 
@@ -350,7 +351,10 @@ class Rename():
         cur_line = config.ser2net_conf.get(f'/dev/{from_name}', {}).get('line')
         if cur_line and '/dev/ttyUSB' not in cur_line and '/dev/ttyACM' not in cur_line:
             new_entry = False
-            next_port = next_port = cur_line.split(':')[0]  # Renaming existing
+            if config.ser2net_file.suffix in [".yaml", ".yml"]:
+                next_port = int(yaml.safe_load(cur_line.replace(": *", ": REF_"))["connection"].get("accepter").split(",")[-1])
+            else:
+                next_port = cur_line.split(':')[0]  # Renaming existing
             log_ptr = config.ser2net_conf[f'/dev/{from_name}'].get('log_ptr')
             if not log_ptr:
                 log_ptr = ''
@@ -366,23 +370,19 @@ class Rename():
                     log.error(f'Rename Menu Error while attempting to cp ser2net.conf from src {error}', show=True)
                     return error  # error added to display in calling method
 
-        # FIXME we use the precense of v3 file if it exists vs the ser2net ver
-        if config.ser2net_ver.startswith("4"):
+        if config.ser2net_file.suffix in [".yaml", ".yml"]:
             ser2net_line = f"""connection: &{to_name}
   accepter: telnet(rfc2217),tcp,{next_port}
+  connector: serialdev,/dev/{to_name},{baud}{parity}{dbits}{sbits},local{'' if flow == 'n' else ',' + ser2net_flow[flow].lower()}
   enable: on
   options:
     banner: *banner
     kickolduser: true
     telnet-brk-on-sync: true
-  connector: serialdev,
-             /dev/{to_name},
-             {baud}{parity}{dbits}{sbits},
-             local
 """
-            if flow != "n":
-                ser2net_line = ser2net_line.rstrip("\n")
-                ser2net_line = f'{ser2net_line},\n            {ser2net_flow[flow].lower()}\n'
+            # if flow != "n":
+            #     ser2net_line = ser2net_line.rstrip("\n")
+            #     ser2net_line = f'{ser2net_line},\n            {ser2net_flow[flow].lower()}\n'
         else:
             ser2net_line = (
                 '{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} {sbits}STOPBIT {flow} banner {log_ptr}'.format(
@@ -393,14 +393,39 @@ class Rename():
                     sbits=sbits,
                     parity=ser2net_parity[parity],
                     flow=ser2net_flow[flow],
-                    log_ptr=log_ptr)
+                    log_ptr=log_ptr
+                )
             )
 
-        # -- // Append to ser2net.conf \\ --
+        # -- // Append to ser2net config \\ --
         if new_entry:
             error = utils.append_to_file(config.ser2net_file, ser2net_line)
         # -- // Rename Existing Definition in ser2net.conf \\ --
         # -- for devices with existing definitions cur_line is the existing line
+        elif config.ser2net_file.suffix in [".yaml", ".yml"]:
+            # sudo sed -i 's|^connection: &delme1$|connection: \&test1|g'  /etc/ser2net.yaml
+            # sudo sed -i 's|^  connector: serialdev,/dev/orange1|  connector: serialdev,/dev/delme1|g'  /etc/ser2net.yaml
+            if not cur_line:
+                return f'cur_line has no value.  Leaving {config.ser2net_file} unchanged.'
+            connection_line = cur_line.splitlines()[0]
+            connector_line = [line for line in cur_line.splitlines() if "connector:" in line and f'/dev/{from_name},' in line.replace("\\/", "/")]
+            if connector_line:
+                if len(connector_line) > 1:
+                    error = f'Found {len(connector_line)} lines in {config.ser2net_file} with /dev/{from_name} defined.  Expected 1.  Aborting'
+                elif "connection:" not in connection_line:
+                    error = f'Unexpected connection line {connection_line} extracted for /dev/{from_name} from {config.ser2net_file}'
+                else:
+                    new_connection_line = connection_line.replace(f'&{from_name}', f'\&{to_name}')  # NoQA
+                    connector_line = connector_line[0]
+                    new_connector_line = connector_line.replace(f"/dev/{from_name},", f"/dev/{to_name},")
+                    cmds = [
+                        f"sudo sed -i 's|^{connection_line}$|{new_connection_line}|g'  {config.ser2net_file}",
+                        f"sudo sed -i 's|^{connector_line}$|{new_connector_line}|g'  {config.ser2net_file}"
+                    ]
+                    for cmd in cmds:
+                        error = utils.do_shell_cmd(cmd, shell=True)
+                        if error:
+                            break
         else:
             ser2net_line = ser2net_line.strip().replace('/', r'\/')
             cur_line = cur_line.replace('/', r'\/')

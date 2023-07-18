@@ -418,6 +418,12 @@ class Rename():
                     new_connection_line = connection_line.replace(f'&{from_name}', f'\&{to_name}')  # NoQA
                     connector_line = connector_line[0]
                     new_connector_line = connector_line.replace(f"/dev/{from_name},", f"/dev/{to_name},")
+                    expected_complete_connector_line = f"  connector: serialdev,/dev/{to_name},{baud}{parity}{dbits}{sbits},local{'' if flow == 'n' else ',' + ser2net_flow[flow].lower()}"
+                    if new_connector_line != expected_complete_connector_line:
+                        if "local" in new_connector_line:
+                            new_connector_line = expected_complete_connector_line
+                        else:
+                            return f'rename requires all serial settings be on the same line i.e. {expected_complete_connector_line}.'
                     cmds = [
                         f"sudo sed -i 's|^{connection_line}$|{new_connection_line}|g'  {config.ser2net_file}",
                         f"sudo sed -i 's|^{connector_line}$|{new_connector_line}|g'  {config.ser2net_file}"

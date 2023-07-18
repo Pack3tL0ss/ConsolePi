@@ -429,19 +429,19 @@ class Config():
         ########################################################
         # --- ser2net (4.x) config lines look like this ---
         # connection: &con0096
-        # accepter: telnet(rfc2217),tcp,2000
+        #   accepter: telnet(rfc2217),tcp,2000
+        #   connector: serialdev,/dev/ttyS0,9600n81,local
         #   enable: on
         #   options:
         #     banner: *banner
         #     kickolduser: true
         #     telnet-brk-on-sync: true
-        #   connector: serialdev,
-        #             /dev/ttyS0,
-        #             9600n81,local
         ########################################################
         ser2net_conf = {}
         raw = self.ser2net_file.read_text()
         raw_mod = "\n".join([line if not line.startswith("connection") else f"{line.split('&')[-1]}:" for line in raw.splitlines()])
+        banner = [line for line in raw.splitlines() if line.startswith("define: &banner")]
+        banner = None if not banner else banner[-1].replace("define: &banner", "").lstrip()
         ser_dict = yaml.safe_load(raw_mod)
 
         for k, v in ser_dict.items():
@@ -528,7 +528,7 @@ class Config():
                 'logfile': logfile,
                 'log_ptr': log_ptr,
                 'cmd': cmd,
-                'line': json.dumps(con_dict, indent=4)
+                'line': f'{list(con_dict.keys())[0]}\n{"".join(line if "banner:" not in line else line.replace(f"banner: {banner}", "banner: *banner") for idx, line in enumerate(yaml.safe_dump(con_dict, indent=2).splitlines(keepends=True)) if idx > 0)}'
             }
 
         return ser2net_conf

@@ -12,6 +12,20 @@
 
 define: &banner \r\nser2net port \p device \d [\B] (Debian GNU/Linux)\r\n\r\n
 
+# TRACEFILE DEFINITIONS
+define: &trace0 /var/log/ser2net/trace0-\p-\d-\s\p-\M-\D-\Y_\H\i\s.\U
+define: &trace1 /var/log/ser2net/trace1\p-\M-\D-\Y_\H\i\s.\U
+define: &trace2 /var/log/ser2net/trace2\p-\M-\D-\Y_\H\i\s.\U
+define: &trace3 /var/log/ser2net/trace3\p-\M-\D-\Y_\H\i\s.\U
+
+default:
+  name: mdns
+  value: false
+
+default:
+  name: mdns-sysattrs
+  value: false
+
 # unknown devices (known devices will also use these ports first come first serve in order)
 # -- Typical USB to serial Adapters --
 connection: &ttyUSB0

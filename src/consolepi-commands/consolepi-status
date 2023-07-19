@@ -1,37 +1,142 @@
 #!/usr/bin/env bash
 
-SVCS=(autohotspot consolepi-mdnsbrowse consolepi-mdnsreg consolepi-api consolepi-wired-dhcp consolepi-autohotspot-dhcp dnsmasq hostapd ser2net rfcomm bluetooth.service)
-systemctl is-enabled consolepi-gpiofan >/dev/null 2>&1 && SVCS+=('consolepi-gpiofan')
+ALL_SVCS=(autohotspot consolepi-mdnsbrowse consolepi-mdnsreg consolepi-api consolepi-wired-dhcp consolepi-autohotspot-dhcp dnsmasq hostapd ser2net rfcomm bluetooth.service)
+RELOAD_SVCS=("consolepi-mdnsbrowse" "consolepi-mdnsreg" "consolepi-api" "ser2net")
+systemctl is-enabled consolepi-gpiofan >/dev/null 2>&1 && ALL_SVCS+=('consolepi-gpiofan')
 
 _norm='\e[0m'
 _cyan='\e[96m' # technically light cyan
+_red='\e[31m'
+_green='\e[32m'
+_bangx2='!!'
+_fail="${_red}Failed$_bangx2${_norm}"
 
-for svc in "${SVCS[@]}" ; do
-  echo -e "\n---------------- // STATUS OF ${_cyan}${svc}.service${_norm} \\\\\ ---------------"
-  systemctl status $svc --no-pager
-done
+dots() {
+    local pad=$(printf "%0.1s" "."{1..70})
+    printf " * %s%*.*s" "$1" 0 $((70-${#1})) "$pad"
+    return 0
+}
 
-if [ ! -z $1 ] && [[ $1 =~ 'log' ]] ; then
-  echo "---------------- // ERRORS from log file \\\\\ ---------------"
-  if [[ -f /var/log/ConsolePi/consolepi.log ]] ; then
-    cat /var/log/ConsolePi/consolepi.log | grep -v INFO | grep -v DEBUG
-  else
-    cat /var/log/ConsolePi/cloud.log | grep -v INFO | grep -v DEBUG
-  fi
-fi
+line_dots() {
+    local pad=$(printf "%0.1s" "."{1..40})
+    printf " %s%*.*s" "$1" 0 $((40-${#1})) "$pad" ; echo $2
+}
 
-echo -e "\n\n---------------------- // Summary \\\\\ ----------------------"
-echo ".......UNIT.......             ENABLED   ACTIVE     STATUS"
-echo "------------------             -------   ------     -------"
-for svc in "${SVCS[@]}" ; do
-  if [[ ! $(systemctl is-enabled ${svc} 2>&1) =~ "No such file or directory" ]]; then
-    ena=$(systemctl is-enabled $svc 2>/dev/null)
-    printf "%-30s %-10s" ${svc%%.service} $ena
-    if systemctl is-active $svc > /dev/null; then
-      systemctl -a | grep "^ *${svc}[[:space:]|\.]*" |sed s/'● '//g | awk '{printf "%-10s %-10s \n", $3,$4}'
+do_error() {
+    if [ -z "$1" ]; then
+        echo -e "${_red}Error${_norm}: No rc sent to do_error\n"
+    elif [ "$1" -gt 0 ]; then
+        echo -e $_fail ; echo -e "\n"
     else
-      printf "%-10s %-10s \n" $(systemctl is-active $svc) "not-running"
+        echo -e "${_green}OK${_norm}"
     fi
-  fi
-done
-echo
+    [ -n "$2" ] && echo "$2"
+    # [[ $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
+    # popd > /dev/null 2>&1
+    # dump_log true
+    # exit 1
+    $DEBUG && echo "arg1 $1 arg2 $2"
+}
+
+show_summary() {
+    echo -e "\n\n---------------------- // ${_cyan}Summary${_norm} \\\\\ ----------------------"
+    echo ".......UNIT.......             ENABLED   ACTIVE     STATUS"
+    echo "------------------             -------   ------     -------"
+    for svc in "${ALL_SVCS[@]}" ; do
+      if [[ ! $(systemctl is-enabled ${svc} 2>&1) =~ "No such file or directory" ]]; then
+        ena=$(systemctl is-enabled $svc 2>/dev/null)
+        printf "%-30s %-10s" ${svc%%.service} $ena
+        if systemctl is-active $svc > /dev/null; then
+          systemctl -a | grep "^ *${svc}[[:space:]|\.]*" |sed s/'● '//g | awk '{printf "%-10s %-10s \n", $3,$4}'
+        else
+          printf "%-10s %-10s \n" $(systemctl is-active $svc) "not-running"
+        fi
+      fi
+    done
+    echo
+}
+
+show_status() {
+    for svc in "${ALL_SVCS[@]}" ; do
+      echo -e "\n---------------- // STATUS OF ${_cyan}${svc}.service${_norm} \\\\\ ---------------"
+      systemctl status $svc --no-pager
+    done
+
+    if [ ! -z $1 ] && [[ $1 =~ 'log' ]] ; then
+      echo "---------------- // ERRORS from log file \\\\\ ---------------"
+      if [[ -f /var/log/ConsolePi/consolepi.log ]] ; then
+        cat /var/log/ConsolePi/consolepi.log | grep -v INFO | grep -v DEBUG
+      else
+        cat /var/log/ConsolePi/cloud.log | grep -v INFO | grep -v DEBUG
+      fi
+    fi
+}
+
+do_reload_svcs() {
+    echo -e "\n -- Restarting Any ConsolePi Services that are currently Active"
+    for svc in "${RELOAD_SVCS[@]}" ; do
+        if systemctl is-active $svc >/dev/null 2>&1 ; then
+            dots "restart $svc"
+            res=$(sudo systemctl restart $svc 2>&1) ; do_error $? "$res"
+        elif systemctl is-failed $svc >/dev/null 2>&1 ; then
+            dots "Starting Previously Failed $svc"
+            sudo systemctl start $svc ; do_error $?
+        else
+            dots "$svc is not active"; echo "SKIP"
+        fi
+    done
+}
+
+
+show_usage() {
+    echo
+    [[ ! "$1" =~ ^(help|-help|--help|dev)$ ]] && [ -n "$1" ] && echo "Invalid Input $1"
+    line_dots "-R|--reload" "reload/restart consolepi systemd Services (api, mdnsbrowse, mdnsreg) along with ser2net if enabled"
+    line_dots "-B|--brief|brief" "Show service summary only."
+    [ "$1" == "dev" ] && line_dots "--debug" "show debug logging"
+}
+
+process_args() {
+    $DEBUG && echo "DEBUG: Args Passed to process_args() ${@}"  ## -- DEBUG LINE --
+    while (( "$#" )); do
+        $DEBUG && echo -e "------------ Now processing $1\n"
+
+      case "$1" in
+        --debug)
+            DEBUG=true
+            shift
+            ;;
+        -R|-*reload)
+            reload_svcs=true
+            shift
+            ;;
+        -B|**brief)
+            brief=true
+            shift
+            ;;
+        -h|-*help)
+            show_usage $2
+            exit 0
+            ;;
+        *)
+          show_usage $1
+          exit 1
+          ;;
+      esac
+    done
+}
+
+main() {
+    process_args "${@}"
+    $reload_svcs && do_reload_svcs
+    ! $brief && show_status
+    show_summary
+    echo
+}
+
+# initial values
+reload_svcs=false
+[ -z "$DEBUG" ] && DEBUG=false
+brief=false
+
+main "${@}"

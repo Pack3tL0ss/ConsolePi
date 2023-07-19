@@ -341,6 +341,7 @@ class ConsolePiExec:
             os.system("clear")
 
         if not choice.lower or choice.lower in menu_actions and menu_actions[choice.lower] is None:
+            # They just hit return with no input
             (
                 self.menu.rows,
                 self.menu.cols,
@@ -630,7 +631,8 @@ class ConsolePiExec:
                             log.show("Operation Aborted by User")
                 elif menu_actions[ch].__name__ in ["power_menu", "dli_menu"]:
                     menu_actions[ch](calling_menu=calling_menu)
-                else:
+                else:  # the selection is a function / coroutine
+                    # TODO may need to add inspect.iscoroutinefunction(func) if any of the options are async
                     menu_actions[ch]()
             except KeyError as e:
                 if len(choice.orig) <= 2 or not self.exec_shell_cmd(choice.orig):

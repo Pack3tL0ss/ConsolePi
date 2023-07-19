@@ -11,6 +11,7 @@ from pprint import pprint
 from collections import OrderedDict as od
 from typing import Union
 from halo import Halo
+import asyncio
 # from rich.console import Console
 
 # --// ConsolePi imports \\--
@@ -217,7 +218,7 @@ class ConsolePiMenu(Rename):
         cpi = self.cpi
         pwr = cpi.pwr
         # menu = self.menu
-        menu = Menu()
+        menu = Menu("power_menu")
         states = self.states
         menu_actions = {
             # 'b': self.main_menu,
@@ -891,7 +892,7 @@ class ConsolePiMenu(Rename):
             if choice == 'r':
                 local.adapters = local.build_adapter_dict(refresh=True)
                 if not direct_launch:
-                    remotes.data = remotes.get_remote(data=config.remote_update())
+                    remotes.data = asyncio.run(remotes.get_remote(data=config.remote_update()))
             loc = local.adapters
             rem = remotes.data if not direct_launch else []
 
@@ -956,7 +957,7 @@ class ConsolePiMenu(Rename):
             if choice.isdigit() and int(choice) >= rem_item:
                 print('Triggering Refresh due to Remote Name Change')
                 # remotes.refresh(bypass_cloud=True)  # NoQA TODO would be more ideal just to query the remote involved in the rename and update the dict
-                remotes.data = remotes.get_remote(data=config.remote_update(), rename=True)
+                remotes.data = asyncio.run(remotes.get_remote(data=config.remote_update(), rename=True))
 
             # TODO Temp need more elegant way to handle back to main_menu
             elif menu_actions.get(choice, {}) is None and choice == "b":
@@ -973,12 +974,7 @@ class ConsolePiMenu(Rename):
         cpi = self.cpi
         remotes = cpi.remotes
         cpi.local.adapters = cpi.local.build_adapter_dict(refresh=True)
-        remotes.data = remotes.get_remote(data=config.remote_update())
-        # loc = cpi.local.adapters
-        # rem = remotes.data
-
-    # def toggle_show_legend(self):
-    #     self.menu.show_legend = not self.menu.show_legend
+        remotes.data = asyncio.run(remotes.get_remote(data=config.remote_update()))
 
     # ------ // MAIN MENU \\ ------ #
     def main_menu(self):
@@ -1168,10 +1164,10 @@ class ConsolePiMenu(Rename):
     def con_menu(self, rename: bool = False, con_dict: dict = None):
         # menu = self.cpi.menu
         menu = Menu("con_menu")
-        menu.legend_options = {
-            'back': ['b', 'Back'],
-            'x': ['x', 'Exit']
-        }
+        # menu.legend_options = {
+        #     'back': ['b', 'Back'],
+        #     'x': ['x', 'Exit']
+        # }
         menu_actions = {
             '1': self.baud_menu,
             '2': self.data_bits_menu,
@@ -1194,7 +1190,7 @@ class ConsolePiMenu(Rename):
             self.flow = con_dict['flow']
             self.sbits = con_dict['sbits']
         while True:
-            header = ' Connection Settings Menu '
+            header = 'Connection Settings Menu'
             mlines = []
             mlines.append('Baud [{}]'.format(self.baud))
             mlines.append('Data Bits [{}]'.format(self.data_bits))
@@ -1203,7 +1199,7 @@ class ConsolePiMenu(Rename):
             legend = {'opts': ['back', 'x'],
                       'overrides': {'back': ['b', 'Back {}'.format(' (Apply Changes to Files)' if rename else '')]}
                       }
-            menu.print_menu(mlines, header=header, legend=legend, menu_actions=menu_actions)
+            menu.print_menu(mlines, header=header, legend=legend, menu_actions=menu_actions, hide_legend=False)
             ch = self.wait_for_input(locs=locals()).lower
             try:
                 if ch == 'b':
@@ -1212,13 +1208,14 @@ class ConsolePiMenu(Rename):
 
             except KeyError as e:
                 if ch:
-                    log.show('Invalid selection {}, please try again.'.format(e))
+                    log.show(f'Invalid selection {e}, please try again.')
                     log.clear()
 
     # -- // BAUD MENU \\ --
     def baud_menu(self):
         # config = self.cpi.config
-        menu = self.cpi.menu
+        # menu = self.cpi.menu
+        menu = Menu("baud_menu")
         menu_actions = od([
             ('1', 300),
             ('2', 1200),
@@ -1243,6 +1240,7 @@ class ConsolePiMenu(Rename):
                 print(' {0}. {1}'.format(key, _cur_baud if _cur_baud != self.baud else '[{}]'.format(_cur_baud)))
 
             legend = menu.format_legend(legend={"opts": 'back'})
+            menu.page.legend.hide = False  # TODO make elegant this prevents "Use 'TL' to Toggle Legend from being displayed in footer given we are not giving an option in this menu"
             footer = menu.format_footer()
             print(legend)
             print(footer)
@@ -1277,7 +1275,8 @@ class ConsolePiMenu(Rename):
 
     # -- // DATA BITS MENU \\ --
     def data_bits_menu(self):
-        menu = self.cpi.menu
+        # menu = self.cpi.menu
+        menu = Menu("data_bits")
         valid = False
         while not valid:
             if not config.debug:
@@ -1287,6 +1286,7 @@ class ConsolePiMenu(Rename):
             print('\n Default 8, Current [{}], Valid range 5-8'.format(self.data_bits))
 
             legend = menu.format_legend(legend={"opts": 'back'})
+            menu.page.legend.hide = False  # TODO make elegant this prevents "Use 'TL' to Toggle Legend from being displayed in footer given we are not giving an option in this menu"
             footer = menu.format_footer()
             print(legend)
             print(footer)
@@ -1310,7 +1310,7 @@ class ConsolePiMenu(Rename):
 
     # -- // PARITY MENU \\ --
     def parity_menu(self):
-        menu = self.cpi.menu
+        menu = Menu("parity_menu")
 
         def print_menu():
             if not config.debug:
@@ -1323,6 +1323,7 @@ class ConsolePiMenu(Rename):
             print(f" 3. {'[Even]' if self.parity == 'e' else 'Even'}")
 
             legend = menu.format_legend(legend={"opts": 'back'})
+            menu.page.legend.hide = False  # TODO make elegant this prevents "Use 'TL' to Toggle Legend from being displayed in footer given we are not giving an option in this menu"
             footer = menu.format_footer()
             print(legend)
             print(footer)
@@ -1350,7 +1351,7 @@ class ConsolePiMenu(Rename):
 
     # -- // FLOW MENU \\ --
     def flow_menu(self):
-        menu = self.cpi.menu
+        menu = Menu("flow_menu")
 
         def print_menu():
             if not config.debug:
@@ -1363,6 +1364,7 @@ class ConsolePiMenu(Rename):
             print(f" 2. {'[Xon/Xoff]' if self.flow == 'x' else 'Xon/Xoff'} (software)")
             print(f" 3. {'[RTS/CTS]' if self.flow == 'h' else 'RTS/CTS'} (hardware)")
             legend = menu.format_legend(legend={"opts": 'back'})
+            menu.page.legend.hide = False  # TODO make elegant this prevents "Use 'TL' to Toggle Legend from being displayed in footer given we are not giving an option in this menu"
             footer = menu.format_footer()
             print(legend)
             print(footer)

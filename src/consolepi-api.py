@@ -12,14 +12,22 @@ mdns and gdrive provide discovery/sync mechanisms, the API is used
 to ensure the remote is reachable and that the data is current.
 '''
 import sys
+
+import setproctitle
+import uvicorn  # NoQA
+from rich.traceback import install
+
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import config, log  # NoQA
-from consolepi.consolepi import ConsolePi  # NoQA
+from consolepi import config, log  # type: ignore # NoQA
+from consolepi.consolepi import ConsolePi  # type: ignore # NoQA
 from fastapi import FastAPI  # NoQA
 from pydantic import BaseModel  # NoQA
 from time import time  # NoQA
 from starlette.requests import Request  # NoQA
-import uvicorn  # NoQA
+
+install(show_locals=True)
+
+setproctitle.setproctitle("consolepi-api")
 
 
 cpi = ConsolePi()

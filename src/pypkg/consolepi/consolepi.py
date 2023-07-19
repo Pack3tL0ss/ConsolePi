@@ -11,7 +11,7 @@ from consolepi.menu import Menu  # NoQA
 
 
 class ConsolePi():
-    def __init__(self, bypass_remotes: bool = False, bypass_outlets: bool = False):
+    def __init__(self, bypass_remotes: bool = False, bypass_outlets: bool = False, bypass_cloud: bool = False):
         self.menu = Menu("main_menu")
         self.local = Local()
         if not bypass_outlets and config.cfg.get('power'):
@@ -22,7 +22,7 @@ class ConsolePi():
             self.pwr = None
         self.cpiexec = ConsolePiExec(config, self.pwr, self.local, self.menu)
         if not bypass_remotes:
-            self.remotes = Remotes(self.local, self.cpiexec)
+            self.remotes = Remotes(self.local, self.cpiexec, bypass_cloud=bypass_cloud)
 
         # TODO Move to menu launch and prompt user
         # verify TELNET is installed and install if not if hosts of type TELNET are defined.

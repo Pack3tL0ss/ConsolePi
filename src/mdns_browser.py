@@ -7,6 +7,8 @@ import json
 import time
 import sys
 from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
+import setproctitle
+import asyncio
 
 from rich.traceback import install
 install(show_locals=True)
@@ -18,12 +20,14 @@ from consolepi.consolepi import ConsolePi  # type: ignore # NoQA
 
 RESTART_INTERVAL = 300  # time in seconds browser service will restart
 
+setproctitle.setproctitle("consolepi-mdnsbrowser")
+
 
 class MDNS_Browser:
 
     def __init__(self, show=False):
         config.cloud = False  # mdns doesn't need to sync w cloud
-        self.cpi = ConsolePi(bypass_outlets=True)
+        self.cpi = ConsolePi(bypass_outlets=True, bypass_cloud=True)
         self.debug = config.cfg.get('debug', False)
         self.show = show
         self.stop = False
@@ -105,7 +109,7 @@ class MDNS_Browser:
             # TODO check this don't think needed had a hung process on one of my Pis added it to be safe
             try:
                 # TODO we are setting update time here so always result in a cache update with the restart timer
-                res = cpi.remotes.api_reachable(hostname, mdns_data[hostname])
+                res = asyncio.run(cpi.remotes.api_reachable(hostname, mdns_data[hostname]))
                 update_cache = res.update
                 if not res.data.get('adapters'):
                     self.no_adapters.append(hostname)
@@ -167,6 +171,7 @@ class MDNS_Browser:
 
 
 if __name__ == '__main__':
+    program_start = int(time.time())
     if len(sys.argv) > 1:
         mdns = MDNS_Browser(show=True)
         RESTART_INTERVAL = 30  # when running in interactive mode reduce restart interval
@@ -188,12 +193,15 @@ if __name__ == '__main__':
                 log.warning(f'[MDNS BROWSE] caught {e.__class__.__name__} retrying in 5 sec.\nException:\n{e}')
                 time.sleep(5)
                 continue
-            start = time.time()
             # re-init zeroconf browser every RESTART_INTERVAL seconds
+            start = time.time()
             while time.time() < start + RESTART_INTERVAL:
-                time.sleep(0.1)
+                time.sleep(start + RESTART_INTERVAL - time.time())
             if mdns.zc is not None:
                 mdns.zc.close()
+
+            duration = f"{RESTART_INTERVAL / 60}m" if RESTART_INTERVAL > 60 else f"{RESTART_INTERVAL}s"
+            log.info(f'[MDNS DSCVRY] Discovered {len(mdns.discovered)} remote ConsolePis via mdns in last {duration}')
             mdns.discovered = []
 
     except KeyboardInterrupt:

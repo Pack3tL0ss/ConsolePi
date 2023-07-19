@@ -12,343 +12,357 @@
 
 define: &banner \r\nser2net port \p device \d [\B] (Debian GNU/Linux)\r\n\r\n
 
+# TRACEFILE DEFINITIONS
+define: &trace0 /var/log/ser2net/trace0-\p-\d-\s\p-\M-\D-\Y_\H\i\s.\U
+define: &trace1 /var/log/ser2net/trace1\p-\M-\D-\Y_\H\i\s.\U
+define: &trace2 /var/log/ser2net/trace2\p-\M-\D-\Y_\H\i\s.\U
+define: &trace3 /var/log/ser2net/trace3\p-\M-\D-\Y_\H\i\s.\U
+
+default:
+  name: mdns
+  value: false
+
+default:
+  name: mdns-sysattrs
+  value: false
+
 # unknown devices (known devices will also use these ports first come first serve in order)
 # -- Typical USB to serial Adapters --
 connection: &ttyUSB0
-  accepter: tcp,8000
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8000
   connector: serialdev,/dev/ttyUSB0,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB1
-  accepter: tcp,8001
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8001
   connector: serialdev,/dev/ttyUSB1,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB2
-  accepter: tcp,8002
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8002
   connector: serialdev,/dev/ttyUSB2,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB3
-  accepter: tcp,8003
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8003
   connector: serialdev,/dev/ttyUSB3,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB4
-  accepter: tcp,8004
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8004
   connector: serialdev,/dev/ttyUSB4,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB5
-  accepter: tcp,8005
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8005
   connector: serialdev,/dev/ttyUSB5,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB6
-  accepter: tcp,8006
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8006
   connector: serialdev,/dev/ttyUSB6,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB7
-  accepter: tcp,8007
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8007
   connector: serialdev,/dev/ttyUSB7,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB8
-  accepter: tcp,8008
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8008
   connector: serialdev,/dev/ttyUSB8,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB9
-  accepter: tcp,8009
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8009
   connector: serialdev,/dev/ttyUSB9,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB10
-  accepter: tcp,8010
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8010
   connector: serialdev,/dev/ttyUSB10,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB11
-  accepter: tcp,8011
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8011
   connector: serialdev,/dev/ttyUSB11,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB12
-  accepter: tcp,8012
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8012
   connector: serialdev,/dev/ttyUSB12,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB13
-  accepter: tcp,8013
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8013
   connector: serialdev,/dev/ttyUSB13,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB14
-  accepter: tcp,8014
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8014
   connector: serialdev,/dev/ttyUSB14,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB15
-  accepter: tcp,8015
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8015
   connector: serialdev,/dev/ttyUSB15,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB16
-  accepter: tcp,8016
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8016
   connector: serialdev,/dev/ttyUSB16,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB17
-  accepter: tcp,8017
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8017
   connector: serialdev,/dev/ttyUSB17,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB18
-  accepter: tcp,8018
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8018
   connector: serialdev,/dev/ttyUSB18,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyUSB19
-  accepter: tcp,8019
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,8019
   connector: serialdev,/dev/ttyUSB19,9600n81,local
-connection: &ttyUSB20
-  accepter: tcp,8020
   enable: on
   options:
     banner: *banner
     kickolduser: true
     telnet-brk-on-sync: true
+connection: &ttyUSB20
+  accepter: telnet(rfc2217),tcp,8020
   connector: serialdev,/dev/ttyUSB20,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 # -- Some Networking Devices with built-in USB Console Ports show up as ttyACM --
 connection: &ttyACM0
-  accepter: tcp,9000
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9000
   connector: serialdev,/dev/ttyACM0,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM1
-  accepter: tcp,9001
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9001
   connector: serialdev,/dev/ttyACM1,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM2
-  accepter: tcp,9002
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9002
   connector: serialdev,/dev/ttyACM2,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM3
-  accepter: tcp,9003
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9003
   connector: serialdev,/dev/ttyACM3,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM4
-  accepter: tcp,9004
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9004
   connector: serialdev,/dev/ttyACM4,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM5
-  accepter: tcp,9005
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9005
   connector: serialdev,/dev/ttyACM5,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM6
-  accepter: tcp,9006
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9006
   connector: serialdev,/dev/ttyACM6,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM7
-  accepter: tcp,9007
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9007
   connector: serialdev,/dev/ttyACM7,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM8
-  accepter: tcp,9008
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9008
   connector: serialdev,/dev/ttyACM8,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM9
-  accepter: tcp,9009
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9009
   connector: serialdev,/dev/ttyACM9,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM10
-  accepter: tcp,9010
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9010
   connector: serialdev,/dev/ttyACM10,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM11
-  accepter: tcp,9011
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9011
   connector: serialdev,/dev/ttyACM11,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM12
-  accepter: tcp,9012
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9012
   connector: serialdev,/dev/ttyACM12,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM13
-  accepter: tcp,9013
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9013
   connector: serialdev,/dev/ttyACM13,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM14
-  accepter: tcp,9014
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9014
   connector: serialdev,/dev/ttyACM14,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM15
-  accepter: tcp,9015
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9015
   connector: serialdev,/dev/ttyACM15,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM16
-  accepter: tcp,9016
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9016
   connector: serialdev,/dev/ttyACM16,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM17
-  accepter: tcp,9017
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9017
   connector: serialdev,/dev/ttyACM17,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM18
-  accepter: tcp,9018
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9018
   connector: serialdev,/dev/ttyACM18,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 connection: &ttyACM19
-  accepter: tcp,9019
-  enable: on
-  options:
-    banner: *banner
-    kickolduser: true
-    telnet-brk-on-sync: true
+  accepter: telnet(rfc2217),tcp,9019
   connector: serialdev,/dev/ttyACM19,9600n81,local
-connection: &ttyACM20
-  accepter: tcp,9020
   enable: on
   options:
     banner: *banner
     kickolduser: true
     telnet-brk-on-sync: true
+connection: &ttyACM20
+  accepter: telnet(rfc2217),tcp,9020
   connector: serialdev,/dev/ttyACM20,9600n81,local
+  enable: on
+  options:
+    banner: *banner
+    kickolduser: true
+    telnet-brk-on-sync: true
 # -- predictable ports based on udev rules (use consolepi-addconsole or rename option in consolepi-menu)

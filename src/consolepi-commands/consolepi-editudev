@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
-sudo nano /etc/udev/rules.d/10-ConsolePi.rules /etc/ser2net.conf
+[ -f /etc/ser2net.yaml ] && ser2net_file=/etc/ser2net.yaml
+[ -f /etc/ser2net.yml ] && ser2net_file=/etc/ser2net.yml
+[ -f /etc/ser2net.conf ] && ser2net_file=/etc/ser2net.conf
+
+if [ -n "$ser2net_file" ]; then
+    sudo nano /etc/udev/rules.d/10-ConsolePi.rules "$ser2net_file"
+else
+    sudo nano /etc/udev/rules.d/10-ConsolePi.rules
+    echo '!!! No ser2net file found to edit.  Run consolepi-upgrade to init ser2net config.'
+fi
+
 
 echo use consolepi-showaliases to validate udev and ser2net, check for orphans

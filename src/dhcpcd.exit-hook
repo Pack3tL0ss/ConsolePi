@@ -66,10 +66,10 @@ fi
 
 
 # >> Get Configuration from config file <<
-if [[ -f "${config_builder}" ]] && "${config_builder}" > /tmp/ConsolePi.conf && . /tmp/ConsolePi.conf ; then
+if [ -f "$config_builder" ] && "${config_builder}" > /tmp/ConsolePi.conf && . /tmp/ConsolePi.conf ; then
     rm /tmp/ConsolePi.conf
     # Disable OpenVPN if ovpn config is not found
-    $ovpn_enable && [[ ! -f "${ovpn_config}" ]] && ovpn_enable=false && logit -L -t "${log_process}-ovpn"  "OpenVPN is enabled but ConsolePi.ovpn not found - disabling" "ERROR"
+    $ovpn_enable && [ ! -f "${ovpn_config}" ] && ovpn_enable=false && logit -L -t "${log_process}-ovpn"  "OpenVPN is enabled but ConsolePi.ovpn not found - disabling" "ERROR"
 else
     # Log and exit if config not found
     logit -L -t "${log_process}" "Unable to find or Parse Configuration... disabling hooks" "ERROR"  # logit overrides exit 1 default when called from hook file
@@ -136,6 +136,7 @@ check_test_mode() {
                     echo -e "Run via consolepi-pbtest [OPTIONS]\n"
                     echo -e "Options:"
                     echo -e "    'static': Test wired fallback to static flow (wired-dhcp, configure nat if wlan has valid connection)"
+                    echo -e "    'eth0|wlan0': Simulate new IP from specified interface"
                     echo -e "    --no-cloud: bypass cloud update"
                     echo -e "    --no-push: bypass PushBullet notification"
                     echo -e "    -L|--logs: Forces output of all logs for this test session after test is ran."

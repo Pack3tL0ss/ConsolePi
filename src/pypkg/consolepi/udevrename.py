@@ -1,6 +1,7 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import os
+import yaml
 from consolepi import log, config, utils  # type: ignore
 
 
@@ -350,14 +351,17 @@ class Rename():
         cur_line = config.ser2net_conf.get(f'/dev/{from_name}', {}).get('line')
         if cur_line and '/dev/ttyUSB' not in cur_line and '/dev/ttyACM' not in cur_line:
             new_entry = False
-            next_port = next_port = cur_line.split(':')[0]  # Renaming existing
+            if config.ser2net_file.suffix in [".yaml", ".yml"]:
+                next_port = int(yaml.safe_load(cur_line.replace(": *", ": REF_"))["connection"].get("accepter").split(",")[-1])
+            else:
+                next_port = cur_line.split(':')[0]  # Renaming existing
             log_ptr = config.ser2net_conf[f'/dev/{from_name}'].get('log_ptr')
             if not log_ptr:
                 log_ptr = ''
         else:
             new_entry = True
             if utils.valid_file(config.ser2net_file):
-                ports = [a['port'] for a in config.ser2net_conf.values() if 7000 < a.get('port', 0) <= 7999]
+                ports = [v['port'] for k, v in config.ser2net_conf.items() if not k.startswith("_") and 7000 < v.get('port', 0) <= 7999]
                 next_port = 7001 if not ports else int(max(ports)) + 1
             else:
                 next_port = 7001
@@ -366,22 +370,19 @@ class Rename():
                     log.error(f'Rename Menu Error while attempting to cp ser2net.conf from src {error}', show=True)
                     return error  # error added to display in calling method
 
-        if config.ser2net_ver.startswith("4"):
+        if config.ser2net_file.suffix in [".yaml", ".yml"]:
             ser2net_line = f"""connection: &{to_name}
-  accepter: tcp,{next_port}
+  accepter: telnet(rfc2217),tcp,{next_port}
+  connector: serialdev,/dev/{to_name},{baud}{parity}{dbits}{sbits},local{'' if flow == 'n' else ',' + ser2net_flow[flow].lower()}
   enable: on
   options:
     banner: *banner
     kickolduser: true
     telnet-brk-on-sync: true
-  connector: serialdev,
-             /dev/{to_name},
-             {baud}{parity}{dbits}{sbits},
-             local
 """
-            if flow != "n":
-                ser2net_line = ser2net_line.rstrip("\n")
-                ser2net_line = f'{ser2net_line},\n            {ser2net_flow[flow].lower()}\n'
+            # if flow != "n":
+            #     ser2net_line = ser2net_line.rstrip("\n")
+            #     ser2net_line = f'{ser2net_line},\n            {ser2net_flow[flow].lower()}\n'
         else:
             ser2net_line = (
                 '{telnet_port}:telnet:0:/dev/{alias}:{baud} {dbits}DATABITS {parity} {sbits}STOPBIT {flow} banner {log_ptr}'.format(
@@ -392,14 +393,45 @@ class Rename():
                     sbits=sbits,
                     parity=ser2net_parity[parity],
                     flow=ser2net_flow[flow],
-                    log_ptr=log_ptr)
+                    log_ptr=log_ptr
+                )
             )
 
-        # -- // Append to ser2net.conf \\ --
+        # -- // Append to ser2net config \\ --
         if new_entry:
             error = utils.append_to_file(config.ser2net_file, ser2net_line)
         # -- // Rename Existing Definition in ser2net.conf \\ --
         # -- for devices with existing definitions cur_line is the existing line
+        elif config.ser2net_file.suffix in [".yaml", ".yml"]:
+            # sudo sed -i 's|^connection: &delme1$|connection: \&test1|g'  /etc/ser2net.yaml
+            # sudo sed -i 's|^  connector: serialdev,/dev/orange1|  connector: serialdev,/dev/delme1|g'  /etc/ser2net.yaml
+            if not cur_line:
+                return f'cur_line has no value.  Leaving {config.ser2net_file} unchanged.'
+            connection_line = cur_line.splitlines()[0]
+            connector_line = [line for line in cur_line.splitlines() if "connector:" in line and f'/dev/{from_name},' in line.replace("\\/", "/")]
+            if connector_line:
+                if len(connector_line) > 1:
+                    error = f'Found {len(connector_line)} lines in {config.ser2net_file} with /dev/{from_name} defined.  Expected 1.  Aborting'
+                elif "connection:" not in connection_line:
+                    error = f'Unexpected connection line {connection_line} extracted for /dev/{from_name} from {config.ser2net_file}'
+                else:
+                    new_connection_line = connection_line.replace(f'&{from_name}', f'\&{to_name}')  # NoQA
+                    connector_line = connector_line[0]
+                    new_connector_line = connector_line.replace(f"/dev/{from_name},", f"/dev/{to_name},")
+                    expected_complete_connector_line = f"  connector: serialdev,/dev/{to_name},{baud}{parity}{dbits}{sbits},local{'' if flow == 'n' else ',' + ser2net_flow[flow].lower()}"
+                    if new_connector_line != expected_complete_connector_line:
+                        if "local" in new_connector_line:
+                            new_connector_line = expected_complete_connector_line
+                        else:
+                            return f'rename requires all serial settings be on the same line i.e. {expected_complete_connector_line}.'
+                    cmds = [
+                        f"sudo sed -i 's|^{connection_line}$|{new_connection_line}|g'  {config.ser2net_file}",
+                        f"sudo sed -i 's|^{connector_line}$|{new_connector_line}|g'  {config.ser2net_file}"
+                    ]
+                    for cmd in cmds:
+                        error = utils.do_shell_cmd(cmd, shell=True)
+                        if error:
+                            break
         else:
             ser2net_line = ser2net_line.strip().replace('/', r'\/')
             cur_line = cur_line.replace('/', r'\/')
@@ -420,6 +452,7 @@ class Rename():
             udev_line {str} -- The properly formatted udev line being added to the file
             section_marker {str} -- Match text used to determine where to place the line
 
+
         Keyword Arguments:
             label {str} -- The rules file GOTO label used in some scenarios
                            (i.e. multi-port 1 serial) (default: {None})
@@ -427,7 +460,8 @@ class Rename():
         Returns:
             {str|None} -- Returns error string if an error occurs
         '''
-        found = ser_label_exists = get_next = update_file = False  # init
+        found = ser_label_exists = get_next = update_file = alias_found = False  # NoQA
+        # alias_name = udev_line.split("SYMLINK+=")[1].split(",")[0].replace('"', "")  # TODO WIP add log when alias is already associated with diff serial
         goto = line = cmd = ''  # init
         rules_file = self.rules_file  # if 'ttyAMA' not in udev_line else self.ttyama_rules_file  Testing 1 rules file
         if utils.valid_file(rules_file):
@@ -443,6 +477,9 @@ class Rename():
                     # No longer including SUBSYSTEM in formatted udev line, redundant given logic @ top of rules file
                     if line.replace('SUBSYSTEM=="tty", ', '').strip() == udev_line.strip():
                         return  # Line is already in file Nothing to do.
+                    # elif f'SYMLINK+="{alias_name}",' in line:
+                    #     alias_found = True  # NoQA
+                        # log.warning(f'{rules_file.split("/")[-1]} already contains an {alias_name} alias\nExisting alias {udev_line}', show=True)
                     if get_next:
                         goto = line
                         get_next = False

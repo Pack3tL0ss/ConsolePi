@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+sudo /etc/ConsolePi/venv/bin/python3 /etc/ConsolePi/src/convert-ser2net.py "$@"

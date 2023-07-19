@@ -361,7 +361,7 @@ class Rename():
         else:
             new_entry = True
             if utils.valid_file(config.ser2net_file):
-                ports = [a['port'] for a in config.ser2net_conf.values() if 7000 < a.get('port', 0) <= 7999]
+                ports = [v['port'] for k, v in config.ser2net_conf.items() if not k.startswith("_") and 7000 < v.get('port', 0) <= 7999]
                 next_port = 7001 if not ports else int(max(ports)) + 1
             else:
                 next_port = 7001
@@ -452,6 +452,7 @@ class Rename():
             udev_line {str} -- The properly formatted udev line being added to the file
             section_marker {str} -- Match text used to determine where to place the line
 
+
         Keyword Arguments:
             label {str} -- The rules file GOTO label used in some scenarios
                            (i.e. multi-port 1 serial) (default: {None})
@@ -459,7 +460,8 @@ class Rename():
         Returns:
             {str|None} -- Returns error string if an error occurs
         '''
-        found = ser_label_exists = get_next = update_file = False  # init
+        found = ser_label_exists = get_next = update_file = alias_found = False  # NoQA
+        # alias_name = udev_line.split("SYMLINK+=")[1].split(",")[0].replace('"', "")  # TODO WIP add log when alias is already associated with diff serial
         goto = line = cmd = ''  # init
         rules_file = self.rules_file  # if 'ttyAMA' not in udev_line else self.ttyama_rules_file  Testing 1 rules file
         if utils.valid_file(rules_file):
@@ -475,6 +477,9 @@ class Rename():
                     # No longer including SUBSYSTEM in formatted udev line, redundant given logic @ top of rules file
                     if line.replace('SUBSYSTEM=="tty", ', '').strip() == udev_line.strip():
                         return  # Line is already in file Nothing to do.
+                    # elif f'SYMLINK+="{alias_name}",' in line:
+                    #     alias_found = True  # NoQA
+                        # log.warning(f'{rules_file.split("/")[-1]} already contains an {alias_name} alias\nExisting alias {udev_line}', show=True)
                     if get_next:
                         goto = line
                         get_next = False

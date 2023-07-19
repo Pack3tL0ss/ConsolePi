@@ -113,6 +113,7 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
   - :zap: Convert remote ConsolePi updates to async (they were already using threading)
   - :zap: Convert remote ConsolePi updates to async (they were already using threading)
   - :loud_sound: Update Spinner with the name of the remote as reachability is being check for remote ConsolePis.  Make failures persistent (spinner shows what failed and continues one line down.)
+  - The various consolepi-services that run as daemons (for remote discovery) now display a descriptive process name (i.e. when running `top` and the like) vs generically `python3`
   - :construction: (Requires manual setup for now see issue [#119](https://github.com/Pack3tL0ss/ConsolePi/issues/119))  Add ability to ssh directly to an adapter specifying adapter by name
     - i.e. `ssh -t <consolepi address> -p 2202 <device name>`
     - real example `ssh -t consolepi4 -p 2202 r1-8360-TOP` will connect to the defined udev alias `/dev/r1-8360-TOP` connected to remote ConsolePi ConsolePi4 (you could use ip vs hostname)

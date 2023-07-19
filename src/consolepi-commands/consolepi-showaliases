@@ -2,9 +2,14 @@
 
 rules_file='/etc/udev/rules.d/10-ConsolePi.rules'
 ser2net_conf='/etc/ser2net.conf'
+delim=':'
+if [ ! -f "$ser2net_conf" ] && [ -f /etc/ser2net.yaml ]; then
+    ser2net_conf='/etc/ser2net.yaml'
+    delim=','
+fi
 
 udev=($(cat $rules_file | grep -v "^ *#.*$" | grep -o SYMLINK+=\".*\" | cut -d'"' -f2))
-ser2net=($(cat $ser2net_conf | grep -v "^ *#.*$\|/dev/ttyUSB\|/dev/ttyACM" | grep -o "/dev/.*" | cut -d'/' -f3 | cut -d':' -f1))
+ser2net=($(cat $ser2net_conf | grep -v "^ *#.*$\|/dev/ttyUSB\|/dev/ttyACM" | grep -o "/dev/.*" | cut -d'/' -f3 | cut -d$delim -f1))
 
 [[ -f /etc/ConsolePi/installer/common.sh ]] && . /etc/ConsolePi/installer/common.sh
 ! menu_print " " >/dev/null 2>&1 && echo  Unable to import common functions && exit 1

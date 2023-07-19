@@ -313,7 +313,7 @@ class Config():
                 "tw": "trace-write",
                 "tb": "trace-both",
             }
-            ser2netv4_line = f'{ser2netv4_line}    {pointers[log_type]}: *{log_alias}'
+            ser2netv4_line = f'{ser2netv4_line}    {pointers[log_type]}: *{log_alias}\n'
         return ser2netv4_line
 
     def get_ser2netv3(self):
@@ -440,7 +440,7 @@ class Config():
 
         return ser2net_conf
 
-    def get_ser2netv4(self):
+    def get_ser2netv4(self, file: Path = None) -> Dict:
         """Parse ser2net.yaml (ser2net 4.x) to extract connection info for serial adapters
 
         Args:
@@ -473,7 +473,10 @@ class Config():
         #     telnet-brk-on-sync: true
         ########################################################
         ser2net_conf = {}
-        raw = self.ser2net_file.read_text()
+        if file is None and self.ser2net_file is None:
+            return ()
+
+        raw = self.ser2net_file.read_text() if not file else file.read_text()
         raw_mod = "\n".join([line if not line.startswith("connection") else f"{line.split('&')[-1]}:" for line in raw.splitlines()])
         banner = [line for line in raw.splitlines() if line.startswith("define: &banner")]
         banner = None if not banner else banner[-1].replace("define: &banner", "").lstrip()

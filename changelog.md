@@ -1,4 +1,11 @@
 # CHANGELOG
+### Sep 2022 (v2022-3.0)  **Breaking Change for silent installs**
+  - Changed cmd-line flags for `consolepi-image` and `consolepi-install`/`consolepi-upgrade`.  Use `--help` with those commands to see the changes.
+    - This is a breaking change for silent install.  If using an install.conf file refer to the new example as some varirables have changed.
+  - Re-worked `consolepi-image` script ([consolepi-image-creator.sh](installer/consolepi-image-creator.sh)) to configure consolepi as the default user on the image.
+    - This is necessary for headless installs, as there is no default pi user anymore.
+  - Updated installation script... worked-around some dependencies that required rust build environment.
+  - Various other improvements to both of the above mentioned scripts.
 ### Nov 2021 (v2021-1.5)
   - Fix: RPI.GPIO set to use 0.7.1a4+ to accommodate known issue with python3.9 (bullseye default)
   - Fix: bluetooth.service template updated for bullseye (dynamically handles both bullseye where exec path changed and prev rel)

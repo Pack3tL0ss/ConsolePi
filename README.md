@@ -69,49 +69,91 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 
 # Known Issues
 
-Bullseye updates the ser2net available from the package repo from 3.x to 4.x this is a significant change.  Functionality wise it's a very good thing, ser2net 4.x brings a lot more flexibility and connectivity options.
+- :bangbang: *Not an issue, but a breaking change in ser2net if you've upgraded.*  Bullseye updates the ser2net available from the package repo from 3.x to 4.x this is a significant change.  Functionality wise it's a very good thing, ser2net 4.x brings a lot more flexibility and connectivity options, but it means if you already have aliases that were configured (via `consolepi-addconsole` or the rename(`rn`) option in `consolepi-menu`) against the ser2net v3 config `/etc/ser2net.conf`... Those are no longer what ser2net uses for the TELNET connections.
 
-However: ser2net 4.x uses `/etc/ser2net.yaml` as it's config.
-`consolepi-menu`: Uses `/etc/ser2net.conf` (used by ser2net 3.x) to extract the serial settings for any defined adapters.  Adapters can be defined via `consolepi-addconsole` or via the "Predictable Console ports" section at the end of the install.  The `rn` (rename) adapter option within the menu, also updates `/etc/ser2net.conf`.  The installer creates a default `ser2net.conf` with the default serial settings configured for adapters that lack an alias (ttyUSB0, ttyACM0, etc).
+  Good news though.  As of v2023-6.0 the various options mentioned above for adding/updating/renaming adapter aliases now work with the v4 config (`/etc/ser2net.yaml`).  Not only that, but there is now a migration command `consolepi-convert` which will migrate an existing ser2net v3 config to v4.
 
-So
-  - If you use `consolepi-menu` and never access the adapters directly via TELNET (which utilizes ser2net), then this won't impact you.
-    - If you don't use ser2net (access adapters directly via TELNET),
-  - If you do access adapters directly via TELNET, then you need to populate `/etc/ser2net.yaml` as you like, re-building your 3.x setup in the new 4.x file/format.  There are a lot more options available (including accessing them via SSH vs. TELNET).
-  - If you use both.  Let the menu rename/define update the old `/etc/ser2net.conf`, but to also have the adapter available directly, for now, you'll have to manually create an equivalent entry in `ser2net.yaml`
+  if the v3 file still exists, the menu and rename options will continue to use it (it will warn you on menu launch if the v3 config is still in place with ser2netv4 installed).  If you run `consolepi-convert` it will migrate the config, and if ser2net v4 is installed it will stash the old v3 config in the bak dir.
 
-ConsolePi will eventually be updated to detect the ser2net version installed, and extract/update to the corresponding config.  This won't convert your ser2net.conf to ser2net.yaml, it will just update the ConsolePi functions to use the new config (`ser2net.yaml`) .
+- ser2net v4 config parsing errors: I have seen on multiple occasions ser2net throw parsing errors after bootup.  `systemctl restart ser2net` has resolved it, so it's not an actual file format issue.  Investigating why this occasionally happens.
+  The errors look something like this:
+  ```shell
+    ---------------- // STATUS OF ser2net.service \\ ---------------
+  ● ser2net.service - Serial port to network proxy
+      Loaded: loaded (/lib/systemd/system/ser2net.service; enabled; vendor preset: enabled)
+      Active: active (running) since Tue 2023-07-11 14:34:27 CDT; 1 weeks 0 days ago
+        Docs: man:ser2net(8)
+    Main PID: 407 (ser2net)
+        Tasks: 1 (limit: 2057)
+          CPU: 131ms
+      CGroup: /system.slice/ser2net.service
+              └─407 /usr/sbin/ser2net -n -c /etc/ser2net.yaml -P /run/ser2net.pid
+
+  Jul 11 14:34:28 ConsolePi3 ser2net[407]: Invalid port name/number: Invalid data to parameter on line 361 column 0
+  Jul 11 14:34:28 ConsolePi3 ser2net[407]: Invalid port name/number: Invalid data to parameter on line 369 column 0
+  Jul 11 14:34:28 ConsolePi3 ser2net[407]: Invalid port name/number: Invalid data to parameter on line 377 column 0
+  Jul 11 14:34:28 ConsolePi3 ser2net[407]: Invalid port name/number: Invalid data to parameter on line 385 column 0
+  Jul 11 14:34:28 ConsolePi3 ser2net[407]: Invalid port name/number: Invalid data to parameter on line 393 column 0
+  Jul 11 14:34:28 ConsolePi3 ser2net[407]: Invalid port name/number: Invalid data to parameter on line 401 column 0
+  Jul 11 14:34:28 ConsolePi3 ser2net[407]: Invalid port name/number: Invalid data to parameter on line 409 column 0
+  Jul 11 14:34:28 ConsolePi3 ser2net[407]: Invalid port name/number: Invalid data to parameter on line 420 column 0
+  Jul 11 14:34:28 ConsolePi3 ser2net[407]: Invalid port name/number: Invalid data to parameter on line 431 column 0
+  Jul 11 14:34:28 ConsolePi3 ser2net[407]: Invalid port name/number: Invalid data to parameter on line 442 column 0
+  ```
+  Again simply restarting the service seems to resolve the issue.  I suspect it may be a race-condition on bootup with the initialization of udev.
+
+- `consolepi-extras`: The options related to installing ansible and the aruba modules need to be updated as some things have changed upstream.  They *might* work, but I would refer to ansible documentation, and [Aruba devhub](https://devhub.arubanetworks.com) for manual install instructions for now.
 
 # What's New
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
+### July 2023 (v2023-6.0)
+  - :sparkles: Add full support for ser2netv4 add/change/rename via rename(`rn`) option in the menu, and the `consolepi-addconsole`.
+  - :sparkles: Add `consolepi-convert` command, which will parse an existing ser2netv3 config (`/etc/ser2net.conf`) and create/update a ser2netv4 config (`/etc/ser2net.yaml`)
+  - :zap: Convert remote ConsolePi updates to async (they were already using threading)
+  - :zap: Convert remote ConsolePi updates to async (they were already using threading)
+  - :loud_sound: Update Spinner with the name of the remote as reachability is being check for remote ConsolePis.  Make failures persistent (spinner shows what failed and continues one line down.)
+  - :construction: (Requires manual setup for now see issue [#119](https://github.com/Pack3tL0ss/ConsolePi/issues/119))  Add ability to ssh directly to an adapter specifying adapter by name
+    - i.e. `ssh -t <consolepi address> -p 2202 <device name>`
+    - real example `ssh -t consolepi4 -p 2202 r1-8360-TOP` will connect to the defined udev alias `/dev/r1-8360-TOP` connected to remote ConsolePi ConsolePi4 (you could use ip vs hostname)
+    > The examples uses a predictable device name (`r1-8360-TOP`) vs. the default /dev/ttyUSB# Use consolepi-addconsole or the rename(`rn`) option in `consolepi-menu` to discover and apply predictable names to connected serial adapters.
+    - This feature retains power-control, so if `r1-8360-TOP` has an outlet linked to it, connecting to the device will automatically verify the outlet is on, and turn it on if not.  See [Power Control Setup](readme_content/power.md#power-control-setup) for more details.
+    - This is a work in progress.  The sshd config still needs to be automated but can be manually created.  Just place the following in a new file /etc/ssh/sshd_config.d/consolepi.conf and restart ssh `systemctl restart ssh`
+    ```shell
+    Port 22
+    Port 2202
+    AddressFamily any
+    ListenAddress 0.0.0.0
+
+    Match LocalPort 2202
+        ForceCommand /etc/ConsolePi/src/remote_launcher.py $SSH_ORIGINAL_COMMAND
+    ```
+    - In future release additional flags will be passed on to picocom i.e. `ssh -t <consolepi address> -p 2202 <device name> [any flags picocom supports]`
+    - :bangbang: The `-t` option is crucial, otherwise there is no tty which causes strange behavior in the terminal (tab completion via the connected device among other things break).  Will research if there is a way to attach it on the server side.
+
 ### June 2023 (v2023-5.0)
   - ser2netv4 Parsing.  Rename is not refactored yet, but parsing the baud rate from defined adapters now works with ser2netv3 and ser2netv4.
     - Rename still functional if still using ser2netv3
     - If ser2netv4 is installed but the ser2netv3 config file still exists (`/etc/ser2net.conf`).  ConsolePi will continue to use the v3 config for parsing.  This is to allow time for manual conversion to the v4 format (`/etc/ser2net.yaml`)
   - Fix issue introduced in v2022-4.x (which should have been v2023-xx.yy).  Issue relates to handling optional requirement for RPi.GPIO module.
-### Sep 2022 (v2022-3.0)  **Breaking Change for silent installs**
-  - Changed cmd-line flags for `consolepi-image` and `consolepi-install`/`consolepi-upgrade`.  Use `--help` with those commands to see the changes.
-    - This is a breaking change for silent install.  If using an install.conf file refer to the new example as some varirables have changed.
-  - Re-worked `consolepi-image` script ([consolepi-image-creator.sh](installer/consolepi-image-creator.sh)) to configure consolepi as the default user on the image.
-    - This is necessary for headless installs, as there is no default pi user anymore.
-  - Updated installation script... worked-around some dependencies that required rust build environment.
-  - Various other improvements to both of the above mentioned scripts.
+
 # Planned enhancements
-  - The ser2net update highlighted in [Known Issues](#known-issues) (partially complete as of v2023-5.0)
+  - Complete automation of feature to provide ssh direct to adapter discussed in [issue #119](https://github.com/Pack3tL0ss/ConsolePi/issues/119)
   - Non RPI & wsl (menu accessing all remotes) support for the installer.  Can be done now, but normally at least portions need to be tweaked manually.
   - Ability to pick a non sequential port when using `rn` in menu or `consolepi-addconsole`
   - *Most excited about* launch menu in byobu session (tmux).  With any connections in a new tab.
   - Eventually... formatting tweaks, and TUI.  Also consolepi-commands turn into `consolepi command [options]` with auto complete and help text for all (transition to typer CLI).
-  - Investigate options to provide ssh direct to adapter discussed in [issue #119](https://github.com/Pack3tL0ss/ConsolePi/issues/119)
 
 # Features
 ## **Feature Summary Image**
 ![consolepi-menu image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePi_features.jpg)
 
 ## Serial Console Server
-This is the core feature of ConsolePi.  Connect USB to serial adapters to ConsolePi (or use the onboard UART(s)), then access the devices on those adapters via the ConsolePi.  Supports TELNET directly to the adapter, or connect to ConsolePi via SSH or BlueTooth and select the adapter from `consolepi-menu`.  The menu will show connection options for any locally connected adapters, as well as connections to any remote ConsolePis discovered via Cluster/sync.  The menu has a lot of other features beyond connecting to local adapters, as shown in the image above.
-
+**This is the core feature of ConsolePi.**
+  - Connect USB to serial adapters to ConsolePi (or use the onboard UART(s)), then access the devices on those adapters via the ConsolePi.
+  - Supports TELNET directly to the adapter.  Use `consolepi-addconsole` or the rename(`rn`) option in `consolepi-menu` to create predictable alias for a USB to serial adapter (vs the default /dev/ttyUSB0...) and assign the TELNET port associated with it.
+  - Connect to ConsolePi via SSH or BlueTooth and select the adapter from `consolepi-menu`.  The menu will show connection options for any locally connected adapters, as well as connections to any remote ConsolePis discovered via Cluster/sync.  The menu has a lot of other features beyond connecting to local adapters, as shown in the image above.
+  <!-- - ssh directly to an adapter by connecting via ssh to port 2222 and providing the adapter name i.e. `ssh -t consolepi4 -p 2202 r1-8360-TOP` -->
 - When connecting to the ConsolePi via bluetooth, default behavior is to auto-login and launch a limited function menu.  Given this user is automatically logged in, the user has limited rights, hence the limited function menu (allows access to locally attached adapters).
 - The `consolepi` user can also be configured to auto-launch the menu on login (option during install), this user doesn't auto-login, so it's created with typical rights and launches the full menu.
 > To disable auto-login via Bluetooth, modify /etc/systemd/system/rfcomm.service and remove `-a blue` from the end of the `ExecStart` line.  Then issue the following to create an empty file telling `consolepi-upgrade` not to update the file on upgrade: `touch /etc/ConsolePi/overrides/rfcomm.service`.
@@ -250,7 +292,7 @@ The Power Control Function allows you to control power to external outlets.  Con
 ### Outlet Linkages
 
 Example Outlet Linkage.  In this case the switch "rw-6200T-sw" has 2 ports linked.  Both are on a dli web power switch.  One of the ports is for this switch, the other is for the up-stream switch that serves this rack.  When connecting to the switch, ConsolePi will ensure the linked outlets are powered ON.  *ConsolePi does **not** power-off the outlets when you disconnect.*
-```bash
+```shell
 
 ------------------------------------------------------------------------------------
   Ensuring r2-6200T-sw Linked Outlets (labpower2:[1, 4]) are Powered ON
@@ -273,7 +315,8 @@ ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DH
 
 ## ConsolePi API
 
-ConsolePi includes an API with the following available methods (All Are GET methods via http port 5000 currently).
+ConsolePi includes an API with the following available methods
+> All Are GET methods the default port is 5000, which can be overridden in the config via the `api_port` key in the optional `OVERRIDES` stanza. See [ConsolePi.yaml.example](ConsolePi.yaml.example).
 
 /api/v1.0/
 * adapters: returns list of local adapters
@@ -285,7 +328,7 @@ The swagger interface is @ `/api/docs` or `/api/redoc`.  You can browse/try the 
 
 The API is used by ConsolePi to verify reachability and ensure adapter data is current on menu-load.
 
-> The API is currently unsecured, it uses http, and Auth is not implemented *yet*.  It currently only supports GET requests and doesn't provide any sensitive (credential) data.  Authentication on the API is a roadmap item.
+> The API is currently unsecured, it uses http, and Auth is not implemented *yet*.  It currently only supports GET requests and doesn't provide any sensitive (credential) data.
 
 ## ConsolePi Extras
 Toward the end of the install, and via `consolepi-extras` anytime after the install, you are provided with options to automate the deployment (and removal for most) of some additional tools.  This is a selection of tools not required for ConsolePi, but often desired, or useful for the kind of folks that would be using ConsolePi.
@@ -299,9 +342,9 @@ Toward the end of the install, and via `consolepi-extras` anytime after the inst
 If you have a Linux system available you can use [ConsolePi image creator](#3.-consolepi-image-creator)  to burn the image to a micro-sd, enable SSH, pre-configure a WLAN (optional), mass-import configurations (if ran from a ConsolePi, optional), and PreConfigure ConsolePi settings (optional).  This script is especially useful for doing headless installations.
 
 **The Following Applies to All Automated Installation methods**
-> Note Previous versions of ConsolePi supported import from either the users home-dir (i.e. `/home/pi`) or from a `consolepi-stage` subdir in the users home-dir (i.e. `/home/pi/ConsolePi-stage`).  The import logic directly from the home-dir has not been removed, but going forward any new imports will only be tested using the `consolePi-stage` directory for simplicity.
+> Note Previous versions of ConsolePi supported import from either the users home-dir (i.e. `/home/wade`) or from a `consolepi-stage` subdir in the users home-dir (i.e. `/home/wade/ConsolePi-stage`).  The import logic directly from the home-dir has not been removed, but going forward any new imports will only be tested using the `consolePi-stage` directory for simplicity.
 
-ConsolePi will **optionally** use pre-configured settings for the following if they are placed in the a `consolepi-stage` subdir in the users home folder (i.e. `/home/pi/consolepi-stage`).  This is optional, the installer will prompt for the information if not pre-configured.  It will prompt you to verify either way.  *Imports only occur during initial install not upgrades.*
+ConsolePi will **optionally** use pre-configured settings for the following if they are placed in the a `consolepi-stage` subdir in the users home folder (i.e. `/home/wade/consolepi-stage`).  This is optional, the installer will prompt for the information if not pre-configured.  It will prompt you to verify either way.  *Imports only occur during initial install not upgrades.*
 
 - ConsolePi.yaml: This is the main configuration file where all configurable settings are defined.  If provided in the `consolepi-stage` dir the installer will ask for verification then create the working config `/etc/ConsolePi/ConsolePi.yaml`
 
@@ -326,7 +369,7 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
     >
     > There may be a better way, but this is working on all my Pi3/4s, on my Pi Zero Ws installing these packages breaks wpa_supplicant entirely.  For those I currently just use the psk SSID (which I expect most would do, but good tip anyway for the cool kids using certs)
 
-- authorized_keys/known_hosts: If either of these ssh related files are found they will be placed in both the /home/pi/.ssh and /root/.ssh directories (ownership is adjusted appropriately).
+- authorized_keys/known_hosts: If either of these ssh related files are found they will be placed in both the /home/wade/.ssh and /root/.ssh directories (ownership is adjusted appropriately).
 
 - rpi-poe-overlay.dts: This is a custom overlay file for the official Rpi PoE hat.  If the dts is found in the stage dir, a dtbo (overlay binary) is created from it and placed in /boot/overlays.  A custom overlay for the PoE hat can be used to adjust what temp triggers the fan, and how fast the fan will run at each temp threshold.
 > Refer to google for more info, be aware some apt upgrades update the overlays overwriting your customization.  I use a separate script I run occasionally which creates a dtbo then compares it to the one in /boot/overlays, and updates if necessary (to revery back to my custom settings)
@@ -410,7 +453,7 @@ The Following optional arguments are more for dev, but can be useful in some oth
 
 Examples:
   This example specifies a config file with -C (telling it to get some info from the specified config) as well as the silent install option (no prompts)
-        > consolepi-upgrade -C /home/pi/consolepi-stage/installer.conf -silent
+        > consolepi-upgrade -C /home/wade/consolepi-stage/installer.conf -silent
 
   Alternatively the necessary arguments can be passed in via cmd line arguments
   NOTE: Showing minimum required options for a silent install.  ConsolePi.yaml has to exist
@@ -505,7 +548,7 @@ Examples:
   This example overrides the default RaspiOS image type (lite) in favor of the desktop image and configures a psk SSID (use single quotes if special characters exist)
         sudo ./consolepi-image-creator.sh --img_type=desktop --ssid=MySSID --psk='ConsolePi!!!'
   This example passes the -C option to the installer (telling it to get some info from the specified config) as well as the silent install option (no prompts)
-        sudo ./consolepi-image-creator.sh --cmd_line='-C /home/pi/consolepi-stage/installer.conf -silent'
+        sudo ./consolepi-image-creator.sh --cmd_line='-C /home/wade/consolepi-stage/installer.conf -silent'
 ```
 ```bash
 # ----------------------------------- // DEFAULTS \\ -----------------------------------
@@ -528,28 +571,26 @@ Examples:
 # --------------------------------------------------------------------------------------
 ```
 **What the script does**
-- automatically pull the most recent RaspiOS image (lite by default) if one is not found in the script-dir (whatever dir you run it from)
-  - It will check to see if a more current image is available and prompt for image selection even if an image exists in the script dir.
-- Make an attempt to determine the correct drive to be flashed, and display details ... User to verify/confirm before writing.
-
+  - automatically pull the most recent RaspiOS image (lite by default) if one is not found in the script-dir (whatever dir you run it from)
+    - It will check to see if a more current image is available and prompt for image selection even if an image exists in the script dir.
+  - Make an attempt to determine the correct drive to be flashed, and display details ... User to verify/confirm before writing.
   > As a fail-safe the script will exit if it finds more than 1 USB storage device on the system.
-- Flash image to micro-sd card
-- Enable SSH (handy for headless install)
+  - Flash image to micro-sd card
+  - pre-configure default consolepi user via userconf (RaspiOS no longer boots with a default `pi` user)
+  - Enable SSH (to facilitate headless install)
+  > ***if img_only=true the script stops here***
+  - The entire stage dir (consolepi-stage) is moved to the /home/consolepi dir on the micro-sd if found in the script dir.  This can be used to pre-stage a number of config files the installer will detect and use, along with anything else you'd like on the ConsolePi image.
+  - Pre-Configure a psk or open WLAN via parameters in script.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP if doing a headless install.
+  - You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the stage dir.  This will be copied to the /etc/wpa_supplicant dir on the micro-sd card.  This method supports the typical methods along with EAP-TLS with certificates.  Just place the cert files referenced in the provided wpa_supplicant.conf file in a 'cert' folder inside the stage dir.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ), the image creator will then move the certs to the micro-sd to the path specified in the provided wap_supplicant.conf.
+  - create a quick command 'consolepi-install' to simplify the command string to pull the installer from this repo and launch.  If cmd_line= argument is provided to consolepi-image-creator.sh those arguments are passed on to the auto-install.
+  - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled with `--auto_install=false`.
 
-  ***if img_only=true the script stops here***
+    > If you set `--auto_install=false`, `--cmd_line=...` is ignored.  You would specify arguments for the installer manually.
+  - If the `consolepi-image-creator.sh` script is ran from a ConsolePi, the script will detect that it's a ConsolePi and offer to pre-stage it's existing settings.  If a file has already been pre-staged (via consolepi-stage dir) it will skip it.  It will give you the chance to edit ConsolePi.yaml if pre-staged, so you can deploy multiple ConsolePis and edit the specifics for each as you stage them.
+  - Entire home directory imports:  If you place /root and/or /home/pi inside the consolepi-stage directory.  Those contents/sub-dirs will be imported to the respective users directory on the image.
+    - You can even pre-stage a users home directory for a user that doesn't exist.  When the installer runs, you are given the option to create new users.  Once created if a folder is found in consolepi-stage for that user (i.e. `home/pi/consolepi-stage/home/larry`), the contents will be copied from the `consolepi-stage` dir to `/home/larry`.
 
-- The entire stage dir (consolepi-stage) is moved to the /home/pi dir on the micro-sd if found in the script dir.  This can be used to pre-stage a number of config files the installer will detect and use, along with anything else you'd like on the ConsolePi image.
-- Pre-Configure a psk or open WLAN via parameters in script.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP if doing a headless install.
-- You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the stage dir.  This will be copied to the /etc/wpa_supplicant dir on the micro-sd card.  This method supports the typical methods along with EAP-TLS with certificates.  Just place the cert files referenced in the provided wpa_supplicant.conf file in a 'cert' folder inside the stage dir.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ), the image creator will then move the certs to the micro-sd to the path specified in the provided wap_supplicant.conf.
-- create a quick command 'consolepi-install' to simplify the command string to pull the installer from this repo and launch.  If cmd_line= argument is provided to consolepi-image-creator.sh those arguments are passed on to the auto-install.
-- The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled with `--auto_install=false`.
-
-  > If you set `--auto_install=false`, `--cmd_line=...` is ignored.  You would specify arguments for the installer manually.
-- If the `consolepi-image-creator.sh` script is ran from a ConsolePi, the script will detect that it's a ConsolePi and offer to pre-stage it's existing settings.  If a file has already been pre-staged (via consolepi-stage dir) it will skip it.  It will give you the chance to edit ConsolePi.yaml if pre-staged, so you can deploy multiple ConsolePis and edit the specifics for each as you stage them.
-- Entire home directory imports:  If you place /root and/or /home/pi inside the consolepi-stage directory.  Those contents/sub-dirs will be imported to the respective users directory on the image.
-  - You can even pre-stage a users home directory for a user that doesn't exist.  When the installer runs, you are given the option to create new users.  Once created if a folder is found in consolepi-stage for that user (i.e. `home/pi/consolepi-stage/home/larry`), the contents will be copied from the `consolepi-stage` dir to `/home/larry`.
-
-The install script (not this image-creator, the installer that actually installs ConsolePi) will look for and if found import a number of items from the consolepi-stage directory.  Gdrive credentials, ovpn settings, ssh keys refer to *TODO link to section highlighting imports*
+  The install script (not this image-creator, the installer that actually installs ConsolePi) will look for and if found import a number of items from the consolepi-stage directory.  Gdrive credentials, ovpn settings, ssh keys refer to *TODO link to section highlighting imports*
 
 **This capture highlights what the script does and what it pulls via mass import if ran from an existing ConsolePi**
 ```bash
@@ -589,11 +630,11 @@ Press enter to accept sda as the destination drive or specify the correct device
 Device to flash with image [sda]:
 
 Getting latest raspios image (lite)
-Using image 2020-05-27-raspios-buster-lite-armhf found in /home/pi. It is the current release
+Using image 2023-05-03-raspios-bullseye-armhf-lite found in /home/wade. It is the current release
 
 
 !!! Last chance to abort !!!
-About to write image 2020-05-27-raspios-buster-lite-armhf.img to sda, Continue? (y/n|exit): y
+About to write image 2023-05-03-raspios-bullseye-armhf-lite.img to sda, Continue? (y/n|exit): y
    ______                       __     ____  _
   / ____/___  ____  _________  / /__  / __ \(_)
  / /   / __ \/ __ \/ ___/ __ \/ / _ \/ /_/ / /
@@ -602,7 +643,7 @@ About to write image 2020-05-27-raspios-buster-lite-armhf.img to sda, Continue? 
   https://github.com/Pack3tL0ss/ConsolePi
 
 
-Now Writing image 2020-05-27-raspios-buster-lite-armhf.img to sda standby...
+Now Writing image 2023-05-03-raspios-bullseye-armhf-lite.img to sda standby...
  This takes a few minutes
 
 1849688064 bytes (1.8 GB, 1.7 GiB) copied, 221 s, 8.4 MB/s
@@ -632,8 +673,8 @@ Image written to flash - no Errors
  ~ /etc/wpa_supplicant/wpa_supplicant.conf...............................Skipped - Already Staged
  ~ /etc/udev/rules.d/10-ConsolePi.rules..................................Skipped - Already Staged
  ~ /etc/ser2net.conf.....................................................Skipped - Already Staged
- ~ /home/pi/.ssh/authorized_keys.........................................Skipped - Already Staged
- ~ /home/pi/.ssh/known_hosts.............................................Skipped - Already Staged
+ ~ /home/wade/.ssh/authorized_keys.........................................Skipped - Already Staged
+ ~ /home/wade/.ssh/known_hosts.............................................Skipped - Already Staged
  ~ /etc/ConsolePi/cloud/gdrive/.credentials/credentials.json.............Imported
  ~ /etc/ConsolePi/cloud/gdrive/.credentials/token.pickle.................Imported
  ~ /etc/openvpn/client/ConsolePi.ovpn....................................Skipped - Already Staged
@@ -679,9 +720,9 @@ The Use Cases
         > If you did want the system to advertise itself on the network, so other ConsolePis could discover it:  Repeat the commands above related to `consolepi-mdnsbrowse.service` but swap in `consolepi-mdnsreg.service`.
 
   2. ConsolePi running on wsl-ubuntu (Windows Subsystem for Linux)
-      - Use Case... I just wanted to see if it would work.  I also have it open a lot so handy to be able to just run from there.
+      - Use Case... I always have a wsl terminal open, so I use the `consolepi-menu` in wsl, which displays all the discovered remote consolepis.
       - No local-adapters wsl would be remote only.
-      - Install process: Same as above with the exception of leave out the consolpi-mdnsbrowse bit (no systemd on wsl)
+      - Install process: Same as above with the exception of leave out the consolpi-mdnsbrowse bit (no systemd on wsl).
       - It works as expected, with the minor caveat that it's only source to get remote details is via cloud-sync.  Adapter data is still refreshed on menu-load by querying the remote directly.  You also can not create the cloud credentials files (do the initial Authorization) in wsl.  That needs to be done on another system and copied over.
 
   > For Alternative installs.  Use `consolepi-sync` to update ConsolePi rather than `consolepi-upgrade`.  *or* just `git pull` from the `/etc/ConsolePi` directory.  `consolepi-upgrade` is the installer (which will detect ConsolePi is already installed and run as upgrade), has not been tested on non RaspberryPi installs yet.
@@ -729,7 +770,7 @@ HOSTS:
 - mm1 will use `wade_arubaos_pub.key` as the ssh private key/identity rather than the default identity file (typically `~/.ssh/id_rsa`)
   > The `key` specified can be in a number of places.
   > 1. The script always looks in `~/.ssh` first
-  > 2. full path and relative (to cwd) path are also valid in the config (i.e. `key: /home/pi/mykeys/wade_arubaos_pub.key`)
+  > 2. full path and relative (to cwd) path are also valid in the config (i.e. `key: /home/wade/mykeys/wade_arubaos_pub.key`)
   > 3. Lastly if you create the dir `/etc/ConsolePi/.ssh` and place the key there.  It will be copied to the users .ssh dir (`~/.ssh`) on menu launch and permissions/ownership will be updated appropriately for the logged in user.
   >
   > Option 3 has the benefit of providing a single global identity file for the host regardless of what user you are logged in as on the ConsolePi.  If the file in `/etc/ConsolePi/.ssh` is updated, the menu will detect the change, and copy the new file.
@@ -972,6 +1013,7 @@ There are a few convenience commands created for ConsolePi during the automated 
 - `consolepi-version`: Displays ConsolePi version (which is in the format YYYY-MajorRel.MinorRel)
 - `consolepi-wlanreset`: Disables hotspot if enabled, disconnects from AP if connected as a station.  Then starts wpa_supplicant.  Otherwise attempts to reset WLAN adapter to initial bootup state, autohotspot will not run (use `consolepi-autohotspot` after reset to force autohotspot logic to run).
 - `consolepi-wlanscan`: Scan and display SSIDs visible to this ConsolePi, does not impact existing connection.
+- `consolepi-convert`: A utility that parses ser2net v3 config (`/etc/ser2net.conf`) and creates a ConsolePi compatible ser2net v4 config (`/etc/ser2net.yaml`).  Buster brings with it an upgrade from ser2netv3 to v4.  This script will migrate any existing adapter deffinitions (configured via `consolepi-addconsole` or the `rn` option in the menu) to v4 and create / update the v4 config.
 - `consolepi-help`: Shows this output
 
 ## Upgrading ConsolePi

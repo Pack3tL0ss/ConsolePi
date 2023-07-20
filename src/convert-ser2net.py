@@ -73,7 +73,7 @@ class Convert:
             else:
                 now = datetime.now()
                 _bak_file = BAK_DIR / f'{V3_FILE.name}.{now.strftime("%F_%H%M")}'
-                print(f"  [magenta]-[/] ser2net [cyan]v{config.ser2net_ver}[/] installed.  Backing up v3 config {V3_FILE} to {_bak_file}")
+                print(f"  [magenta]-[/] ser2net [cyan]v{config.ser2net_ver}[/] installed.  Backing up v3 config {V3_FILE.name} to {_bak_file}")
                 shutil.move(V3_FILE, _bak_file)
         else:
             print(f"  [magenta]-[/] ser2net [cyan]v{config.ser2net_ver}[/] installed.  Keeping v3 config {V3_FILE} in place.")

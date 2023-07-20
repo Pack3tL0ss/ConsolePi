@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-
-/etc/ConsolePi/src/consolepi-commands/consolepi-details remotes "$@"
-echo -e "\n!! consolepi-remotes has been depricated, use consolepi-details !!\n"

@@ -436,6 +436,7 @@ class Remotes:
         returns:
         adapter dict for remote if successful and adapters exist
         status_code 200 if successful but no adapters or Falsey or response status_code if an error occurred.
+        22 if unable to reach API, but can reach port 22 (ssh)
         """
         if not log_host:
             log_host = ip
@@ -484,6 +485,10 @@ class Remotes:
         except Exception as e:
             log.show(f'Exception: {e.__class__.__name__}, in remotes.get_adapters_via_api() check logs')
             log.exception(e)
+
+        if not ret:  # hit an exception / or not reachable
+            if utils.is_reachable(ip, port=22, silent=True):
+                ret = 22  # indicates only available via ssh
 
         return ret
 
@@ -559,6 +564,11 @@ class Remotes:
                     log.show(
                         f"Remote {remote_host} is reachable via {_ip},"
                         " but has no adapters attached\nit's still available in remote shell menu"
+                    )
+                elif _adapters == 22:
+                    log.show(
+                        f"Remote {remote_host}({_ip}) did not respond to API request,"
+                        " but appears to be reachable via SSH\nit's available in remote shell menu"
                     )
 
                 # remote was reachable update last_ip, even if returned bad status_code still reachable

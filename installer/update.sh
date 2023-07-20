@@ -981,6 +981,7 @@ post_install_msg() {
             -li "${_cyan}consolepi-details${_norm}: Refer to GitHub for usage, but in short dumps the data the ConsolePi would run with based"
             "     on configuration, discovery, etc.  Dumps everything if no args"
             "     valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail"
+            -li "${_cyan}consolepi-convert${_norm}: ser2net v3 to ser2net v4 migration tool"
             -nl
             -foot "ConsolePi Installation Script v${INSTALLER_VER}"
         )

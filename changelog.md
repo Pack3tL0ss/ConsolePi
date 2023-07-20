@@ -1,4 +1,9 @@
 # CHANGELOG
+### June 2023 (v2023-5.0)
+  - ser2netv4 Parsing.  Rename is not refactored yet, but parsing the baud rate from defined adapters now works with ser2netv3 and ser2netv4.
+    - Rename still functional if still using ser2netv3
+    - If ser2netv4 is installed but the ser2netv3 config file still exists (`/etc/ser2net.conf`).  ConsolePi will continue to use the v3 config for parsing.  This is to allow time for manual conversion to the v4 format (`/etc/ser2net.yaml`)
+  - Fix issue introduced in v2022-4.x (which should have been v2023-xx.yy).  Issue relates to handling optional requirement for RPi.GPIO module.
 ### Sep 2022 (v2022-3.0)  **Breaking Change for silent installs**
   - Changed cmd-line flags for `consolepi-image` and `consolepi-install`/`consolepi-upgrade`.  Use `--help` with those commands to see the changes.
     - This is a breaking change for silent install.  If using an install.conf file refer to the new example as some varirables have changed.
@@ -21,7 +26,6 @@
   - Fix: menu item mapping, when a refresh resulted in an additional adapter being added.
   - Enhancement: Expose previously hidden 'tl' and 'tp' menu items.
   - Enhancement: Display current tty size when connecting to a serial or TELNET device.
-
     >Handy when connecting to a device that needs the terminal adjusted to use the full display size.
 ### Jan 2021 (v2021-1.0) **DHCP based Automation Enhancements**
   - Fix an issue that was overlooked, where AutoHotSpot is *not* selected and wired-dhcp is.
@@ -123,14 +127,13 @@
 - Additional improvements to in menu rename function / `consolepi-addconsole`
     - Added support for adapters that don't have a serial #, this was added prior, but would actually crash the menu (oops), I finally found a crappy adapter that lacks a serial # to test with as a result that function should now work.  It will be a compromise, essentially it will either need to be the only adapter of that kind (modelid/vendorid) or always be plugged into the same USB port.
     - Added a connect option in the rename menu (So you can connect to the adapter directly from that menu... useful if you need to verify what's what.)
-
 - `consolepi-extras` or the Optional utilities menu presented during the install/upgrade further enhanced
     - This installs/uninstalls optional packages useful for many ConsolePi users.
         - ansible: Changed to use a different ppa to source the package, vs the default raspbian repo
         - Aruba ansible modules: Added option to install modules for networking products from Aruba Networks.
         - SpeedTest: Added An HTML 5 speed Test https://github.com/librespeed/speedtest. This option will only be available on Pi 4 models (makes little sense on anything older)
         - cockpit: Provides a Dashboard to monitor the ConsolePi, as well as a web based tty.
-            > Note Making network configuration changes via Cockpit may conflict with the AutoHotSpot function
+          > Making network configuration changes via Cockpit may conflict with the AutoHotSpot function
 - dhcp server process (dnsmasq) for autohotspot is now a unique process just for wlan0, this allows you to have a separate process for the wired port without impacting the hotspot.  wired-dhcp will be a configurable option in a future build, an example systemd file for a separate dnsmasq process bound to the wired port is in /etc/ConsolePi/src/systemd
 - ConsolePi_image_creator script which is used to prep an SD card for a headless ConsolePi install re-worked / improved, had to back down some ciphers no longer allowed by curl to match the raspberrypi.org cert (the script will pull the latest image if not found in the script dir).
 - API changed to fastAPI for those that are on Raspbian Buster (Python 3.6+ is required), for systems running with python 3.5 or prior the current API remains.  FastAPI adds a swagger interface to ConsolePi.  The API will continue to be improved in future releases.
@@ -171,7 +174,6 @@
     - Bonus, the proxy script also adds support for auto-power-on for devices linked to outlets on the remote system (having them appear in a power sub-menu will come later once I build out the API further)
 -  Added override function for most system files involved... So Custom system files won't be backed up and replaced during `consolepi-upgrade`
 -  Added option to install and configure a tftp server.
-
 - ConsolePi remote discovery via mdns, or sync to Google Drive
 - Power Outlet Control, via relay attached to GPIO or network connected tasmota flashed wifi smart-outlet.  Power on automatically when attempting to connect to console session (via `consolepi-menu`), or toggle via power sub-menu (`consolepi-menu`)
 - consolepi-menu adapter connection parameters (baud, flow, parity, data-bits) are now extracted from the associated definition in ser2net.conf if one exists, if it doesn't defaults are used (which can be changed via menu option c)

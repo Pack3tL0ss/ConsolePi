@@ -107,6 +107,13 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 # What's New
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
+### July 2023 (v2023-6.1)
+  - ✨ `consolepi-menu` will now show remote ConsolePis that fail API but are reachable via SSH (in remote shell menu)
+  - ✨ Enhance consolepi-status now has `-R` (reload consolepi services) and `-B` (brief) options
+  - ✨ consolepi-showaliases now works with ser2net v3 or v4
+  > Will use ser2net v4 config (if found) only if ser2net v3 config doesn't exist.
+
+
 ### July 2023 (v2023-6.0)
   - :sparkles: Add full support for ser2netv4 add/change/rename via rename(`rn`) option in the menu, and the `consolepi-addconsole`.
   - :sparkles: Add `consolepi-convert` command, which will parse an existing ser2netv3 config (`/etc/ser2net.conf`) and create/update a ser2netv4 config (`/etc/ser2net.yaml`)
@@ -131,12 +138,6 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
     ```
     - In future release additional flags will be passed on to picocom i.e. `ssh -t <consolepi address> -p 2202 <device name> [any flags picocom supports]`
     - :bangbang: The `-t` option is crucial, otherwise there is no tty which causes strange behavior in the terminal (tab completion via the connected device among other things break).  Will research if there is a way to attach it on the server side.
-
-### June 2023 (v2023-5.0)
-  - ser2netv4 Parsing.  Rename is not refactored yet, but parsing the baud rate from defined adapters now works with ser2netv3 and ser2netv4.
-    - Rename still functional if still using ser2netv3
-    - If ser2netv4 is installed but the ser2netv3 config file still exists (`/etc/ser2net.conf`).  ConsolePi will continue to use the v3 config for parsing.  This is to allow time for manual conversion to the v4 format (`/etc/ser2net.yaml`)
-  - Fix issue introduced in v2022-4.x (which should have been v2023-xx.yy).  Issue relates to handling optional requirement for RPi.GPIO module.
 
 # Planned enhancements
   - Complete automation of feature to provide ssh direct to adapter discussed in [issue #119](https://github.com/Pack3tL0ss/ConsolePi/issues/119)

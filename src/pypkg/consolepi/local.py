@@ -5,6 +5,7 @@ import socket
 import netifaces as ni
 import os
 import time
+from pathlib import Path
 from consolepi import utils, log, config  # type: ignore
 
 
@@ -194,8 +195,13 @@ class Local():
         res = utils.do_shell_cmd("/bin/cat /proc/cpuinfo | grep Serial | awk '{print $3}'", return_stdout=True)
         if res[0] > 0:
             log.warning('Unable to get unique identifier for this pi (cpuserial)', show=True)
-        else:
-            return res[1] or '0'
+            return 0
+        elif not res[1]:
+            machine_id_file = Path("/etc/machine-id")
+            if machine_id_file.exists():
+                return machine_id_file.read_text().strip()
+            else:
+                return 0
 
     def get_if_info(self):
         '''Build and return dict with interface info.'''

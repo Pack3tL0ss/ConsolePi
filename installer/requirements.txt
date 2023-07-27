@@ -55,3 +55,4 @@ rich
 setproctitle
 aiohttp
 asyncio
+pydantic>=1.10.0  # temp FastAPI isn't forcing pydantic version high enough, utilizes MultiHostDsn introduced in 1.10.0, but FastAPI not requiring

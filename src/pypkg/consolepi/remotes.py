@@ -463,7 +463,7 @@ class Remotes:
                     method="GET",
                     url=url,
                     headers=headers,
-                    timeout=config.remote_timeout,
+                    timeout=getattr(config.remote_timeout, log_host),
                 )
                 _elapsed = time.perf_counter() - _start
                 if resp.ok:

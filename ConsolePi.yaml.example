@@ -35,6 +35,10 @@ OVERRIDES:
   disable_ztp: false      # If the ZTP section exists, and wired_dhcp: true, then ztp is enabled. Unless overriden with this option.
   ztp_lease_time: 2m      # When ztp in configured using consolepi-ztp the lease time is set to an aggressive 2min.
   remote_timeout: 3       # seconds to wait for response from discovered remote ConsolePis before failing them.  Can increase for slow net/Pis.
+  # remote_timeout override for specific devices
+  remote_timeout:
+    ConsolePi0: 6         # host specific timeout, useful if specifichosts are slower to respond to API request.
+    default: 4            # specifying default is optional, will default to 3 if not provided
   dli_timeout: 7          # seconds to wait for Digital Loggers dli web power switch to respond before failing.
   smartoutlet_timeout: 3  # seconds to wait for smart outlets (esphome / tasmota) to respond before failing.
   cycle_time: 3           # When cycling outlets, delay this many seconds (power off, wait cycle_time seconds, power on).

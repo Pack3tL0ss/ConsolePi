@@ -528,7 +528,9 @@ class Remotes:
         # if inbound data includes rem_ip make sure to try that first
         for _ip in [cache_data.get("rem_ip"), cache_data.get("last_ip")]:
             if _ip:
-                if _ip not in rem_ip_list or rem_ip_list.index(_ip) != 0:
+                if _ip not in rem_ip_list:
+                    rem_ip_list.insert(0, _ip)
+                elif rem_ip_list.index(_ip) != 0:
                     rem_ip_list.remove(_ip)
                     rem_ip_list.insert(0, _ip)
 

@@ -132,13 +132,14 @@ class Config():
         self.cloud_pull_only = ovrd.get('cloud_pull_only', False)
         self.compact_mode = ovrd.get('compact_mode', False)
         if ovrd.get("remote_timeout"):
-            if isinstance(ovrd["remote_timeout"], dict):
+            if isinstance(ovrd["remote_timeout"], dict):  # New config style allowing per host timeout override
                 self.remote_timeout = RemoteTimeout()
                 for k, v in ovrd["remote_timeout"].items():
                     self.remote_timeout.add_host(k, int(v))
             else:
-                self.remote_timeout = RemoteTimeout(DEFAULT_REMOTE_TIMEOUT)
-        # self.remote_timeout = int(ovrd.get('remote_timeout', DEFAULT_REMOTE_TIMEOUT))
+                self.remote_timeout = RemoteTimeout(int(ovrd["remote_timeout"]))  # Old config style they overrode the default for all remotes
+        else:
+            self.remote_timeout = RemoteTimeout()  # Default
         self.dli_timeout = int(ovrd.get('dli_timeout', DEFAULT_DLI_TIMEOUT))
         self.so_timeout = int(ovrd.get('smartoutlet_timeout', DEFAULT_SO_TIMEOUT))
         self.cycle_time = int(ovrd.get('cycle_time', DEFAULT_CYCLE_TIME))

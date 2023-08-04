@@ -273,7 +273,7 @@ class Config():
                         key_file = hosts[h]['key']
                     elif utils.valid_file(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}"):
                         user_ssh_dir = Path(f"/home/{self.loc_user}/.ssh/")
-                        if user_ssh_dir.is_dir:
+                        if user_ssh_dir.is_dir():
                             shutil.copy(f"/etc/ConsolePi/.ssh/{hosts[h]['key']}", user_ssh_dir)
                             user_key = Path(f"{user_ssh_dir}/{hosts[h]['key']}")
                             shutil.chown(user_key, user=self.loc_user, group=self.loc_user)

@@ -3,7 +3,7 @@
 # Create a Copy of this file with the name ConsolePi.yaml (remove ".example" extension).
 ---
 CONFIG:
-  cfg_file_ver: 10 # ---- Do Not Delete or modify this line ---- #
+  cfg_file_ver: 11 # ---- Do Not Delete or modify this line ---- #
   push: true # PushBullet Notifications: true - enable, false - disable
   push_all: true # PushBullet send notifications to all devices: true - yes, false - send only to device with iden specified by push_iden
   push_api_key: "PutYourPushBulletAPIKeyHere" # PushBullet API key
@@ -12,13 +12,14 @@ CONFIG:
   vpn_check_ip: 10.0.150.1 # used to check VPN (internal) connectivity should be ip only reachable via VPN
   net_check_ip: 8.8.4.4 # used to check Internet connectivity
   local_domain: example.com # used to bypass VPN. evals domain sent via dhcp option if matches this var will not establish vpn
+  hotspot: true  # wheather to enable AutoHotSpot Feature
   wlan_ip: 10.110.0.1 # IP of ConsolePi when in hotspot mode
   wlan_ssid: ConsolePi # SSID used in hotspot mode
   wlan_psk: ConsolePiR0cks!! # psk used for hotspot SSID
   wlan_country: US # regulatory domain for hotspot SSID
   wired_dhcp: false # Run dhcp on eth interface (after trying as client)
   wired_ip: 10.30.110.1 # Fallback IP for eth interface
-  btmode: serial # Bluetooth Mode: 'serial' or 'pan'
+  btmode: serial # Bluetooth Mode: 'serial' or 'pan'  **Not implemented yet currently always serial**
   cloud: false # enable ConsolePi cloud sync for Clustering (mdns enabled either way)
   cloud_svc: gdrive # must be gdrive (all that is supported now)
   rem_user: consolepi # The user account remotes should use to access this ConsolePi

@@ -157,6 +157,19 @@ mac=()
 
 ssidsmac=("${ssids[@]}" "${mac[@]}") #combines ssid and MAC for checking
 
+ip_forward_enabled() {
+    local sysctl_files=($(ls -1 /etc/sysctl.d/*.conf))
+    local sysctl_files+=(/etc/sysctl.conf)
+    local is_set=false
+    for f in ${sysctl_files[@]}; do
+        if grep -q "^net.ipv4.ip_forward\s*=\s*1" "$f"; then
+            local is_set=true
+            break
+        fi
+    done
+    $is_set && return 0 || return 1
+}
+
 get_ssid_details() {
     wlan_ip_addr=$(wpa_cli -i $wifidev status | grep ip_address | cut -d'=' -f2)
     if which iwgetid >/dev/null ; then
@@ -205,7 +218,7 @@ KillHotspot() {
     start_stop_dnsmasq stop
     iptables -D FORWARD -i "$ethdev" -o "$wifidev" -m state --state RELATED,ESTABLISHED -j ACCEPT
     iptables -D FORWARD -i "$wifidev" -o "$ethdev" -j ACCEPT
-    echo 0 > /proc/sys/net/ipv4/ip_forward
+    ! ip_forward_enabled && echo 0 > /proc/sys/net/ipv4/ip_forward
     ip addr flush dev "$wifidev"
     ip link set dev "$wifidev" up
     dhcpcd  -n "$wifidev" >/dev/null 2>&1

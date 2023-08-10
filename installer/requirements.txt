@@ -55,4 +55,7 @@ rich
 setproctitle
 aiohttp
 asyncio
-pydantic>=1.10.0  # temp FastAPI isn't forcing pydantic version high enough, utilizes MultiHostDsn introduced in 1.10.0, but FastAPI not requiring
+# temp force pydantic >= 1.10.0 as FastAPI isn't forcing pydantic version high enough, utilizes MultiHostDsn introduced in 1.10.0, but FastAPI not requiring
+# force use of pydanticv1 on buster as no wheel for buster making install of pydanticv2 a PITA
+pydantic >= 1.10.0, <= 1.10.12 ; python_version < "3.9"
+pydantic >= 1.10.0 ; python_version >= "3.9"

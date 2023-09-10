@@ -533,6 +533,73 @@ do_select_device() {
     done
 }
 
+do_detect_download_image() {
+    echo -e "\nGetting latest raspios image (${IMG_TYPE})"
+
+    # Find out what current raspios release is
+    # https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2022-09-07/2022-09-06-raspios-bullseye-armhf-lite.img.xz
+    [ ! $IMG_TYPE = 'desktop' ] && img_url="https://downloads.raspberrypi.org/raspios_${IMG_TYPE}_armhf_latest" ||
+        img_url="https://downloads.raspberrypi.org/raspios_armhf_latest"
+
+    # remove DH cipher security improvement in curl broke this, need this until raspberrypi.org changes to use a larger key
+    cur_rel_url=$(curl -sIL --ciphers 'DEFAULT:!DH' $img_url | grep location | cut -d' ' -f2 | strings)
+    cur_rel_full=$(echo ${cur_rel_url//*\/})
+    cur_rel_img=$(echo $cur_rel_full | cut -d'.' -f1-2)
+    cur_rel_base=$(echo $cur_rel_full | cut -d'.' -f1)
+    [[ -z $cur_rel_full ]]  && red "Script Failed to determine current image... exiting" && exit 1
+    cur_rel_date=$(echo $cur_rel_full | cut -d'-' -f1-3)
+
+    # Check to see if any images exist in script dir already
+    found_img_files=($(ls -1 | grep ".*rasp[bian\|ios].*\.img"$))
+    found_xz_files=($(ls -1 | grep ".*rasp[bian\|ios].*\.xz"$))
+
+    # If img or xz raspios-lite image exists in script dir see if it is current
+    # if not prompt user to determine if they want to download current
+    if (( ${#found_img_files[@]} )); then
+        if [[ ! " ${found_img_files[@]} " =~ ${cur_rel_date}.*\.img ]]; then
+            echo "the following images were found:"
+            idx=1
+            for i in ${found_img_files[@]}; do echo "${idx}. ${i}" && ((idx+=1));  done
+            echo -e "\nbut the current release is $(cyan $cur_rel_base)"
+            prompt="Would you like to download and use the latest release? ($(cyan $cur_rel_base)):"
+            get_input
+            $input || do_select_image "${found_img_files[@]}"  # Selecting No currently broken # $img_file set in do_select_image
+        else
+            _msg="found in $(pwd). It is the current release"
+            img_file=$cur_rel_img
+        fi
+    fi
+    if (( ${#found_xz_files[@]} )); then
+        if [[ ! " ${found_xz_files[@]} " =~ ${cur_rel_date}.*\.xz ]]; then
+            echo "the following images were found:"
+            idx = 1
+            for i in ${found_xz_files[@]}; do echo ${idx}. ${i} && ((idx+=1));  done
+            echo -e "\nbut the current release is $(cyan $cur_rel_base)"
+            prompt="Would you like to download and use the latest release? ($(cyan ${cur_rel_base})):"
+            get_input
+            $input || do_select_image "${$found_xz_files[@]}" # TODO selecting NO broke right now # $img_file set in do_select_image/do_extract
+        else
+            # echo "Using $(cyan ${cur_rel_base}) found in $(pwd)."
+            _msg="It is the current release"
+            do_extract $cur_rel_full #img_file assigned in do_extract
+        fi
+    else
+        echo "no image found in $(pwd)"
+    fi
+
+    [ ! -z "$img_file" ] && echo "Using $(cyan ${img_file}) $_msg"
+
+    # img_file will only be assigned if an image was found in the script dir
+    retry=1
+    while [ -z "$img_file" ] ; do
+        [[ $retry > 3 ]] && echo "Exceeded retries exiting " && exit 1
+        echo "downloading image from raspberrypi.org.  Attempt: ${retry}"
+        wget -q --show-progress $img_url -O $cur_rel_full
+        do_extract $cur_rel_full
+        ((retry++))
+    done
+}
+
 main() {
     header -c
 
@@ -601,71 +668,7 @@ main() {
         umount $mnt
     done
 
-    # get raspios-lite image if not in script dir
-    echo -e "\nGetting latest raspios image (${IMG_TYPE})"
-
-    # Find out what current raspios release is
-    # https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2022-09-07/2022-09-06-raspios-bullseye-armhf-lite.img.xz
-    [ ! $IMG_TYPE = 'desktop' ] && img_url="https://downloads.raspberrypi.org/raspios_${IMG_TYPE}_armhf_latest" ||
-        img_url="https://downloads.raspberrypi.org/raspios_armhf_latest"
-
-    # remove DH cipher security improvement in curl broke this, need this until raspberrypi.org changes to use a larger key
-    cur_rel_url=$(curl -sIL --ciphers 'DEFAULT:!DH' $img_url | grep location | cut -d' ' -f2 | strings)
-    cur_rel_full=$(echo ${cur_rel_url//*\/})
-    cur_rel_img=$(echo $cur_rel_full | cut -d'.' -f1-2)
-    cur_rel_base=$(echo $cur_rel_full | cut -d'.' -f1)
-    [[ -z $cur_rel_full ]]  && red "Script Failed to determine current image... exiting" && exit 1
-    cur_rel_date=$(echo $cur_rel_full | cut -d'-' -f1-3)
-
-    # Check to see if any images exist in script dir already
-    found_img_files=($(ls -1 | grep ".*rasp[bian\|ios].*\.img"$))
-    found_xz_files=($(ls -1 | grep ".*rasp[bian\|ios].*\.xz"$))
-
-    # If img or xz raspios-lite image exists in script dir see if it is current
-    # if not prompt user to determine if they want to download current
-    if (( ${#found_img_files[@]} )); then
-        if [[ ! " ${found_img_files[@]} " =~ ${cur_rel_date}.*\.img ]]; then
-            echo "the following images were found:"
-            idx=1
-            for i in ${found_img_files[@]}; do echo "${idx}. ${i}" && ((idx+=1));  done
-            echo -e "\nbut the current release is $(cyan $cur_rel_base)"
-            prompt="Would you like to download and use the latest release? ($(cyan $cur_rel_base)):"
-            get_input
-            $input || do_select_image "${found_img_files[@]}"  # Selecting No currently broken # $img_file set in do_select_image
-        else
-            _msg="found in $(pwd). It is the current release"
-            img_file=$cur_rel_img
-        fi
-    fi
-    if (( ${#found_xz_files[@]} )); then
-        if [[ ! " ${found_xz_files[@]} " =~ ${cur_rel_date}.*\.xz ]]; then
-            echo "the following images were found:"
-            idx = 1
-            for i in ${found_xz_files[@]}; do echo ${idx}. ${i} && ((idx+=1));  done
-            echo -e "\nbut the current release is $(cyan $cur_rel_base)"
-            prompt="Would you like to download and use the latest release? ($(cyan ${cur_rel_base})):"
-            get_input
-            $input || do_select_image "${$found_xz_files[@]}" # TODO selecting NO broke right now # $img_file set in do_select_image/do_extract
-        else
-            # echo "Using $(cyan ${cur_rel_base}) found in $(pwd)."
-            _msg="It is the current release"
-            do_extract $cur_rel_full #img_file assigned in do_extract
-        fi
-    else
-        echo "no image found in $(pwd)"
-    fi
-
-    [ ! -z "$img_file" ] && echo "Using $(cyan ${img_file}) $_msg"
-
-    # img_file will only be assigned if an image was found in the script dir
-    retry=1
-    while [[ -z $img_file ]] ; do
-        [[ $retry > 3 ]] && echo "Exceeded retries exiting " && exit 1
-        echo "downloading image from raspberrypi.org.  Attempt: ${retry}"
-        wget -q --show-progress $img_url -O $cur_rel_full
-        do_extract $cur_rel_full
-        ((retry++))
-    done
+    [ -z "$img_file" ] && do_detect_download_image  # if img_file set it was set via --image argument
 
     # ----------------------------------- // Burn raspios image to device (micro-sd) \\ -----------------------------------
     echo -e "\n\n${_red}${_blink}!!! Last chance to abort !!!${_norm}"
@@ -836,6 +839,7 @@ show_usage() {
     _help "--[no-]import" "whether or not to import files from this system to the image, if this is a ConsolePi.  Prompted if not set."
     _help "--[no-]edit" "Skips prompt asking if you want to edit (nano) the imported ConsolePi.yaml."
     _help "-H|--hostname" "pre-configure hostname on image."
+    _help "-I|--image" "Use specified image (full path or file in cwd)"
     _help "-p|--passwd <consolepi passwdrd>" "The password to set for the consolepi user."
     _help "--cmd-line '<cmd_line arguments>'" "*Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image"
     if [ -n "$1" ] && [ "$1" = "dev" ]; then  # hidden dev flags --help dev to display them.
@@ -885,6 +889,10 @@ parse_args() {
                 ;;
             -H|--hostname) # preconfigure hostname on image.  Handy as installer looks for files in $HOME/consolepi-stage/$HOSTNAME
                 [ -n "$2" ] && img_hostname=$2 || missing_param $1
+                shift 2
+                ;;
+            -I|--image) # Use specified image must be in cwd
+                [ -n "$2" ] && img_file=$2 || missing_param $1
                 shift 2
                 ;;
             -p|--passwd) # consolepi pass prompted if not provided

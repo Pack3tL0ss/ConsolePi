@@ -443,7 +443,7 @@ do_pyvenv() {
         venv_ver=$(sudo python3 -m pip show virtualenv 2>/dev/null | grep -i version | cut -d' ' -f2)
         if [ -z "$venv_ver" ]; then
             logit "python virtualenv not installed... installing"
-            sudo apt install python3-virtualenv 1>/dev/null 2>> $log_file &&
+            sudo apt install -y python3-virtualenv 1>/dev/null 2>> $log_file &&
                 logit "Success - Install virtualenv" ||
                 logit "Error - installing virtualenv" "ERROR"
         else

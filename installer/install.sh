@@ -104,8 +104,11 @@ do_apt_deps() {
 
         # If it's an RPI we ensure RPi.GPIO is up to date.
         # TODO this may not be necessary with restoration of pip install RPi.GPIO below
-        [ "$is_pi" = true ] && apt upgrade -y python3-rpi.gpio >/dev/null 2> >(grep -v "^$" | grep -v "stable CLI" | tee -a $log_file) ||
-            logit "apt upgrade python3-rpi.gpio returned an error, check logs in $log_file" "WARNING"
+        ## This would check if its current
+        # apt list -u 2> >(grep -v "^$" | grep -v "stable CLI" | tee -a delme) | grep -q python3-rpi.gpio
+        #  return code = 1 means it's not in the upgrade list so it's current
+        # [ "$is_pi" = true ] && apt upgrade -y python3-rpi.gpio >/dev/null 2> >(grep -v "^$" | grep -v "stable CLI" | tee -a $log_file) ||
+        #     logit "apt upgrade python3-rpi.gpio returned an error, check logs in $log_file" "WARNING"
 
         # TODO add picocom, maybe ser2net, ensure process_cmds can accept multiple packages
 

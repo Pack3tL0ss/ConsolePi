@@ -107,6 +107,9 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 # What's New
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
+### Jan 2024 (v2024-1.0)
+  - Change how python3-virtualenv is installed (pip --> apt) per PEP 668.
+
 ### July 2023 (v2023-6.1)
   - ✨ `consolepi-menu` will now show remote ConsolePis that fail API but are reachable via SSH (in remote shell menu)
   - ✨ Enhance consolepi-status now has `-R` (reload consolepi services) and `-B` (brief) options

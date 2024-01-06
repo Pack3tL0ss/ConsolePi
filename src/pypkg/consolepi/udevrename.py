@@ -19,7 +19,7 @@ class Rename():
         self.rules_file = config.static.get('RULES_FILE', '/etc/udev/rules.d/10-ConsolePi.rules')
         self.ttyama_rules_file = config.static.get('TTYAMA_RULES_FILE', '/etc/udev/rules.d/11-ConsolePi-ttyama.rules')
         self.ser2net_file = config.static.get('SER2NET_FILE', '/etc/ser2net.conf')  # TODO Not Used Remove once verified all refs switched to config.ser2net_file
-        self.reserved_names = ['ttyUSB', 'ttyACM', 'ttyAMA']
+        self.reserved_names = ['ttyUSB', 'ttyACM', 'ttyAMA', 'ttySC']
 
     # --- // START MONSTER RENAME FUNCTION \\ --- # TODO maybe break this up a bit
     def do_rename_adapter(self, from_name):
@@ -349,7 +349,7 @@ class Rename():
         log_ptr = ''
 
         cur_line = config.ser2net_conf.get(f'/dev/{from_name}', {}).get('line')
-        if cur_line and '/dev/ttyUSB' not in cur_line and '/dev/ttyACM' not in cur_line:
+        if cur_line and '/dev/ttyUSB' not in cur_line and '/dev/ttyACM' not in cur_line and '/dev/ttySC' not in cur_line:
             new_entry = False
             if config.ser2net_file.suffix in [".yaml", ".yml"]:
                 next_port = int(yaml.safe_load(cur_line.replace(": *", ": REF_"))["connection"].get("accepter").split(",")[-1])

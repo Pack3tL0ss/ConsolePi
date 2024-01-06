@@ -62,8 +62,9 @@ class Local():
         devs = {'_dup_ser': {}}
         usb_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='usb', subsystem='tty')]
         pci_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='pci', subsystem='tty')]
+        i2c_list = [dev.properties['DEVPATH'].split('/')[-1] for dev in context.list_devices(ID_BUS='i2c', subsystem='tty')]
         ama_list = [dev.replace('/dev/', '') for dev in config.cfg_yml.get('TTYAMA', {})]
-        root_dev_list = usb_list + pci_list + ama_list
+        root_dev_list = usb_list + pci_list + i2c_list + ama_list
 
         for root_dev in root_dev_list:
             # determine if the device already has a udev alias & collect available path options for use on lame adapters

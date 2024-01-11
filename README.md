@@ -69,6 +69,8 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 
 # Known Issues
 
+- **Numerous breaking changes as a result of Raspbian Bookworm.**  As of Oct 2023 Raspbian is based off of Debian Bookworm.  With that comes a number of changes that break functions of the ConsolePi.  The biggest change is Bookworm now uses NetworkManager rather than dhcpcd/wpa_supplicant.  This breaks [AutoHotSpot](#autoHotSpot), and [Automatic PushBullet Notifications](#automatic-pushbullet-notification) for sure and likely impacts [Automatic VPN](#automatic-openvpn-tunnel), and [ZTP Orchestration](#ztp-orchestration).  Work is underway to update ConsolePi to detect and accomodate both scenarios (pre and post Bookworm).
+
 - :bangbang: *Not an issue, but a breaking change in ser2net if you've upgraded.*  Bullseye updates the ser2net available from the package repo from 3.x to 4.x this is a significant change.  Functionality wise it's a very good thing, ser2net 4.x brings a lot more flexibility and connectivity options, but it means if you already have aliases that were configured (via `consolepi-addconsole` or the rename(`rn`) option in `consolepi-menu`) against the ser2net v3 config `/etc/ser2net.conf`... Those are no longer what ser2net uses for the TELNET connections.
 
   Good news though.  As of v2023-6.0 the various options mentioned above for adding/updating/renaming adapter aliases now work with the v4 config (`/etc/ser2net.yaml`).  Not only that, but there is now a migration command `consolepi-convert` which will migrate an existing ser2net v3 config to v4.
@@ -1041,18 +1043,18 @@ ConsolePi Should work on all variants of the RaspberryPi and will work on other 
     - Tested all variations of connection types
 - RaspberryPi Compute Module 4
     - Tested with official Raspberry Pi CM4 io board.
-- RaspberryPi zero w 2
 - RaspberryPi 3 Model B+
   - Tested with RaspberryPi Power supply, PoE Hat, and booster-pack (battery)
   - Tested all variations of connection types
-- RaspberryPi zero w
-  - With both single port micro-usb otg USB adapter and multi-port otg usb-hub.
-  - Tested with wired port via otg USB adapter, built-in wlan. BlueTooth... Use this with battery pack on a regular basis.
 - Raspberry Pi 2 Model B (running Buster)
     - Tested via wired port, and with external USB-WiFi adapter.  Have not tested any BlueTooth Dongles
 - Raspberry Pi Model B (running Buster)
     - Tested via wired port, and with external USB-WiFi adapter.  Have not tested any BlueTooth Dongles
     - Pretty slow to load the Google Drive Libraries, slower menu-load, slower for about everything, but works.  `consolepi-menu sh` which loads the faster local-only shell menu loads faster given it has no libraries to pull in, but these are best relegated to seldomly used remotes if used at all.
+- RaspberryPi zero w
+  - With both single port micro-usb otg USB adapter and multi-port otg usb-hub.
+  - Tested with wired port via otg USB adapter, built-in wlan. BlueTooth... Use this with battery pack on a regular basis.
+- RaspberryPi zero w 2
 
 > ConsolePi will also work on other Linux systems as described in [Alternative Hardware Installs](#alternative-hardware-installs).
 

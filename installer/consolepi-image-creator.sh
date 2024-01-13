@@ -55,6 +55,14 @@
 # via cmd line argumetns see --help for available flags
 # --------------------------------------------------------------------------------------
 
+# TODO prep NetworkManager if bookworm debian 12
+# if [ -f ${IMG_ROOT}/etc/os-release ]; then
+#     . /etc/os-release
+#     [ "$VERSION_ID" == 12 ] && bookworm=true || bookworm=false
+# fi
+
+# TODO if $HOSTNAME == $NEW_HOSTNAME import existing sshd certificates from /etc/ssh/ssh_host* to /mnt/usb2/etc/ssh/
+# TODO check pre-stage hostname did not appear to work on last run
 
 # Terminal coloring
 _norm='\e[0m'
@@ -99,6 +107,7 @@ do_defaults() {
     # Some static variables
     STAGE_DIR='consolepi-stage'
     [ -d "$STAGE_DIR" ] && STAGE=true || STAGE=false
+    IMG_ROOT="/mnt/usb2"
     IMG_HOME="/mnt/usb2/home/consolepi"
     IMG_STAGE="$IMG_HOME/$STAGE_DIR"
     # STAGED_CONFIG=${get_staged_file_path ConsolePi.yaml}
@@ -150,6 +159,7 @@ do_error() {
     else
         green "OK"
     fi
+    unset rc  # in case it was made global and not reset elsewhere
 }
 
 green() {
@@ -197,8 +207,8 @@ get_input() {
     # return input in global context
 }
 
-# -- Find path for any files pre-staged in user home or consolepi-stage subdir --
-# default is to check for file pass -d as 2nd arg to check for dir
+# -- Find path for any files pre-staged in consolepi-stage/$NEW_HOSTNAME subdir then consolepi-stage --
+# default is to check for file, pass -d as 2nd arg to check for dir
 get_staged_file_path() {
     [ -z "$1" ] && echo "FATAL Error get_staged_file_path() passed NUL value" >$(readlink /dev/fd/0) && exit 3
     local flag=${2:-'-f'}
@@ -334,36 +344,56 @@ do_import_configs() {
     # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
     #   certs should be in script dir or 'cert' subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
     # NOTE: Currently the cert parsing will only work if you are using double quotes in wpa_supplicant.conf ~ client_cert="/etc/cert/ConsolePi-dev.pem"
-    WPA_CONF=$(get_staged_file_path wpa_supplicant.conf)
-    if [ -n "$WPA_CONF" ]; then
-        dots "wpa_supplicant.conf found pre-staging on image"
-        cp $WPA_CONF /mnt/usb2/etc/wpa_supplicant  ; rc=$?
-        chown root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
-        chgrp root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
-        chmod 644 /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
-        do_error $rc
-
-        # -- extract cert paths from wpa_supplicant.conf and move any staged certs to those paths
-        client_cert=$(grep client_cert= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
-        if [ -n "$client_cert" ]; then
-            dots "staged wpa_supplicant includes EAP-TLS SSID looking for certs"
-            cert_path="/mnt/usb2"${client_cert%/*}
-            ca_cert=$(grep ca_cert= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
-            private_key=$(grep private_key= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
-            cert_stage_dir=$(get_staged_file_path cert -d)
-            if [ -n "$cert_stage_dir" ]; then
-                do_error 0
-                dots "client certs found copying"
-                pushd $cert_stage_dir >/dev/null
-                mkdir -p $cert_path ; rc=$?
-                [ "$rc" -eq 0 ] || echo fail mkdir
-                [[ -f ${client_cert##*/} ]] && cp ${client_cert##*/} "${cert_path}/${client_cert##*/}" ; ((rc+=$?))
-                [[ -f ${ca_cert##*/} ]] && cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}" ; ((rc+=$?))
-                [[ -f ${private_key##*/} ]] && cp ${private_key##*/} "${cert_path}/${private_key##*/}"; ((rc+=$?))
-                popd >/dev/null
+    if $bookworm; then
+        NM_SYS_DIR=$(get_staged_file_path "NetworkManager/system-connections" -d)
+        if [ -n "$NM_SYS_DIR" ]; then
+            nm_con_files=($(ls -1 "$NM_SYS_DIR"))
+            if [ "${#nm_con_files[@]}" -gt 0 ]; then
+                dots "NetworkManager profiles found pre-staging on image"
+                rc=0; for nm_profile in "${#nm_con_files[@]}"; do
+                    cp $NM_SYS_DIR/$nm_profile $IMG_ROOT/etc/NetworkManager/system-connections ; ((rc+=$?))
+                done
                 do_error $rc
-            else
-                echo "WARNING"; echo -e "\tEAP-TLS is defined, but no certs found for import"
+
+                dots "chown/chmod pre-staged profiles"
+                chown root:root $IMG_ROOT/etc/NetworkManager/system-connections/* ; rc=$?
+                chmod 600 $IMG_ROOT/etc/NetworkManager/system-connections/* ; ((rc+=$?))
+                do_error $rc
+            fi
+        fi
+    else
+        WPA_CONF=$(get_staged_file_path wpa_supplicant.conf)
+        if [ -n "$WPA_CONF" ]; then
+            dots "wpa_supplicant.conf found pre-staging on image"
+            cp $WPA_CONF /mnt/usb2/etc/wpa_supplicant  ; rc=$?
+            chown root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
+            chgrp root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
+            chmod 644 /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
+            do_error $rc
+
+            # -- extract cert paths from wpa_supplicant.conf and move any staged certs to those paths
+            # TODO need to have it pull the current certs if $NEW_HOSTNAME == $HOSTNAME and the files extracted paths exist
+            client_cert=$(grep client_cert= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
+            if [ -n "$client_cert" ]; then
+                dots "staged wpa_supplicant includes EAP-TLS SSID looking for certs"
+                cert_path="/mnt/usb2"${client_cert%/*}
+                ca_cert=$(grep ca_cert= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
+                private_key=$(grep private_key= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
+                cert_stage_dir=$(get_staged_file_path cert -d)
+                if [ -n "$cert_stage_dir" ]; then
+                    do_error 0
+                    dots "client certs found copying"
+                    pushd $cert_stage_dir >/dev/null
+                    mkdir -p $cert_path ; rc=$?
+                    [ "$rc" -eq 0 ] || echo fail mkdir
+                    [[ -f ${client_cert##*/} ]] && cp ${client_cert##*/} "${cert_path}/${client_cert##*/}" ; ((rc+=$?))
+                    [[ -f ${ca_cert##*/} ]] && cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}" ; ((rc+=$?))
+                    [[ -f ${private_key##*/} ]] && cp ${private_key##*/} "${cert_path}/${private_key##*/}"; ((rc+=$?))
+                    popd >/dev/null
+                    do_error $rc
+                else
+                    echo "WARNING"; echo -e "\tEAP-TLS is defined, but no certs found for import"
+                fi
             fi
         fi
     fi
@@ -698,7 +728,7 @@ main() {
             # mmcblk device would fail on laptop after image creation re-run with --no-dd and was fine
             echo "Sleep then Retry"
             sleep 3
-            dots "Mounting boot partition"
+            dots "mounting boot partition"
         fi
     done
     do_error $rc "$res"
@@ -744,15 +774,28 @@ main() {
 
     # TODO move to func and use EOF << redirection
     # Configure simple psk SSID based args or config file
+
+    # -- determine if this is bookworm (Managed by NetworkManager)
+    # TODO can prob do this earlier based on the image date
+    if [ -f ${IMG_ROOT}/etc/os-release ]; then
+        . /etc/os-release
+        [ "$VERSION_ID" == 12 ] && bookworm=true || bookworm=false
+    fi
+
+
     if $CONFIGURE_WPA_SUPPLICANT; then
-        dots "configuring wpa_supplicant.conf | defining ${SSID}"
-        sudo echo "country=${WLAN_COUNTRY}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "network={" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "    ssid=\"${SSID}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "    psk=\"${PSK}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        [[ $PRIORITY > 0 ]] && sudo echo "    priority=${PRIORITY}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        [ -f /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ] && green OK || red ERROR
+        if $bookworm; then
+            dots "configuring wpa_supplicant.conf | defining ${SSID}"
+            sudo echo "country=${WLAN_COUNTRY}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            sudo echo "network={" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            sudo echo "    ssid=\"${SSID}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            sudo echo "    psk=\"${PSK}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            [[ $PRIORITY > 0 ]] && sudo echo "    priority=${PRIORITY}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            [ -f /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ] && green OK || red ERROR
+        else
+            dots "raspbian bookworm not supported for WLAN pre-config yet" ; echo "skipped"
+        fi
     fi
 
     # Configure consolepi user to auto-launch ConsolePi installer on first-login
@@ -769,7 +812,7 @@ main() {
             echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${@}" && sudo rm -f /tmp/ConsolePi' >> $auto_install_file
         fi
 
-        $LOCAL_DEV && cmd_line="--dev ${cmd_line#"--dev "}"
+        $LOCAL_DEV && cmd_line="--dev ${cmd_line#"--dev "}"  #  TODO maybe also need && cmd_line="-D ${cmd_line#"-D "}"
         grep -q "consolepi-install" $IMG_HOME/.profile || echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.profile
 
         # make install command/script executable

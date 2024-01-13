@@ -578,6 +578,7 @@ do_blue_config() {
 
     if [ ! -z "$bt_exec" ] && [ -f "$bt_exec" ]; then
         convert_template bluetooth.service /etc/systemd/system/bluetooth.service bt_exec=${bt_exec}
+        systemd_diff_update 'bthelper@'
     else
         logit "Unable to find bluetoothd (lib) exec path" "WARNING"
     fi
@@ -1040,7 +1041,7 @@ update_main() {
     fi
     install_ser2net
     dhcp_run_hook
-    ConsolePi_cleanup  # TODO change service to consolepi-cleanup
+    ConsolePi_cleanup  # TODO change service to consolepi-cleanup research systemd-tmpfiles
     $ovpn_enable && install_ovpn
     # TODO new flow below needs to be tested (accomodate case where wired true hotspot false during install)
     $no_ipv6 || $hotspot || $wired_dhcp && gen_dhcpcd_conf

@@ -1,3 +1,4 @@
+# should be safe to remove installer uses j2 file
 [Unit]
 Description=Bluetooth service
 Documentation=man:bluetoothd(8)

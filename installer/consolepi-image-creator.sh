@@ -350,7 +350,7 @@ do_import_configs() {
             nm_con_files=($(ls -1 "$NM_SYS_DIR"))
             if [ "${#nm_con_files[@]}" -gt 0 ]; then
                 dots "NetworkManager profiles found pre-staging on image"
-                rc=0; for nm_profile in "${#nm_con_files[@]}"; do
+                rc=0; for nm_profile in "${nm_con_files[@]}"; do
                     cp $NM_SYS_DIR/$nm_profile $IMG_ROOT/etc/NetworkManager/system-connections ; ((rc+=$?))
                 done
                 do_error $rc
@@ -585,6 +585,7 @@ do_detect_download_image() {
 
     # If img or xz raspios-lite image exists in script dir see if it is current
     # if not prompt user to determine if they want to download current
+    # FIXME if both the img file and xz exist it will try to extract the xz again and crash as the file already exists
     if (( ${#found_img_files[@]} )); then
         if [[ ! " ${found_img_files[@]} " =~ ${cur_rel_date}.*\.img ]]; then
             echo "the following images were found:"
@@ -859,13 +860,6 @@ _help() {
 }
 
 show_usage() {
-    # -- hidden dev options --
-    # -debug: additional logging
-    # -dev: dev local mode, configures image to install from dev branch of local repo
-    # --no-dd: run without actually burning the image (used to re-test on flash that has already been imaged)
-    # -cponly: consolepi-stage dir will be cp to image if found but as __consolepi-stage to prevent installer
-    #          from importing from the dir during install
-    #
     # hash consolepi-image 2>/dev/null && local cmd=consolepi-image || local cmd=$(echo $SUDO_COMMAND | cut -d' ' -f1)
     [ -x /etc/ConsolePi/src/consolepi-commands/consolepi-image ] && local cmd=consolepi-image || local cmd="sudo $(echo $SUDO_COMMAND | cut -d' ' -f1)"
     echo -e "\n$(green USAGE:) $cmd [OPTIONS]\n"
@@ -1038,5 +1032,5 @@ if [ "${iam}" = "root" ]; then
     main
 else
     printf "\n${_lred}Script should be ran as root"
-    [[ "${@,,}" =~ "help" ]] && ( echo ".${_norm}"; show_usage ) || echo -e " exiting.${_norm}\n"
+    [[ "${@,,}" =~ "help" ]] && ( echo -e ".${_norm}"; show_usage ) || echo -e " exiting.${_norm}\n"
 fi

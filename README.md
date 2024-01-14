@@ -3,7 +3,7 @@
 Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to local **or remote** ConsolePis via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).
 
 ***TL;DR:***
-Single Command Install Script. Run from a RaspberryPi running RaspiOS Buster (ideally a fresh image).  *The RaspberryPi needs to be able to reach the internet.*
+Single Command Install Script. Run from an internet connected RaspberryPi running RaspiOS (ideally a fresh image).  *See [Known Issues](#known-issues) regarding changes in Raspberry Pi OS 12(bookworm).*
 
 ```bash
 wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
@@ -680,8 +680,8 @@ Image written to flash - no Errors
  ~ /etc/wpa_supplicant/wpa_supplicant.conf...............................Skipped - Already Staged
  ~ /etc/udev/rules.d/10-ConsolePi.rules..................................Skipped - Already Staged
  ~ /etc/ser2net.conf.....................................................Skipped - Already Staged
- ~ /home/wade/.ssh/authorized_keys.........................................Skipped - Already Staged
- ~ /home/wade/.ssh/known_hosts.............................................Skipped - Already Staged
+ ~ /home/wade/.ssh/authorized_keys.......................................Skipped - Already Staged
+ ~ /home/wade/.ssh/known_hosts...........................................Skipped - Already Staged
  ~ /etc/ConsolePi/cloud/gdrive/.credentials/credentials.json.............Imported
  ~ /etc/ConsolePi/cloud/gdrive/.credentials/token.pickle.................Imported
  ~ /etc/openvpn/client/ConsolePi.ovpn....................................Skipped - Already Staged

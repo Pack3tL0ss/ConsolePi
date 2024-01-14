@@ -234,9 +234,9 @@ util_exec() {
                     "-logit" 'Configuring SpeedTest...'
                     "-s" "mkdir -p /var/www/speedtest"
                     "-s" "pushd ${home_dir}/.git_repos/speedtest"
-                    "-stop" "-s" "cp -R backend example-singleServer-*.html *.js /var/www/speedtest"
+                    "-stop" "-s" "cp -R backend examples/example-singleServer-gauges.html *.js /var/www/speedtest"
                     "-s" "pushd /var/www/speedtest"
-                    "-s" "cp example-singleServer-gauges.html index.html"
+                    "-s" "mv example-singleServer-gauges.html index.html"
                     "-s" "sed -i 's/LibreSpeed Example/ConsolePi SpeedTest/' /var/www/speedtest/index.html"
                     "-s" "sed -i 's/Source code/LibreSpeed on GitHub/' /var/www/speedtest/index.html"
                     "-s" "-pf" "Updating Permissions" "chown -R www-data * "

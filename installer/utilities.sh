@@ -12,52 +12,65 @@ fi
 
 
 get_util_status () {
+    # -- TFTP --
     UTIL_VER['tftpd']=$(in.tftpd -V 2>/dev/null | awk '{print $2}'|cut -d, -f1)
     PKG_EXPLAIN['tftpd']="tftp server"
 
+    # -- LLDP --
     UTIL_VER['lldpd']=$(lldpd -v 2>/dev/null)
     PKG_EXPLAIN['lldpd']="Enables lldp on wired ports, for discovery of ConsolePi info from lldp capable device it's connected to"
 
+    # -- ANSIBLE --
+    # Add local users PATH as ansible is only exposed in users PATH (not root)
+    [ -d "${home_dir}/.local/bin" ] && PATH="$PATH:${home_dir}/.local/bin"
+    [ "$iam" != "consolepi" ] && [ -d "/home/consolepi/.local/bin" ] && PATH="$PATH:/home/consolepi/.local/bin"
     which ansible >/dev/null 2>&1 && ansible --version > /tmp/ansible_ver 2>/dev/null
-    [ -f /tmp/ansible ] && UTIL_VER['ansible']=$(head -1 /tmp/ansible_ver | awk '{print $2}') || UTIL_VER['ansible']=""
+    [ -f /tmp/ansible_ver ] && UTIL_VER['ansible']=$(head -1 /tmp/ansible_ver | tr -d '[]' | cut -d' ' -f3) || UTIL_VER['ansible']=""
     PKG_EXPLAIN['ansible']="open source automation framework/engine."
 
-    a_role="${home_dir}/.ansible/roles/arubanetworks.aoscx_role"
-    [ -f /tmp/ansible ] && aoss_dir=$(grep "ansible python module location" /tmp/ansible_ver | cut -d'=' -f 2 | cut -d' ' -f 2)/modules/network/arubaoss ||
-        aoss_dir=""
-    [ -f /tmp/ansible ] && pycmd=python$(tail -1 /tmp/ansible_ver | awk '{print $4}' | cut -d'.' -f 1) || pycmd=python
-    which $pycmd >/dev/null 2>&1 || ( logit "Failed to determine Ansible Python Ver" "WARNING" -t "Ansible" && pycmd=python)
+    # This checks for the collection under the current user consolepi user and global locations
+    # ansible-galaxy collection list wouldn't work as script is ran as root and
+    col_dirs=$(cat /tmp/ansible_ver | grep "collection location" | cut -d= -f2 | tr -d ' ' | sed "s|/root|${home_dir}|")
+    [ "$iam" != "consolepi" ] && col_dirs=$col_dirs:$(cat /tmp/ansible_ver | grep "collection location" | cut -d= -f2 | cut -d: -f1 | tr -d ' ' | sed "s|/root|/home/consolepi|")
+    col_dirs=($(echo ${col_dirs//:/' '}))
 
-    cpit_status=$(dpkg -l | grep " cockpit " | awk '{print $1,$3}')
-    [[ "$cpit_status" =~ "ii" ]] && UTIL_VER['cockpit']="${cpit_status/ii }" || UTIL_VER['cockpit']=
-    PKG_EXPLAIN['cockpit']="Glanceable Web DashBoard with web tty (reach it on port 9090)"
+    cx_mod_installed=false ; sw_mod_installed=false ; cen_mod_installed=false
+    for d in ${col_dirs[@]}; do
+        if [ -d $d/ansible_collections/arubanetworks ]; then
+             ! $cx_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aoscx && cx_mod_installed=true
+             ! $sw_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aos_switch && sw_mod_installed=true
+             ! $cen_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aruba_central && cen_mod_installed=true
+        fi
+        $cx_mod_installed && $sw_mod_installed && $cen_mod_installed && break
+    done
 
-    if [[ ! -z $a_role ]] && [[ -d $a_role ]]; then
-        cx_mod_installed=true
+    i=0;for var in "$cx_mod_installed" "$sw_mod_installed" "$cen_mod_installed"; do
+        [ "$var" == true ] && ((i+=1))
+    done
+
+    if [ $i -eq 0 ]; then
+        unset a_mod_status
+    elif [ $i -gt 2 ]; then
+        a_mod_status="installed"
     else
-        cx_mod_installed=false
+        a_mod_status="partially installed"
     fi
 
-    if [[ ! -z $aoss_dir ]] && [[ -d $aoss_dir ]]; then
-        sw_mod_installed=true
-    else
-        sw_mod_installed=false
-    fi
-    ( $cx_mod_installed || $sw_mod_installed ) && a_mod_status='partially installed' || unset a_mod_status
-    ( $cx_mod_installed && $sw_mod_installed ) && a_mod_status='installed'
-    UTIL_VER['aruba_ansible_modules']=$( echo $a_mod_status )
-    PKG_EXPLAIN['aruba_ansible_modules']="Aruba Networks modules for ansible"
+    UTIL_VER['aruba_ansible_collections']=$( echo $a_mod_status )
+    PKG_EXPLAIN['aruba_ansible_collections']="Aruba Networks collections for ansible"
     # warn if aruba-ansible-modules is not completely installed and add option to menu to install
     if [[ $a_mod_status == 'partially installed' ]]; then
         process="build utilities menu"
         ! $cx_mod_installed && UTIL_VER['aruba_ansible_cx_mod']= &&
-            logit "aruba-ansible-modules is partially installed, the aoscx_role available on ansible-galaxy is missing" "WARNING"
+            logit "aruba-ansible-collections are partially installed, the aoscx collection available on ansible-galaxy is missing" "WARNING"
         ! $sw_mod_installed && UTIL_VER['aruba_ansible_sw_mod']= &&
-            logit "aruba-ansible-modules is partially installed, the aos-sw modules deployed via aruba-ansible-module-installer.py is missing" "WARNING"
+            logit "aruba-ansible-collections are partially installed, the aos_switch collection available on ansible-galaxy is missing" "WARNING"
+        ! $cen_mod_installed && UTIL_VER['aruba_ansible_cen_mod']= &&
+            logit "aruba-ansible-collections are partially installed, the aruba_central collection available on ansible-galaxy is missing" "WARNING"
         unset process
     fi
     [ -z "$model_pretty" ] && get_pi_info > /dev/null
-    if [ "$is_pi" == "false" ] || [[ "$model_pretty" =~ "Pi 4" ]] ; then
+    if [ "$is_pi" == "false" ] || is_speedtest_compat ; then
         UTIL_VER['speed_test']=$( [ -f /var/www/speedtest/speedtest.js ] && echo installed )
         PKG_EXPLAIN['speed_test']="self-hosted network speed-test"
     else
@@ -65,15 +78,38 @@ get_util_status () {
         logit "consolepi-extras (optional utilities/packages installer) omitted speed test option not >= Pi 4"
         unset process
     fi
+
+    # -- COCKPIT --
+    cpit_status=$(dpkg -l | grep " cockpit " | awk '{print $1,$3}')
+    [[ "$cpit_status" =~ "ii" ]] && UTIL_VER['cockpit']="${cpit_status/ii }" || UTIL_VER['cockpit']=
+    PKG_EXPLAIN['cockpit']="Glanceable Web DashBoard with web tty (reach it on port 9090)"
+
     # UTIL_VER['wireshark~tshark']=$( which wireshark )
     # PKG_EXPLAIN['wireshark~tshark']="packet capture software"
+
+    # sort menu options
     util_list_i=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort))
     util_list_f=($(for u in ${!UTIL_VER[@]}; do echo $u; done | sort -rn))
 
     sep=': '; i=0; for u in ${util_list_i[@]}; do
         pretty=${u//_/ }
-        [[ "$u" =~ "sw_mod" ]] && pretty="Install Missing aos-switch Ansible Module" && sep=''
-        [[ "$u" =~ "cx_mod" ]] && pretty="Install Missing aos-cx Ansible Module" && sep=''
+        case "$u" in
+            aruba_ansible_cx_mod)
+                pretty="Install Missing aos-cx Ansible Collection" && sep=''
+                ;;
+            aruba_ansible_sw_mod)
+                pretty="Install Missing aos-switch Ansible Collection" && sep=''
+                ;;
+            aruba_ansible_cen_mod)
+                pretty="Install Missing aruba-central Ansible Collection" && sep=''
+                ;;
+            *)
+                sep=': '
+                ;;
+        esac
+        # [[ "$u" =~ "sw_mod" ]] && pretty="Install Missing aos-switch Ansible Collection" && sep=''
+        # [[ "$u" =~ "cx_mod" ]] && pretty="Install Missing aos-cx Ansible Collection" && sep=''
+        # [[ "$u" =~ "cen_mod" ]] && pretty="Install Missing aruba-central Ansible Collection" && sep=''
         ASK_OPTIONS[$i]=$u; ((i+=1)) # hidden tag
         if [ -z "${UTIL_VER[$u]}" ]; then
             ASK_OPTIONS[$i]="${pretty}${sep}${PKG_EXPLAIN[$u]}"; ((i+=1)) # item text formatted version of tag
@@ -105,8 +141,8 @@ do_ask() {
         ret=$? && [[ $ret != 0 ]] && return $ret
         utils=($utils)
         # add ansible if aruba-ansible-modules was selected without selecting ansible
-        if [[ " ${utils[@]} " =~ ' aruba_ansible_modules ' ]] && [[ ! " ${utils[@]} " =~ " ansible " ]] && [[ -z "${UTIL_VER['ansible']}" ]]; then
-                process="aruba-ansible-modules"
+        if [[ " ${utils[@]} " =~ ' aruba_ansible_collections ' ]] && [[ ! " ${utils[@]} " =~ " ansible " ]] && [[ -z "${UTIL_VER['ansible']}" ]]; then
+                process="aruba-ansible-collections"
                 utils+=('ansible')
                 logit "adding ansible to install list - reqd for aruba-ansible-modules"
                 unset process
@@ -168,47 +204,72 @@ util_exec() {
             ;;
         ansible)
             if [[ $2 == "install" ]]; then
-                cmd_list=(
-                    "-l" "adding ansible repo to apt sources"
-                    "-s" "-f" "failed to update apt sources with ansible repo" 'echo "deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main" > /etc/apt/sources.list.d/ansible.list' \
-                    "-s" "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367" \
-                    "apt update" \
-                    "-apt-install" "$apt_pkg_name"
+                if hash pipx >/dev/null; then
+                    cmd_list=()
+                else
+                    cmd_list=(
+                        "-stop" "--apt-install" "pipx" \
+                        "-s" "-u" "pipx ensurepath" \
+                        "-s" "-u" "[ -d \"${home_dir}/.bash_completions\" ] || mkdir ${home_dir}/.bash_completions" \
+                        "-nostart" "-pf" "Create bash completions file for pipx" "-u" "register-python-argcomplete pipx > ${home_dir}/.bash_completions/pipx.sh"
                     )
+                fi
+                cmd_list+=(
+                    "-l" "!! NOTICE: Long wait here on some platforms as ansible requirements need to be built, install may appear to hang, but is still working in background" \
+                    "-stop" "-pf" "pipx install ansible (long wait here)" "-u" "-o" "/dev/stdout" "pipx install --verbose --include-deps ansible" \
+                    "-nostart" "-pf" "pipx inject... make available in PATH" "-u" "pipx inject --include-apps ansible argcomplete" \
+                    "-nostart" "-pf" "activate completion for ansible" "-u" "activate-global-python-argcomplete --user --dest ${home_dir}/.bash_completions/"
+
+                )
             elif [[ $2 == "remove" ]]; then
+                    # "-s" "-nolog" "rm ${home_dir}/.bash_completions/ansible*" \
                 cmd_list=(
-                    "-apt-purge" "$apt_pkg_name" \
-                    "-s" "rm /etc/apt/sources.list.d/ansible.list" \
-                    '-logit' "ansible removed however the hidden directory (.ansible) created in the /home/<user>/.ansible and any files in it were retained" \
+                    "-s" "-u" "-stop" "pipx uninstall $apt_pkg_name" \
+                    '-logit' "ansible removed however the hidden directory (.ansible) created in the ${home_dir}/.ansible retained." \
+                    "-l" "Completion file ${home_dir}/.bash_completions/_python-argcomplete, created during the ansible install, is useful for any program that uses argparse/argcomplete.  It was not removed."
                     )
             fi
             ;;
-        aruba_ansible_modules|aruba_ansible_cx_mod|aruba_ansible_sw_mod)
+        aruba_ansible_collections|aruba_ansible_cx_mod|aruba_ansible_sw_mod|aruba_ansible_cen_mod)
             if [[ $2 == "install" ]]; then
                 declare -a cmd_list
-                if [[ $1 == "aruba_ansible_modules" ]] || [[ $1 == "aruba_ansible_cx_mod" ]] ; then
-                    cmd_list=('-stop' '-u' '-pf' 'Install aoscx_role from ansible-galaxy' "ansible-galaxy install arubanetworks.aoscx_role")
-                fi
-
-                if [[ $1 == "aruba_ansible_modules" ]] || [[ $1 == "aruba_ansible_sw_mod" ]] ; then
-                    if [[ ! -d "${home_dir}/aruba-ansible-modules" ]]; then
-                        cmd_list+=('-stop' '-pf' "Clone aruba-ansible-modules from Git Repo" "-u" "git clone https://github.com/aruba/aruba-ansible-modules.git ${home_dir}/aruba-ansible-modules")
-                    else
-                        cmd_list+=('-logit' 'Aruba Ansible Modules repo appears to exist already, Updating (git pull)'
-                                '-s' "pushd ${home_dir}/aruba-ansible-modules" \
-                                '-stop' '-u' '-pf' 'Update aruba-ansible-modules (Git)' 'git pull' \
-                                '-s' 'popd')
-                    fi
-                    cmd_list+=("-pf" "execute aruba_module_installer.py" "sudo python ${home_dir}/aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py")
-                fi
-
+                case $1 in
+                    aruba_ansible_collections)
+                        # install all aruba collections
+                        cmd_list=(
+                            '-pf' 'Install aos-cx collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aoscx\"" \
+                            '-pf' 'Install aos-switch collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aos_switch\"" \
+                            '-pf' 'Install aruba_central collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aruba_central\""
+                        )
+                        ;;
+                    aruba_ansible_cx_mod)
+                        # install all aruba collections
+                        cmd_list=(
+                            '-pf' 'Install aos-cx collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aoscx\""
+                        )
+                        ;;
+                    aruba_ansible_sw_mod)
+                        # install all aruba collections
+                        cmd_list=(
+                            '-pf' 'Install aos-switch collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aos_switch\""
+                        )
+                        ;;
+                    aruba_ansible_cen_mod)
+                        # install all aruba collections
+                        cmd_list=(
+                            '-pf' 'Install aruba-central collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aruba_central\""
+                        )
+                        ;;
+                esac
             elif [[ $2 == "remove" ]]; then
-                cmd_list=('-stop' '-u' '-pf' 'remove aoscx_role from ansible roles path' "ansible-galaxy remove arubanetworks.aoscx_role")
-                if [[ -f ${home_dir}/aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py ]]; then
-                    cmd_list+=("-pf" "remove everything deployed by aruba_module_installer.py" "sudo $pycmd ${home_dir}/aruba-ansible-modules/aruba_module_installer/aruba_module_installer.py -r")
-                else
-                    cmd_list+=('-logit' "Unable to find aruba_module_installer exec to remove modules installed via script - Ensure you are logged in w/ the same user used to install" "WARNING")
-                fi
+                cmd_list=()
+                for d in ${col_dirs[@]}; do
+                    if [ -d $d/ansible_collections/arubanetworks ]; then
+                        cmd_list+=(
+                            "-pf" "remove Aruba ansible collections found in $d/ansible_collections/arubanetworks" "rm -r \"$d/ansible_collections/arubanetworks*\""
+                        )
+                    fi
+                done
             fi
             ;;
         speed_test)
@@ -361,23 +422,24 @@ util_main() {
                 if [[ " ${INSTALLED[@]} " =~ " $u " ]]; then
                     case "$u" in
                         ansible) # hackish work-around to ensure modules are uninstalled first if both ansible and the modules are selected for uninstall
-                            if [[ " ${INSTALLED[@]} " =~ " aruba_ansible_modules " ]]; then
-                                ! $aruba_ansible_modules && util_exec "aruba_ansible_modules" "remove"
-                                ! ${!u} && util_exec $u "remove"
+                            if [[ " ${INSTALLED[@]} " =~ " aruba_ansible_collections " ]]; then
+                                ! $aruba_ansible_collections && util_exec "aruba_ansible_collections" "remove"
+                                ! ${!u} && util_exec $u "remove" || true  # prevent non selected items from returning non-zero return code
                                 skip_mod=true
                             else
+                                ! ${!u} && util_exec $u "remove" || true  # prevent non selected items from returning non-zero return code
                                 skip_mod=false
                             fi
                             ;;
-                        aruba_ansible_modules)
+                        aruba_ansible_collections)
                             $skip_mod || ( ! ${!u} && util_exec $u "remove" )
                             ;;
                         *)
-                            ! ${!u} && util_exec $u "remove"
+                            ! ${!u} && util_exec $u "remove" || true  # prevent non selected items from returning non-zero return code
                             ;;
                     esac
                 else
-                    ${!u} && util_exec $u "install"
+                    ${!u} && util_exec $u "install" || true  # prevent non selected items from returning non-zero return code
                 fi
             done
         fi
@@ -392,14 +454,11 @@ util_main() {
                 if ! $is_installed; then
                     util_exec $u "install"
                 else
-                    # [[ -z $PROCESS ]] && process=$u || process=$PROCESS
                     logit "$u already installed"
                 fi
             fi
         done
     fi
-
-    # unset process
 }
 
 # -- // SCRIPT ROOT \\ --

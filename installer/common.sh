@@ -453,6 +453,52 @@ do_kill_hung_ssh() {
     echo $proc
 }
 
+is_speedtest_compat() {
+    declare -A hw_array && compat_bash=true || compat_bash=false
+    rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}')
+    if $compat_bash; then
+        hw_array["Beta"]="Raspberry Pi Model B hw rev Beta 256 MB"
+        hw_array["0002"]="Raspberry Pi Model B hw rev 1.0  256 MB"
+        hw_array["0003"]="Raspberry Pi Model B (ECN0001) hw rev 1.0 256 MB Fuses mod and D14 removed"
+        hw_array["0004"]="Raspberry Pi Model B  hw rev 2.0  256 MB  (Mfg by Sony)"
+        hw_array["0005"]="Raspberry Pi Model B  hw rev 2.0  256 MB  (Mfg Qisda)"
+        hw_array["0006"]="Raspberry Pi Model B  hw rev 2.0  256 MB  (Mfg Egoman)"
+        hw_array["0007"]="Raspberry Pi Model A  hw rev 2.0  256 MB  (Mfg Egoman)"
+        hw_array["0008"]="Raspberry Pi Model A  hw rev 2.0  256 MB  (Mfg Sony)"
+        hw_array["0009"]="Raspberry Pi Model A  hw rev 2.0  256 MB  (Mfg Qisda)"
+        hw_array["000d"]="Raspberry Pi Model B  hw rev 2.0  512 MB  (Mfg Egoman)"
+        hw_array["000e"]="Raspberry Pi Model B  hw rev 2.0  512 MB  (Mfg Sony)"
+        hw_array["000f"]="Raspberry Pi Model B  hw rev 2.0  512 MB  (Mfg Qisda)"
+        hw_array["0010"]="Raspberry Pi Model B+  hw rev 1.0  512 MB  (Mfg Sony)"
+        hw_array["0011"]="Raspberry Pi Compute Module 1  hw rev 1.0  512 MB  (Mfg by Sony)"
+        hw_array["0012"]="Raspberry Pi Model A+ hw rev 1.1  256 MB  (Mfg by Sony)"
+        hw_array["0013"]="Raspberry Pi Model B+  hw rev 1.2  512 MB  (Mfg by Embest)"
+        hw_array["0014"]="Raspberry Pi Compute Module 1 hw rev 1.0  512 MB  (Mfg by Embest)"
+        hw_array["0015"]="Raspberry Pi Model A+ 1.1 hw rev 256 MB / 512 MB  (Mfg by Embest)"
+        hw_array["a01040"]="Raspberry Pi 2 Model B hw rev 1.0  1 GB  (Mfg by Sony)"
+        hw_array["a01041"]="Raspberry Pi 2 Model B hw rev 1.1  1 GB  (Mfg by Sony)"
+        hw_array["a21041"]="Raspberry Pi 2 Model B hw rev 1.1  1 GB  (Mfg by Embest)"
+        hw_array["a22042"]="Raspberry Pi 2 Model B (with BCM2837) hw rev 1.2 1 GB (Mfg by Embest)"
+        hw_array["900021"]="Raspberry Pi A+  hw rev 1.1  512 MB  (Mfg by Sony)"
+        hw_array["900032"]="Raspberry Pi B+  hw rev 1.2  512 MB  (Mfg by Sony)"
+        hw_array["900092"]="Raspberry Pi Zero hw rev 1.2 512 MB (Mfg by Sony)"
+        hw_array["900093"]="Raspberry Pi Zero hw rev 1.3 512 MB (Mfg by Sony)"
+        hw_array["920093"]="Raspberry Pi Zero hw rev 1.3 512 MB  (Mfg by Embest)"
+        hw_array["9000c1"]="Raspberry Pi Zero W  hw rev 1.1 512 MB (Mfg by Sony)"
+        hw_array["a02082"]="Raspberry Pi 3 Model B  hw rev 1.2 1 GB  (Mfg by Sony)"
+        hw_array["a020a0"]="Raspberry Pi Compute Module 3 (and CM3 Lite)  hw rev 1.0    1 GB (Mfg by Sony)"
+        hw_array["a22082"]="Raspberry Pi 3 Model B  hw rev 1.2  1 GB  (Mfg by Embest)"
+        hw_array["a32082"]="Raspberry Pi 3 Model B  hw rev 1.2  1 GB  (Mfg by Sony Japan)"
+        hw_array["a020d3"]="Raspberry Pi 3 Model B+  hw rev 1.3  1 GB  (Mfg by Sony)"
+        hw_array["9020e0"]="Raspberry Pi 3 Model A+  hw rev 1.0  512 MB  (Mfg by Sony)"
+        hw_array["c03130"]="Raspberry Pi 400 hw rev 1.0  4 GB  (Mfg by Sony)"
+        hw_array["902120"]="Raspberry Pi Zero 2 W hw rev 1.0 512MB (Mfg by Sony UK)"
+    else
+        return 0
+    fi
+    [ -z "${hw_array[$rev]}" ] && return 0 || return 1
+}
+
 get_pi_info_pretty() {
     declare -A hw_array && compat_bash=true || compat_bash=false
     if $compat_bash; then

@@ -1,23 +1,47 @@
 #!/usr/bin/env bash
 
-# Disables (appends DISABLED_)/Enables all ssid's in wpa_supplicant.conf forcing ConsolePi to revert to hotspot
-# The script will toggle whatever state is currently configured.  
+# Disables (appends DISABLED_)/Enables all ssid's in wpa_supplicant.conf / NetworkManager connection profiles forcing ConsolePi to revert to hotspot
+# The script will toggle whatever state is currently configured.
 
 
 main() {
-    [[ $(grep  DISABLED_ -c /etc/wpa_supplicant/wpa_supplicant.conf) > 0 ]] && process="enable" || process="disable"
-    if [[ $process == "enable" ]]; then
-        echo Enabling Defined SSIDs
-        sudo sed -i -e 's/ssid="DISABLED_/ssid="/g' /etc/wpa_supplicant/wpa_supplicant.conf
-    elif [[ $process == "disable" ]]; then
-        echo Disabling defined SSIDs
-        sudo sed -i 's/\s*ssid="/&DISABLED_/' /etc/wpa_supplicant/wpa_supplicant.conf
+    if hash nmcli 2>/dev/null && nmcli d | grep -v wifi-p2p | grep -q wifi; then
+        nm_con_base=/etc/NetworkManager/system-connections
+        nm_con_files=($(ls -1 /etc/NetworkManager/system-connections))
+        for f in ${nm_con_files[@]}; do
+            if sudo grep -q "type=wifi" "${nm_con_base}/$f" && sudo grep -q "mode=infrastructure" "${nm_con_base}/$f"; then
+                if sudo grep -q "ssid=DISABLED_" ${nm_con_base}/$f; then
+                    process="enable"
+                    sudo sed -i -e 's/ssid=DISABLED_/ssid=/' ${nm_con_base}/$f &&
+                        echo Enabled SSID defined in $f || echo Failure occured enabling SSID defined in $f
+                else
+                    process="disable"
+                    sudo sed -i -e 's/ssid=/ssid=DISABLED_/' ${nm_con_base}/$f &&
+                        echo Disabled SSID defined in $f || echo Failure occured disabling SSID defined in $f
+                fi
+            fi
+        done
+        echo reloading profiles
+        sudo nmcli con reload
+        echo Restarting Network Manager
+        systemctl restart NetworkManager
     else
-        echo Logic Error in script exiting.
-        exit 1
-    fi
-    
+        [[ $(grep  DISABLED_ -c /etc/wpa_supplicant/wpa_supplicant.conf) > 0 ]] && process="enable" || process="disable"
+        if [[ $process == "enable" ]]; then
+            echo Enabling Defined SSIDs
+            sudo sed -i -e 's/ssid="DISABLED_/ssid="/g' /etc/wpa_supplicant/wpa_supplicant.conf
+        elif [[ $process == "disable" ]]; then
+            echo Disabling defined SSIDs
+            sudo sed -i 's/\s*ssid="/&DISABLED_/' /etc/wpa_supplicant/wpa_supplicant.conf
+        else
+            echo Logic Error in script exiting.
+            exit 1
+        fi
+
     echo SSIDs have been ${process}d use consolepi-autohotspot to change state client/hotspot.
+
+    fi
+
 }
 
 # __main__

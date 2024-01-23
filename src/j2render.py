@@ -22,6 +22,8 @@ def parse_args():
         varname = user_input.split("=")[0]
         varvalue = '='.join(user_input.split("=")[1:])
         varvalue = varvalue.replace('{{cr}}', '\n')
+        if varvalue.lower() in ["true", "false"]:
+            varvalue = True if varvalue.lower() == "true" else False
         parameter_dict[varname] = varvalue
     return parameter_dict
 

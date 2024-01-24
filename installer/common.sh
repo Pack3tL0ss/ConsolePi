@@ -828,7 +828,7 @@ process_cmds() {
                 echo "------------------------------------------------------------------------------------------"
             fi
             # -- // PROCESS THE CMD \\ --
-            ! $_silent && $showstart && logit -E "Starting ${pmsg/Success - /}"
+            ! $_silent && $showstart && logit -E "Starting - ${pmsg/Success - /}"
             logit -L "process_cmds executing: $cmd"
             if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
                 local cmd_failed=false

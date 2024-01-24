@@ -55,13 +55,6 @@
 # via cmd line argumetns see --help for available flags
 # --------------------------------------------------------------------------------------
 
-# TODO prep NetworkManager if bookworm debian 12
-# if [ -f ${IMG_ROOT}/etc/os-release ]; then
-#     . /etc/os-release
-#     [ "$VERSION_ID" == 12 ] && bookworm=true || bookworm=false
-# fi
-
-# TODO if $HOSTNAME == $NEW_HOSTNAME import existing sshd certificates from /etc/ssh/ssh_host* to /mnt/usb2/etc/ssh/
 # TODO check pre-stage hostname did not appear to work on last run
 
 # Terminal coloring
@@ -117,14 +110,17 @@ do_defaults() {
     CUR_DIR=$(pwd)
     IMG_UGID='1000:1000'  # the user and group id, As of April 2022 no default user, consolepi user will be 1st user, uid:1000
     [ -d /etc/ConsolePi ] && ISCPI=true || ISCPI=false
-    # WPA_CONF=$STAGE_DIR/wpa_supplicant.conf
+
+    # /etc/wpa_supplicant/wpa_supplicant.conf is added to STAGE_FILES array if pre-bookworm
+    # TODO add logic to grab all network profiles off current system for bookworm+
     MY_HOME=$(grep "^${SUDO_USER}:" /etc/passwd | cut -d: -f6)
     STAGE_FILES=(STAGE:/etc/ConsolePi/ConsolePi.yaml
-                /etc/wpa_supplicant/wpa_supplicant.conf
                 STAGE:/etc/udev/rules.d/10-ConsolePi.rules
                 STAGE:/etc/ser2net.conf
                 $MY_HOME/.ssh/authorized_keys
                 $MY_HOME/.ssh/known_hosts
+                $MY_HOME/.ssh/id_rsa
+                $MY_HOME/.ssh/id_rsa.pub
                 STAGE:/etc/ConsolePi/cloud/gdrive/.credentials/credentials.json
                 STAGE:/etc/ConsolePi/cloud/gdrive/.credentials/token.pickle
                 STAGE:/etc/openvpn/client/ConsolePi.ovpn
@@ -241,10 +237,10 @@ do_user_dir_import(){
     local found=$(get_staged_file_path $user_home -d)
     if [ -n "$found" ]; then
         dots "Found staged files for $1, cp to ${1}'s home on image"
-        res=$(chown -R $uid:$uid $found 2>&1); local rc=$?
+        res=$(cp -r $found/. /mnt/usb2/$user_home/ 2>&1); local rc=$?
         if [ "$rc" -eq 0 ]; then
             res+="\n"
-            res+=$(cp -r $found/. /mnt/usb2/$user_home/ 2>&1); ((rc+=$?))
+            res+=$(chown -R $uid:$uid /mnt/usb2/$user_home 2>&1); ((rc+=$?))
         fi
         do_error $rc $res
     else
@@ -344,24 +340,7 @@ do_import_configs() {
     # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
     #   certs should be in script dir or 'cert' subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
     # NOTE: Currently the cert parsing will only work if you are using double quotes in wpa_supplicant.conf ~ client_cert="/etc/cert/ConsolePi-dev.pem"
-    if $bookworm; then
-        NM_SYS_DIR=$(get_staged_file_path "NetworkManager/system-connections" -d)
-        if [ -n "$NM_SYS_DIR" ]; then
-            nm_con_files=($(ls -1 "$NM_SYS_DIR"))
-            if [ "${#nm_con_files[@]}" -gt 0 ]; then
-                dots "NetworkManager profiles found pre-staging on image"
-                rc=0; for nm_profile in "${nm_con_files[@]}"; do
-                    cp $NM_SYS_DIR/$nm_profile $IMG_ROOT/etc/NetworkManager/system-connections ; ((rc+=$?))
-                done
-                do_error $rc
-
-                dots "chown/chmod pre-staged profiles"
-                chown root:root $IMG_ROOT/etc/NetworkManager/system-connections/* ; rc=$?
-                chmod 600 $IMG_ROOT/etc/NetworkManager/system-connections/* ; ((rc+=$?))
-                do_error $rc
-            fi
-        fi
-    else
+    if $PRE_BOOKWORM; then
         WPA_CONF=$(get_staged_file_path wpa_supplicant.conf)
         if [ -n "$WPA_CONF" ]; then
             dots "wpa_supplicant.conf found pre-staging on image"
@@ -373,7 +352,7 @@ do_import_configs() {
 
             # -- extract cert paths from wpa_supplicant.conf and move any staged certs to those paths
             # TODO need to have it pull the current certs if $NEW_HOSTNAME == $HOSTNAME and the files extracted paths exist
-            client_cert=$(grep client_cert= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
+            client_cert=$(grep client_cert= $WPA_CONF | cut -d= -f2 | tr -d ' "')
             if [ -n "$client_cert" ]; then
                 dots "staged wpa_supplicant includes EAP-TLS SSID looking for certs"
                 cert_path="/mnt/usb2"${client_cert%/*}
@@ -396,6 +375,45 @@ do_import_configs() {
                 fi
             fi
         fi
+    else
+        nm_stage_dir=$(get_staged_file_path "NetworkManager/system-connections" -d)
+        if [ -n "$nm_stage_dir" ]; then
+            nm_con_files=($(ls -1 "$nm_stage_dir"))
+            if [ "${#nm_con_files[@]}" -gt 0 ]; then
+                cert_stage_dir=$(get_staged_file_path cert -d)
+
+                for nm_profile in "${nm_con_files[@]}"; do
+                    dots "stage NetworkManager profile ${nm_profile/.*}"
+                    cp $nm_stage_dir/$nm_profile $IMG_ROOT/etc/NetworkManager/system-connections ; rc=$?
+                    do_error $rc
+
+                    if [ -n "$cert_stage_dir" ]; then
+                        img_profile="$IMG_ROOT/etc/NetworkManager/system-connections/$nm_profile"
+                        client_cert=$(grep "client-cert=" $img_profile | cut -d= -f2 | tr -d ' "')
+                        if [ -n "$client_cert" ]; then
+                            dots "${nm_profile/.*} is EAP-TLS SSID looking for certs"
+                            ca_cert=$(grep ca-cert= $img_profile | cut -d= -f2 | tr -d ' "')
+                            private_key=$(grep private-key= $img_profile | cut -d= -f2 | tr -d ' "')
+
+                            cert_path="/mnt/usb2"${client_cert%/*}
+                            mkdir -p $cert_path ; rc=$?
+                            [ "$rc" -eq 0 ] || echo fail mkdir
+                            pushd $cert_stage_dir >/dev/null
+                            [ -n "$ca_cert" ] && [ -f "$ca_cert" ] && [ ! -f "${cert_path}/${ca_cert##*/}" ] && ( cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}" ; ((rc+=$?)) )
+                            [ -n "$client_cert" ] && [ -f "$client_cert" ] && [ ! -f "${cert_path}/${client_cert##*/}" ] && ( cp ${ca_cert##*/} "${cert_path}/${client_cert##*/}" ; ((rc+=$?)) )
+                            [ -n "$private_key" ] && [ -f "$private_key" ] && [ ! -f "${cert_path}/${private_key##*/}" ] && ( cp ${ca_cert##*/} "${cert_path}/${private_key##*/}" ; ((rc+=$?)) )
+                            popd >/dev/null
+                            do_error $rc
+                        fi
+                    fi
+                done
+
+                dots "chown/chmod pre-staged profiles"
+                chown root:root $IMG_ROOT/etc/NetworkManager/system-connections/* ; rc=$?
+                chmod 600 $IMG_ROOT/etc/NetworkManager/system-connections/* ; ((rc+=$?))
+                do_error $rc
+            fi
+        fi
     fi
 
     # -- If image being created from a ConsolePi offer to import settings --
@@ -408,7 +426,7 @@ do_import_configs() {
             echo -e "You can mass import settings from this ConsolePi onto the new image."
             echo -e "The following files will be evaluated:\n"
             for f in "${STAGE_FILES[@]}"; do echo -e "\t${f//STAGE:/}" ; done
-            echo -e "\t/etc/ssh/*"
+            [ "$HOSTNAME" == "$NEW_HOSTNAME" ] && echo -e "\t/etc/ssh/*"
             echo -e "\nAny files already staged via $STAGE_DIR will be skipped"
             echo -e "Any files not found on this ConsolePi will by skipped\n"
             echo '--------------------------------------------------------------------'
@@ -425,6 +443,7 @@ do_import_configs() {
             fi
 
             cyan "\n   -- Performing Imports from This ConsolePi --"
+            $PRE_BOOKWORM && STAGE_FILES+=("/etc/wpa_supplicant/wpa_supplicant.conf")
             for f in "${STAGE_FILES[@]}"; do
                 if [[ "$f" =~ ^"STAGE:" ]]; then
                     src="$(echo $f| cut -d: -f2)"
@@ -433,11 +452,11 @@ do_import_configs() {
                 # -- Accomodate Files imported from users home on a ConsolePi for non consolepi user (consolepi user already imported) --
                 elif [[ ! $f =~ "/home/consolepi" ]] && [[ $f =~ $MY_HOME ]]; then
                     src="$f"
-                    # dst is in the stage dir for non consolepi/root users.  After user creation installer will look for files in the stage dir
-                    dst="${IMG_STAGE}${f}"
+                    # dst is in consolepi-stage/$NEW_HOSTNAME if there is a host specific subdir in the stage dir otherwise the root of the stage dir
+                    [ -d "$IMG_STAGE/$NEW_HOSTNAME" ] && dst="${IMG_STAGE}/$NEW_HOSTNAME${f}" || dst="${IMG_STAGE}${f}"
                 else
                     src="$f"
-                    dst="/mnt/usb2${f}"
+                    dst="${IMG_ROOT}${f}"
                 fi
 
                 dots "$src"
@@ -469,6 +488,13 @@ do_import_configs() {
                     fi
                 fi
             done
+
+            # pull ssh keys and config and place on this Pi
+            if [ "$HOSTNAME" == "$NEW_HOSTNAME" ]; then
+                dots "/etc/ssh/*"
+                cp -r /etc/ssh/* $IMG_ROOT/etc/ssh 2>&1 && echo "Imported"
+            fi
+
 
         # We still prompt for ConsolePi.yaml even if not doing import
         elif [ -z $STAGED_CONFIG ] && [ -f /etc/ConsolePi/ConsolePi.yaml ]; then
@@ -701,6 +727,32 @@ main() {
 
     [ -z "$img_file" ] && do_detect_download_image  # if img_file set it was set via --image argument
 
+    if [[ $img_file =~ bullseye ]] || [[ $img_file =~ jessie ]] || [[ $img_file =~ stretch ]]; then
+        PRE_BOOKWORM=true
+    elif [[ $img_file =~ bookworm ]]; then
+        PRE_BOOKWORM=false
+    fi
+
+    if [ -z "$PRE_BOOKWORM" ]; then
+        # This assumes image is in format yyyy-mm-dd-raspios-bookworm-armhf-lite.img
+        img_date=$(echo "$img_file" | cut -d- -f-2)
+        if [ "${#img_date}" -ne 7 ]; then
+            # something not right about the image file assume bookworm+
+            PRE_BOOKWORM=false
+        else
+            img_year=${img_date/-*}
+            if [ "$img_year" -lt 2023 ]; then
+                PRE_BOOKWORM=true
+            elif [ "$img_year" -gt 2023 ]; then
+                PRE_BOOKWORM=false
+            else
+                # raspberry pi OS went to bookworm with Oct 2023 release
+                [ "${img_date/*-}" -lt 10 ] && PRE_BOOKWORM=true || PRE_BOOKWORM=false
+            fi
+        fi
+    fi
+
+
     # ----------------------------------- // Burn raspios image to device (micro-sd) \\ -----------------------------------
     echo -e "\n\n${_red}${_blink}!!! Last chance to abort !!!${_norm}"
     get_input "About to write image $(cyan ${img_file}) to $(green ${out_usb}), Continue?"
@@ -776,16 +828,8 @@ main() {
     # TODO move to func and use EOF << redirection
     # Configure simple psk SSID based args or config file
 
-    # -- determine if this is bookworm (Managed by NetworkManager)
-    # TODO can prob do this earlier based on the image date
-    if [ -f ${IMG_ROOT}/etc/os-release ]; then
-        . /etc/os-release
-        [ "$VERSION_ID" == 12 ] && bookworm=true || bookworm=false
-    fi
-
-
     if $CONFIGURE_WPA_SUPPLICANT; then
-        if $bookworm; then
+        if $PRE_BOOKWORM; then
             dots "configuring wpa_supplicant.conf | defining ${SSID}"
             sudo echo "country=${WLAN_COUNTRY}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
             sudo echo "network={" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
@@ -795,7 +839,7 @@ main() {
             sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
             [ -f /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ] && green OK || red ERROR
         else
-            dots "raspbian bookworm not supported for WLAN pre-config yet" ; echo "skipped"
+            dots "NetworkManager pre-config only supported via import file" ; echo "skipped"
         fi
     fi
 
@@ -843,7 +887,7 @@ main() {
     ! $usb2_existed && rmdir /mnt/usb2
 
     green "\nConsolePi image ready\n\a"
-    ! $AUTO_INSTALL && echo "Boot RaspberryPi with this image use $(cyan 'consolepi-install') to deploy ConsolePi"
+    ! $AUTO_INSTALL && echo "Boot RaspberryPi with this image use $(cyan 'consolepi-install') to deploy ConsolePi" || true # prevents exit with error code
 }
 
 verify_local_dev() {
@@ -877,7 +921,7 @@ show_usage() {
     _help "--[no-]edit" "Skips prompt asking if you want to edit (nano) the imported ConsolePi.yaml."
     _help "-H|--hostname" "pre-configure hostname on image."
     _help "-I|--image" "Use specified image (full path or file in cwd)"
-    _help "-p|--passwd <consolepi passwdrd>" "The password to set for the consolepi user."
+    _help "-p|--passwd <consolepi password>" "The password to set for the consolepi user."
     _help "--cmd-line '<cmd_line arguments>'" "*Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image"
     if [ -n "$1" ] && [ "$1" = "dev" ]; then  # hidden dev flags --help dev to display them.
         echo -e "\n$(green Dev Options)\n"

@@ -10,8 +10,6 @@
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
-# [ -f 'Wired connection 1.nmconnection' ]  TODO <-- need to setup dhcp, if this is there can rename
-
 _verify_nmconnection_perms() {
     # $1 = file to verify will ensure it is owned by root with 600 perms
     [ ! -f "/etc/NetworkManager/system-connections/$1" ] && logit "Error verifying nmconnection file perms $1 File does not exist" "ERROR"
@@ -554,13 +552,6 @@ install_autohotspot_old() {
     file_diff_update ${src_dir}hostapd /etc/default/hostapd
     file_diff_update ${src_dir}interfaces /etc/network/interfaces
 
-    # update hosts file based on supplied variables - this comes into play for devices connected to hotspot (dnsmasq will be able to resolve hostname to wlan IP)
- #   if [ -z "$local_domain" ]; then
- #       convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname)
- #   else
- #       convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
- #   fi
-    # MOVED above to separate func ran after hotspot/wired_dhcp
     which iw >/dev/null 2>&1 && iw_ver=$(iw --version 2>/dev/null | awk '{print $3}') || iw_ver=0
     if [ "$iw_ver" == 0 ]; then
         process_cmds -apt-install iw
@@ -602,44 +593,17 @@ install_hotspot_nm() {
     local uuid=${uuid:-5ad644a6-b80e-11ee-952a-bf1313596c84}
     local hotspot_con_file=/etc/NetworkManager/system-connections/hotspot.nmconnection
     # TODO bookworm need to set wlan_iface mv logic from 02-consolepi to common
-    convert_template hotspot.nmconnection /etc/NetworkManager/system-connections/hotspot.nmconnection uuid=${uuid} wlan_iface=${wlan_iface:-setme} \
+    convert_template hotspot.nmconnection /etc/NetworkManager/system-connections/hotspot.nmconnection uuid=${uuid} wlan_iface=${wlan_iface:-wlan0} \
         wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_ip=${wlan_ip}
 
     #verify
-    if [ -f "$static_con_file" ] && grep -q "address1=${wired_ip}" $hotspot_con_file; then
+    if [ -f "$hotspot_con_file" ] && grep -q "address1=${wlan_ip}" $hotspot_con_file; then
         logit "Success"
         _verify_nmconnection_perms ${hotspot_con_file##*/}
     else
         logit "Error occured, validate the contents of ${hotspot_con_file##*/}" "WARNING"
         logit "verify contents of $static_con_file"
     fi
-
-    # update hosts file based on supplied variables - this comes into play for devices connected to hotspot
-    # so clients can resolve this system by hostname
-
-    # TODO bookworm update hosts.j2 to include wired and call sep function once to deploy that template
-    # add conditionals in template to reove if hotspot/wired-dhcp disabled
-
-#    if [ -f /etc/hosts ]; then
-#        local hostn=$(tr -d " \t\n\r" < /etc/hostname)
-#        local rc=0
-#        if grep -q "$wlan_ip" /etc/hosts; then
-#            logit "/etc/hosts contains fallback hotspot ip (useful for DHCP clients to resolve $hostn)"
-#        elif [ -z "$local_domain" ]; then
-#            convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
-#        else
-#
-#            convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname)
-#        fi
-#
-#        if grep -1 ${wlan_ip}; then
-#            logit "Success adding \"$wlan_ip $hostn\" to hosts file (So hotspot clients can resolve $hostn)"
-#        else
-#           logit "Error adding \"$wlan_ip $hostn\" to hosts file (So hotspot clients can resolve $hostn)" "WARNING"
-#            logit "verify the contents of /etc/hosts" "WARNING"
-#        fi
-#    fi
-
     unset process
 }
 
@@ -686,10 +650,68 @@ do_wired_dhcp() {
 do_wired_dhcp_nm() {
     proces="wired-dhcp NM"
     logit "Install/Update Wired static fallback with DHCP"
+
+    # -- Check for existing DHCP (client) NetworkManager connection profiles on the wired interface --
+    # We skip any nmconnection files not in /etc/NetworkManager as NM auto-creates defaults that are overriden with /etc/NetworkManager once
+    # any customization are made
+    readarray -t wired_con_info < <(nmcli -t -f NAME,DEVICE,TYPE,FILENAME connection show | grep ":802-3-ethernet:/etc/NetworkManager/system-")
+    dhcp_con_exists=false
+    for con in "${wired_con_info[@]}"; do
+        local iface="$(echo $con | cut -d: -f2)"
+        local name="$(echo $con | cut -d: -f1)"
+        local file="${con/*:}"
+        [ -z "$iface" ] && iface=$(nmcli -g connection.interface-name con show "$name")
+
+        if [ "$iface" != "$wired_iface" ]; then
+            logit "Skipping $name as $iface is not $wlan_iface"
+            continue
+        fi
+
+        local profile_opts=($(nmcli -t -f ipv4.method,connection.autoconnect,connection.autoconnect-priority con show "${name}"))
+        local method=${profile_opts[0]/*:}
+        local autocon=${profile_opts[1]/*:}
+        local autocon_pri=${profile_opts[2]/*:}
+        if [ "$method" == "auto" ] && [ "$autocon" == "yes" ]; then
+            if [ "$autocon_pri" -gt 0 ]; then
+                dhcp_con_exists=true
+            else
+                logit "existing NetworkManager connection profile $name found with default autoconnect-profile:0 (lowest priority)"
+                logit "Increasing autoconnect-priority of $name to 1"
+                if nmcli con modify "$name" connection.autoconnect-priority 1 2>>$log_file ; then
+                    logit "Success set $name autoconnect-priority to 1"
+                    dhcp_con_exists=true
+                else
+                    logit "Error occured setting $name autoconnect-priority to 1" "WARNING"
+                    logit "Check the contents of $file" "WARNING"
+                    logit "Ensure autoconnect-priority=N where N is any value higher than 0" "CRITICAL"  # EXIT ON FAIL
+                fi
+            fi
+        else
+            logit "skipping $name ($method,$autocon,$autocon_pri) will not interfere with static fallback"
+        fi
+    done
+
+    if ! $dhcp_con_exists; then
+        hash uuid 2>/dev/null && local uuid=$(uuid)
+        local uuid=${uuid:-17afb1e2-ba86-11ee-96a0-cf199142a9f5}
+        local dhcp_con_file=/etc/NetworkManager/system-connections/dhcp.nmconnection
+        [ -f /etc/sysctl.d/99-noipv6.conf ] && wired_v6_method=disabled || wired_v6_method=auto
+        convert_template static.nmconnection $dhcp_con_file uuid=${uuid} wired_iface=${wired_iface:-setme} \
+            wired_ip=${wlan_ip} wired_v6_method=${wired_v6_method} 2>>$log_file
+        #verify
+        if [ -f "$dhcp_con_file" ] && grep -q "autoconnect-priority=1" $dhcp_con_file; then
+            logit "Success"
+            _verify_nmconnection_perms ${dhcp_con_file##*/}
+        else
+            logit "Error occured, validate the contents of ${dhcp_con_file##*/}" "WARNING"
+            logit "verify contents of $dhcp_con_file"
+        fi
+    fi
+
     hash uuid 2>/dev/null && local uuid=$(uuid)
     local uuid=${uuid:-6292dec6-b9b1-11ee-a979-e7aa8dbd16e6}
     local static_con_file=/etc/NetworkManager/system-connections/static.nmconnection
-    # TODO bookworm need to set wired_iface mv logic from 02-consolepi to common
+
     convert_template static.nmconnection $static_con_file uuid=${uuid} wired_iface=${wired_iface:-setme} \
         wired_ip=${wlan_ip} 2>>$log_file
     #verify
@@ -701,25 +723,6 @@ do_wired_dhcp_nm() {
         logit "verify contents of $static_con_file"
     fi
 
-
-#    if [ -f /etc/hosts ]; then
-#        local hostn=$(tr -d " \t\n\r" < /etc/hostname)
-#        local rc=0
-#        if grep -q "$wired_ip" /etc/hosts; then
-#            logit "/etc/hosts contains static fallback ip (useful for DHCP clients to resolve $hostn)"
-#        elif [ -z "$local_domain" ]; then
-#            echo "$wired_ip                 $hostn $hostn.${local_domain}" >> /etc/hosts ;rc=$?
-#        else
-#            echo "$wired_ip                 $hostn" >> /etc/hosts; rc=$?
-#        fi
-#
-#        if [ "$rc" -ne 0 ]; then
-#            logit "Success adding $wired_ip $hostn to hosts file (So DHCP clients can resolve $hostn)"
-#        else
-#            logit "Error adding $wired_ip $hostn to hosts file (So DHCP clients can resolve $hostn)" "WARNING"
-#            logit "verify the contents of /etc/hosts" "WARNING"
-#        fi
-#    fi
     unset process
 }
 
@@ -1020,13 +1023,14 @@ do_locale() {
                     logit "${process} - Failed ~ verify contents of /etc/default/keyboard" "WARNING"
                 unset process
             fi
+
             # -- update locale --
-            new_locale=en_${locale^^}.UTF-8
+            new_locale="en_${locale^^}.UTF-8"
             cur_locale=$(locale | head -1 | cut -d'=' -f2)
             if [ "$cur_locale" != "$new_locale" ]; then
                 process="Set locale $new_locale"
                 logit "$process - Starting"
-                res=$(sudo raspi-config nonint do_change_locale $new_locale 2>&1)
+                res=$(raspi-config nonint do_change_locale $new_locale 2>&1)
                 if [ "$?" -eq 0 ]; then
                     logit "$process - Success. locale changed to $new_locale"
                 else

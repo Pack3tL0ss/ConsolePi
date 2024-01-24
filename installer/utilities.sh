@@ -327,8 +327,11 @@ util_exec() {
                     "-s" "-pf" "Update /etc/bash/bashrc for cockpit ~ ConsolePi"
                     "echo -e \"# read consolepi profile script for cockpit tty\\nif [ ! -z \\\$COCKPIT_REMOTE_PEER ] && [[ ! \\\"\\\$PATH\\\" =~ \\\"consolepi-commands\\\" ]] ; then\\n\\t[ -f \\\"/etc/ConsolePi/src/consolepi.sh\\\" ] && . /etc/ConsolePi/src/consolepi.sh\\nfi\" >>/etc/bash.bashrc"
                     "-logit" 'Installing cockpit this will take a few...'
-                    "-apt-install" "$apt_pkg_name" "--pretty=CockPit" "--exclude=cockpit-networkmanager"
+                    "-apt-install" "$apt_pkg_name" "--pretty=CockPit"
                 )
+                if ! ${uses_nm:-true}; then
+                    cmd_list+=("--exclude=cockpit-networkmanager")
+                fi
             elif [[ $2 == "remove" ]]; then
                 cmd_list=(
                     "-logit" 'Removing cockpit this will take a few...'

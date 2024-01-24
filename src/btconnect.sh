@@ -5,7 +5,7 @@ device=$1
 [ $(echo ${1} | tr -cd : | wc -c) -eq 5 ] && is_mac=true || is_mac=false
 
 if ! $is_mac; then
-    device=$(echo devices | sudo bluetoothctl | grep "^Device.*${device}$" | awk '{print $2}')
+    device=$(echo devices | sudo bluetoothctl | grep -i "^Device.*${device}$" | awk '{print $2}')
 fi
 
 ##echo $device
@@ -33,7 +33,8 @@ if [ ! -z "$device" ]; then
     else
         echo $out
     fi
-
+else
+    echo "$1 not found"
 fi
 
 rm -f /tmp/btclient

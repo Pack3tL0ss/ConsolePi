@@ -11,13 +11,13 @@ import yaml
 import json
 from jinja2 import Environment, FileSystemLoader
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import utils, log, config, requests  # NoQA
-from consolepi.local import Local  # NoQA
+from consolepi import utils, config  # type: ignore
+from consolepi.local import Local  # type: ignore
 parser_dir = config.static.get('PARSER_DIR', '/etc/ConsolePi/ztp/custom-parsers')
 sys.path.insert(1, parser_dir)
 
 try:
-    from parsers import Parsers
+    from parsers import Parsers # type: ignore
     custom_parsers = True
 except ImportError:
     custom_parsers = False
@@ -175,9 +175,7 @@ class Ztp:
         '''
         mac = self.mac if not self.conf.get('oobm') else self.mac.oobm
         if mac:
-            # ztp_hosts_lines.append(f"{mac.cols},{mac.tag},{_ip_pfx}.{_ip_sfx},{ztp_lease_time},set:{mac.tag}\n")
             tag = mac.tag
-            # _mac = mac.cols   # if not self.conf.get('oobm') else mac.oobm.cols
             self.host_lines.append(f"{mac.cols},{tag},,{ztp_lease_time},set:{tag}\n")
             self.opt_lines.append(f'tag:{tag},option:bootfile-name,"{self.cfg_file_name}"\n')
 

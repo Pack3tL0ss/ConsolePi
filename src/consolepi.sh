@@ -20,7 +20,7 @@ _cyan='\e[96m' # technically light cyan
 # header reqs 144 cols to display properly
 header() {
     [ -z $1 ] && clear # pass anything as an argument to prevent screen clear
-    if [ ! -z $tty_cols ] && [ $tty_cols -gt 144 ]; then
+    if [ ! -z $tty_cols ] && [ $tty_cols -gt 144 ] && [ -z "$BYOBU_TTY" ]; then
         echo "                                                                                                                                                ";
         echo "                                                                                                                                                ";
         echo -e "${_cyan}        CCCCCCCCCCCCC                                                                     lllllll                   ${_lred}PPPPPPPPPPPPPPPPP     iiii  ";

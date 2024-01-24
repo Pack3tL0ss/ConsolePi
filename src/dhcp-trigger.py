@@ -9,6 +9,9 @@ When Triggered by DHCP:
 When Triggered by TFTP:
     Adjusts the dnsmasq configuration (for ordered ZTP)
     Process any post CLI commands against the device.
+
+    Portions of this script adapted from the Aruba Networks Automation
+    Teams work @ https://github.com/aruba/aruba-switch-ansible
 """
 import sys
 import os
@@ -61,9 +64,6 @@ vendor = os.environ.get('DNSMASQ_VENDOR_CLASS')
 
 class Cli:
     """Class to execute CLI commands on device after configuration has been sent.
-
-    Adapted from the Aruba Networks Automation Teams work on
-    https://github.com/aruba/aruba-switch-ansible
     """
     def __init__(self, ip: str = None, cli_method: str = 'ssh', cli_user: str = None, cli_pass: str = None,
                  cli_timeout: int = ZTP_CLI_DEFAULT_TIMEOUT, cmd_list: list = None, **kwargs):

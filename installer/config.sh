@@ -347,7 +347,7 @@ collect() {
         echo "If you have multiple ConsolePis they can discover each other over the network via mdns"
         echo "and if enabled can sync via Google Drive."
         echo
-        echo "The Remote User is typically pi but can be any user given they are members of"
+        echo "The Remote User is typically consolepi but can be any user given they are members of"
         echo "the dialout and consolepi groups.  Remotes connect via ssh."
         echo
         user_input $rem_user "What user should remote ConsolePis use to connect to this ConsolePi"

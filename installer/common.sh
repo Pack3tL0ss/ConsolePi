@@ -696,7 +696,7 @@ process_cmds() {
             echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
         fi
         case "$1" in
-            -stop) # will stop function from exec remaining commands on failure (witout exit 1)
+            -*stop) # will stop function from exec remaining commands on failure (witout exit 1)
                 local stop=true
                 shift
                 ;;
@@ -713,11 +713,11 @@ process_cmds() {
                 local cmd_pfx="sudo -u $iam"
                 shift
                 ;;
-            -nolog) # Don't log stderr anywhere default is to log_file
+            -*nolog|-*no-log) # Don't log stderr anywhere default is to log_file
                 local err="/dev/null"
                 shift
                 ;;
-            -logit|-l) # Used to simply log a message
+            -*logit|-l) # Used to simply log a message, does not echo to tty
                 case "$3" in
                     WARNING|ERROR)
                         logit "$2" "$3"
@@ -729,11 +729,11 @@ process_cmds() {
                         ;;
                 esac
                 ;;
-            -nostart) # elliminates the process start msg
+            -*nostart|--no-start) # elliminates the process start msg
                 local showstart=false
                 shift
                 ;;
-            -apt-install) # install pkg via apt
+            -*apt-install) # install pkg via apt
                 local do_apt_install=true
                 shift
                 local go=true; while (( "$#" )) && $go ; do
@@ -758,13 +758,13 @@ process_cmds() {
                             ;;
                     esac
                 done
-                [ -z pmsg ] && local pmsg="Success - Install $pname (apt)"
-                [ -z fmsg ] && local fmsg="Error - Install $pname (apt)"
+                local pmsg=${pmsg:-"Success - Install $pname (apt)"}
+                local fmsg=${fmsg:-"Error - Install $pname (apt)"}
                 local stop=true
                 [[ ! -z $pexclude ]] && local cmd="sudo apt -y install $pkg ${pexclude}-" ||
                     local cmd="sudo apt -y install $pkg"
                 ;;
-            -apt-purge) # purge pkg followed by autoremove
+            -*apt-purge) # purge pkg followed by autoremove
                 case "$3" in
                     --pretty=*)
                         local pname=${3/*=}
@@ -775,8 +775,8 @@ process_cmds() {
                         _shift=2
                         ;;
                 esac
-                [ -z pmsg ] && local pmsg="Success - Remove $pname (apt)"
-                [ -z fmsg ] && local fmsg="Error - Remove $pname (apt)"
+                local pmsg=${pmsg:-"Success - Remove $pname (apt)"}
+                local fmsg=${fmsg:-"Error - Remove $pname (apt)"}
                 local cmd="sudo apt -y purge $2"
                 local do_autoremove=true
                 shift $_shift
@@ -785,7 +785,7 @@ process_cmds() {
                 local out="$2"
                 shift 2
                 ;;
-            -pf|-fp) # msg template for both success and failure in 1
+            -*pf|-*fp) # msg template for both success and failure in 1
                 local pmsg="Success - $2"
                 local fmsg="Error - $2"
                 shift 2

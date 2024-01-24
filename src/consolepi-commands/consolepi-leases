@@ -1,3 +1,16 @@
 #!/usr/bin/env bash
 
-cat /var/lib/misc/dnsmasq.leases
+# lease_file="/var/lib/misc/dnsmasq.leases /var/lib/misc/dnsmasq.hotspot.leases /var/lib/misc/dnsmasq.wired.leases"
+#
+# can use date -d @epoch if we wanted it to be prettier, first col of lease file is lease expire time in epoch
+#
+_norm='\e[0m'
+_bold='\e[32;1m'
+_green='\e[32m'
+
+lease_files=($( ls -1 /var/lib/misc/*.leases ))
+for file in "${lease_files[@]}"; do
+    echo -e "-- ${_green}${_bold}$(basename $file)${_norm} --"
+    cat $file
+    echo
+done

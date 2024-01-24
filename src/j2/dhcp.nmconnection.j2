@@ -4,19 +4,17 @@ uuid={{uuid}}
 type=ethernet
 interface-name={{wired_iface}}
 permissions=
-autoconnect-priority=2
-auth-retries=1
-autoconnect-retries=1
+autoconnect-priority=1
+autoconnect-retries=4
 
 [ethernet]
-mac-address-blacklist=
 
 [ipv4]
-dns-search=
 method=auto
-dhcp-timeout=10
+dhcp-timeout=30
+dhcp-vendor-class-identifier=NM:ConsolePi
+
 
 [ipv6]
 addr-gen-mode=stable-privacy
-dns-search=
 method={{wired_v6_method}}

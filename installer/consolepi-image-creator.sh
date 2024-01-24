@@ -375,7 +375,7 @@ do_import_configs() {
                 fi
             fi
         fi
-    else
+    else  # Network Manager based system
         nm_stage_dir=$(get_staged_file_path "NetworkManager/system-connections" -d)
         if [ -n "$nm_stage_dir" ]; then
             nm_con_files=($(ls -1 "$nm_stage_dir"))
@@ -402,8 +402,14 @@ do_import_configs() {
                             [ -n "$ca_cert" ] && [ -f "$ca_cert" ] && [ ! -f "${cert_path}/${ca_cert##*/}" ] && ( cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}" ; ((rc+=$?)) )
                             [ -n "$client_cert" ] && [ -f "$client_cert" ] && [ ! -f "${cert_path}/${client_cert##*/}" ] && ( cp ${ca_cert##*/} "${cert_path}/${client_cert##*/}" ; ((rc+=$?)) )
                             [ -n "$private_key" ] && [ -f "$private_key" ] && [ ! -f "${cert_path}/${private_key##*/}" ] && ( cp ${ca_cert##*/} "${cert_path}/${private_key##*/}" ; ((rc+=$?)) )
-                            popd >/dev/null
                             do_error $rc
+
+                            # adjust key file permissions
+                            if [ -f "${cert_path}/${private_key##*/}" ]; then
+                                dots "Set staged private key (${private_key##*/}) permissions (600)"
+                                res=$(chmod 600 "${cert_path}/${private_key##*/}" 2>&1) ; do_error $? "$res"
+                            fi
+                            popd >/dev/null
                         fi
                     fi
                 done

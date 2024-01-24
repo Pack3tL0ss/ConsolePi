@@ -24,6 +24,11 @@ tmp_src="/tmp/consolepi-temp"
 warn_cnt=0
 INIT="$(ps --no-headers -o comm 1)"
 DEV_USER=${dev_user:-wade}  # User to use for ssh/sftp/git to local dev
+if [ "$(systemctl is-active NetworkManager.service)" == "active" ] && hash nmcli 2>/dev/null && [ $(nmcli -t dev | grep -v "p2p-dev\|:lo" | wc -l) -gt 0 ]; then
+    uses_nm=true
+else
+    uses_nm=false
+fi
 
 # Unused for now interface logic
 # _gw=$(ip route get 8.8.8.8 | awk -- '{printf $5}')
@@ -53,7 +58,7 @@ is_ssh() {
   fi
 }
 
-( [[ -f $final_log ]] && [ -z $upgrade ] ) && upgrade=true || upgrade=false
+( [ -f "$final_log" ] && ( [ -z "$upgrade" ] || $upgrade ) ) && upgrade=true || upgrade=false
 
 # log file is referenced thoughout the script.  During install dest changes from tmp to final
 # location is configured in install.sh do_logging
@@ -171,13 +176,18 @@ logit() {
     #   logit "building package" "WARNING"
     #
     #   FLAGS:
-    #      -L    Log Only don't echo to stdoud
-    #      -E    Echo formatted log don't log
+    #      -L    write to log only don't echo to stdout
+    #      -E    Only echo to stdout don't write to log
     #      -t <process> set tag($cprocess) (does not change process in global scope)
     #
-    # NOTE: Sending a status of "ERROR" results in the script exiting
+    # NOTE: Sending a status of "ERROR" results in the script exiting (unless called by network hook/dispatcher)
     #       default status is INFO if none provided.
-    [[ $(basename "$0" 2>/dev/null) == 'dhcpcd.exit-hook' ]] && stop_on_error=false || stop_on_error=true
+    if [[ $(basename "$0" 2>/dev/null) == 'dhcpcd.exit-hook' ]] || [[ $(basename "$0" 2>/dev/null) == '02-consolepi' ]] then
+        stop_on_error=false
+    else
+        stop_on_error=true
+    fi
+
     local args=()
     while (( "$#" )); do
         case "$1" in
@@ -211,7 +221,7 @@ logit() {
     [[ "${status}" == "DEBUG" ]] && ! $debug && return 0  # ignore / return if a DEBUG message & debug=false
 
     fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
-    if [[ "${status}" == "ERROR" ]]; then
+    if [ "${status}" == "ERROR" ] || [ "${status}" == "CRITICAL" ]; then
         $stop_on_error && fatal=true || ((warn_cnt+=1))
         status="${_red}${status}${_norm}"
     elif [[ "${status}" != "INFO" ]]; then
@@ -334,6 +344,30 @@ ask_pass(){
     unset _pass2
 }
 
+get_interfaces() {
+    # >> Determine interfaces to act on (fallback to hotspot/wired-dhcp (ztp))
+    # provides wired_iface and wlan_iface in global scope
+    local wired_ifaces=($(nmcli -t dev | grep ":ethernet:" | cut -d: -f1))
+    if [ "${#wired_ifaces[@]}" -eq 1 ]; then
+        wired_iface=${wired_ifaces[0]}
+    elif [[ ${wired_ifaces[0]} =~ eth0 ]]; then
+        wired_iface=eth0
+    else
+        local _first_iface=${wired_ifaces[0]}
+        wired_iface=${_first_iface:-eth0}
+    fi
+
+    local wlan_ifaces=($(nmcli -t dev | grep ":wifi:" | cut -d: -f1))
+    if [ "${#wlan_ifaces[@]}" -eq 1 ]; then
+        wlan_iface=${wlan_ifaces[0]}
+    elif [[ ${wlan_ifaces[0]} =~ wlan0 ]]; then
+        wlan_iface=wlan0
+    else
+        local _first_iface=${wlan_ifaces[0]}
+        wlan_iface=${_first_iface:-wlan0}
+    fi
+}
+
 # arg1 = systemd file without the .service suffix
 systemd_diff_update() {
     # -- If both files exist check if they are different --
@@ -410,7 +444,7 @@ file_diff_update() {
         fi
     fi
 
-    # -- if file on system doesn't exist or doesn't match src copy and enable from the source directory
+    # -- if file on system does not exist or does not match src copy and enable from the source directory
     if ! $override; then
         if [[ ! "$this_diff" = *"identical"* ]]; then
             if [[ -f ${1} ]]; then
@@ -605,13 +639,15 @@ do_systemd_enable_load_start() {
 }
 
 # -- Find path for any files pre-staged in user home or consolepi-stage subdir --
+# default is to check for file, pass -d as 2nd arg to check for dir
 get_staged_file_path() {
-    [[ -z $1 ]] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
-    if [[ -f "${home_dir}/${1}" ]]; then
+    [ -z "$1" ] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
+    local flag=${2:-'-f'}
+    if [ $flag "${home_dir}/${1}" ]; then
         found_path="${home_dir}/${1}"
-    elif [[ -f ${stage_dir}/$HOSTNAME/$1 ]]; then
+    elif [ $flag "${stage_dir}/$HOSTNAME/$1" ]; then
         found_path="${stage_dir}/$HOSTNAME/${1}"  # Need to verify this is updated in update.sh set_hostname so it's valid to use here.
-    elif [[ -f ${stage_dir}/$1 ]]; then
+    elif [ $flag "${stage_dir}/$1" ]; then
         found_path="${stage_dir}/${1}"
     else
         found_path=

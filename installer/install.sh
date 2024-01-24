@@ -86,6 +86,19 @@ do_apt_deps() {
 
         which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
 
+        # prefer users .config dir over .gitconfig in users home
+        if [ ! -f $home_dir/.gitconfig ] && [ ! -d $home_dir/.config/git ]; then
+            logit "Creating user git config at $home_dir/.config/git/config"
+            sudo -u $iam mkdir -p $home_dir/.config/git 2>>$log_file
+            sudo -u $iam touch $home_dir/.config/git/config
+        fi
+        if [ ! -f /root/.gitconfig ] && [ ! -d /root/.config/git ]; then
+            logit "Creating root git config at /root/.config/git/config"
+            mkdir -p /root/.config/git 2>>$log_file
+            touch /root/.config/git/config
+        fi
+
+
         # -- Ensure python3-pip is installed --
         [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
             process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
@@ -121,11 +134,12 @@ do_apt_deps() {
 do_user_dir_import(){
     [[ $1 == root ]] && local user_home=root || local user_home="home/$1"
     # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
-    if [[ -d "$stage_dir/$user_home" ]]; then
+    found_path=$(get_staged_file_path "$user_home" "-d")
+    if [ -n "$found_path" ]; then
         logit "Found staged files for $1, copying to users home"
-        cp -r "$stage_dir/$user_home/." "/$user_home/" &&
-        chown -R $(grep "^$1:" /etc/passwd | cut -d: -f3-4) "/$user_home/" &&
-        ( logit "Success - copy staged files for user $1" && return 0 ) ||
+        cp -r "$found_path/." "/$user_home/" &&
+            chown -R $(grep "^$1:" /etc/passwd | cut -d: -f3-4) "/$user_home/" &&
+            ( logit "Success - copy staged files for user $1" && return 0 ) ||
             ( logit "An error occurred when attempting cp pre-staged files for user $1" "WARNING"
               return 1
             )
@@ -190,6 +204,8 @@ do_users(){
         # Create additional Users (with appropriate rights for ConsolePi)
         process="Add Users"
         if ! $silent; then
+            # strip users from extra_groups as user will have that group automatically
+            extra_groups=$( echo $extra_groups | sed 's/\(.*\) users\(.*\)/\1\2/' )
             sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups\"/" /tmp/adduser.conf
             _res=true; while $_res; do
                 echo
@@ -215,6 +231,12 @@ do_users(){
                     done
                     if adduser --conf /tmp/adduser.conf --gecos ",,,," ${args[@]} ${user} 1>/dev/null; then
                         logit "Successfully added new user $user"
+
+                        # Now double check the users group thing (not sure if this is new since bookworm)
+                        if ! getent group users | grep -q $user; then
+                            usermod -a -G users "$user" ; rc=$?
+                            logit -L -t "DEVNOTE" "Had to add users group to user $user. returned $rc"
+                        fi
 
                         # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
                         do_user_dir_import $user || logit -L "User dir import for $user user returned error"
@@ -584,17 +606,17 @@ show_usage() {
     fi
     echo -e "\n${_green}USAGE:${_norm} $_cmd [OPTIONS]\n"
     echo -e "${_cyan}Available Options${_norm}"
-    _help "--help" "Display this help text"
+    _help "-h|--help" "Display this help text"
     _help "-s|--silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
     _help "-C | --config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
     echo "    Copy the example file to your home dir and make edits to use."
     _help "-6|--no-ipv6" "Disable IPv6 (Only applies to initial install)"
-    _help "--bt-pan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
+    # _help "--bt-pan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
     _help "-R|--reboot" "reboot automatically after silent install (Only applies to silent install)"
     _help "-w|--wlan_country <2 char country code>" "wlan regulatory domain (Default: US)"
     _help "--locale <2 char country code>" "Update locale and keyboard layout. i.e. '--locale us' will result in locale being updated to en_US.UTF-8"
     _help "--us" "Alternative to the 2 above, implies us for wlan country, locale, and keyboard."
-    _help "-h|--hostname <hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
+    _help "-H|--hostname <hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
     _help "--tz <tz>" "Configure TimeZone i.e. America/Chicago"
     _help "-L|--auto-launch" "Automatically launch consolepi-menu for consolepi user.  Defaults to False."
     _help "-p|--passwd '<password>'" "Use single quotes: The password to configure for consolepi user during install."
@@ -602,8 +624,9 @@ show_usage() {
     echo
     echo "The Following optional arguments are more for dev, but can be useful in some other scenarios"
     if [ -n "$1" ] && [ "$1" = "dev" ]; then  # hidden dev flags --help dev to display them.
-        _help "-D|--dev" "Install from ConsolePi-dev using dev branch"
+        _help "-D|--dev" "Install from ConsolePi-dev (will use dev branch unless -b|--branch specifies otherwise)"
         _help "--dev-user <user>" "Override the default user used for sftp/ssh/git to ConsolePi-dev"
+        _help "-b|--branch" "Will pull from an alternate branch (default is master or dev when -D|--dev flag is used)"
         _help "--me" "Override the default user used for sftp/ssh/git to ConsolePi-dev, use current user."
         _help "-I|--install" "Run as if it's the initial install"
     fi
@@ -634,10 +657,11 @@ missing_param(){
 do_safe_dir(){
     # Prevent fatal: detected dubious ownership in repository at '/etc/ConsolePi'
     # common is not loaded yet, hence the need to define the local vars
-    local iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
-    local tmp_log="/tmp/consolepi_install.log"
-    local final_log="/var/log/ConsolePi/install.log"
-    [ -f "$final_log" ] && local log_file=$final_log || local log_file=$tmp_log
+
+    # local iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
+    # local tmp_log="/tmp/consolepi_install.log"
+    # local final_log="/var/log/ConsolePi/install.log"
+    # [ -f "$final_log" ] && local log_file=$final_log || local log_file=$tmp_log
     if ! git config --global -l 2>/dev/null | grep -q "safe.directory=/etc/ConsolePi"; then
         echo "$(date +"%b %d %T") [$$][INFO][Verify git safe.directory] Adding /etc/ConsolePi as git safe.directory globally" | tee -a $log_file
         git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
@@ -661,9 +685,12 @@ process_args() {
         # echo "$1" # -- DEBUG --
         case "$1" in
             -D|-*dev)
-                branch=dev
                 local_dev=true
                 shift
+                ;;
+            -b|-*branch)
+                local _branch="$2"
+                shift 2
                 ;;
             -*dev-user)
                 [ -n "$2" ] && dev_user=$2 || missing_param "$@" # override of static var set in common.sh
@@ -756,6 +783,12 @@ process_args() {
         esac
     done
 
+    if [ -n "$_branch" ]; then
+        branch=$_branch
+    elif $local_dev; then
+        branch="dev"
+    fi
+
     # -- Set defaults applied when using silent mode if not specified --
     $silent && btmode=${btmode:-serial}
     $silent && auto_launch=${auto_launch:-false}
@@ -767,15 +800,16 @@ main() {
     if [ "${script_iam}" = "root" ]; then
         set +H                              # Turn off ! history expansion
         cmd_line="$@"
-        do_safe_dir                         # Ensures /etc/ConsolePi is git safe.directory
+        # original loc for do_safe_dir
         process_args "$@"
         get_common                          # get and import common functions script
         [ -n "$cmd_line" ] && logit -L -t "ConsolePi Installer" "Called with the following args: $cmd_line"
         get_pi_info                         # (common.sh func) Collect some version info for logging
-        remove_first_boot                   # if auto-launch install on first login is configured remove
+        remove_first_boot                   # if auto-launch install on first login is configured remove (consolepi-image)
         do_users                            # USER INPUT - create / update users and do staged imports
-        do_apt_update                       # apt-get update the pi
+        do_apt_update                       # apt-get update the rpi
         do_apt_deps                         # install dependencies via apt
+        do_safe_dir                         # Ensures /etc/ConsolePi is git safe.directory
         pre_git_prep                        # UPGRADE ONLY: process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes

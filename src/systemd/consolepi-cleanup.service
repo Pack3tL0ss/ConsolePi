@@ -1,0 +1,12 @@
+[Unit]
+Description=Cleanup ConsolePi temp files on boot.
+Documentation=https://github.com/Pack3tL0ss/ConsolePi
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/etc/ConsolePi/src/cleanup.sh
+
+[Install]
+WantedBy=multi-user.target

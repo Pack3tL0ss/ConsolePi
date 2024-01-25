@@ -28,6 +28,17 @@ skip_pull=false
 SVCS=("consolepi-mdnsbrowse" "consolepi-mdnsreg" "consolepi-api")
 [ -z "$DEBUG" ] && DEBUG=false
 
+# Terminal coloring
+_norm='\e[0m'
+_bold='\e[32;1m'
+_blink='\e[5m'
+_red='\e[31m'
+_blue='\e[34m'
+_lred='\e[91m'
+_yellow='\e[33;1m'
+_green='\e[32m'
+_cyan='\e[96m' # technically light cyan
+
 dots() {
     local pad=$(printf "%0.1s" "."{1..70})
     printf " * %s%*.*s" "$1" 0 $((70-${#1})) "$pad"
@@ -37,9 +48,9 @@ dots() {
 do_error() {
     if [ -z "$1" ] || [ "$1" -gt 0 ]; then
         if [ -z "$1" ]; then
-            echo -e "Error: No rc sent to do_error\n"
+            echo -e "${_red}Error${_norm}: No rc sent to do_error\n"
         else
-            echo 'Failed!!' ; echo -e "\n"
+            echo -e "${_red}${_blink}Failed${_norm}" ; echo -e "\n"
         fi
         [ -n "$2" ] && echo "$2"
         [[ $(dirs | tr " " "\n" | wc -l) -gt 1 ]] && popd >/dev/null
@@ -47,7 +58,7 @@ do_error() {
         dump_log true
         exit 1
     fi
-    echo "OK"
+    echo -e "${_green}OK${_norm}"
 }
 
 user_input_bool() {
@@ -122,23 +133,45 @@ do_git_pull() {
     done
 }
 
+
 do_loc_pull() {
     if [[ -f $loc_pull_file ]] ; then
         echo -e "\n -- Performing local only Pull"
         orig_IFS=$IFS
-        IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file}))"
+        IFS=$'\r\n' GLOBIGNORE='*' command eval  "sync_files=(\$(cat ${loc_pull_file} | grep -v \"^#.*\"))"
+        local get_all=""
+        local tmp_dir=$(mktemp -d)
         for f in "${sync_files[@]}" ; do
-            [[ $f =~ ^#.* ]] && continue  # skip commented lines
             f=${f#/*}  # strip leading / if they included it
             local path=$(dirname $f)
             local file=$(basename $f)
-            pushd $consolepi_dir/$path >/dev/null
-            dots "GET ${f##/*}"
-            sftp $rem_user@$loc_pull_host:$consolepi_dir/$path/$file >/dev/null 2>&1 ; local rc=$?
-            popd >/dev/null
-            do_error $rc
+            get_all+="get $consolepi_dir/$path/$file\n"
         done
+
+        echo -e "\n  ${_cyan}Local Pull Files${_norm}\n  ---------------------------\n${get_all//get/'  ~'}"
+        get_all+="exit\n"
+        pushd $tmp_dir >/dev/null
+        dots "Collect Local Pull files from consolepi-dev"
+        echo -e "$get_all" | sftp $rem_user@$loc_pull_host >> $tmp_dir/sftp.log 2>&1; local sftp_rc=$?
+        popd >/dev/null
+        do_error $sftp_rc
+
+        if [ "$sftp_rc" -eq 0 ]; then
+            for f in "${sync_files[@]}" ; do
+                f=${f#/*}  # strip leading / if they included it
+                local path=$(dirname $f)
+                local file=$(basename $f)
+                dots "place $file in $consolepi_dir/$path"
+                res=$(cp $tmp_dir/$file $consolepi_dir/$path/); do_error $? "$res"
+            done
+        else
+            echo "Error during SFTP transfer"
+            cat $tmp_dir/sftp.log
+        fi
+
+        ! $DEBUG && rm -r $tmp_dir || echo "$tmp_dir remains as DEBUG=$DEBUG"
         IFS=$orig_IFS
+
     else
         echo '!! No Local Pull File Found... exitting !!' ; exit 1
     fi

@@ -758,8 +758,8 @@ process_cmds() {
                             ;;
                     esac
                 done
-                local pmsg=${pmsg:-"Success - Install $pname (apt)"}
-                local fmsg=${fmsg:-"Error - Install $pname (apt)"}
+                local pmsg=${pmsg:-"Success - install $pname (apt)"}
+                local fmsg=${fmsg:-"Error - install $pname (apt)"}
                 local stop=true
                 [[ ! -z $pexclude ]] && local cmd="sudo apt -y install $pkg ${pexclude}-" ||
                     local cmd="sudo apt -y install $pkg"

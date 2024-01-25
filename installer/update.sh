@@ -592,8 +592,8 @@ install_hotspot_nm() {
     hash uuid 2>/dev/null && local uuid=$(uuid)
     local uuid=${uuid:-5ad644a6-b80e-11ee-952a-bf1313596c84}
     local hotspot_con_file=/etc/NetworkManager/system-connections/hotspot.nmconnection
-    # TODO bookworm need to set wlan_iface mv logic from 02-consolepi to common
-    convert_template hotspot.nmconnection /etc/NetworkManager/system-connections/hotspot.nmconnection uuid=${uuid} wlan_iface=${wlan_iface:-wlan0} \
+
+    convert_template hotspot.nmconnection "$hotspot_con_file" uuid=${uuid} wlan_iface=${wlan_iface:-wlan0} \
         wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_ip=${wlan_ip}
 
     #verify
@@ -602,7 +602,7 @@ install_hotspot_nm() {
         _verify_nmconnection_perms ${hotspot_con_file##*/}
     else
         logit "Error occured, validate the contents of ${hotspot_con_file##*/}" "WARNING"
-        logit "verify contents of $static_con_file"
+        logit "verify contents of $hotspot_con_file"
     fi
     unset process
 }
@@ -691,36 +691,48 @@ do_wired_dhcp_nm() {
         fi
     done
 
+    # Deploy wired DHCP (client) connection profile if one doesn't already exist
     if ! $dhcp_con_exists; then
+        process="Wired Static Fallback with DHCP (ZTP)"
+        local _msg="Install/Update dhcp profile"
+        logit "$_msg"
         hash uuid 2>/dev/null && local uuid=$(uuid)
         local uuid=${uuid:-17afb1e2-ba86-11ee-96a0-cf199142a9f5}
-        local dhcp_con_file=/etc/NetworkManager/system-connections/dhcp.nmconnection
+        local file=dhcp.nmconnection
+        local dest="/etc/NetworkManager/system-connections/$file"
         [ -f /etc/sysctl.d/99-noipv6.conf ] && wired_v6_method=disabled || wired_v6_method=auto
-        convert_template static.nmconnection $dhcp_con_file uuid=${uuid} wired_iface=${wired_iface:-setme} \
-            wired_ip=${wlan_ip} wired_v6_method=${wired_v6_method} 2>>$log_file
+
+        convert_template "$file" $dest uuid=${uuid} wired_iface=${wired_iface:-setme} \
+            wired_v6_method=${wired_v6_method} 2>>$log_file
+
         #verify
-        if [ -f "$dhcp_con_file" ] && grep -q "autoconnect-priority=1" $dhcp_con_file; then
-            logit "Success"
-            _verify_nmconnection_perms ${dhcp_con_file##*/}
+        if [ -f "$dest" ] && grep -q "autoconnect-priority=" "$dest"; then
+            logit "Success - $_msg"
+            _verify_nmconnection_perms "$file"
         else
-            logit "Error occured, validate the contents of ${dhcp_con_file##*/}" "WARNING"
-            logit "verify contents of $dhcp_con_file"
+            logit "Error - $_msg" "WARNING"
+            logit "verify contents of $dest" "ERROR"
         fi
     fi
 
+    # deploy static fallback connection profile for Wired DHCP (server) for ZTP
+    local _msg="Install/Update static profile"
+    logit "$_msg"
     hash uuid 2>/dev/null && local uuid=$(uuid)
     local uuid=${uuid:-6292dec6-b9b1-11ee-a979-e7aa8dbd16e6}
-    local static_con_file=/etc/NetworkManager/system-connections/static.nmconnection
+    local file=static.nmconnection
+    local dest="/etc/NetworkManager/system-connections/$file"
 
-    convert_template static.nmconnection $static_con_file uuid=${uuid} wired_iface=${wired_iface:-setme} \
-        wired_ip=${wlan_ip} 2>>$log_file
+    convert_template "$file" "$dest" uuid=${uuid} wired_iface=${wired_iface:-setme} \
+        wired_ip=${wired_ip} 2>>$log_file
+
     #verify
-    if [ -f "$static_con_file" ] && grep -q "address1=${wired_ip}" $static_con_file; then
-        logit "Success"
-        _verify_nmconnection_perms ${static_con_file##*/}
+    if [ -f "$file" ] && grep -q "address1=${wired_ip}" "$file"; then
+        logit "Success - $_msg"
+        _verify_nmconnection_perms "$file"
     else
-        logit "Error occured, validate the contents of ${static_con_file##*/}" "WARNING"
-        logit "verify contents of $static_con_file"
+        logit "Error - $_msg" "WARNING"
+        logit "verify contents of $dest" "ERROR"
     fi
 
     unset process
@@ -1266,6 +1278,7 @@ update_main() {
 
     if $uses_nm; then
         if $hotspot || $wired_dhcp || $ovpn_enable; then
+            get_interfaces  # provides wlan_iface and wired_iface in global profile
             do_hook_nm  # no real need to remove once deployed, it verifies config prior to taking any action
         fi
 

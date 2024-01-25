@@ -692,8 +692,8 @@ do_wired_dhcp_nm() {
     done
 
     # Deploy wired DHCP (client) connection profile if one doesn't already exist
+    process="Wired Static Fallback with DHCP (ZTP)"
     if ! $dhcp_con_exists; then
-        process="Wired Static Fallback with DHCP (ZTP)"
         local _msg="Install/Update dhcp profile"
         logit "$_msg"
         hash uuid 2>/dev/null && local uuid=$(uuid)

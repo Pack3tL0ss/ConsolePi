@@ -727,7 +727,7 @@ do_wired_dhcp_nm() {
         wired_ip=${wired_ip} 2>>$log_file
 
     #verify
-    if [ -f "$file" ] && grep -q "address1=${wired_ip}" "$dest"; then
+    if [ -f "$dest" ] && grep -q "address1=${wired_ip}" "$dest"; then
         logit "Success - $_msg"
         _verify_nmconnection_perms "$file"
     else

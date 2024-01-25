@@ -103,6 +103,15 @@ do_apt_deps() {
         [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
             process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
 
+        # if consolepi venv dir exists we assume virtualenv is installed
+        if [ ! -d ${consolepi_dir}venv ]; then
+            # -- Ensure python3 virtualenv is installed --
+            venv_ver=$(python3 -m pip show virtualenv 2>/dev/null | grep -i version | cut -d' ' -f2)
+            if [ -z "$venv_ver" ]; then
+                process_cmds -e --apt-install "python3-virtualenv"
+            fi
+        fi
+
         # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
         # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
         if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
@@ -459,19 +468,7 @@ do_pyvenv() {
         fi
     fi
 
-    # TODO Think we can lose the sudo now
     if [ ! -d ${consolepi_dir}venv ]; then
-        # -- Ensure python3 virtualenv is installed --
-        venv_ver=$(sudo python3 -m pip show virtualenv 2>/dev/null | grep -i version | cut -d' ' -f2)
-        if [ -z "$venv_ver" ]; then
-            logit "python virtualenv not installed... installing"
-            sudo apt install -y python3-virtualenv 1>/dev/null 2>> $log_file &&
-                logit "Success - Install virtualenv" ||
-                logit "Error - installing virtualenv" "ERROR"
-        else
-            logit "python virtualenv v${venv_ver} installed"
-        fi
-
         # -- Create ConsolePi venv --
         logit "Creating ConsolePi virtualenv"
         sudo python3 -m virtualenv ${consolepi_dir}venv 1>/dev/null 2>> $log_file &&
@@ -481,6 +478,7 @@ do_pyvenv() {
         logit "${consolepi_dir}venv directory already exists"
     fi
 
+    # dopip can be toggled off via --no-pip flag (used for repeated testing of install scripts)
     if $dopip; then
         logit "Upgrade pip"
         sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade pip 1>/dev/null 2>> $log_file &&
@@ -490,9 +488,14 @@ do_pyvenv() {
         logit "pip install/upgrade ConsolePi requirements - This can take some time."
         echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
         # -- RPi.GPIO is done separately as it's a distutils package installed by apt, but pypi may be newer.  this is in a venv, should do no harm
+        # It will also install on non rpi Linux systems (via pip).  So does no harm to install it.
+        # Will not install in python global context via apt on other systems: sudo apt install python3-rpi.gpio ; as it's only in the rpi repo
+        # Some platforms (i.e. Jetson Nano) use different library to operate GPIO, would need wrapper that could determine platform and which to use.  Just means GPIO based power would not be supported on those systems.
+
         # if we do --upgrade below ERROR: Cannot uninstall 'RPi.GPIO'. It is a distutils installed project and thus we cannot accurately determine which files belong to it which would lead to only a partial uninstall.
         # if we include RPi.GPIO in the requirements file then pip install --upgrade -r requirements.txt ... it will result in the same error.
         #  SO we simply do pip install RPi.GPIO to ensure it's installed in the venv, log a WARNING which allows script to continue if there is a failure.  RPi.GPIO would be upgraded only when venv is re-created. (or manually)
+        # TODO test removing from venv and installing in global context via "sudo apt install python3-rpi.gpio"
         if [ "$is_pi" = true ]; then  # removed --ignore-installed from below need to verify what's needed here
             sudo ${consolepi_dir}venv/bin/python3 -m pip install RPi.GPIO 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) ||
                 logit "pip install/upgrade RPi.GPIO (separately) returned an error." "WARNING"

@@ -34,8 +34,7 @@ update_hosts_file() {
     if [ -f /etc/hosts ]; then
         local hostn=$(tr -d " \t\n\r" < /etc/hostname)
         # local_domain can be nul j2 template has conditionals to handle it.
-        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} wired_ip=${wired_ip} hostname=${hostn} domain=${local_domain} hotspot=${hotspot} wired_dhcp=${wired_dhcp} &&
-            logit "Success" || logit "Error returned from convert_template" "WARNING"
+        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} wired_ip=${wired_ip} hostname=${hostn} domain=${local_domain} hotspot=${hotspot} wired_dhcp=${wired_dhcp}
     else
         logit "skipping as /etc/hosts file does not appear to exist" "WARNING"
     fi

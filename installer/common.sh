@@ -347,7 +347,17 @@ ask_pass(){
 get_interfaces() {
     # >> Determine interfaces to act on (fallback to hotspot/wired-dhcp (ztp))
     # provides wired_iface and wlan_iface in global scope
-    local wired_ifaces=($(nmcli -t dev | grep ":ethernet:" | cut -d: -f1))
+    if $uses_nm; then
+        local wired_ifaces=($(nmcli -t dev | grep ":ethernet:" | cut -d: -f1))
+        local wlan_ifaces=($(nmcli -t dev | grep ":wifi:" | cut -d: -f1))
+    else
+        # all_ifaces gets physical interfaces only
+        local all_ifaces=($(find /sys/class/net -type l -not -lname '*virtual*' -printf '%f\n'))
+        local wlan_ifaces=($(cat /proc/net/wireless | tail +3 | cut -d':' -f1 | tr -d ' '))
+        local wired_ifaces=()
+        for i in ${all_ifaces[@]}; do [[ ! "${wlan_ifaces[@]}" =~ "${i}" ]] && wired_ifaces+=($i); done
+    fi
+
     if [ "${#wired_ifaces[@]}" -eq 1 ]; then
         wired_iface=${wired_ifaces[0]}
     elif [[ ${wired_ifaces[0]} =~ eth0 ]]; then
@@ -357,7 +367,6 @@ get_interfaces() {
         wired_iface=${_first_iface:-eth0}
     fi
 
-    local wlan_ifaces=($(nmcli -t dev | grep ":wifi:" | cut -d: -f1))
     if [ "${#wlan_ifaces[@]}" -eq 1 ]; then
         wlan_iface=${wlan_ifaces[0]}
     elif [[ ${wlan_ifaces[0]} =~ wlan0 ]]; then

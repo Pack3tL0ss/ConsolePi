@@ -733,7 +733,7 @@ process_cmds() {
                 local showstart=false
                 shift
                 ;;
-            -*apt-install) # install pkg via apt
+            -*apt-install) # install pkg via apt  # TODO parse params after --apt-install flag allow multiple in same line (until next -)
                 local do_apt_install=true
                 shift
                 local go=true; while (( "$#" )) && $go ; do
@@ -758,8 +758,8 @@ process_cmds() {
                             ;;
                     esac
                 done
-                local pmsg=${pmsg:-"Success - Install $pname (apt)"}
-                local fmsg=${fmsg:-"Error - Install $pname (apt)"}
+                local pmsg=${pmsg:-"Success - install $pname (apt)"}
+                local fmsg=${fmsg:-"Error - install $pname (apt)"}
                 local stop=true
                 [[ ! -z $pexclude ]] && local cmd="sudo apt -y install $pkg ${pexclude}-" ||
                     local cmd="sudo apt -y install $pkg"

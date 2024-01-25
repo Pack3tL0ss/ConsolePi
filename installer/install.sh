@@ -84,7 +84,7 @@ do_apt_deps() {
     if $doapt; then
         logit "$process - Starting"
 
-        which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
+        which git >/dev/null || process_cmds -e --apt-install git
 
         # prefer users .config dir over .gitconfig in users home
         if [ ! -f $home_dir/.gitconfig ] && [ ! -d $home_dir/.config/git ]; then
@@ -101,7 +101,7 @@ do_apt_deps() {
 
         # -- Ensure python3-pip is installed --
         [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
-            process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
+            process_cmds -e --pf --apt-install "python3-pip"
 
         # if consolepi venv dir exists we assume virtualenv is installed
         if [ ! -d ${consolepi_dir}venv ]; then
@@ -115,13 +115,13 @@ do_apt_deps() {
         # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
         # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
         if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
-            process_cmds -pf "install libffi-dev" -apt-install "libffi-dev"
+            process_cmds --apt-install "libffi-dev"
         fi
 
         # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
         # TODO check if this is required
         if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
-            process_cmds -pf "install libssl-dev" -apt-install "libssl-dev"
+            process_cmds --apt-install "libssl-dev"
         fi
 
         # If it's an RPI we ensure RPi.GPIO is up to date.

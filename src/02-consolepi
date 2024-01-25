@@ -136,7 +136,7 @@ check_test_mode() {
                     logit -t "${log_process}" "Testing $wlan_iface fallback to hotspot"
                     shift
                 ;;
-                eth0|wlan0)
+                $wired_iface|$wlan_iface)
                     interface="$1"
                     logit -t "${log_process}" "interface set to $1"
                     shift
@@ -166,7 +166,7 @@ check_test_mode() {
                     echo -e "Options:"
                     echo -e "    'static': Test wired fallback to static flow (wired-dhcp, configure nat if wlan has valid connection)"
                     echo -e "    'hotspot': Test wlan fallback to hotspot flow (hotspot-dhcp, pb notification)"
-                    echo -e "    'eth0|wlan0': Simulate new IP from specified interface"
+                    echo -e "    '$wired_iface|$wlan_iface': Simulate new IP from specified interface"
                     echo -e "    --no-cloud: bypass cloud update"
                     echo -e "    --no-push: bypass PushBullet notification"
                     echo -e "    -L|--logs: Forces output of all logs for this test session after test is ran."
@@ -181,7 +181,16 @@ check_test_mode() {
                     shift
                 ;;
                 *)
-                    new_domain_name=$1
+                    match=false
+                    for i in $(find /sys/class/net -type l -not -lname '*virtual*' -printf '%f\n'); do
+                        [ "$1" == "$i" ] && match=true && break
+                    done
+                    if $match; then
+                        interface="$1"
+                        logit -t "${log_process}" "interface set to $1"
+                    else
+                        new_domain_name=$1
+                    fi
                     shift
                 ;;
             esac

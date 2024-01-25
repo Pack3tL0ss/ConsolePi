@@ -11,8 +11,8 @@ import yaml
 import json
 from jinja2 import Environment, FileSystemLoader
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
-from consolepi import utils, config  # type: ignore
-from consolepi.local import Local  # type: ignore
+from consolepi import utils, config  # type: ignore # NoQA
+from consolepi.local import Local  # type: ignore # NoQA
 parser_dir = config.static.get('PARSER_DIR', '/etc/ConsolePi/ztp/custom-parsers')
 sys.path.insert(1, parser_dir)
 
@@ -23,7 +23,7 @@ except ImportError:
     custom_parsers = False
 
 local = Local()
-ztp_iface = 'eth0'
+ztp_iface = 'eth0'  # TODO dynamically determine wired interface for non rpi
 ztp_lease_time = config.ovrd.get('ztp_lease_time', '2m')
 ztp_dir = config.static.get('ZTP_DIR', '/etc/ConsolePi/ztp')  # j2 tamplates and var files
 ztp_main_conf = "/etc/ConsolePi/dnsmasq.d/wired-dhcp/ztp.conf"

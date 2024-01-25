@@ -249,7 +249,7 @@ collect() {
         echo -e "\nWith the Auto HotSpot Feature Enabled ConsolePi will do the following on boot:"
         echo "  - Scan for configured SSIDs and attempt to connect as a client."
         echo -e "  - If no configured SSIDs are found, it will Fallback to HotSpot Mode and act as an AP.\n"
-        prompt="Enable Automatic Fallback to HotSpot on wlan0"
+        prompt="Enable Automatic Fallback to HotSpot on $wlan_iface"
         # [[ -z "$hotspot" ]] && hotspot=true
         hotspot=${hotspot:-true}
         user_input $hotspot "${prompt}"
@@ -288,7 +288,7 @@ collect() {
     # -- Enable DHCP on eth interface --
     if ! $selected_prompts || [ -z "$wired_ip" ]; then
         header
-        echo -e "\nWith the ${_green}Wired fallback to DHCP Server${_norm} Feature Enabled ConsolePi will do the following when the wired interface is connected (eth0):"
+        echo -e "\nWith the ${_green}Wired fallback to DHCP Server${_norm} Feature Enabled ConsolePi will do the following when the wired interface is connected ($wired_iface):"
         echo -e "  - Use native dhcpcd mechanism to fallback to Static IP if no address is recieved from a DHCP Server"
         echo -e "  - Start a DHCP Server on the wired interface (ConsolePi will act as a DHCP server for other clients on the network)"
         echo -e "  - If WLAN is connected and has internet access, wired traffic will NAT out the wlan interface.\n"
@@ -301,12 +301,12 @@ collect() {
         echo -e "  * The current behavior is once it has fallen back, and the DHCP Server is started, it stays that way until reboot"
         echo -e "    or you disable it manually ${_cyan}sudo systemctl stop consolepi-wired-dhcp${_norm}\n"
         # echo -e "  - If an openvpn tunnel is established, The Tunnel network will be shared with wired clients."
-        prompt="Do you want to run DHCP Server on eth0 (Fallback if no address as client)"
+        prompt="Do you want to run DHCP Server on $wired_iface (Fallback if no address as client)"
         wired_dhcp=${wired_dhcp:-false}
         user_input $wired_dhcp "${prompt}"
         wired_dhcp=$result
         if $wired_dhcp; then
-            prompt="What IP do you want to assign to eth0"
+            prompt="What IP do you want to assign to $wired_iface"
             user_input ${wired_ip:-"10.12.0.1"} "${prompt}"
             wired_ip=$result
             wired_dhcp_range
@@ -396,7 +396,7 @@ verify() {
         dots "Local Lab Domain" "$local_domain"
     fi
 
-    dots "Enable Automatic HotSpot (wlan0)" "$hotspot"
+    dots "Enable Automatic HotSpot ($wired_iface)" "$hotspot"
     if $hotspot ; then
         dots "ConsolePi Hot Spot IP" "$wlan_ip"
         dots " *hotspot DHCP Range" "${wlan_dhcp_start} to ${wlan_dhcp_end}"
@@ -425,6 +425,7 @@ verify() {
 config_main() {
     get_static
     get_config
+    get_interfaces # provides $wired_iface and $wlan_iface in global scope
     if ! $silent; then
         ! $bypass_verify && verify
         while ! $input; do

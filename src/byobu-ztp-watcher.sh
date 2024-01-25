@@ -21,6 +21,8 @@ check_reqs(){
     fi
 }
 
+get_interfaces  # from common provies wired_iface and wlan_iface
+
 check_reqs
 # set up tmux
 # tmux start-server
@@ -35,7 +37,7 @@ byobu splitw -v -p 75
 
 # select pane 2, tcpdump
 # byobu selectp -t 2
-byobu send-keys "sudo tcpdump -vnes0 -i eth0 port 67 or port 68 or tftp" C-m
+byobu send-keys "sudo tcpdump -vnes0 -i $wired_iface port 67 or port 68 or tftp" C-m
 
 # Select pane 1
 byobu selectp -t 0

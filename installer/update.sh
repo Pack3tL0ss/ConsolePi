@@ -589,8 +589,11 @@ disable_autohotspot_old() {
 install_hotspot_nm() {
     process="Auto Hotspot"
     logit "Install/Update Auto HotSpot"
-    hash uuid 2>/dev/null && local uuid=$(uuid)
-    local uuid=${uuid:-5ad644a6-b80e-11ee-952a-bf1313596c84}
+    local uuid=$(nmcli -g connection.uuid con show hotspot 2>/dev/null)
+    if [ -z "$uuid" ]; then
+        hash uuid 2>/dev/null && local uuid=$(uuid)
+        local uuid=${uuid:-5ad644a6-b80e-11ee-952a-bf1313596c84}
+    fi
     local hotspot_con_file=/etc/NetworkManager/system-connections/hotspot.nmconnection
 
     convert_template hotspot.nmconnection "$hotspot_con_file" uuid=${uuid} wlan_iface=${wlan_iface:-wlan0} \
@@ -696,8 +699,11 @@ do_wired_dhcp_nm() {
     if ! $dhcp_con_exists; then
         local _msg="Install/Update dhcp profile"
         logit "$_msg"
-        hash uuid 2>/dev/null && local uuid=$(uuid)
-        local uuid=${uuid:-17afb1e2-ba86-11ee-96a0-cf199142a9f5}
+        local uuid=$(nmcli -g connection.uuid con show dhcp 2>/dev/null)
+        if [ -z "$uuid" ]; then
+            hash uuid 2>/dev/null && local uuid=$(uuid)
+            local uuid=${uuid:-17afb1e2-ba86-11ee-96a0-cf199142a9f5}
+        fi
         local file=dhcp.nmconnection
         local dest="/etc/NetworkManager/system-connections/$file"
         [ -f /etc/sysctl.d/99-noipv6.conf ] && wired_v6_method=disabled || wired_v6_method=auto
@@ -718,8 +724,11 @@ do_wired_dhcp_nm() {
     # deploy static fallback connection profile for Wired DHCP (server) for ZTP
     local _msg="Install/Update static profile"
     logit "$_msg"
-    hash uuid 2>/dev/null && local uuid=$(uuid)
-    local uuid=${uuid:-6292dec6-b9b1-11ee-a979-e7aa8dbd16e6}
+    local uuid=$(nmcli -g connection.uuid con show static 2>/dev/null)
+    if [ -z "$uuid" ]; then
+        hash uuid 2>/dev/null && local uuid=$(uuid)
+        local uuid=${uuid:-6292dec6-b9b1-11ee-a979-e7aa8dbd16e6}
+    fi
     local file=static.nmconnection
     local dest="/etc/NetworkManager/system-connections/$file"
 

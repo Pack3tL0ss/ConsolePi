@@ -587,7 +587,7 @@ disable_autohotspot_old() {
 }
 
 install_hotspot_nm() {
-    process="Auto Hotspot"
+    process="Auto Hotspot NM"
     logit "Install/Update Auto HotSpot"
     local uuid=$(nmcli -g connection.uuid con show hotspot 2>/dev/null)
     if [ -z "$uuid" ]; then

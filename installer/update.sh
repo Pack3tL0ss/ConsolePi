@@ -648,7 +648,7 @@ do_wired_dhcp() {
 }
 
 do_wired_dhcp_nm() {
-    proces="wired-dhcp NM"
+    process="wired-dhcp NM"
     logit "Install/Update Wired static fallback with DHCP"
 
     # -- Check for existing DHCP (client) NetworkManager connection profiles on the wired interface --
@@ -692,7 +692,7 @@ do_wired_dhcp_nm() {
     done
 
     # Deploy wired DHCP (client) connection profile if one doesn't already exist
-    process="Wired Static Fallback with DHCP (ZTP)"
+    # process="Wired Static Fallback with DHCP (ZTP)"
     if ! $dhcp_con_exists; then
         local _msg="Install/Update dhcp profile"
         logit "$_msg"

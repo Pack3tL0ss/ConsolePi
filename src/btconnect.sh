@@ -1,40 +1,103 @@
 #!/usr/bin/env bash
 
-source /etc/ConsolePi/installer/common.sh
-device=$1
-[ $(echo ${1} | tr -cd : | wc -c) -eq 5 ] && is_mac=true || is_mac=false
+[ -f /etc/ConsolePi/installer/common.sh ] && source /etc/ConsolePi/installer/common.sh || (
+    echo "Error: Failed to import common functions" ; exit 1
+)
 
-if ! $is_mac; then
-    device=$(echo devices | sudo bluetoothctl | grep -i "^Device.*${device}$" | awk '{print $2}')
-fi
+_help() {
+    local pad=$(printf "%0.1s" " "{1..40})
+    printf " %s%*.*s%s.\n" "$1" 0 $((40-${#1})) "$pad" "$2"
+}
 
-##echo $device
-#echo -e "sdptool add --channel=1 SP\nrfcomm connect /dev/rfcomm0 ${device} 1" > /tmp/consolepi-btclient
-
-if [ ! -z "$device" ]; then
-    sudo sdptool add --channel=1 SP
-    echo -e ${_cyan}initiating connection...${_norm}
-    sudo -b rfcomm connect /dev/rfcomm0 ${device} >/tmp/btclient 2>&1 ;
-
-    printf "waiting for connection" # && sleep 5
-    out=$(cat /tmp/btclient)
-
-    i=0;while [ -z "$out" ]; do
-        ((i+=1))
-        sleep 1
-        out=$(cat /tmp/btclient)
-        printf '.'
-        [ $i -ge 20 ] && echo -e "\ntimeout" && break
-    done
+show_usage() {
+    ## !! common is not imported here can't use common funcs
+    _green='\e[32;1m' # bold green
+    _cyan='\e[96m'
+    _norm='\e[0m'
+    echo -e "\n${_green}USAGE:${_norm} consolepi-btconnect [OPTIONS] [DEVICE]\n"
+    echo -e "${_cyan}Available Options${_norm}"
+    _help "-h|--help" "Display this help text"
+    _help "-l|--list" "List all discovered bluetooth devices.  Do not connect"
+    echo -e "\Provide the bt device to connect to or ${_cyan}--list${_norm} to list all discovered devices"
+    echo -e "${_cyan}consolepi-btconnect <BT dev name or MAC>${_norm} -or- ${_cyan}consolepi-btconnect --list${_norm}"
     echo
+}
 
-    if [[ ! "$out" =~ "t connect" ]]; then
-        su $iam -c "picocom /dev/rfcomm0 -b 115200 2>/dev/null"
-    else
-        echo $out
+process_args() {
+    list_only=false
+    while (( "$#" )); do
+        # echo "$1" # -- DEBUG --
+        case "$1" in
+            -l|-*list|list)
+                list_all=true
+                shift
+                ;;
+            -h|-*help)
+                show_usage $2
+                exit 0
+                ;;
+            -*|--*) # unsupported flags
+                echo "Error: Unsupported flag passed to process_args $1" >&2
+                exit 1
+                ;;
+            *)
+                device=$1
+                shift
+                ;;
+        esac
+    done
+}
+
+get_bt_mac(){
+    # check if user provided BT MAC or a name
+    [ $(echo ${1} | tr -cd : | wc -c) -eq 5 ] && is_mac=true || is_mac=false
+
+    # If the provided name look up the MAC in the bluetoothctl device list
+    if ! $is_mac; then
+        device=$(echo devices | sudo bluetoothctl | grep -i "^Device.*${device}$" | awk '{print $2}')
     fi
-else
-    echo "$1 not found"
-fi
+}
 
-rm -f /tmp/btclient
+connect(){
+    # Connect to device and launch picocom
+    if [ -n "$device" ]; then
+        sudo sdptool add --channel=1 SP
+        echo -e ${_cyan}initiating connection...${_norm}
+        sudo -b rfcomm connect /dev/rfcomm0 ${device} >/tmp/btclient 2>&1 ;
+
+        printf "waiting for connection" # && sleep 5
+        out=$(cat /tmp/btclient)
+
+        i=0;while [ -z "$out" ]; do
+            ((i+=1))
+            sleep 1
+            out=$(cat /tmp/btclient)
+            printf '.'
+            [ $i -ge 20 ] && echo -e "\ntimeout" && break
+        done
+        echo
+
+        if [[ ! "$out" =~ "t connect" ]]; then
+            su $iam -c "picocom /dev/rfcomm0 -b 115200 2>/dev/null"
+        else
+            echo $out
+        fi
+    else
+        echo "$1 not found"
+    fi
+}
+
+main(){
+    process_args "$@"
+    if ! $list_all && ! $device; then
+        show_usage
+        exit 1
+    else
+        get_bt_mac  # updates $device if necessary
+        main
+        rm -f /tmp/btclient
+    fi
+}
+
+# __main__
+main "$@"

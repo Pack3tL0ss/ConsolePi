@@ -104,6 +104,11 @@ header() {
     fi
 }
 
+dump_vars() {
+    # debug tool. Dump all variables in the environment
+    logit "dump vars called.  dumping variables from the environment"
+    ( set -o posix; set ) | grep --color=auto -v "_xspecs\|LS_COLORS\|^PS.*" >> $log_file
+}
 
 menu_print() {
     # -- send array of strings to function and it will print a formatted menu
@@ -247,6 +252,7 @@ logit() {
         echo -e "\n${_red}---- Error Detail ----${_norm}"
         grep -A 999 "${log_start}" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "ERROR" -B 10 | grep -v "INFO"
         echo '--'
+        $DEBUG && dump_vars  # set @ top when needed
         exit 1
     fi
 }
@@ -846,7 +852,7 @@ process_cmds() {
             else
                 local cmd_failed=true
                 if $do_apt_install ; then
-                    local x=1; while [[ $(tail -2 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
+                    local x=1; while [[ $(tail -2 "$log_file" | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
                         logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
                         sleep 5
                         logit "Starting ${pmsg/Success - /} ~ retry $x"

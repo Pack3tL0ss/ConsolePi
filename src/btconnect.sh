@@ -89,13 +89,15 @@ connect(){
 
 main(){
     process_args "$@"
-    if ! $list_all && ! $device; then
-        show_usage
-        exit 1
-    else
+    if $list_all; then
+        echo devices | sudo bluetoothctl | tail -n +2
+    elif $device; then
         get_bt_mac  # updates $device if necessary
         main
         rm -f /tmp/btclient
+    else
+        show_usage
+        exit 1
     fi
 }
 

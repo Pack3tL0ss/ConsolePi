@@ -42,6 +42,7 @@ def main():
         if len(remote_consoles) > 0:
             remotes.update_local_cloud_file(remote_consoles)
 
-
+# TODO cmd line args when called from Network Dispatcher to bypass remotes (when updating on VPN down)
+# Also can probably always bypass outlets
 if __name__ == "__main__":
     main()

@@ -484,6 +484,8 @@ install_ovpn_old() {
     unset process
 }
 
+# TODO add additonal cmdline flag --ovpn (assumed false if flag not provided and silent mode, prompted if autovpn_enabled)
+# TODO add documentation consolepi-autovpn id.
 install_ovpn_nm() {
     process="OpenVPN"
     if ! dpkg -l | grep -q "^ii\s*network-manager-openvpn"; then

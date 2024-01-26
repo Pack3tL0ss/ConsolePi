@@ -90,7 +90,25 @@ if [ ! -f $yaml_config ]; then
     exit 1
 elif [ -f "$config_builder" ] && . <($config_builder | grep -v remote_timeout) ; then
     # Disable OpenVPN if ovpn config is not found
-    $ovpn_enable && [ ! -f "${ovpn_config}" ] && ovpn_enable=false && logit -L -t "${log_process}-ovpn"  "OpenVPN is enabled but ConsolePi.ovpn not found - disabling" "ERROR"
+    if ${ovpn_enable:-false}; then
+        local vpn_cons=()
+        # for loop vs grep straight to array to allow "" ... accomodate ids with spaces.
+        for row in $(nmcli -t con show | grep ":vpn:"); do vpn_cons+=("${row//:*}"); done
+        if [ "${#vpn_cons[@]}" -eq 0 ]; then
+            ovpn_enable=false && logit -L "OpenVPN is enabled but no VPN connection profile exists - disabling" "ERROR"
+            logit "This is a test log to check that ERROR overide is working."
+        elif [ "${#vpn_cons[@]}" -gt 1 ]; then
+            for con in consolepi-autovpn consolepi autovpn; do
+                nmcli con show "$con" >/dev/null 2>&1 && vpn_nmid="$con" && break
+            done
+
+            if [ -z "$vpn_nmid" ]; the
+                 ovpn_enable=false
+                 logit -L "AutoVPN is enabled but multiple VPN profiles exist, none with the id consolepi-autovpn - disabling" "ERROR"
+            fi
+        else
+            vpn_nmid="${vpn_cons[0]}"
+        fi
 else
     # Log and exit if config not found
     logit -L -t "${log_process}" "Unable to find or Parse Configuration... disabling hooks" "ERROR"  # logit overrides exit 1 default when called from hook file
@@ -327,12 +345,11 @@ check_vpn_up() {
 connect_vpn() {
     $debug && logit -L -t "${log_process}" "Enter connect_vpn Function" "DEBUG"
     logit -L -t "${log_process}-ovpn"  "Starting OpenVPN client connection."
-    vpn_profile="$(nmcli -t con show | grep ":vpn" | cut -d: -f1)"
-    if nmcli con show --active | grep -q "$vpn_profile"; then
-        logit -L -t "${log_process}" "connect_vpn called, but VPN $vpn_profile is UP" "WARNING"
+    if nmcli con show --active | grep -q "$vpn_nmid"; then
+        logit -L -t "${log_process}" "connect_vpn called, but VPN $vpn_nmid is UP" "WARNING"
         return 0
     else
-        nmcli con up "$vpn_profile" >>$log_file 2>&1
+        nmcli con up "$vpn_nmid" >>$log_file 2>&1
         return $?
     fi
 }
@@ -342,13 +359,14 @@ check_vpn() {
     $debug && logit -L -t "${log_process}" "Enter check_vpn Function ${local_domain}" "DEBUG"
     # >> abort if ConsolePi connected to home environment <<
     if ! $remote; then
-        logit -L -t "${log_process}-ovpn"  "Not starting VPN - device connected to home lab"
+        logit -L -t "${log_process}-ovpn"  "Not starting VPN - device is connected to home network"
         return 0
     elif ! is_network_connected; then
         logit -L -t puship-ovpn "OpenVPN start Bypassed due to failed network connectivity from ${interface}." "WARNING"
         return 0
     elif check_vpn_up; then
-        logit -L -t "${log_process}-ovpn"  "OpenVPN start initiated but vpn is up (${interfaces[tun0]}).  Doing nothing"
+        local vpn_ip="$(nmcli -g IP4.ADDRESS dev show tun0)"; local vpn_ip="${vpn_ip///*}"
+        logit -L -t "${log_process}-ovpn"  "OpenVPN start triggered but vpn is up (${vpn_ip}).  Doing nothing"
     else
         connect_vpn
     fi

@@ -91,10 +91,12 @@ main(){
     process_args "$@"
     if $list_all; then
         echo devices | sudo bluetoothctl | tail -n +2
+        unset list_all
     elif $device; then
         get_bt_mac  # updates $device if necessary
         main
         rm -f /tmp/btclient
+        unset device
     else
         show_usage
         exit 1

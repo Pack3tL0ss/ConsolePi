@@ -18,13 +18,13 @@ show_usage() {
     echo -e "${_cyan}Available Options${_norm}"
     _help "-h|--help" "Display this help text"
     _help "-l|--list" "List all discovered bluetooth devices.  Do not connect"
-    echo -e "\Provide the bt device to connect to or ${_cyan}--list${_norm} to list all discovered devices"
+    echo -e "\nProvide the bt device to connect to or ${_cyan}--list${_norm} to list all discovered devices"
     echo -e "${_cyan}consolepi-btconnect <BT dev name or MAC>${_norm} -or- ${_cyan}consolepi-btconnect --list${_norm}"
     echo
 }
 
 process_args() {
-    list_only=false
+    list_all=false
     while (( "$#" )); do
         # echo "$1" # -- DEBUG --
         case "$1" in
@@ -41,7 +41,7 @@ process_args() {
                 exit 1
                 ;;
             *)
-                device=$1
+                device_in=$1
                 shift
                 ;;
         esac
@@ -50,53 +50,59 @@ process_args() {
 
 get_bt_mac(){
     # check if user provided BT MAC or a name
-    [ $(echo ${1} | tr -cd : | wc -c) -eq 5 ] && is_mac=true || is_mac=false
+    [ $(echo ${device_in} | tr -cd : | wc -c) -eq 5 ] && local is_mac=true || local is_mac=false
 
     # If the provided name look up the MAC in the bluetoothctl device list
     if ! $is_mac; then
-        device=$(echo devices | sudo bluetoothctl | grep -i "^Device.*${device}$" | awk '{print $2}')
+        device=$(echo devices | sudo bluetoothctl | grep -i "^Device.*${device_in}$" | awk '{printf $2}')
+    else
+        device="$device_in"
     fi
+
+    [ -n "$device" ] && return 0 || return 1
 }
 
 connect(){
     # Connect to device and launch picocom
-    if [ -n "$device" ]; then
-        sudo sdptool add --channel=1 SP
-        echo -e ${_cyan}initiating connection...${_norm}
-        sudo -b rfcomm connect /dev/rfcomm0 ${device} >/tmp/btclient 2>&1 ;
+    sudo sdptool add --channel=1 SP
+    echo -e ${_cyan}initiating connection...${_norm}
+    sudo -b rfcomm connect /dev/rfcomm0 ${device} >/tmp/btclient 2>&1 ;
 
-        printf "waiting for connection" # && sleep 5
+    printf "waiting for connection" # && sleep 5
+    out=$(cat /tmp/btclient)
+
+    i=0;while [ -z "$out" ]; do
+        ((i+=1))
+        sleep 1
         out=$(cat /tmp/btclient)
+        printf '.'
+        [ $i -ge 20 ] && echo -e "\ntimeout" && break
+    done
+    echo
 
-        i=0;while [ -z "$out" ]; do
-            ((i+=1))
-            sleep 1
-            out=$(cat /tmp/btclient)
-            printf '.'
-            [ $i -ge 20 ] && echo -e "\ntimeout" && break
-        done
-        echo
-
-        if [[ ! "$out" =~ "t connect" ]]; then
-            su $iam -c "picocom /dev/rfcomm0 -b 115200 2>/dev/null"
-        else
-            echo $out
-        fi
+    if [[ ! "$out" =~ "t connect" ]]; then
+        su $iam -c "picocom /dev/rfcomm0 -b 115200 2>/dev/null"
     else
-        echo "$1 not found"
+        echo $out
     fi
+
+    rm -f /tmp/btclient
 }
 
 main(){
     process_args "$@"
     if $list_all; then
-        echo devices | sudo bluetoothctl | tail -n +2
-        unset list_all
-    elif $device; then
-        get_bt_mac  # updates $device if necessary
-        main
-        rm -f /tmp/btclient
-        unset device
+        echo devices | sudo bluetoothctl | grep Device --color=never
+    elif [ -n "$device_in" ]; then
+        if get_bt_mac; then
+            echo "Connecting to BT device @ $device"
+            connect
+        else
+            echo -e "$device_in not found\n"
+            echo "Found Devices:"
+            echo devices | sudo bluetoothctl | grep Device --color=never
+            exit 1
+        fi
     else
         show_usage
         exit 1

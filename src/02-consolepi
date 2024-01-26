@@ -94,6 +94,7 @@ elif [ -f "$config_builder" ] && . <($config_builder | grep -v remote_timeout) ;
         local vpn_cons=()
         # for loop vs grep straight to array to allow "" ... accomodate ids with spaces.
         for row in $(nmcli -t con show | grep ":vpn:"); do vpn_cons+=("${row//:*}"); done
+
         if [ "${#vpn_cons[@]}" -eq 0 ]; then
             ovpn_enable=false && logit -L "OpenVPN is enabled but no VPN connection profile exists - disabling" "ERROR"
             logit "This is a test log to check that ERROR overide is working."
@@ -102,7 +103,7 @@ elif [ -f "$config_builder" ] && . <($config_builder | grep -v remote_timeout) ;
                 nmcli con show "$con" >/dev/null 2>&1 && vpn_nmid="$con" && break
             done
 
-            if [ -z "$vpn_nmid" ]; the
+            if [ -z "$vpn_nmid" ]; then
                  ovpn_enable=false
                  logit -L "AutoVPN is enabled but multiple VPN profiles exist, none with the id consolepi-autovpn - disabling" "ERROR"
             fi

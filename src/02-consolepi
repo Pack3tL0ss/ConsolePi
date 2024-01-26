@@ -110,6 +110,7 @@ elif [ -f "$config_builder" ] && . <($config_builder | grep -v remote_timeout) ;
         else
             vpn_nmid="${vpn_cons[0]}"
         fi
+    fi
 else
     # Log and exit if config not found
     logit -L -t "${log_process}" "Unable to find or Parse Configuration... disabling hooks" "ERROR"  # logit overrides exit 1 default when called from hook file

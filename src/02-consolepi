@@ -91,7 +91,7 @@ if [ ! -f $yaml_config ]; then
 elif [ -f "$config_builder" ] && . <($config_builder | grep -v remote_timeout) ; then
     # Disable OpenVPN if ovpn config is not found
     if ${ovpn_enable:-false}; then
-        local vpn_cons=()
+        vpn_cons=()
         # for loop vs grep straight to array to allow "" ... accomodate ids with spaces.
         for row in $(nmcli -t con show | grep ":vpn:"); do vpn_cons+=("${row//:*}"); done
 

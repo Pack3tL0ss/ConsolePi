@@ -3,32 +3,33 @@
 #
 # This script enabels most of the ConsolePi Network based automations
 #
-# System File @ /etc/NetworkManager/dispatcher.d/02-consolepi symlinks to this file (makes updates via repo easier)
 #   File is triggered by NetworkManager anytime an interface changes state.
 #   It triggers (based on settings in ConsolePi.yaml):
-#     - PushBullet Notifications
-#     - Updates details to Cloud
-#     - Establishes OpenVPN connection
-#     - Enables wired-dhcp, configures forwarding/nat out wlan if wlan connected / internet reachable
-#     - Enables hotspot DHCP (fallback to hotspot is handled by NetworkManager autoconnect / autoconnect-priority)
+#     1. PushBullet Notifications
+#     2. Updates details to Cloud
+#     3. Establishes OpenVPN connection
+#     4. Enables wired-dhcp, configures forwarding/nat out wlan if wlan connected / internet reachable
+#     5. Enables hotspot DHCP (fallback to hotspot is handled by NetworkManager autoconnect / autoconnect-priority)
+#     (Internet reachability is verified prior to performing 1-3)
 #
 # >> TEST Mode Usage <<
 # Use consolepi-pbtest command to run in test mode or call directly with "test" as first arg
-#   consolepi-pbtest [OPTIONS]
+#   consolepi-pbtest [OPTIONS]  (Use --help to see current options)
 #
 # Options:
 #   static: test eth0 wired-dhcp flow (fallback to dhcp server if eth0 fails to get IP as client)
-#   eth0 | wlan0: run with this interface. ignored if static selected default: eth0
+#   eth0 | wlan0 | <interface name>: run with this interface. ignored if static selected default: eth0 (or wired interface name)
 #   any other arg: Set domain to this arg.
 #
 # Defaults:
 #   - enables debug by default if ran in test mode
-#   - simulates eth0 receiving a new IP from DHCP (override interface by passing wlan0 as arg)
+#   - simulates wired interface receiving a new IP from DHCP (override interface by passing a valid interface name as arg)
 #   - simulates a new random ip being assigned, to trigger a PB notification
 #
 # NM sends 2 arguments (also additional env vars are passed)
 # $1: interfasce
-# $2: event (up|down|vpn-up|vpn-down|dhcp4-change|connectivity-change|hostname)
+# $2: event (up|down|vpn-up|vpn-down|dhcp4-change|connectivity-change|hostname|...)
+# See NetworkManagedr documentation for more details
 
 # -- VARIABLES --
 log_process="NM-dispatcher:$1:$2:$CONNECTION_ID"
@@ -79,6 +80,7 @@ for e in "${ignored_events[@]}"; do
 done
 
 if [ "$2" = "dhcp4-change" ] && [ -z "$DHCP4_IP_ADDRESS"]; then
+    logit "ignoring $2 event on ${1:-nul} (No IP address with event)" "DEBUG"
     exit 0
 fi
 
@@ -94,16 +96,6 @@ else
     logit -L -t "${log_process}" "Unable to find or Parse Configuration... disabling hooks" "ERROR"  # logit overrides exit 1 default when called from hook file
     exit 1
 fi
-
-# TODO determine wired / wlan from connection files
-# if user enables any of the net automations during install (incl cloud) we'll build ConsolePi standard connection files
-# at that time we'll need to determine if there is only 1 wired or 1 wlan adapter, if there are more than one prompt the user (during install) with default value
-# being eth0 if exists otherwise the first one in the array.  Then write those values to the config file so they are available to any processes that need them.
-#
-# Otherwise we'll move the 2 blocks below to common.sh as funcs and run during the install if not able to determine automatically, writing value to config.
-# We will use ConsolePi standard dhcp.nmconnection / static.nmconnection files if they don't have any wired con files, or if they enable wired_dhcp
-# If there is a wlan interface we will populate hotspot.nmconnection, but will only enable auto-connect if hotspot is enabled.
-#
 
 # >> Determine if script called from shell for testing <<
 check_test_mode() {
@@ -444,7 +436,7 @@ start_wired_dhcp() {
 stop_wired_dhcp() {
     if wired_dhcp_active; then
         /usr/bin/pkill -F /run/dnsmasq.$wired_iface.pid; rc=$?
-            [ "$rc" -gt 0 ] && logit "wired DHCP teardown returned non-zero return code: $rc" "WARNING"
+        [ "$rc" -gt 0 ] && logit "wired DHCP teardown returned non-zero return code: $rc" "WARNING"
         return $rc
     else
         logit "Wired DHCP was not running."
@@ -495,7 +487,7 @@ start_hotspot_dhcp(){
 stop_hotspot_dhcp() {
     if hotspot_dhcp_active; then
         /usr/bin/pkill -F /run/dnsmasq.$wlan_iface.pid; rc=$?
-            [ "$rc" -gt 0 ] && logit "hotspot DHCP teardown returned non-zero return code: $rc" "WARNING"
+        [ "$rc" -gt 0 ] && logit "hotspot DHCP teardown returned non-zero return code: $rc" "WARNING"
         return $rc
     else
         logit "Hotspot DHCP was not running."
@@ -532,7 +524,7 @@ check_test_mode "${@}"
 nmcli | grep -q "\s*domains.*${local_domain}" && remote=false || remote=true
 $debug && local_domain=${local_domain:-"null_local_domain"}
 $debug && new_domain_msg=${new_domain_name:-"null_cur_domain"}
-$debug && logit -L -t "${log_process}" "i: ${interface:-"nul"} event: ${reason:-"nul"} c: ${CONNECTION_ID:-"nul"} ip: ${new_ip_address:-"nul"} ld: ${local_domain:-"nul"} nd: ${new_domain_msg:-"nul"} rem: ${remote:-"nul"}" "DEBUG"
+$debug && logit -L -t "${log_process//:*}" "i: ${interface:-"nul"} event: ${reason:-"nul"} c: ${CONNECTION_ID:-"nul"} ip: ${new_ip_address:-"nul"} ld: ${local_domain:-"nul"} nd: ${new_domain_msg:-"nul"} rem: ${remote:-"nul"}" "DEBUG"
 
 # When NetworkManager falls back to hotspot, spin up DHCP (NM managed DHCP and even dnsmasq run by NM does not expose many options)
 # So we set the hotspot IP to manual and spin up dnsmasq on the interface whenever hotspot is brought up.  Kill it when it's tore down.
@@ -631,99 +623,3 @@ case "$reason" in
         exit 0
         ;;
 esac
-
-# if [ "$interface" == "$wlan_iface" ]; then
-#     if [ "$CONNECTION_ID" == "hotspot" ]; then
-#         case "$2" in
-#             up)
-#                 logit "NM hotspot up starting hotspot DHCP"
-#                 run
-#                 start_hotspot_dhcp
-#                 ;;
-#             down)
-#                 logit "NM hotspot down stopping hotspot DHCP"
-#                 stop_hotspot_dhcp
-#                 ;;
-#                 *)
-#                 exit 0
-#                 ;;
-#         esac
-#     else
-#         if hotspot_dhcp_active; then
-#             logit "$wlan_iface is now connected to $CONNECTION_ID but hotspot DHCP appears to be running.  Attempting to kill" "WARNING"
-#             stop_hotspot_dhcp
-#         fi
-#         [ "$2" == "up" ] && run
-#     fi
-# elif [ "$interface" == "$wired_iface" ]; then
-#     if [ "$CONNECTION_ID" == "static" ]; then
-#         case "$reason" in
-#             up)
-#                 run
-
-#                 disable_ztp=${disable_ztp:-false}  # This is an override, default is false if not configured
-
-#                 if [ -z "$wired_dhcp" ]; then
-#                     logit "Unable to read in wired_dhcp value from ConsolePi.yaml, treating as disabled."
-#                     exit 0
-#                 elif ! $wired_dhcp; then
-#                     logit "Static fallback on wired is configured in NetworkManager, but wired_dhcp is not enabled... doing nothing."
-#                     logit "set autoconnect=false in /etc/NetworkManager/system-connections/static.nmconnection or run consolepi-upgrade to apply the config change"
-#                     exit 0
-#                 elif $disable_ztp; then
-#                     logit "Fallback to wired dhcp enabled in config, but ztp disabled via disable_ztp override, enabling DHCP without ZTP hooks"
-#                     if disable_ztp; then
-#                         start_wired_dhcp
-#                     else
-#                         logit "Attempt to disable ZTP hook script in wired dhcp config failed.  Not enabling DHCP" "WARNING"
-#                     fi
-#                 elif ! ( [ -d $wired_dhcp_dir ] && [ "$(ls -1 $wired_dhcp_dir 2>/dev/null | wc -l || echo 0)" -gt 0 ] ); then
-#                     logit "wired_dhcp enabled in $yaml_config.  However there are no wired-dhcp configuration files in $wired_dhcp_dir doing nothing"
-#                     exit 1
-#                 else
-#                     logit "wired_dhcp enabled in $yaml_config. ZTP not overriden starting DHCP with ZTP hooks"
-#                     enable_ztp
-#                     start_wired_dhcp
-#                 fi
-#                 ;;
-#             down)
-#                 logit "NM static $1 down stopping $1 DHCP"
-#                 stop_wired_dhcp
-#                 ;;
-#             *)
-#                 exit 0
-#                 ;;
-#         esac
-#     else
-#         $debug && logit -L -t "${log_process}" "Start New Lease flow" "DEBUG"
-#         run
-#         if wired_dhcp_active; then
-#             logit "$wired_iface is now connected to $CONNECTION_ID but fallback static DHCP appears to be running.  Attempting to kill" "WARNING"
-#             stop_wired_dhcp
-#         fi
-#         $debug && logit -L -t "${log_process}" "Reached end of New Lease flow" "DEBUG"
-#         exit 0
-#     fi
-# else
-#     case "$reason" in
-#         vpn-up)
-#             if is_new_ip; then
-#                 if $push; then
-#                     build_msg "OVPN" && send_pb_msg
-#                 fi
-#                 $cloud && update_cloud
-#             fi
-#             $debug && logit -L -t "${log_process}" "Reached end of vpn-up flow" "DEBUG"
-#             exit 0
-#             ;;
-#         vpn-down)
-#             # TODO check this previously we didn't update cloud on connection down event.
-#             is_network_connected && $cloud && update_cloud
-#             $debug && logit -L -t "${log_process}" "Reached end of vpn-down flow" "DEBUG"
-#             exit 0
-#             ;;
-#         *)
-#             exit 0
-#             ;;
-#     esac
-# fi

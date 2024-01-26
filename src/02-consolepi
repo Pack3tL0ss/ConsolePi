@@ -59,29 +59,16 @@ if [ ! -f /etc/ConsolePi/installer/common.sh ]; then
     exit 1
 else
     source /etc/ConsolePi/installer/common.sh
+    # from common, placing before pulling config in case we add option to specify interface
+    get_interfaces  # provides wired_iface and wlan_iface for hotspot/wired-dhcp (ztp)
 fi
 
 # needs to come after common import to override the install.log set in common.sh
 log_file="/var/log/ConsolePi/consolepi.log"
 
-# from common, placing before pulling config in case we add option to specify interface
-get_interfaces  # provides wired_iface and wlan_iface for hotspot/wired-dhcp (ztp)
-
-# >> Get Configuration from config file <<
-if [ ! -f $yaml_config ]; then
-    logit "Config ($yaml_config) not found... doing nothing."
-    exit 1
-elif [ -f "$config_builder" ] && . <($config_builder | grep -v remote_timeout) ; then
-    # Disable OpenVPN if ovpn config is not found
-    $ovpn_enable && [ ! -f "${ovpn_config}" ] && ovpn_enable=false && logit -L -t "${log_process}-ovpn"  "OpenVPN is enabled but ConsolePi.ovpn not found - disabling" "ERROR"
-else
-    # Log and exit if config not found
-    logit -L -t "${log_process}" "Unable to find or Parse Configuration... disabling hooks" "ERROR"  # logit overrides exit 1 default when called from hook file
-    exit 1
-fi
-
 debug=true  ## FIXME remove debug
 
+# >> Early exit for events/interfaces we are not interested in <<
 ignored_events=(pre-up pre-down vpn-pre-up vpn-pre-down hostname dhcp6-change connectivity-change reapply)
 # Events we ignore just exit
 for e in "${ignored_events[@]}"; do
@@ -95,6 +82,18 @@ if [ "$2" = "dhcp4-change" ] && [ -z "$DHCP4_IP_ADDRESS"]; then
     exit 0
 fi
 
+# >> Get Configuration from config file <<
+if [ ! -f $yaml_config ]; then
+    logit "Config ($yaml_config) not found... doing nothing."
+    exit 1
+elif [ -f "$config_builder" ] && . <($config_builder | grep -v remote_timeout) ; then
+    # Disable OpenVPN if ovpn config is not found
+    $ovpn_enable && [ ! -f "${ovpn_config}" ] && ovpn_enable=false && logit -L -t "${log_process}-ovpn"  "OpenVPN is enabled but ConsolePi.ovpn not found - disabling" "ERROR"
+else
+    # Log and exit if config not found
+    logit -L -t "${log_process}" "Unable to find or Parse Configuration... disabling hooks" "ERROR"  # logit overrides exit 1 default when called from hook file
+    exit 1
+fi
 
 # TODO determine wired / wlan from connection files
 # if user enables any of the net automations during install (incl cloud) we'll build ConsolePi standard connection files

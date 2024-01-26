@@ -212,7 +212,7 @@ do_users(){
 
         # Create additional Users (with appropriate rights for ConsolePi)
         process="Add Users"
-        if ! $silent; then
+        if ! $silent || ! $no_users; then
             # strip users from extra_groups as user will have that group automatically
             extra_groups=$( echo $extra_groups | sed 's/\(.*\) users\(.*\)/\1\2/' )
             sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups\"/" /tmp/adduser.conf
@@ -632,6 +632,7 @@ show_usage() {
         _help "-b|--branch" "Will pull from an alternate branch (default is master or dev when -D|--dev flag is used)"
         _help "--me" "Override the default user used for sftp/ssh/git to ConsolePi-dev, use current user."
         _help "-I|--install" "Run as if it's the initial install"
+        _help "--no-users" "Bypass prompt that asks if you want to create additional users (always bypassed w/ --silent)"
     fi
     _help "-P|--post" "~/consolepi-stage/consolepi-post.sh if found is executed after initial install.  Use this to run after upgrade."
     _help "--no-apt" "Skip the apt update/upgrade portion of the Upgrade.  Should not be used on initial installs."
@@ -683,6 +684,7 @@ process_args() {
     doapt=true
     do_reboot=false
     do_consolepi_post=false
+    no_users=false
     dev_user=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
     while (( "$#" )); do
         # echo "$1" # -- DEBUG --
@@ -709,6 +711,10 @@ process_args() {
                 ;;
             -*no-apt)
                 doapt=false
+                shift
+                ;;
+            -*no-users) # Don't log stderr anywhere default is to log_file
+                local no_users=true
                 shift
                 ;;
             -s|--silent)  # silent install

@@ -20,7 +20,7 @@ bt_pan=false # !!IGNORED!!  # --bt-pan) BlueTooth PAN mode is planned, but not i
 do_reboot=false             # -R|--reboot) reboot automatically after silent install (default: false)
 
 
-wlan_country=us             # -w|--wlan-country) wifi reg domain [Default: us]``
+wlan_country=us             # -w|--wlan-country) wifi reg domain [Default: us]
                             #   Ignored if already set, or if wpa_supplicant.conf is provided for import (with COUNTRY=xx)
 
 # The following are skipped during silent install if not provided

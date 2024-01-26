@@ -343,21 +343,25 @@ do_hook_nm() {
     process="Configure nm-dispather"
     local dispatch_src="/etc/ConsolePi/src/02-consolepi"
     local dispatch_dest="/etc/NetworkManager/dispatcher.d/02-consolepi"
-    file_diff_update $dispatch_src $dispatch_dest
-
-    # -- Must be executable, ownded by root on not writable by group or other --
-    if [ "$(stat $dispatch_dest -c %a 2>/dev/null)" -eq 755 ]; then
-        logit "dispatch script perms verified"
+    if [ -f $dispatch_dest ] && grep -q $dispatch_src $dispatch_dest; then
+        logit "dispatch script already exists, pointer verified"
     else
-        chmod 755 $dispatch_dest 2>>$log_file && logit "Success setting dispatch script perms" ||
-            logit "Error occured setting dispatch script permissions" "WARNING"
-    fi
+        echo '[ -x /etc/ConsolePi/src/02-consolepi ] && /etc/ConsolePi/src/02-consolepi "$@" || echo "ERROR: ConsolePi network dispatcher not found or not executable"' > $dispatch_dest
 
-    if [ "$(stat $dispatch_dest -c %u 2>/dev/null)" -eq 0 ]; then
-        logit "dispatch script ownership verified"
-    else
-        chown root:root $dispatch_dest 2>>$log_file && logit "Success set dispatch script ownership" ||
-            logit "Error occured setting dispatch script ownership" "WARNING"
+        # -- Must be executable, ownded by root on not writable by group or other --
+        if [ "$(stat $dispatch_dest -c %a 2>/dev/null)" -eq 755 ]; then
+            logit "dispatch script perms verified"
+        else
+            chmod 755 $dispatch_dest 2>>$log_file && logit "Success setting dispatch script perms" ||
+                logit "Error occured setting dispatch script permissions" "WARNING"
+        fi
+
+        if [ "$(stat $dispatch_dest -c %u 2>/dev/null)" -eq 0 ]; then
+            logit "dispatch script ownership verified"
+        else
+            chown root:root $dispatch_dest 2>>$log_file && logit "Success set dispatch script ownership" ||
+                logit "Error occured setting dispatch script ownership" "WARNING"
+        fi
     fi
 
     logit "${process} - Complete"

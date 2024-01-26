@@ -101,7 +101,7 @@ do_apt_deps() {
 
         # -- Ensure python3-pip is installed --
         [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
-            process_cmds -e --pf --apt-install "python3-pip"
+            process_cmds -e --apt-install "python3-pip"
 
         # if consolepi venv dir exists we assume virtualenv is installed
         if [ ! -d ${consolepi_dir}venv ]; then

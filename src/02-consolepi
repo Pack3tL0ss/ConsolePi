@@ -94,7 +94,6 @@ elif [ -f "$config_builder" ] && . <($config_builder | grep -v remote_timeout) ;
 
         if [ "${#vpn_cons[@]}" -eq 0 ]; then
             ovpn_enable=false && logit -L "Auto VPN is enabled but no VPN connection profile exists - disabling" "ERROR"
-            logit "This is a test log to check that ERROR overide is working."
         elif [ "${#vpn_cons[@]}" -gt 1 ]; then
             for con in consolepi-autovpn consolepi autovpn; do
                 nmcli con show "$con" >/dev/null 2>&1 && vpn_nmid="$con" && break

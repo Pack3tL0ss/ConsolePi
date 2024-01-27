@@ -188,9 +188,9 @@ logit() {
     # NOTE: Sending a status of "ERROR" results in the script exiting (unless called by network hook/dispatcher)
     #       default status is INFO if none provided.
     if [[ $(basename "$0" 2>/dev/null) == 'dhcpcd.exit-hook' ]] || [[ $(basename "$0" 2>/dev/null) == '02-consolepi' ]] then
-        stop_on_error=false
+        local stop_on_error=false
     else
-        stop_on_error=true
+        local stop_on_error=true
     fi
 
     local args=()
@@ -216,22 +216,22 @@ logit() {
     done
     set -- "${args[@]}"
 
-    log_only=${log_only:-false}
-    echo_only=${echo_only:-false}
+    local log_only=${log_only:-false}
+    local echo_only=${echo_only:-false}
 
     local process=${process:-"UNDEFINED"}
-    message="${1}"                                      # 1st arg = the log message
+    local message="${1}"                                      # 1st arg = the log message
 
-    [ -z "${2}" ] && status="INFO" || status=${2^^}     # 2nd Arg the log-lvl (to upper); Default: INFO
+    [ -z "${2}" ] && local status="INFO" || local status=${2^^}     # 2nd Arg the log-lvl (to upper); Default: INFO
     [[ "${status}" == "DEBUG" ]] && ! $debug && return 0  # ignore / return if a DEBUG message & debug=false
 
-    fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
+    local fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
     if [ "${status}" == "ERROR" ] || [ "${status}" == "CRITICAL" ]; then
-        $stop_on_error && fatal=true || ((warn_cnt+=1))
-        status="${_red}${status}${_norm}"
+        $stop_on_error && local fatal=true || ((warn_cnt+=1))
+        local status="${_red}${status}${_norm}"
     elif [[ "${status}" != "INFO" ]]; then
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
-        status="${_yellow}${status}${_norm}"
+        local status="${_yellow}${status}${_norm}"
     fi
 
     local log_msg="$(date +"%b %d %T") [$$][${status}][${process}] ${message}"

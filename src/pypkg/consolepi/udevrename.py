@@ -349,6 +349,7 @@ class Rename():
         log_ptr = ''
 
         cur_line = config.ser2net_conf.get(f'/dev/{from_name}', {}).get('line')
+        # TODO shouldn't  this include /dev/ttyAMA ??? the on-board ttl?
         if cur_line and '/dev/ttyUSB' not in cur_line and '/dev/ttyACM' not in cur_line and '/dev/ttySC' not in cur_line:
             new_entry = False
             if config.ser2net_file.suffix in [".yaml", ".yml"]:

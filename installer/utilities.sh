@@ -208,7 +208,7 @@ util_exec() {
                     cmd_list=()
                 else
                     cmd_list=(
-                        "-stop" "--apt-install" "pipx" \
+                        "-stop" "-apt-install" "pipx" \
                         "-s" "-u" "pipx ensurepath" \
                         "-s" "-u" "[ -d \"${home_dir}/.bash_completions\" ] || mkdir ${home_dir}/.bash_completions" \
                         "-nostart" "-pf" "Create bash completions file for pipx" "-u" "register-python-argcomplete pipx > ${home_dir}/.bash_completions/pipx.sh"

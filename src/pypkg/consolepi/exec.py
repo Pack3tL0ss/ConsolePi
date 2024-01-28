@@ -10,6 +10,11 @@ from halo import Halo
 
 from consolepi import utils, log, config
 
+# TODO byobu to menu launch new sessions in new tab by default figure out best way to provide split options i.e. 11 split h 14 create new-window and launch 11 on top 14 on bottom
+# Command to launch menu in byobu: byobu new-session -n menu consolepi-menu
+# command to launch new window
+# byobu new-window -n r1-6100-oobm "bash -c 'echo -e $pre_msg \n;stty size; ssh -t garagepi /etc/ConsolePi/src/remote_launcher.py picocom /dev/r1-6100-oobm-sw -b 115200'"
+# or byobu new-window -n name 'ssh -t garagepi /etc/ConsolePi/src/remote_launcher.py picocom /dev/r1-6100-oobm-sw -b 115200'
 
 class ConsolePiExec:
     def __init__(self, config, pwr, local, menu):

@@ -1065,7 +1065,7 @@ do_locale() {
                 fi
             fi
         else
-            logit "locale change utilizes raspi-config which was not found.  Skipping" "WARNING"
+            logit -t "locale/keyboard" "locale/keyboard change utilizes raspi-config which was not found.  Skipping"
         fi
     fi
 }
@@ -1291,6 +1291,9 @@ update_main() {
     install_ser2net
 
     if $uses_nm; then
+        # TODO add /etc/NetworkManager/conf.d/consolepi.conf with the following
+        # [connection]
+        # ipv4.dhcp-vendor-class-identifier=NM:ConsolePi
         if $hotspot || $wired_dhcp || $ovpn_enable; then
             get_interfaces  # provides wlan_iface and wired_iface in global profile
             do_hook_nm  # no real need to remove once deployed, it verifies config prior to taking any action
@@ -1309,7 +1312,6 @@ update_main() {
         fi
 
         $ovpn_enable && install_ovpn_nm
-
     elif [ "$(systemctl is-active dhcpcd.service)" == "active" ]; then
         if $hotspot || $wired_dhcp || $ovpn_enable; then
             do_hook_old

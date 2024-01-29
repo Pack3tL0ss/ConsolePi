@@ -187,7 +187,7 @@ logit() {
     #
     # NOTE: Sending a status of "ERROR" results in the script exiting (unless called by network hook/dispatcher)
     #       default status is INFO if none provided.
-    if [[ $(basename "$0" 2>/dev/null) == 'dhcpcd.exit-hook' ]] || [[ $(basename "$0" 2>/dev/null) == '02-consolepi' ]] then
+    if [[ $(basename "$0" 2>/dev/null) == 'dhcpcd.exit-hook' ]] || [[ $(basename "$0" 2>/dev/null) == '02-consolepi' ]]; then
         local stop_on_error=false
     else
         local stop_on_error=true

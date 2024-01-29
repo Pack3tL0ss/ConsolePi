@@ -76,7 +76,7 @@ for e in "${ignored_events[@]}"; do
     fi
 done
 
-if [ "$2" = "dhcp4-change" ] && [ -z "$DHCP4_IP_ADDRESS"]; then
+if [ "$2" = "dhcp4-change" ] && [ -z "$DHCP4_IP_ADDRESS" ]; then
     logit "ignoring $2 event on ${1:-nul} (No IP address with event)" "DEBUG"
     exit 0
 fi

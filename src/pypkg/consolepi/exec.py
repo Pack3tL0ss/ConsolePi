@@ -15,6 +15,10 @@ from consolepi import utils, log, config
 # command to launch new window
 # byobu new-window -n r1-6100-oobm "bash -c 'echo -e $pre_msg \n;stty size; ssh -t garagepi /etc/ConsolePi/src/remote_launcher.py picocom /dev/r1-6100-oobm-sw -b 115200'"
 # or byobu new-window -n name 'ssh -t garagepi /etc/ConsolePi/src/remote_launcher.py picocom /dev/r1-6100-oobm-sw -b 115200'
+# # temp byobu launch testing
+# menu_actions['by'] = {
+#     "cmd": "sudo -u wade byobu new-window -n r1-6100-oobm-sw 'sudo -u wade ssh -t garagepi /etc/ConsolePi/src/remote_launcher.py picocom /dev/r1-6100-oobm-sw -b 115200'",
+#     "pre_msg": "Connecting To r1-6100-oobm-sw on GaragePi..."
 
 class ConsolePiExec:
     def __init__(self, config, pwr, local, menu):

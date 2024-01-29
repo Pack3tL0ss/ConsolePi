@@ -308,8 +308,7 @@ get_current_ip() {
         this_ip=$(ip -br addr show dev $_interface | awk '{ print $3}' | cut -d/ -f1)
         [ ! -z "${this_ip}" ] && interfaces[$_interface]=$this_ip
     done
-    xgw=($(route -n | grep 'UG[ \t]' | awk '{print $2}'))
-    xgw="${xgw[0]}"
+    xgw="$(ip route | grep "^default" |  head -1 | awk '{printf $3}')"
 }
 
 is_network_connected() {

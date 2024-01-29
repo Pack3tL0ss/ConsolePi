@@ -1,6 +1,9 @@
-# Contributed by @ruipalma 
+# Contributed by @ruipalma
 # Adapts rfcomm (BlueTooth) service to connect directly to a connected adapter in raw mode
-# 
+#
+# If you customize rfcomm.service issue command "touch /etc/ConsolePi/overrides/rfcomm.service"
+# This instructs "consolepi-upgrade" to skip verification/leave that file untouched.
+#
 [Unit]
 Description=RFCOMM service
 After=bluetooth.service

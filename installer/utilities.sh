@@ -30,31 +30,40 @@ get_util_status () {
 
     # This checks for the collection under the current user consolepi user and global locations
     # ansible-galaxy collection list wouldn't work as script is ran as root and
-    col_dirs=$(cat /tmp/ansible_ver | grep "collection location" | cut -d= -f2 | tr -d ' ' | sed "s|/root|${home_dir}|")
-    [ "$iam" != "consolepi" ] && col_dirs=$col_dirs:$(cat /tmp/ansible_ver | grep "collection location" | cut -d= -f2 | cut -d: -f1 | tr -d ' ' | sed "s|/root|/home/consolepi|")
-    col_dirs=($(echo ${col_dirs//:/' '}))
+    # FIXME  these rely on /tmp/ansible_ver which may not be installed at this point.  Need collection installer to figure it out when it goes to install
+    if [ -f /tmp/ansible_ver ]; then
+        col_dirs=$(cat /tmp/ansible_ver | grep "collection location" | cut -d= -f2 | tr -d ' ' | sed "s|/root|${home_dir}|")
+        [ "$iam" != "consolepi" ] && col_dirs=$col_dirs:$(cat /tmp/ansible_ver | grep "collection location" | cut -d= -f2 | cut -d: -f1 | tr -d ' ' | sed "s|/root|/home/consolepi|")
+        col_dirs=($(echo ${col_dirs//:/' '}))
 
-    cx_mod_installed=false ; sw_mod_installed=false ; cen_mod_installed=false
-    for d in ${col_dirs[@]}; do
-        if [ -d $d/ansible_collections/arubanetworks ]; then
-             ! $cx_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aoscx && cx_mod_installed=true
-             ! $sw_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aos_switch && sw_mod_installed=true
-             ! $cen_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aruba_central && cen_mod_installed=true
+        cx_mod_installed=false ; sw_mod_installed=false ; cen_mod_installed=false
+        for d in ${col_dirs[@]}; do
+            if [ -d $d/ansible_collections/arubanetworks ]; then
+                ! $cx_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aoscx && cx_mod_installed=true
+                ! $sw_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aos_switch && sw_mod_installed=true
+                ! $cen_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aruba_central && cen_mod_installed=true
+            fi
+            $cx_mod_installed && $sw_mod_installed && $cen_mod_installed && break
+        done
+
+        i=0;for var in "$cx_mod_installed" "$sw_mod_installed" "$cen_mod_installed"; do
+            [ "$var" == true ] && ((i+=1))
+        done
+
+        if [ $i -eq 0 ]; then
+            unset a_mod_status
+        elif [ $i -gt 2 ]; then
+            a_mod_status="installed"
+        else
+            a_mod_status="partially installed"
         fi
-        $cx_mod_installed && $sw_mod_installed && $cen_mod_installed && break
-    done
-
-    i=0;for var in "$cx_mod_installed" "$sw_mod_installed" "$cen_mod_installed"; do
-        [ "$var" == true ] && ((i+=1))
-    done
-
-    if [ $i -eq 0 ]; then
-        unset a_mod_status
-    elif [ $i -gt 2 ]; then
-        a_mod_status="installed"
     else
-        a_mod_status="partially installed"
+        cx_mod_installed=false
+        sw_mod_installed=false
+        cen_mod_installed=false
+        a_mod_status=""
     fi
+
 
     UTIL_VER['aruba_ansible_collections']=$( echo $a_mod_status )
     PKG_EXPLAIN['aruba_ansible_collections']="Aruba Networks collections for ansible"
@@ -204,7 +213,7 @@ util_exec() {
             ;;
         ansible)
             if [[ $2 == "install" ]]; then
-                if hash pipx >/dev/null; then
+                if hash pipx 2>/dev/null; then
                     cmd_list=()
                 else
                     cmd_list=(

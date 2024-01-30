@@ -500,12 +500,13 @@ do_nm_conf() {
     convert_template 01-consolepi.conf "$conf_dest" ovpn_enable=${ovpn_enable}
 
     if [ ! "$(stat $conf_dest -c '%u%a')" -eq 0644 ]; then
+        logit "Updating perms for NM ConsolePi conf file"
         rc=0
         chown root:root $conf_dest >>$log_file 2>&1; ((rc+=$?))
         chmod 0644 $conf_dest >>$log_file 2>&1; ((rc+=$?))
         [ "$rc" -eq 0 ] && logit "Updated - Success" || logit "Error occured check logs" "WARNING"
     else
-        logit "ConsolePi NM conf already OK"
+        logit "ConsolePi NM permissions already OK"
     fi
 }
 

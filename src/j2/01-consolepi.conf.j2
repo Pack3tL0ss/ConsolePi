@@ -1,0 +1,8 @@
+# NetworkManager Configuration for ConsolePi
+{% if ovpn_enable %}
+[main]
+plugins=openvpn
+{% endif %}
+
+[connection]
+ipv4.dhcp-vendor-class-identifier=NM:ConsolePi

@@ -491,19 +491,22 @@ install_ovpn_nm() {
     if ! dpkg -l | grep -q "^ii\s*network-manager-openvpn"; then
         process_cmds -apt-install "network-manager-openvpn"
     fi
+    unset process
+}
 
-    process="verify NM openvn conf ownership/perms"
-    file_diff_update /etc/ConsolePi/src/openvpn.conf /etc/NetworkManager/conf.d/openvpn.conf
+do_nm_conf() {
+    process="Deploy ConsolePi NM conf"
+    local conf_dest="/etc/NetworkManager/conf.d/01-consolepi.conf"
+    convert_template 01-consolepi.conf "$conf_dest" ovpn_enable=${ovpn_enable}
 
-    if [ ! "$(stat /etc/NetworkManager/conf.d/openvpn.conf -c '%u%a')" -eq 0644 ]; then
+    if [ ! "$(stat $conf_dest -c '%u%a')" -eq 0644 ]; then
         rc=0
-        chown root:root /etc/NetworkManager/conf.d/openvpn.conf >>$log_file 2>&1; ((rc+=$?))
-        chmod 0644 /etc/NetworkManager/conf.d/openvpn.conf >>$log_file 2>&1; ((rc+=$?))
+        chown root:root $conf_dest >>$log_file 2>&1; ((rc+=$?))
+        chmod 0644 $conf_dest >>$log_file 2>&1; ((rc+=$?))
         [ "$rc" -eq 0 ] && logit "Updated - Success" || logit "Error occured check logs" "WARNING"
     else
-        logit "Verified OK"
+        logit "ConsolePi NM conf already OK"
     fi
-    unset process
 }
 
 install_autohotspot_old() {
@@ -583,10 +586,16 @@ disable_autohotspot_old() {
     if systemctl -q is-active autohotspot; then
         systemctl stop autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
     fi
-    # TODO remove except-interface=wlan0 or entire file from dnsmasq.d
+
     if systemctl -q is-enabled autohotspot; then
         systemctl disable autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
     fi
+
+    if grep -q "except-interface=$wlan_iface" /etc/dnsmasq.d/01-consolepi 2>/dev/null; then
+        sed -i "/except-interface=$wlan_iface/d" /etc/dnsmasq.d/01-consolepi 2>>$log_file ||
+            logit "sed returned an error removing except-interface=$wlan_iface from /etc/dnsmasq.d/01-consolepi" "WARNING"
+    fi
+
     [[ $rc -eq 0 ]] && logit "Success Auto HotSpot Service is Disabled" || logit "Error Disabling Auto HotSpot Service" "WARNING"
     unset process
 }
@@ -650,7 +659,7 @@ check_install_dnsmasq() {
 
 do_wired_dhcp() {
     process="wired-dhcp"
-    convert_template dnsmasq.eth0 /etc/ConsolePi/dnsmasq.d/wired-dhcp/wired-dhcp.conf dhcp_start="${wired_dhcp_start}" dhcp_end="${wired_dhcp_end}"
+    convert_template dnsmasq.eth0 /etc/ConsolePi/dnsmasq.d/wired-dhcp/wired-dhcp.conf dhcp_start="${wired_dhcp_start}" dhcp_end="${wired_dhcp_end}" wired_iface="${wired_iface}"
     # -- using file_diff_update vs systemd_diff_update as we don not want the service enabled.  It is activated by exit-hook/nm-dispatcher
     file_diff_update ${src_dir}systemd/consolepi-wired-dhcp.service /etc/systemd/system/consolepi-wired-dhcp.service
 }
@@ -767,28 +776,28 @@ disable_wired_dhcp_nm() {
 gen_dnsmasq_conf() {
     process="Configure dnsmasq"
     logit "Generating Files for dnsmasq."
-    # check if they are using old method where dnsmasq.conf was used to control dhcp on wlan0
+    # check if they are using old method where dnsmasq.conf was used to control dhcp on wlan interface
     if head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
-        convert_template dnsmasq.conf /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        convert_template dnsmasq.conf /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end} wlan_iface=${wlan_iface}
         ahs_unique_dnsmasq=false
     else
-        convert_template dnsmasq.wlan0 /etc/ConsolePi/dnsmasq.d/autohotspot/autohotspot wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        convert_template dnsmasq.wlan0 /etc/ConsolePi/dnsmasq.d/autohotspot/autohotspot wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end} wlan_iface=${wlan_iface}
         ahs_unique_dnsmasq=true
     fi
 
     if $ahs_unique_dnsmasq ; then
         if $hotspot && $wired_dhcp ; then
-            grep -q 'except-interface=wlan0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ; rc=$?
-            grep -q 'except-interface=eth0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ; ((rc+=$?))
+            grep -q "except-interface=$wlan_iface" /etc/dnsmasq.d/01-consolepi 2>/dev/null ; rc=$?
+            grep -q "except-interface=$wired_iface" /etc/dnsmasq.d/01-consolepi 2>/dev/null ; ((rc+=$?))
             if [[ $rc -gt 0 ]] ; then
-                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=wlan0{{cr}}except-interface=eth0"
+                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=$wlan_iface{{cr}}except-interface=$wired_iface"
             fi
         elif $hotspot ; then
-            grep -q 'except-interface=wlan0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ||
-                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=wlan0"
+            grep -q "except-interface=$wlan_iface" /etc/dnsmasq.d/01-consolepi 2>/dev/null ||
+                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=$wlan_iface"
         elif $wired_dhcp ; then
-            grep -q 'except-interface=eth0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ||
-                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=eth0"
+            grep -q "except-interface=$wired_iface" /etc/dnsmasq.d/01-consolepi 2>/dev/null ||
+                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=$wired_iface"
         else
             if [ -f /etc/dnsmasq.d/01-consolepi ] ; then
                 logit "Hotspot and wired_dhcp are disabled but consolepi specific dnsmasq config found moving to bak dir"
@@ -805,6 +814,18 @@ gen_dhcpcd_conf () {
     [ -f /etc/sysctl.d/99-noipv6.conf ] && noipv6=true || noipv6=false
     convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip} wired_ip=${wired_ip} hotspot=${hotspot} wired_dhcp=${wired_dhcp} noipv6=${noipv6}
     unset process
+}
+
+_handle_blue_symlink() {
+    # disable / enable bluetooth.service to remove symlink to original bluetooth unit file in lib dir
+    [ ! -f /etc/systemd/system/bluetooth.service ] && return 0  # They are not using the ConsolePi bluetooth unit
+
+    if [ "$(ls -l /etc/systemd/system | grep bluetooth.service | grep dbus | grep "^l.*" | cut -d'/' -f2)" == "lib" ]; then
+        systemctl disable bluetooth.service 2>/dev/null; rc=$?
+        [ $rc -eq 0 ] && systemctl enable bluetooth.service 2>/dev/null; rc=$?
+    fi
+    [ $rc -eq 0 ] || logit "Error returned disable/enable bluetooth.service to remove dbus symlink to original unit file" "WARNINNG"
+    return $rc
 }
 
 do_blue_config() {
@@ -841,6 +862,7 @@ do_blue_config() {
     if $bt_enabled; then
         logit "Reloading bluetooth service"
         systemctl daemon-reload
+        _handle_blue_symlink
         systemctl restart bluetooth.service >>$log_file 2>&1
         # enable the new rfcomm service
         do_systemd_enable_load_start rfcomm
@@ -1174,12 +1196,29 @@ post_install_msg() {
             "  if you plan to use cloud sync.  You will need to do some setup on the Google side and Authorize ConsolePi"
             "  refer to the GitHub for more details"
             -nl
+    )
+    if $uses_nm; then
+        _msg+=(
+            " ${_bold}Auto VPN:${_norm}"
+            "  if you are using the Automatic VPN feature you should Configure a NetworkManager connection profile"
+            "  (type=vpn, dev=tun) in /etc/NetworkManager/system-connections.  ConsolePi will automatically turn up the connection"
+            "  if the an any interface comes up and the internet is reachable."
+            "  Verify the profile can be turned up manually with 'nmcli con up <vpn-profile-name>'"
+            "  you may need the '--ask' option to store secrets, the first time you connect."
+            "  !! All NM connection profiles should be owned by root with 600 (-rw-------) permissions !!"
+            -nl
+        )
+    else
+        _msg+=(
             " ${_bold}OpenVPN:${_norm}"
             "  if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and ovpn_credentials files in"
             "  /etc/openvpn/client.  Then run 'consolepi-upgrade' which will add a few lines to the config to enable some"
             "  ConsolePi functionality.  There is a .example file for reference as well."
             "  !! You should \"sudo chmod 600 <filename>\" both of the files for added security !!"
             -nl
+        )
+    fi
+    _msg+=(
             " ${_bold}ser2net Usage:${_norm}"
             "  Serial Ports are available starting with telnet port 8001 (ttyUSB#) or 9001 (ttyACM#) incrementing with each"
             "  adapter plugged in.  if you configured predictable ports for specific serial adapters those start with 7001."
@@ -1214,16 +1253,21 @@ post_install_msg() {
             -li "${_cyan}consolepi-upgrade${_norm}: Upgrade ConsolePi. This is the supported update method"
             -li "${_cyan}consolepi-leases${_norm}: Shows dnsmasq (dhcp) leases.  Typically clients connected to HotSpot"
             -li "${_cyan}consolepi-extras${_norm}: Launch optional utilities installer (tftp, ansible, lldp, cockpit, speedtest...)"
-            -li "${_cyan}consolepi-addssids${_norm}: Add additional known ssids. Alternatively you can add entries to wpa_supplicant manually"
             -li "${_cyan}consolepi-addconsole${_norm}: Configure serial adapter to telnet port rules"
             -li "${_cyan}consolepi-showaliases${_norm}: Shows Configured adapter aliases, helps identify any issues with aliases"
             -li "${_cyan}consolepi-logs${_norm}: Displays ConsolePi logs (Note this will install mutli-tail the first time it's ran)"
             "     valid args: 'all' (will cat consolepi.log), any other argument is passed to tail as a flag."
             "                 If no arguments are specified, script will follow tail on consolepi-log, and syslog (with filters)"
             "     examples: \"consolepi-logs all\", \"consolepi-logs -f\", \"consolepi-logs -20\", \"consolepi-logs 20\""
+    )
+    if ! $uses_nm; then
+        _msg+=(
             -li "${_cyan}consolepi-killvpn${_norm}: Gracefully terminate openvpn tunnel if one is established"
             -li "${_cyan}consolepi-autohotspot${_norm}: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found"
             "     then fall-back to HotSpot mode if not found or unable to connect"
+        )
+    fi
+    _msg+=(
             -li "${_cyan}consolepi-testhotspot${_norm}: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot"
             "     Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa"
             -li "${_cyan}consolepi-bton${_norm}: Make BlueTooth Discoverable and pairable - this is the default behavior on boot"
@@ -1233,8 +1277,11 @@ post_install_msg() {
             "     valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail"
             -li "${_cyan}consolepi-convert${_norm}: ser2net v3 to ser2net v4 migration tool"
             -nl
+            " ${_bold}DEPRECATED Commands:${_norm} These commands will work on pre-bookworm systems, but not on current images."
+            -li "${_cyan}consolepi-addssids${_norm}: Add additional known ssids. Alternatively you can add entries to wpa_supplicant manually"
+            -nl
             -foot "ConsolePi Installation Script v${INSTALLER_VER}"
-        )
+    )
     menu_print "${_msg[@]}"
 
     # Display any warnings if they exist
@@ -1291,20 +1338,19 @@ update_main() {
     install_ser2net
 
     if $uses_nm; then
-        # TODO add /etc/NetworkManager/conf.d/consolepi.conf with the following
-        # [connection]
-        # ipv4.dhcp-vendor-class-identifier=NM:ConsolePi
-        if $hotspot || $wired_dhcp || $ovpn_enable; then
+        if $hotspot || $wired_dhcp || $ovpn_enable || $push; then
             get_interfaces  # provides wlan_iface and wired_iface in global profile
             do_hook_nm  # no real need to remove once deployed, it verifies config prior to taking any action
+        fi
+
+        if $wired_dhcp || $hotspot; then
+            check_install_dnsmasq
+            gen_dnsmasq_conf
         fi
 
         $hotspot && install_hotspot_nm || disable_hotspot_nm
 
         if $wired_dhcp; then
-            # TODO bookworm move dhcp.nmconnection template so default is dhcp (autoconnect-priority)
-            # otherwise deploying static with autoconnect-priorit=1 may be higher than the default -999
-            # Will need to check for existing for the wired interface
             do_wired_dhcp_nm
             do_wired_dhcp  # setup up the dnsmasq conf in ConsolePi dir applies to both nm and dhcpcd
         else
@@ -1312,8 +1358,10 @@ update_main() {
         fi
 
         $ovpn_enable && install_ovpn_nm
+        do_nm_conf
     elif [ "$(systemctl is-active dhcpcd.service)" == "active" ]; then
         if $hotspot || $wired_dhcp || $ovpn_enable; then
+            get_interfaces  # Using in old flow because gen_dnsmasq_conf has been updated to use detected iface names
             do_hook_old
         fi
 

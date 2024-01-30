@@ -35,3 +35,6 @@ src/pypkg/consolepi/config_parser.py
 
 # Sphinx documentation
 docs/_build/
+
+# ignore files with __dev__ in the nmame
+**__dev__**

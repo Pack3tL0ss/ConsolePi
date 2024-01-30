@@ -54,16 +54,25 @@ main() {
     process_args "$@"
     if hash nmcli 2>/dev/null && nmcli d | grep -v wifi-p2p | grep -q wifi; then
         nm_con_base=/etc/NetworkManager/system-connections
-        nm_con_files=($(ls -1 /etc/NetworkManager/system-connections))
-        for f in ${nm_con_files[@]}; do
+
+        # this handles filenames with spaces in the name
+        nm_con_files=()
+        orig_ifs=$IFS
+        IFS=$(echo -en "\n\b")
+        for f in $(ls -1 "$nm_con_base"); do
+            nm_con_files+=("$f")
+        done
+        IFS=$orig_ifs
+
+        for f in "${nm_con_files[@]}"; do
             if [[ ! "${exclude_cons[@]}" =~ "${f%.*}" ]]; then
                 if sudo grep -q "type=wifi" "${nm_con_base}/$f" && sudo grep -q "mode=infrastructure" "${nm_con_base}/$f"; then
-                    if sudo grep -q "ssid=DISABLED_" ${nm_con_base}/$f; then
-                        sudo sed -i -e 's/ssid=DISABLED_/ssid=/' ${nm_con_base}/$f &&
-                            echo -e "${_green}Enabled${_norm} SSID defined in $f" || echo Failure occured enabling SSID defined in $f
+                    if sudo grep -q "ssid=DISABLED_" "${nm_con_base}/$f"; then
+                        sudo sed -i -e 's/ssid=DISABLED_/ssid=/' "${nm_con_base}/$f" &&
+                            echo -e "${_green}Enabled${_norm} SSID defined in $f" || echo "Failure occured enabling SSID defined in $f"
                     else
-                        sudo sed -i -e 's/ssid=/ssid=DISABLED_/' ${nm_con_base}/$f &&
-                            echo -e "${_red}Disabled${_norm} SSID defined in $f" || echo Failure occured disabling SSID defined in $f
+                        sudo sed -i -e 's/ssid=/ssid=DISABLED_/' "${nm_con_base}/$f" &&
+                            echo -e "${_red}Disabled${_norm} SSID defined in $f" || echo "Failure occured disabling SSID defined in $f"
                     fi
                 fi
             else

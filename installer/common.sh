@@ -597,6 +597,8 @@ get_pi_info_pretty() {
         hw_array["c03140"]="Raspberry Pi Compute Module 4 hw rev 1.0 4GB (Mfg by Sony UK)"
         hw_array["d03140"]="Raspberry Pi Compute Module 4 hw rev 1.0 8GB (Mfg by Sony UK)"
         hw_array["902120"]="Raspberry Pi Zero 2 W hw rev 1.0 512MB (Mfg by Sony UK)"
+        hw_array["c04170"]="Raspberry Pi 5 Model B Rev 1.0 4GB (Mfg by Sony UK)"
+        hw_array["d04170"]="Raspberry Pi 5 Model B Rev 1.0 8GB (Mfg by Sony UK)"
     fi
     $compat_bash && echo ${hw_array["$1"]} || echo $1
 }

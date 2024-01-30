@@ -39,8 +39,8 @@ OVERRIDES:
   remote_timeout: 3       # Will overide the default (3s) for all remote ConsolePis
   # remote_timeout override for specific devices
   remote_timeout:
-    ConsolePi0: 6         # host specific timeout, useful if specific host(s) are slower to respond to API request.
-    default: 4            # specifying default is optional, will default to 3 if not provided
+    ConsolePi0: 3         # host specific timeout, useful if specific host(s) are slower to respond to API request.
+    default: 3            # specifying default is optional, will default to 3 if not provided
   dli_timeout: 7          # seconds to wait for Digital Loggers dli web power switch to respond before failing.
   smartoutlet_timeout: 3  # seconds to wait for smart outlets (esphome / tasmota) to respond before failing.
   cycle_time: 3           # When cycling outlets, delay this many seconds (power off, wait cycle_time seconds, power on).

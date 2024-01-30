@@ -948,11 +948,11 @@ do_consolepi_mdns() {
     systemd_diff_update consolepi-mdnsreg
     systemd_diff_update consolepi-mdnsbrowse
     for d in 'avahi-daemon.socket' 'avahi-daemon.service' ; do
-        _error=false
-        if ! systemctl status "$d" | grep -q disabled ; then
-            [[ "$d" =~ "socket" ]] && logit "disabling ${d%.*} ConsolePi has it's own mdns daemon"
-            systemctl stop "$d" >/dev/null 2>&1 || _error=true
-            systemctl disable "$d" 2>/dev/null || _error=true
+        if ! systemctl is-enabled "$d" | grep -q "disabled"; then
+            [ "${d/*.}" == "socket" ] && logit "disabling ${d%.*} ConsolePi has it's own mdns daemon"
+            _error=false
+            systemctl stop "$d" >/dev/null 2>>$log_file || _error=true
+            systemctl disable "$d" 2>>$log_file || _error=true
             $_error && logit "Error occurred: stop - disable $d Check daemon status" "warning"
         fi
     done

@@ -734,6 +734,10 @@ process_cmds() {
                 local err="/dev/null"
                 shift
                 ;;
+            -*stderr) # log stderr to fd specified default is to log_file
+                local err="$2"
+                shift 2
+                ;;
             -*logit|-l) # Used to simply log a message, does not echo to tty
                 case "$3" in
                     WARNING|ERROR)

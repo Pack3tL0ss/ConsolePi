@@ -225,7 +225,7 @@ util_exec() {
                 fi
                 cmd_list+=(
                     "-l" "!! NOTICE: Long wait here on some platforms as ansible requirements need to be built, install may appear to hang, but is still working in background" \
-                    "-stop" "-pf" "pipx install ansible (long wait here)" "-u" "-o" "/dev/stdout" "pipx install --verbose --include-deps ansible" \
+                    "-stop" "-pf" "pipx install ansible (long wait here)" "-u" "--stderr" "$(readlink /dev/fd/0)" "pipx install --verbose --include-deps ansible" \
                     "-nostart" "-pf" "pipx inject... make available in PATH" "-u" "pipx inject --include-apps ansible argcomplete" \
                     "-nostart" "-pf" "activate completion for ansible" "-u" "activate-global-python-argcomplete --user --dest ${home_dir}/.bash_completions/"
                 )

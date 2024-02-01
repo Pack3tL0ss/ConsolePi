@@ -210,6 +210,7 @@ collect() {
 
 
     # -- OpenVPN --
+    # TODO break into seperate prompts/variables for new_upper Q auto_vpn (bool) and if auto_vpn=true then prompt for ovpn_enable to determine if plugin needs to be installed
     if ! $selected_prompts || [ -z "$ovpn_enable" ]; then
         header
         prompt="Enable Auto-Connect OpenVPN"

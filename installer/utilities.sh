@@ -245,27 +245,27 @@ util_exec() {
                     aruba_ansible_collections)
                         # install all aruba collections
                         cmd_list=(
-                            '-pf' 'Install aos-cx collection from ansible-galaxy' "su -w PATH $iam -c \"source ${home_dir}/.bashrc; ansible-galaxy collection install arubanetworks.aoscx\"" \
-                            '-pf' 'Install aos-switch collection from ansible-galaxy' "su -w PATH $iam -c \"source ${home_dir}/.bashrc; ansible-galaxy collection install arubanetworks.aos_switch\"" \
-                            '-pf' 'Install aruba_central collection from ansible-galaxy' "su -w PATH $iam -c \"source ${home_dir}/.bashrc; ansible-galaxy collection install arubanetworks.aruba_central\""
+                            '-pf' 'Install aos-cx collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aoscx\"" \
+                            '-pf' 'Install aos-switch collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aos_switch\"" \
+                            '-pf' 'Install aruba_central collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aruba_central\""
                         )
                         ;;
                     aruba_ansible_cx_mod)
                         # install all aruba collections
                         cmd_list=(
-                            '-pf' 'Install aos-cx collection from ansible-galaxy' "su -w PATH $iam -c \"source ${home_dir}/.bashrc; ansible-galaxy collection install arubanetworks.aoscx\""
+                            '-pf' 'Install aos-cx collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aoscx\""
                         )
                         ;;
                     aruba_ansible_sw_mod)
                         # install all aruba collections
                         cmd_list=(
-                            '-pf' 'Install aos-switch collection from ansible-galaxy' "su -w PATH $iam -c \"source ${home_dir}/.bashrc; ansible-galaxy collection install arubanetworks.aos_switch\""
+                            '-pf' 'Install aos-switch collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aos_switch\""
                         )
                         ;;
                     aruba_ansible_cen_mod)
                         # install all aruba collections
                         cmd_list=(
-                            '-pf' 'Install aruba-central collection from ansible-galaxy' "su -w PATH $iam -c \"source ${home_dir}/.bashrc; ansible-galaxy collection install arubanetworks.aruba_central\""
+                            '-pf' 'Install aruba-central collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aruba_central\""
                         )
                         ;;
                 esac

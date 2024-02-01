@@ -938,17 +938,22 @@ get_utils() {
 do_resize () {
     # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
     process="xterm ~ resize"
-    if [ ! -f ${src_dir}consolepi-commands/resize ]; then
-        cmd_list=("-apt-install" "xterm" "--pretty=${process}" "--exclude=x11-utils" \
-                  '-s' "export rsz_loc=\$(which resize)" \
-                  "-stop" "-nostart" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
-                      "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
-                  "-l" "xterm will now be removed as we only installed it to get resize" \
-                  "-apt-purge" "xterm"
-                )
-        process_cmds "${cmd_list[@]}"
-    else
-        logit "resize utility already present"
+    if ! hash resize 2>/dev/null; then
+        if [ ! -f ${src_dir}consolepi-commands/resize ]; then
+            cmd_list=("-apt-install" "xterm" "--pretty=${process}" "--exclude=x11-utils" \
+                    '-s' "export rsz_loc=\$(which resize)" \
+                    "-stop" "-nostart" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
+                        "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
+                    "-l" "xterm will now be removed as we only installed it to get resize" \
+                    "-apt-purge" "xterm"
+                    )
+            process_cmds "${cmd_list[@]}"
+        else
+            logit "resize utility already present"
+        fi
+    elif [ ! -f ${src_dir}consolepi-commands/resize ]; then  # If resize is already available (typicall non rpi), cp it for safekeeping
+        local rsz_bin=$(which resize)
+        cp "$rsz_bin" "${src_dir}consolepi-commands/resize" && logit "Success - Copy existing resize binary" || logit "Error occured  - Copy existing resize binary" "WARNING"
     fi
     unset process
 }

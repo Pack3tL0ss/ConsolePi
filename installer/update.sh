@@ -821,10 +821,12 @@ _handle_blue_symlink() {
     # disable / enable bluetooth.service to remove symlink to original bluetooth unit file in lib dir
     [ ! -f /etc/systemd/system/bluetooth.service ] && return 0  # They are not using the ConsolePi bluetooth unit
 
+    local rc=0
     if [ "$(ls -l /etc/systemd/system | grep bluetooth.service | grep dbus | grep "^l.*" | cut -d'/' -f2)" == "lib" ]; then
-        systemctl disable bluetooth.service 2>/dev/null; rc=$?
-        [ $rc -eq 0 ] && systemctl enable bluetooth.service 2>/dev/null; rc=$?
+        systemctl disable bluetooth.service 2>/dev/null; local rc=$?
+        [ $rc -eq 0 ] && systemctl enable bluetooth.service 2>/dev/null; local rc=$?
     fi
+
     [ $rc -eq 0 ] || logit "Error returned disable/enable bluetooth.service to remove dbus symlink to original unit file" "WARNINNG"
     return $rc
 }

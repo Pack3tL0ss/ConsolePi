@@ -1397,7 +1397,6 @@ update_main() {
     do_consolepi_cleanup
     do_consolepi_api
     do_consolepi_mdns
-    ! $upgrade && do_locale
     do_resize
 
     if ( [ -n "$skip_utils" ] && $skip_utils ) || $silent; then
@@ -1414,6 +1413,7 @@ update_main() {
         logit -t "Configure WLAN - Predictable Console Ports" "Prompts bypassed due to -silent flag"
     fi
 
+    ! $upgrade && do_locale
     custom_post_install_script
     process=Complete
     $local_dev && dump_vars

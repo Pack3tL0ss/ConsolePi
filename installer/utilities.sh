@@ -227,8 +227,8 @@ util_exec() {
                     "-l" "!! NOTICE: Long wait here on some platforms as ansible requirements need to be built, install may appear to hang, but is still working in background" \
                     "-stop" "-pf" "pipx install ansible (long wait here)" "-u" "-o" "/dev/stdout" "pipx install --verbose --include-deps ansible" \
                     "-nostart" "-pf" "pipx inject... make available in PATH" "-u" "pipx inject --include-apps ansible argcomplete" \
-                    "-nostart" "-pf" "activate completion for ansible" "-u" "activate-global-python-argcomplete --user --dest ${home_dir}/.bash_completions/"
-
+                    "-nostart" "-pf" "activate completion for ansible" "-u" "activate-global-python-argcomplete --user --dest ${home_dir}/.bash_completions/" \
+                    "-s" "-u" "pipx ensurepath"
                 )
             elif [[ $2 == "remove" ]]; then
                     # "-s" "-nolog" "rm ${home_dir}/.bash_completions/ansible*" \
@@ -476,6 +476,7 @@ util_main() {
 # -- // SCRIPT ROOT \\ --
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"utilities.sh"* ]] &&  [[ ! "$0" =~ "update.sh" ]]; then
     backtitle="ConsolePi Extras"
+    PATH=$PATH:"${home_dir}/.local/bin"
     util_main ${@}
 else
     $debug && process="utilities script start" && logit "script called from ${0}" "DEBUG"

@@ -851,7 +851,7 @@ main() {
 
     # Configure consolepi user to auto-launch ConsolePi installer on first-login
     if $AUTO_INSTALL; then
-        dots "configure auto launch installer login"
+        dots "configure auto launch installer on first login"
         local auto_install_file=/mnt/usb2/usr/local/bin/consolepi-install
         echo '#!/usr/bin/env bash' > $auto_install_file
 

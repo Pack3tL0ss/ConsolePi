@@ -1057,9 +1057,10 @@ get_known_ssids() {
     unset process
 }
 
-# -- these funcs rely on raspi-config
+# -- these funcs and only apply if wifi-country set to US
 do_locale() {
-    if [ -n "$locale" ]; then
+    if [ -n "$locale" ] && [ "${locale^^}" == "US" ]; then
+        # -- keyboard change relies on raspi-config
         if hash raspi-config 2>/dev/null; then
             # -- update keyboard layout --
             if ! grep XKBLAYOUT /etc/default/keyboard | grep -q ${locale,,}; then
@@ -1072,23 +1073,30 @@ do_locale() {
                     logit "${process} - Failed ~ verify contents of /etc/default/keyboard" "WARNING"
                 unset process
             fi
-
-            # -- update locale --
-            new_locale="en_${locale^^}.UTF-8"
-            cur_locale=$(locale | head -1 | cut -d'=' -f2)
-            if [ "$cur_locale" != "$new_locale" ]; then
-                process="Set locale $new_locale"
-                logit "$process - Starting"
-                res=$(raspi-config nonint do_change_locale $new_locale 2>&1)
-                if [ "$?" -eq 0 ]; then
-                    logit "$process - Success. locale changed to $new_locale"
-                else
-                    logit "Error occured changing locale to $new_locale" "WARNING"
-                    echo -e $res >> $log_file
-                fi
-            fi
         else
-            logit -t "locale/keyboard" "locale/keyboard change utilizes raspi-config which was not found.  Skipping"
+            logit -t "set keyboard to US" "keyboard change utilizes raspi-config which was not found.  Skipping"
+        fi
+
+        # -- update locale --
+        # logic adapted from raspi-config https://github.com/RPi-Distro/raspi-config
+        new_locale="en_${locale^^}.UTF-8"
+        cur_locale=$(locale | head -1 | cut -d'=' -f2)
+        if [ "$cur_locale" != "$new_locale" ]; then
+            process="Set locale $new_locale"
+            logit "$process - Starting"
+            if ! LOCALE_LINE="$(grep -E "^$new_locale( |$)" /usr/share/i18n/SUPPORTED)"; then
+                return 1
+            fi
+            export LC_ALL=C
+            export LANG=C
+            LG="/etc/locale.gen"
+            [ -L "$LG" ] && [ "$(readlink $LG)" = "/usr/share/i18n/SUPPORTED" ] && rm -f "$LG"
+            echo "$LOCALE_LINE" > /etc/locale.gen
+            update-locale --no-checks LANG >>$log_file 2>&1
+            rc=0
+            update-locale --no-checks "LANG=$new_locale" >>$log_file 2>&1; ((rc+=$?))
+            dpkg-reconfigure -f noninteractive locales >>$log_file 2>&1; ((rc+=$?))
+            [ "$rc" -eq 0 ] && logit "Success - set locale $new_locale $1" || logit "Error set locale $new_locale" "WARNING"
         fi
     fi
 }

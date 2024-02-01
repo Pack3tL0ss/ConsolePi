@@ -64,8 +64,6 @@ fi
 # needs to come after common import to override the install.log set in common.sh
 log_file="/var/log/ConsolePi/consolepi.log"
 
-debug=true  ## FIXME remove debug
-
 # >> Early exit for events/interfaces we are not interested in <<
 ignored_events=(pre-up pre-down vpn-pre-up vpn-pre-down hostname dhcp6-change connectivity-change reapply)  # connectivity-change reflects change in ability to reach internet
 # Events we ignore just exit
@@ -84,7 +82,7 @@ fi
 # >> Get Configuration from config file <<
 if [ ! -f $yaml_config ]; then
     logit "Config ($yaml_config) not found... doing nothing."
-    exit 1
+    exit
 elif [ -f "$config_builder" ] && . <($config_builder | grep -v remote_timeout) ; then
     # Disable Auto VPN if we can't find the NM connection profile
     if ${ovpn_enable:-false}; then
@@ -340,6 +338,11 @@ check_vpn_up() {
 
 # >> Establish VPN Connection <<
 connect_vpn() {
+    if ! is_network_connected; then
+        logit -L "Auto VPN start Bypassed due to failed network connectivity." "WARNING"
+        return 1
+    fi
+
     $debug && logit -L -t "${log_process}" "Enter connect_vpn Function" "DEBUG"
     logit -L -t "${log_process}-vpn"  "Starting Auto VPN client connection."
     if nmcli con show --active | grep -q "$vpn_nmid"; then
@@ -357,9 +360,6 @@ check_vpn() {
     # >> abort if ConsolePi connected to home environment <<
     if ! $remote; then
         logit -L -t "${log_process}-vpn"  "Not starting VPN - device is connected to home network"
-        return 0
-    elif ! is_network_connected; then
-        logit -L -t puship-vpn "Auto VPN start Bypassed due to failed network connectivity from ${interface}." "WARNING"
         return 0
     elif check_vpn_up; then
         local vpn_ip="$(nmcli -g IP4.ADDRESS dev show tun0)"; local vpn_ip="${vpn_ip///*}"
@@ -387,6 +387,11 @@ is_new_ip() {
 
 update_cloud() {
     logit -L -t "${log_process}-${cloud_svc}"   "Triggering Update in background"
+    if ! is_network_connected; then
+        logit "forgoing cloud update.  No internet connectivity."
+        return 1
+    fi
+
     /etc/ConsolePi/cloud/${cloud_svc}/cloud.py &
 }
 
@@ -631,7 +636,7 @@ case "$reason" in
     vpn-down)
         # TODO check this previously we didn't update cloud on connection down event.
         # TODO need to bypass outlets and remote checks if we are going to update after VPN down as they would not be reachable most of the time on this event.
-        is_network_connected && $cloud && update_cloud
+        $cloud && update_cloud
         $debug && logit -L -t "${log_process}" "Reached end of vpn-down flow" "DEBUG"
         exit 0
         ;;

@@ -312,8 +312,8 @@ do_import_configs() {
             dots "stage ssh authorized_keys found in $(dirname $found_path)"
             mkdir -p $IMG_HOME/.ssh ; rc=$?
             mkdir -p /mnt/usb2/root/.ssh ; ((rc+=$?))
-            cp ${CUR_DIR}/$STAGE_DIR/authorized_keys $IMG_HOME/.ssh/ ; ((rc+=$?))
-            cp ${CUR_DIR}/$STAGE_DIR/authorized_keys /mnt/usb2/root/.ssh/ ; do_error $((rc+=$?))
+            cp $found_path $IMG_HOME/.ssh/ ; ((rc+=$?))
+            cp $found_path /mnt/usb2/root/.ssh/ ; do_error $((rc+=$?))
         fi
 
         # -- import SSH known hosts on image if found --
@@ -334,6 +334,17 @@ do_import_configs() {
             dots "Set Ownership of $IMG_HOME/.ssh"
             chown -R $IMG_UGID $IMG_HOME/.ssh ; do_error $?
         fi
+
+        # -- verify/adjust perms on private key file if imported --
+        for key in "$IMG_HOME/.ssh/id_rsa" "$IMG_ROOT/root/.ssh/id_rsa"; do
+            if [ -f "$key" ]; then
+                local key_perms="$(stat -c %a "$key")"
+                if [ "$key_perms" -ne 600 ]; then
+                    dots "correct permissions on "$key" ~ 600"
+                    chmod 600 "$key" ; do_error $?
+                fi
+            fi
+        done
     fi
 
     # pre-stage wpa_supplicant.conf on image if found in stage dir
@@ -863,7 +874,7 @@ main() {
             echo 'wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi "${@}" && sudo rm -f /tmp/ConsolePi' >> $auto_install_file
         fi
 
-        $LOCAL_DEV && cmd_line="--dev ${cmd_line#"--dev "}"  #  TODO maybe also need && cmd_line="-D ${cmd_line#"-D "}"
+        $LOCAL_DEV && cmd_line="--dev ${cmd_line#"--dev "}"
         grep -q "consolepi-install" $IMG_HOME/.profile || echo "consolepi-install ${cmd_line}" >> $IMG_HOME/.profile
 
         # make install command/script executable

@@ -124,15 +124,12 @@ do_apt_deps() {
             process_cmds --apt-install "libssl-dev"
         fi
 
-        # If it's an RPI we ensure RPi.GPIO is up to date.
-        # TODO this may not be necessary with restoration of pip install RPi.GPIO below
-        ## This would check if its current
-        # apt list -u 2> >(grep -v "^$" | grep -v "stable CLI" | tee -a delme) | grep -q python3-rpi.gpio
-        #  return code = 1 means it's not in the upgrade list so it's current
-        # [ "$is_pi" = true ] && apt upgrade -y python3-rpi.gpio >/dev/null 2> >(grep -v "^$" | grep -v "stable CLI" | tee -a $log_file) ||
-        #     logit "apt upgrade python3-rpi.gpio returned an error, check logs in $log_file" "WARNING"
-
-        # TODO add picocom, maybe ser2net, ensure process_cmds can accept multiple packages
+        # Install picocom
+        if [[ $(picocom --help 2>/dev/null | head -1) ]]; then
+            logit "$(picocom --help 2>/dev/null | head -1) is already installed"
+        else
+            process_cmds -apt-install picocom
+        fi
 
         logit "$process - Complete"
     else
@@ -636,6 +633,7 @@ show_usage() {
     fi
     _help "-P|--post" "~/consolepi-stage/consolepi-post.sh if found is executed after initial install.  Use this to run after upgrade."
     _help "--no-apt" "Skip the apt update/upgrade portion of the Upgrade.  Should not be used on initial installs."
+    _help "--no-blue" "Skip bluetooth console and blue user setup."
     _help "--no-pip" "Skip pip install -r requirements.txt.  Should not be used on initial installs."
     echo
     echo -e "${_cyan}Examples:${_norm}"
@@ -682,6 +680,7 @@ process_args() {
     local_dev=false
     dopip=true
     doapt=true
+    do_blue=true
     do_reboot=false
     do_consolepi_post=false
     no_users=false
@@ -711,6 +710,10 @@ process_args() {
                 ;;
             -*no-apt)
                 doapt=false
+                shift
+                ;;
+            -*no-blue)
+                do_blue=false  # skip bluetooth and blue user
                 shift
                 ;;
             -*no-users) # Don't log stderr anywhere default is to log_file

@@ -833,6 +833,8 @@ _handle_blue_symlink() {
 
 do_blue_config() {
     process="Bluetooth Console"
+    ! $do_blue && logit "Skipping bluetooth serial setup based on --no-blue flag" && return 0
+
     logit "${process} Starting"
 
     # [ "$btmode" == "serial" ] && local btsrc="${src_dir}systemd/bluetooth.service" || local btsrc="${src_dir}systemd/bluetooth_pan.service"
@@ -915,13 +917,6 @@ do_blue_config() {
             logit "FAILED to update BlueTooth User consolepi-menu alias" "WARNING"
     else
         logit "blue user consolepi-menu alias already configured"
-    fi
-
-    # Install picocom
-    if [[ $(picocom --help 2>/dev/null | head -1) ]]; then
-        logit "$(picocom --help 2>/dev/null | head -1) is already installed"
-    else
-        process_cmds -apt-install picocom
     fi
 
     logit "${process} Complete"

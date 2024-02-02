@@ -24,7 +24,7 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
   - [Serial Console Server](#serial-console-server)
     - [Guidance on LAME USB to RS232 adapters](#guidance-on-lame-usb-to-rs232-adapters)
   - [AutoHotSpot](#autoHotSpot)
-  - [Automatic VPN](#automatic-openvpn-tunnel)
+  - [Automatic VPN](#automatic-vpn)
   - [Automatic PushBullet Notifications](#automatic-pushbullet-notification)
   - [Automatic Wired DHCP Fallback](#automatic-wired-dhcp-fallback)
   - [Clustering / Cloud Sync](#consolepi-cluster--cloud-sync)
@@ -69,8 +69,6 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 
 # Known Issues
 
-- **Numerous breaking changes as a result of Raspbian Bookworm.**  As of Oct 2023 Raspbian is based off of Debian Bookworm.  With that comes a number of changes that break functions of the ConsolePi.  The biggest change is Bookworm now uses NetworkManager rather than dhcpcd/wpa_supplicant.  This breaks [AutoHotSpot](#autoHotSpot), and [Automatic PushBullet Notifications](#automatic-pushbullet-notification) for sure and likely impacts [Automatic VPN](#automatic-openvpn-tunnel), and [ZTP Orchestration](#ztp-orchestration).  Work is underway to update ConsolePi to detect and accomodate both scenarios (pre and post Bookworm).
-
 - :bangbang: *Not an issue, but a breaking change in ser2net if you've upgraded.*  Bullseye updates the ser2net available from the package repo from 3.x to 4.x this is a significant change.  Functionality wise it's a very good thing, ser2net 4.x brings a lot more flexibility and connectivity options, but it means if you already have aliases that were configured (via `consolepi-addconsole` or the rename(`rn`) option in `consolepi-menu`) against the ser2net v3 config `/etc/ser2net.conf`... Those are no longer what ser2net uses for the TELNET connections.
 
   Good news though.  As of v2023-6.0 the various options mentioned above for adding/updating/renaming adapter aliases now work with the v4 config (`/etc/ser2net.yaml`).  Not only that, but there is now a migration command `consolepi-convert` which will migrate an existing ser2net v3 config to v4.
@@ -104,9 +102,32 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
   ```
   Again simply restarting the service seems to resolve the issue.  I suspect it may be a race-condition on bootup with the initialization of udev.
 
-- `consolepi-extras`: The options related to installing ansible and the aruba modules need to be updated as some things have changed upstream.  They *might* work, but I would refer to ansible documentation, and [Aruba devhub](https://devhub.arubanetworks.com) for manual install instructions for now.
-
 # What's New
+
+### Feb 2024 (v2024-3.0 installer v80)
+✨ Large update!!
+
+*The release of Raspberry Pi OS 12 (bookworm) included a change to use NetworkManager to manage the network.
+That broke all network based automations (PushBullet notifications of IP change, cloud sync after IP change, Automatic VPN, Auto fallback to hotspot, and ZTP (fallback to static wired w/ DHCP))*
+
+Here is a summary of what's in this release:
+  - ✨ Restore all network based automations.
+  - ✨ Various improvements in network automation/dispatcher script.
+  - ✨ Dynamically determine interface names throughout.  (primarily of benefit for non rpi systems)
+  - ✨ Various installer improvements.
+  - 🐛 Fix optional utilities part of installer / `consolepi-extras` .  Specifically speed-test (already merged) and ansible/ansible collections.
+  - ✨ Change method of installing ansible, new method provides more recent version of ansible.
+  - ➖ Strip requirements.txt to only direct dependencies
+  - ✨ handle deletion of ser2net.conf file after consolepi daemons have started (typically in favor of ser2net.yaml)
+  - ✨ Add proc_ids to identify rpi 5
+  - ✨ Improve logic that determines if speed-test should be hidden in utilities/`consolepi-extras` menu.
+    > speedtest is hidden for platforms it doesn't make sense on, i.e. everything prior to rpi4 as the eth NIC would be the limitting factor in any speedtest
+  - ✨ Improve `consolepi-btconnect` Now shows "not found error" when device isn't found and has `--list` and `--help` command line options.
+  - 🧑‍💻 Add `--no-user` option to `consolepi-installer` primarily to speed repeated testing during development.
+  - ✨ Add --branch option to installer (to install from a branch other than master)
+  - ✨ Various improvements to `consolepi-image`
+  - ✨ Deprecate/remove ConsolePi_cleanup sysv script, and deploy consolepi-cleanup systemd (consistency)
+  - ✨ Updated `consolepi-autohotspt` to work with NetworkManager (now works with both legacy or bookworm+ installed systems).
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
 ### Jan 2024 (v2024-1.0)
@@ -146,7 +167,7 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
 
 # Planned enhancements
   - Complete automation of feature to provide ssh direct to adapter discussed in [issue #119](https://github.com/Pack3tL0ss/ConsolePi/issues/119)
-  - Non RPI & wsl (menu accessing all remotes) support for the installer.  Can be done now, but normally at least portions need to be tweaked manually.
+  - Non RPI & wsl (menu accessing all remotes) support for the installer.  Should work now, but needs further testing.
   - Ability to pick a non sequential port when using `rn` in menu or `consolepi-addconsole`
   - *Most excited about* launch menu in byobu session (tmux).  With any connections in a new tab.
   - Eventually... formatting tweaks, and TUI.  Also consolepi-commands turn into `consolepi command [options]` with auto complete and help text for all (transition to typer CLI).
@@ -175,19 +196,21 @@ There are some lame adapters that don't burn a serial # to the chip, this makes 
 
 ## AutoHotSpot
 
-Script runs at boot (can be made to check on interval via Cron if desired).  Looks for pre-defined SSIDs, if those SSIDs are not available then it automatically goes into hotspot mode and broadcasts its own SSID.  In HotSpot mode user traffic is NAT'd to the wired interface if the wired interface is up.
-
-When ConsolePi enters hotspot mode, it first determines if the wired port is up and has an IP.  If the wired port is *not* connected, then the hotspot distributes DHCP, but does not provide a "Default Gateway" to clients.  This allows a user to dual connect without having to remove a route to a gateway that can't get anywhere.  I commonly use a second USB WLAN adapter to connect to ConsolePi, while remaining connected to the internet via a different SSID on my primary adapter.
+This is handled by NetworkManager, but the installer deploys the appropriate config (if you've chosen to enable the feature).  On boot NetworkManager will first look for any configured SSIDs (you need to build those profiles), if it can't find or is unable to connect it will fallback to hotspot.  Any profiles you setup should have an autoconnect-priority=N where N is anything > 0.  Consolpi will also configure DHCP for hotspot clients such that if the ConsolePi has no network reachability (it is isolated) it will not distribute a gateway to hotspot clients.  This is specifically done so you can connect to a ConsolePi that is not network connected (to access connected serial ports) from a PC via a second NIC.  This way it won't compete with your existing default-route (which would black-hole all your traffic).
 
 > If a domain is provided to the wired port via DHCP, and the hotspot is enabled ConsolePi will distribute that same domain via DHCP to clients.
 
-## Automatic OpenVPN Tunnel
+> On systems initially installed prior to Raspberry Pi OS 12 (bookworm) (Uses dhcpcd vs NetworkManager), autohotspot is managed by the `autohotspot` service which runs a script on boot, but functionality is the same.
 
-When an interface receives an IP address ConsolePi will Automatically connect to an OpenVPN server under the following conditions:
-- It's configured to use the OpenVPN feature, and the ConsolePi.ovpn file exists (an example is provided during install)
+## Automatic VPN
+
+When an interface receives an IP address ConsolePi will Automatically connect to a VPN server under the following conditions:
+- It's configured to use the Auto VPN feature (ConsolePi.yaml)
+- A NetworkManager connection profile has been created with `type=vpn`
 - ConsolePi is not on the users home network (determined by the 'domain' handed out by DHCP)
-- The internet is reachable via the interface.  (Checked by pinging a configurable common internet reachable destination)
-- When wired DHCP fallback is enabled and `ovpn_share: true` is set in the optional `OVERRIDES:` section of ConsolePi.yaml.  The vpn connection will be shared with any devices connected to the wired interface (the automation will add the NAT rules).
+- The internet is reachable.
+
+> You need to configure the NetworkManager connection profile for your VPN.  It is best to manually test it using `nmcli con up <connection id>` to verify the configuration.  You may need to include the `--ask` option when you manually test it so NetworkManager will store any secrets involved.  Refer to NetworkManager documentation for more detail.
 
 ## Automatic PushBullet Notification
 
@@ -197,7 +220,7 @@ When ConsolePi receives a dynamic IP address.  A message is sent via PushBullet 
 
 ![Push Bullet Notification image](readme_content/ConsolePiPB1.png)
 
-An additional message is sent once a tunnel is established if the Automatic OpenVPN feature is enabled.
+An additional message is sent once a tunnel is established if the Automatic VPN feature is enabled.
 
 ![Push Bullet Notification image](readme_content/ConsolePiPB2.png)
 
@@ -214,6 +237,7 @@ This is useful when configuring factory-default devices, or on an isolated stagi
 This function also:
 - Configures traffic from the wired interface to NAT out of the WLAN interface if the WLAN has an internet connection. (The reverse of Auto-HotSpot)
 - Optionally, with `ovpn_share: true` set in the optional `OVERRIDES:` section of ConsolePi.yaml wired devices will share access to the OpenVPN tunnel if established (via Auto-OpenVPN).
+  > NAT & ovpn_share override with the new NetworkManager based automations has not been tested.  iptables is not installed with Raspberry Pi OS 12 (bookworm)
 
 > The [ZTP Orchestration](readme_content/ztp.md) feature will enable wired fallback to static/DHCP Server when you run `consolepi-ztp`.  `consolepi-ztp -end` restores everything to pre-ZTP state.  You do not need to enable it if ZTP is your only need for it `consolepi-ztp` will handle that.
 
@@ -251,20 +275,20 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
   >In all of the above a local cloud cache which includes data for any remote ConsolePis pulled from ConsolePi.csv is updated for the sake of persistence and speed.  The local cloud cache is what is referenced when the menu is initially launched
 
 #### mDNS / API
-* ConsolePis now advertise themselves on the local network via mDNS (bonjour, avahi, ...)
+* ConsolePis advertise themselves on the local network via mDNS (bonjour, avahi, ...)
 
-* 3 daemons run on ConsolePi one that advertises details via mdns and updates anytime a change in available USB-serial adapters is detected, a browser service which browses for remote ConsolePis registered on the network, and the API described below.  The browser service updates the local cloud cache when a new ConsolePi is detected.
+* 3 daemons run on ConsolePi one that advertises details via mdns and updates anytime a change in available USB-serial adapters is detected, a browser service which browses for remote ConsolePis registered on the network, and the API described below.  The browser service updates the local cloud cache anytime a new ConsolePi is detected.
 
-  > The API described [here](#api) comes into play when enough adapters are plugged in, such that the data payload would be over what's allowed via mDNS.  In the event this occurs... well here is an example:  *ConsolePi-A* has a has enough USB to Serial adapters plugged in to be over the data limit allowed via mDNS, the mdns-register service will detect this and fall-back to advertising *ConsolePi-A* without the adapter data.  *ConsolePi-B*, and *ConsolePi-C* are on the network and discover *ConsolePi-A*.  B and Cs mdns-browser service will detect that the adapter data was stripped and request the adapter data from A via the API.
+  > The API described [here](#api) comes into play when enough adapters are plugged in, such that the data payload would be over what's allowed via mDNS.  In the event this occurs... well here is an example:  *ConsolePi-A* has a has enough USB to Serial adapters plugged in to be over the data limit allowed via mDNS, the consolepi-mdnsreg service will detect this and fall-back to advertising *ConsolePi-A* without the adapter data.  *ConsolePi-B*, and *ConsolePi-C* are on the network and discover *ConsolePi-A*.  B and Cs consolepi-mdnsbrowse service will detect that the adapter data was stripped and request the adapter data from A via the API.
   >
-  >*UPDATE* this happens in the background so I've left it as is, however on menu-load any remotes in the cache are verified to ensure reachability on the network.  This verification is now done via the API, so it's validating it's on the network, and ensuring the data is the most current available from the remote.
+  >When `consolepi-menu` is launched any remotes in the cache are queried via the API to ensure an up to date listing of available adapters.  If for some reason it doesn't respond to the API a secondary check is done to verify it is listening on the SSH port.  If it fails both it will be listed as unreachable and will not appear in the menu.  If it fails API, but is listening on the SSH port it won't be in the adapter menu (as we didn't get any adapter data), but will show up in the `rs` (remote shell) menu.
 
 #### Local Cloud Cache
   - local cloud cache:  For both of the above methods, a local file `/etc/ConsolePi/cloud.json` is updated with details for remote ConsolePis.  This cache file can be modified or created manually.  If the file exists, the remote ConsolePis contained within are checked for reachability and added to the menu on launch.
 
  - The rename option in `consolepi-menu` or the `consolepi-addconsole` command supports assignment of custom aliases used to predictably identify the serial adapters with friendly names (udev rules).  If configured these names are used in `consolepi-menu`, the default device name is used if not (i.e. ttyUSB0), but that's less predictable.
 
- - `consolepi-menu` does not attempt to connect to the cloud on launch, it retrieves remote data from the local cache file only, verifies the devices are reachable, and if so adds them to the menu.  To trigger a cloud update use the refresh option.
+ - `consolepi-menu` does not attempt to connect to the cloud on launch, it retrieves remote data from the local cache file only, verifies the devices are reachable, and if so adds them to the menu.  To trigger a cloud update use the `r` refresh option.
   >Note: that ConsolePi will automatically update the local cache file when it gets an IP address, or adapters are added/removed, so the refresh should only be necessary if other ConsolePis have come online since the the menu was launched.  Additionally ConsolePis will automatically discover each other via mdns if on the same network, this will automatically update the local-cache if a new remote ConsolePi is discovered.
 
  - Read The [Google Drive Setup](readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
@@ -342,44 +366,38 @@ Toward the end of the install, and via `consolepi-extras` anytime after the inst
 
 ![`consolepi-extras`](readme_content/consolepi-extras.png)
 
->Note: speed test (locally hosted browser based speed-test), is only presented as an option for Pi4.
+>Note: speed test (locally hosted browser based speed-test (server)), is only presented as an option for Pi4/CM4+.  Devices prior had a slow ethernet port, so it wouldn't make sense to use them as a speed-test server.
 
 # Installation
 
-If you have a Linux system available you can use [ConsolePi image creator](#3.-consolepi-image-creator)  to burn the image to a micro-sd, enable SSH, pre-configure a WLAN (optional), mass-import configurations (if ran from a ConsolePi, optional), and PreConfigure ConsolePi settings (optional).  This script is especially useful for doing headless installations.
+If you have a Linux system available you can use [ConsolePi image creator](#3.-consolepi-image-creator)  to burn the image to a micro-sd, enable SSH, mass-import configurations (if ran from a ConsolePi, optional), and PreConfigure ConsolePi settings (optional).  This script is especially useful for doing headless installations.
 
 **The Following Applies to All Automated Installation methods**
 > Note Previous versions of ConsolePi supported import from either the users home-dir (i.e. `/home/wade`) or from a `consolepi-stage` subdir in the users home-dir (i.e. `/home/wade/ConsolePi-stage`).  The import logic directly from the home-dir has not been removed, but going forward any new imports will only be tested using the `consolePi-stage` directory for simplicity.
 
 ConsolePi will **optionally** use pre-configured settings for the following if they are placed in the a `consolepi-stage` subdir in the users home folder (i.e. `/home/wade/consolepi-stage`).  This is optional, the installer will prompt for the information if not pre-configured.  It will prompt you to verify either way.  *Imports only occur during initial install not upgrades.*
 
+staged-file import also supports host specific folders within `consolepi-stage`.  The installer will first check if there is a folder that matches the CosnolePis hostname (you can set via the --hostname flag when you run the installer, if it's still the default.).  So if i'm installing on a system already set with the hostname `ConsolePi5` or i've launched the installer with the `--hostname ConsolePi5` option.  Any imports described below found in `consolepi-stage/ConsolePi5` will take precedence over anything found in the root of `consolepi-stage`
+
+**Examples below use `consolepi-stage/...` for brevity but `consolepi-stage/HOSTNAME/...` is valid for all examples**
+
 - ConsolePi.yaml: This is the main configuration file where all configurable settings are defined.  If provided in the `consolepi-stage` dir the installer will ask for verification then create the working config `/etc/ConsolePi/ConsolePi.yaml`
-
-- ConsolePi.ovpn: If using the automatic OpenVPN feature this file is placed in the appropriate directory during the install. *Note: there are a few lines specific to ConsolePi functionality that should be at the end of the file, The installer will verify and add those lines if they don't exist*
-
-- ovpn_credentials: Credentials file for OpenVPN.  Will be placed in the appropriate OpenVPN dir during the install.  This is a simple text file with the openvpn username on the first line and the password on the second line.
-
-  *The script will chmod 600 everything in the /etc/openvpn/client directory for security so the files will only be accessible via sudo (root).*
 
 - 10-ConsolePi.rules: udev rules file used to automatically map specific adapters to user defined aliases, which map to specific TELNET ports.  This file is created automatically during the install if you don't skip the *predictable serial port/names* workflow toward the end.  It's also available after the install via the `rn` (rename) option in the menu, or via the `consolepi-addconsole` command.  This is **highly recommended** in most use cases, and is explained further [here](#telnet).
 
-- ser2net.conf: ser2net configuration will be cp to /etc/ser2net.conf if found in the stage-dir.
+- ser2net.yaml|ser2net.conf: ser2net configuration will be cp to /etc if found in the stage-dir.
 
-- wpa_supplicant.conf:  If found during install this file will be copied to /etc/wpa_supplicant.  The file is parsed to determine if any EAP-TLS SSIDs are configured, and if so the associated certificate files are also copied to the directory specified in the wpa_supplicant.conf file.
+- NetworkManager profiles (should be in `consolepi-stage/NetworkManager/system-connections` or in a host specific folder as described above).  Any profiles found will be cp to /etc/NetworkManager/system-connections and ownership permission requirements will be corrected if necessary.
 
-  certs should be pre-staged in `consolepi-stage/cert`
-    > WARNING EAP-TLS RaspiOS buster wpa_supplicant bug:  (*you can disregard if you are using psk, this only applies to certificate based authentication*) The version of wpa_supplicant of an associated dependency that buster *still* installs has a bug that will prevent EAP-TLS from working (wpa_supplicant v2.8-devel).  On my RPi 3 and 4 units I use the `ConsolePi_init.sh` (described below) file to update wpa_supplicant manually like so:
-    >
-    > sudo apt install -y ./libreadline8_8.0-2_armhf.deb
-    >
-    > sudo apt install -y ./wpasupplicant_2.9-1_armhf.deb
-    >
-    > There may be a better way, but this is working on all my Pi3/4s, on my Pi Zero Ws installing these packages breaks wpa_supplicant entirely.  For those I currently just use the psk SSID (which I expect most would do, but good tip anyway for the cool kids using certs)
+- certificates (EAP-TLS SSIDs) should be pre-staged in `consolepi-stage/cert`, the installer will scan the pre-staged connection profiles, and pre-stage them in the directory defined within the profile.  It will also verify/adjust the permissions on the private key file.
 
-- authorized_keys/known_hosts: If either of these ssh related files are found they will be placed in both the /home/wade/.ssh and /root/.ssh directories (ownership is adjusted appropriately).
+- authorized_keys/known_hosts: If either of these ssh related files are found they will be placed in both the /home/consolepi/.ssh and /root/.ssh directories (ownership is adjusted appropriately).
+
+- Users home directories.  You can pre-stage random files by placing them in `consolepi-stage/home` or in the case or the root user `consolepi-stage/root`.  The installer will import and set ownership for the default consolepi user, root, any users created during the install, and the current user (if happens to be something different).
+> When re-imaging a ConsolePi, it's useful to import the users `.ssh` directory so thier ssh keys stay consistent with the previous image.
 
 - rpi-poe-overlay.dts: This is a custom overlay file for the official Rpi PoE hat.  If the dts is found in the stage dir, a dtbo (overlay binary) is created from it and placed in /boot/overlays.  A custom overlay for the PoE hat can be used to adjust what temp triggers the fan, and how fast the fan will run at each temp threshold.
-> Refer to google for more info, be aware some apt upgrades update the overlays overwriting your customization.  I use a separate script I run occasionally which creates a dtbo then compares it to the one in /boot/overlays, and updates if necessary (to revery back to my custom settings)
+> Refer to google for more info, be aware some apt upgrades update the overlays overwriting your customization.  I use a separate script I run occasionally which creates a dtbo then compares it to the one in /boot/overlays, and updates if necessary (to revert back to my custom settings)
 
 - autohotspot-dhcp(directory): If you have a autohotspot-dhcp directory inside the `consolepi-stage` dir, it's contents are copied to /etc/ConsolePi/dnsmasq.d/autohotspot.  This is useful if you have additional configs you want to use for autohotspot, dhcp-reservations, etc.  The main config for the autohotspot feature `autohotspot` is still managed by ConsolePi.
 
@@ -388,15 +406,13 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
 - ztp(directory): if a `ztp` directory is found in the `consolepi-stage` dir, it's contents are copied to /etc/ConsolePi/ztp.  This is where your template/variable files, and custom_parsers are configured.
 
 - consolepi-post.sh: Custom post install script.  This custom script is triggered after all install steps are complete.  It runs just before the post-install message is displayed.  Use it to do anything the installer does not cover that you normally setup on your systems.  For Example my consolepi-post.sh script does the following:
-  - generates an ssh key `sudu -u $iam ssh-keygen`
-  - sends that key to my NAS `sudo -u $iam ssh-copy-id pi@omv 2>/dev/null`
-  - Then it pulls a few files common to all my systems makes executable if it applies etc
-    - `sftp pi@omv:/export/BACKUP/Linux/common/wlmount` ... then make executable etc...
-  - I pull cloud credentials for ConsolePi from my main ConsolePi system.
+  - generates certificates for cockpit if it's installed on the system
+  - verifies cloud credentials were imported during the install, and if I forgot to pre-stage them it sftps them from another ConsolePi on the network.
+  - Installs python3-cryptography used by one of my other scripts that generates EAP-TLS certificates.
+  - Pulls various common .bash_aliases and other *stuff* from my NAS.
   - modify /etc/nanorc to my liking
-  - Update wpa_supplicant if the bug version is installed (unless it's a pi Zero W)
 
-  This is just an optional mechanism to automatically prep whatever it is you normally prep on your systems after the install completes.  The custom Post install script is only executed on initial install, not on upgrade.
+  This is just an optional mechanism to automatically prep whatever it is you normally prep on your systems after the install completes.  The custom Post install script is only executed on initial install, not on upgrade (unless you supply the `-p|--post` flag to `consolepi-upgrade`).
 
   > Some functions/variables available to the script (will be in the environment) that you could leverage:
   > - $iam (variable) is the user (script is ran as root hence the sudo -u examples above to run a command as the user that launched the installer)
@@ -406,9 +422,9 @@ ConsolePi will **optionally** use pre-configured settings for the following if t
 
 ## **1. Automated Installation**
 
-Install RaspiOS on a raspberryPi and connect it to the network.
+Install RaspberryPi OS on a raspberryPi and connect it to the network.
 
-Use the command string below to kick-off the automated installer.  The install script is designed to be essentially turn-key.  It will prompt to change hostname, set timezone, and update the pi users password if you're logged in as pi.  Be sure to checkout the [image creator script](#3-consolepi-image-creator) if doing a headless install, creating multiple ConsolePis, or want to re-image an existing ConsolePi.
+Use the command string below to kick-off the automated installer.  The install script is designed to be essentially turn-key.  It will prompt to change hostname, set timezone, and set the consolepi users password.  Be sure to checkout the [image creator script](#3-consolepi-image-creator) if doing a headless install, creating multiple ConsolePis, or want to re-image an existing ConsolePi.
 
 ```
 wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
@@ -435,37 +451,39 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 > The output below shows `consolepi-upgrade` as the command to launch, the command will be `consolepi-install` on an image created using the [image creator script](#3-consolepi-image-creator).  If neither is the case you would call the installer directly (with sudo) and pass in the args (The [TL;DR](#consolepi) string at the top of this README can be modified to pass in the arguments)
 
 ```
-pi@ConsolePi-dev:~$ consolepi-upgrade --help
+wade@ConsolePi-dev:~$ consolepi-upgrade --help
 
 USAGE: consolepi-upgrade [OPTIONS]
 
 Available Options
- --help | -help | help                   Display this help text.
- -silent                                 Perform silent install no prompts, all variables reqd must be provided via pre-staged configs.
- -C|-config <path/to/config>             Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example).
-    Copy the example file to your home dir and make edits to use
- --wlan_country=<wlan_country>           wlan regulatory domain (Default: US).
- -noipv6                                 bypass 'Do you want to disable ipv6 during install' prompt.  Disable or not based on this value =true: Disables.
- --hostname=<hostname>                   If set will bypass prompt for hostname and set based on this value (during initial install).
- --tz=<i.e. 'America/Chicago'>           If set will bypass tz prompt on install and configure based on this value.
- --auto_launch='<true|false>'            Bypass prompt 'Auto Launch menu when consolepi user logs in' - set based on this value.
- --consolepi_pass='<password>'           Use single quotes: Bypass prompt on install set consolepi user pass to this value.
- --pi_pass=<'password>                   Use single quotes: Bypass prompt on install set pi user pass to this value.
-    pi user can be deleted after initial install if desired, A non silent install will prompt for additional users and set appropriate group perms
+ -h|--help                               Display this help text.
+ -s|--silent                             Perform silent install no prompts, all variables reqd must be provided via pre-staged configs.
+ -C | --config <path/to/config>          Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example).
+    Copy the example file to your home dir and make edits to use.
+ -6|--no-ipv6                            Disable IPv6 (Only applies to initial install).
+ -R|--reboot                             reboot automatically after silent install (Only applies to silent install).
+ -w|--wlan_country <2 char country code> wlan regulatory domain (Default: US).
+ --locale <2 char country code>          Update locale and keyboard layout. i.e. '--locale us' will result in locale being updated to en_US.UTF-8.
+ --us                                    Alternative to the 2 above, implies us for wlan country, locale, and keyboard..
+ -H|--hostname <hostname>                If set will bypass prompt for hostname and set based on this value (during initial install).
+ --tz <tz>                               Configure TimeZone i.e. America/Chicago.
+ -L|--auto-launch                        Automatically launch consolepi-menu for consolepi user.  Defaults to False..
+ -p|--passwd '<password>'                Use single quotes: The password to configure for consolepi user during install..
     Any manually added users should be members of 'dialout' and 'consolepi' groups for ConsolePi to function properly
 
 The Following optional arguments are more for dev, but can be useful in some other scenarios
- -noapt                                  Skip the apt update portion of the Upgrade.  Should not be used on initial installs..
- -nopip                                  Skip pip install -r requirements.txt.  Should not be used on initial installs..
+ -P|--post                               ~/consolepi-stage/consolepi-post.sh if found is executed after initial install.  Use this to run after upgrade..
+ --no-apt                                Skip the apt update/upgrade portion of the Upgrade.  Should not be used on initial installs..
+ --no-pip                                Skip pip install -r requirements.txt.  Should not be used on initial installs..
 
 Examples:
   This example specifies a config file with -C (telling it to get some info from the specified config) as well as the silent install option (no prompts)
-        > consolepi-upgrade -C /home/wade/consolepi-stage/installer.conf -silent
+        > consolepi-upgrade -C /home/consolepi/consolepi-stage/installer.conf --silent
 
   Alternatively the necessary arguments can be passed in via cmd line arguments
   NOTE: Showing minimum required options for a silent install.  ConsolePi.yaml has to exist
         wlan_country will default to US, No changes will be made re timezone, ipv6 & hostname
-        > consolepi-upgrade -silent --consolepi-pass='c0nS0lePi!' --pi-pass='c0nS0lePi!'
+        > consolepi-upgrade -silent -p 'c0nS0lePi!'
 ```
 
 ## **2. Semi-Automatic Install**
@@ -509,7 +527,7 @@ sudo /etc/ConsolePi/installer/install.sh
 
 ## **3. ConsolePi Image Creator**
 
-> !!WARNING!! This script writes RaspiOS to a connected micro-sd card.  This will overwrite everything on that card.  If something doesn't look right STOP.  With that said I've used it 100s of times by now, so image away.
+> !!WARNING!! This script writes RaspberryPi OS to a connected micro-sd card.  This will overwrite everything on that card.  If something doesn't look right STOP.  With that said I've used it 100s of times by now, so image away.
 
 From an Existing ConsolePi:
 - Insert the micro-sd card you want to image (USB to micro-sd card adapter)
@@ -531,31 +549,32 @@ Using a Linux System (Most distros should work only requirement is a bash shell 
 The Pre-staging described below is optional, this script can be used without any pre-staging files, it will simply burn a RaspiOS image to the micro-sd, enable SSH, and set the installer to run automatically on boot (unless you set auto_install to false via cmd line arg or config).
 
 ```bash
-USAGE: sudo ./consolepi-image-creator.sh [OPTIONS]
+USAGE: consolepi-image [OPTIONS]
 
 Available Options
- --help | -help | help                   Display this help text.
+ -h|--help                               Display this help text.
  -C <location of config file>            Look @ Specified config file loc to get command line values vs. the default consolepi-image-creator.conf (in cwd).
- --branch=<branch>                       Configure image to install from designated branch (Default: master).
- --ssid=<ssid>                           Configure SSID on image (configure wpa_supplicant.conf).
- --psk=<psk>                             pre-shared key for SSID (must be provided if ssid is provided).
- --wlan_country=<wlan_country>           wlan regulatory domain (Default: US).
- --priority=<priority>                   wlan priority (Default 0).
- --img_type=<lite|desktop|full>          Type of RaspiOS image to write to media (Default: lite).
- --img_only=<true|false>                 If set to true no pre-staging will be done other than enabling SSH (Default: false).
- --auto_install=<true|false>             If set to false image will not be configured to auto launch the installer on first login (Default true).
- --cmd_line='<cmd_line arguments>'       *Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image.
- --mass_import=<true|false>              Bypass mass_import prompt presented when the system creating the image is a ConsolePi. Do it or not based on this value <true|false>.
- --edit=<true|false>                     Bypass prompt asking if you want to edit (nano) the imported ConsolePi.yaml. Do it or not based on this value <true|false>.
- --hotspot_hostname=<true|false>         Bypass prompt asking to pre-configure hostname based on HotSpot SSID in imported ConsolePi.yaml.  Do it or not based on this value <true|false>.
+ --ssid <ssid>                           Configure SSID on image (configure wpa_supplicant.conf).
+ --psk '<psk>'                           Use single quotes: psk for SSID (must be provided if ssid is provided).
+ --wlan-country <2 char country code>    wlan regulatory domain (Default: US).
+ --priority <priority>                   wlan priority if specifying psk SSID via --ssid and --psk flags (Default 0).
+ --img-type <lite|desktop|full>          Type of RaspiOS image to write to media (Default: lite).
+ --img-only                              Only install RaspiOS, no pre-staging will be done other than enabling SSH (Default: false).
+ --[no-]auto-install                     image will not be configured to auto launch the installer on first login (Default true).
+ --[no-]import                           whether or not to import files from this system to the image, if this is a ConsolePi.  Prompted if not set..
+ --[no-]edit                             Skips prompt asking if you want to edit (nano) the imported ConsolePi.yaml..
+ -H|--hostname                           pre-configure hostname on image..
+ -I|--image                              Use specified image (full path or file in cwd).
+ -p|--passwd <consolepi password>        The password to set for the consolepi user..
+ --cmd-line '<cmd_line arguments>'       *Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image.
 
-The consolepi-image-creator will also look for consolepi-image-creator.conf in the same directory for the above settings (or whatever path/file you specify after -C).
+The consolepi-image-creator will also look for consolepi-image-creator.conf in the current working directory for the above settings
 
 Examples:
   This example overrides the default RaspiOS image type (lite) in favor of the desktop image and configures a psk SSID (use single quotes if special characters exist)
-        sudo ./consolepi-image-creator.sh --img_type=desktop --ssid=MySSID --psk='ConsolePi!!!'
+        sudo ./consolepi-image-creator.sh --img-type desktop --ssid MySSID --psk 'ConsolePi!!!'
   This example passes the -C option to the installer (telling it to get some info from the specified config) as well as the silent install option (no prompts)
-        sudo ./consolepi-image-creator.sh --cmd_line='-C /home/wade/consolepi-stage/installer.conf -silent'
+        sudo ./consolepi-image-creator.sh --cmd-line='-C /home/consolepi/consolepi-stage/installer.conf --silent'
 ```
 ```bash
 # ----------------------------------- // DEFAULTS \\ -----------------------------------
@@ -1071,18 +1090,7 @@ ConsolePi Should work on all variants of the RaspberryPi and will work on other 
 
 ConsolePi utilizes a couple of other projects so Some Credit
 
-1. **AutoHotSpotN** ([roboberry](http://www.raspberryconnect.com/network/itemlist/user/269-graeme))
-
-   Network Wifi & Hotspot with Internet
-   A script to switch between a wifi network and an Internet routed Hotspot
-   A Raspberry Pi with a network port required for Internet in hotspot mode.
-   Works at startup or with a seperate timer or manually without a reboot
-   Other setup required find out more at
-   http://www.raspberryconnect.com
-
-   *ConsolePi Provides the source script for AutoHotSpotN as it's been modified to support some ConsolePi functionality*
-
-2. **ser2net** ([cminyard](http://sourceforge.net/users/cminyard))
+1. **ser2net** ([cminyard](http://sourceforge.net/users/cminyard))
 
    This project provides a proxy that allows telnet/tcp connections to be made to serial ports on a machine.
 
@@ -1090,7 +1098,7 @@ ConsolePi utilizes a couple of other projects so Some Credit
 
    https://github.com/cminyard/ser2net
 
-3. **Others**
+2. **Others**
    Available via optional Utilities Installer `consolepi-extras` or during `consolepi-upgrade`
     - SpeedTest: HTML 5 speed Test https://github.com/librespeed/speedtest
     - Cockpit: https://cockpit-project.org (utilities installer installs without network-manager component to avoid conflict with ConsolePi functionality)

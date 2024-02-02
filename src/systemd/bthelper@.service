@@ -1,0 +1,11 @@
+# https://github.com/RPi-Distro/pi-bluetooth/issues/8#issuecomment-988969020
+[Unit]
+Description=Raspberry Pi bluetooth helper
+Requires=hciuart.service bluetooth.service
+After=hciuart.service bluetooth.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 2
+ExecStart=/usr/bin/bthelper %I
+RemainAfterExit=yes

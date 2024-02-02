@@ -1,5 +1,6 @@
 #!/bin/sh
 #
+# DEPRECATED replaced with consolepi-cleanup.service pointing to src/cleanup.sh
 ### BEGIN INIT INFO
 # Provides:
 # Required-Start:

@@ -380,7 +380,8 @@ exit_script() {
         echo -e "The blue user used in this shell"
         echo -e "has limited permissions"
         echo ''
-        echo -e "'su pi -l' to gain typical rights"
+        echo -e "'su consolepi -l' to gain typical"
+        echo -e " rights."
         echo ''
         echo -e "*******************************\n"
     else

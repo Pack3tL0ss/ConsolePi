@@ -31,6 +31,7 @@ ztp_do_imports() {
     . /etc/ConsolePi/installer/common.sh ; ((rc+=$?))
     . /etc/ConsolePi/installer/config.sh ; ((rc+=$?))
     . /etc/ConsolePi/installer/update.sh ; ((rc+=$?))
+    get_interfaces # provides wired_iface and wlan_iface in global scope
     if [ "$rc" = 0 ]; then
         get_static >/dev/null
         get_config >/dev/null
@@ -80,7 +81,7 @@ ztp_prep() {
         fi
 
         if [ -z "$wired_ip" ]; then
-            prompt="What IP do you want to assign to eth0"
+            prompt="What IP do you want to assign to $wired_iface"
             user_input ${wired_ip:-"10.12.0.1"} "${prompt}"
             wired_ip=$result
             wired_dhcp_range
@@ -117,9 +118,9 @@ ztp_prep() {
 
 check_ssh() {
     ssh_ip=$(echo "$SSH_CONNECTION" | awk '{print $3}')
-    eth_ip="$(ip -br a | grep eth0 | awk '{print $3}'| cut -d'/' -f1)"
+    eth_ip="$(ip -br a | grep $wired_iface | awk '{print $3}'| cut -d'/' -f1)"
     if [[ "$eth_ip" != "$wired_ip" ]] && [[ "$ssh_ip" == "$eth_ip" ]]; then
-        echo "You appear to be accessing this ConsolePi via eth0"
+        echo "You appear to be accessing this ConsolePi via $wired_iface"
         user_input false "Continue (may lose the session)"
     else
         result=true
@@ -128,11 +129,11 @@ check_ssh() {
 }
 
 ztp_start   () {
-    echo -e "\nStarting DHCP configured for ZTP on eth0..."
+    echo -e "\nStarting DHCP configured for ZTP on $wired_iface..."
     if [[ "$eth_ip" != "$wired_ip" ]]; then
-        echo -e "Release ~ Renew dhcp on eth0: DHCP Server for ZTP will start when eth0 falls-back to static"
-        echo -e "${_bold}NOTE: ${_cyan}As a safety precation the DHCP server will only start if eth0 fails to get an IP from DHCP as a client${_norm}"
-        sudo dhcpcd -k eth0 >/dev/null && sudo dhcpcd -n eth0 >/dev/null
+        echo -e "Release ~ Renew dhcp on $wired_iface: DHCP Server for ZTP will start when $wired_iface falls-back to static"
+        echo -e "${_bold}NOTE: ${_cyan}As a safety precation the DHCP server will only start if $wired_iface fails to get an IP from DHCP as a client${_norm}"
+        sudo dhcpcd -k $wired_iface >/dev/null && sudo dhcpcd -n $wired_iface >/dev/null
     fi
 
     if [[ "$(systemctl is-active consolepi-wired-dhcp)" != "active" ]]; then
@@ -146,7 +147,7 @@ ztp_start   () {
     echo -e "# -- consolepi-ztp STARTING $(date +"%b %d %T") -- " >> $log_file ||
         echo -e '!! Error echoing ZTP start to log file'
 
-    # echo -e "To see pcaps for DHCP/TFTP you can also use 'sudo tcpdump -vnes0 -i eth0 port 67 or port 68 or tftp'\n"
+    # echo -e "To see pcaps for DHCP/TFTP you can also use 'sudo tcpdump -vnes0 -i $wired_iface port 67 or port 68 or tftp'\n"
     echo
     echo -e "Re-Run 'consolepi-ztp' to reset ZTP/dhcp configuration (start-over, fresh run)"
     echo -e "Use 'consolepi-ztp -c' to rebuild cfg files based on template without resetting DHCP configuration"
@@ -330,7 +331,7 @@ ztp_main() {
     consolepi-py /etc/ConsolePi/src/ztp.py ${@} &&                                  # Launch ztp script to parse config and configure ztp files/templates
     ztp_prep &&                                                                     # shutdown any conflicting services save states for restore after
     check_ssh &&                                                                    # warn if they are on an ssh session and ztp_start would result in a loss in connection
-    ztp_start                                                                       # Trigger Start of consolepi-wired-dhcp.service (eth0 specific instance)
+    ztp_start                                                                       # Trigger Start of consolepi-wired-dhcp.service ($wired_iface specific instance)
 }
 
 case "$0" in

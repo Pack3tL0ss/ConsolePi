@@ -21,10 +21,9 @@ def get_config(cfg=cfg):
     Output is bash formatted var=value file for use as a source in bash scripts
     '''
     for k, v in cfg.items():
-        if isinstance(v, str):
-            # if v.isdigit() and '.' not in v:
-            #     print(f'{k}={v}')
-            # else:
+        if isinstance(v, dict):
+            continue  # currently only applies to remote_timeout
+        elif isinstance(v, str):
             print(f"{k}='{v}'")
         elif isinstance(v, list):
             v = ' '.join(v)

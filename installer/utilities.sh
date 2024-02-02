@@ -30,31 +30,40 @@ get_util_status () {
 
     # This checks for the collection under the current user consolepi user and global locations
     # ansible-galaxy collection list wouldn't work as script is ran as root and
-    col_dirs=$(cat /tmp/ansible_ver | grep "collection location" | cut -d= -f2 | tr -d ' ' | sed "s|/root|${home_dir}|")
-    [ "$iam" != "consolepi" ] && col_dirs=$col_dirs:$(cat /tmp/ansible_ver | grep "collection location" | cut -d= -f2 | cut -d: -f1 | tr -d ' ' | sed "s|/root|/home/consolepi|")
-    col_dirs=($(echo ${col_dirs//:/' '}))
+    # FIXME  these rely on /tmp/ansible_ver which may not be installed at this point.  Need collection installer to figure it out when it goes to install
+    if [ -f /tmp/ansible_ver ]; then
+        col_dirs=$(cat /tmp/ansible_ver | grep "collection location" | cut -d= -f2 | tr -d ' ' | sed "s|/root|${home_dir}|")
+        [ "$iam" != "consolepi" ] && col_dirs=$col_dirs:$(cat /tmp/ansible_ver | grep "collection location" | cut -d= -f2 | cut -d: -f1 | tr -d ' ' | sed "s|/root|/home/consolepi|")
+        col_dirs=($(echo ${col_dirs//:/' '}))
 
-    cx_mod_installed=false ; sw_mod_installed=false ; cen_mod_installed=false
-    for d in ${col_dirs[@]}; do
-        if [ -d $d/ansible_collections/arubanetworks ]; then
-             ! $cx_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aoscx && cx_mod_installed=true
-             ! $sw_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aos_switch && sw_mod_installed=true
-             ! $cen_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aruba_central && cen_mod_installed=true
+        cx_mod_installed=false ; sw_mod_installed=false ; cen_mod_installed=false
+        for d in ${col_dirs[@]}; do
+            if [ -d $d/ansible_collections/arubanetworks ]; then
+                ! $cx_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aoscx && cx_mod_installed=true
+                ! $sw_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aos_switch && sw_mod_installed=true
+                ! $cen_mod_installed && ls -1 $d/ansible_collections/arubanetworks | grep -q aruba_central && cen_mod_installed=true
+            fi
+            $cx_mod_installed && $sw_mod_installed && $cen_mod_installed && break
+        done
+
+        i=0;for var in "$cx_mod_installed" "$sw_mod_installed" "$cen_mod_installed"; do
+            [ "$var" == true ] && ((i+=1))
+        done
+
+        if [ $i -eq 0 ]; then
+            unset a_mod_status
+        elif [ $i -gt 2 ]; then
+            a_mod_status="installed"
+        else
+            a_mod_status="partially installed"
         fi
-        $cx_mod_installed && $sw_mod_installed && $cen_mod_installed && break
-    done
-
-    i=0;for var in "$cx_mod_installed" "$sw_mod_installed" "$cen_mod_installed"; do
-        [ "$var" == true ] && ((i+=1))
-    done
-
-    if [ $i -eq 0 ]; then
-        unset a_mod_status
-    elif [ $i -gt 2 ]; then
-        a_mod_status="installed"
     else
-        a_mod_status="partially installed"
+        cx_mod_installed=false
+        sw_mod_installed=false
+        cen_mod_installed=false
+        a_mod_status=""
     fi
+
 
     UTIL_VER['aruba_ansible_collections']=$( echo $a_mod_status )
     PKG_EXPLAIN['aruba_ansible_collections']="Aruba Networks collections for ansible"
@@ -204,7 +213,7 @@ util_exec() {
             ;;
         ansible)
             if [[ $2 == "install" ]]; then
-                if hash pipx >/dev/null; then
+                if hash pipx 2>/dev/null; then
                     cmd_list=()
                 else
                     cmd_list=(
@@ -216,10 +225,9 @@ util_exec() {
                 fi
                 cmd_list+=(
                     "-l" "!! NOTICE: Long wait here on some platforms as ansible requirements need to be built, install may appear to hang, but is still working in background" \
-                    "-stop" "-pf" "pipx install ansible (long wait here)" "-u" "-o" "/dev/stdout" "pipx install --verbose --include-deps ansible" \
+                    "-stop" "-pf" "pipx install ansible (long wait here)" "-u" "--stderr" "$(readlink /dev/fd/0)" "pipx install --verbose --include-deps ansible" \
                     "-nostart" "-pf" "pipx inject... make available in PATH" "-u" "pipx inject --include-apps ansible argcomplete" \
                     "-nostart" "-pf" "activate completion for ansible" "-u" "activate-global-python-argcomplete --user --dest ${home_dir}/.bash_completions/"
-
                 )
             elif [[ $2 == "remove" ]]; then
                     # "-s" "-nolog" "rm ${home_dir}/.bash_completions/ansible*" \
@@ -237,27 +245,27 @@ util_exec() {
                     aruba_ansible_collections)
                         # install all aruba collections
                         cmd_list=(
-                            '-pf' 'Install aos-cx collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aoscx\"" \
-                            '-pf' 'Install aos-switch collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aos_switch\"" \
-                            '-pf' 'Install aruba_central collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aruba_central\""
+                            '-pf' 'Install aos-cx collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aoscx\"" \
+                            '-pf' 'Install aos-switch collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aos_switch\"" \
+                            '-pf' 'Install aruba_central collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aruba_central\""
                         )
                         ;;
                     aruba_ansible_cx_mod)
                         # install all aruba collections
                         cmd_list=(
-                            '-pf' 'Install aos-cx collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aoscx\""
+                            '-pf' 'Install aos-cx collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aoscx\""
                         )
                         ;;
                     aruba_ansible_sw_mod)
                         # install all aruba collections
                         cmd_list=(
-                            '-pf' 'Install aos-switch collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aos_switch\""
+                            '-pf' 'Install aos-switch collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aos_switch\""
                         )
                         ;;
                     aruba_ansible_cen_mod)
                         # install all aruba collections
                         cmd_list=(
-                            '-pf' 'Install aruba-central collection from ansible-galaxy' "su -w PATH $iam -c \"ansible-galaxy collection install arubanetworks.aruba_central\""
+                            '-pf' 'Install aruba-central collection from ansible-galaxy' "su -w PATH $iam -c \"export PATH="$PATH:$home_dir/.local/bin"; ansible-galaxy collection install arubanetworks.aruba_central\""
                         )
                         ;;
                 esac
@@ -327,8 +335,11 @@ util_exec() {
                     "-s" "-pf" "Update /etc/bash/bashrc for cockpit ~ ConsolePi"
                     "echo -e \"# read consolepi profile script for cockpit tty\\nif [ ! -z \\\$COCKPIT_REMOTE_PEER ] && [[ ! \\\"\\\$PATH\\\" =~ \\\"consolepi-commands\\\" ]] ; then\\n\\t[ -f \\\"/etc/ConsolePi/src/consolepi.sh\\\" ] && . /etc/ConsolePi/src/consolepi.sh\\nfi\" >>/etc/bash.bashrc"
                     "-logit" 'Installing cockpit this will take a few...'
-                    "-apt-install" "$apt_pkg_name" "--pretty=CockPit" "--exclude=cockpit-networkmanager"
+                    "-apt-install" "$apt_pkg_name" "--pretty=CockPit"
                 )
+                if ! ${uses_nm:-true}; then
+                    cmd_list+=("--exclude=cockpit-networkmanager")
+                fi
             elif [[ $2 == "remove" ]]; then
                 cmd_list=(
                     "-logit" 'Removing cockpit this will take a few...'
@@ -464,6 +475,7 @@ util_main() {
 # -- // SCRIPT ROOT \\ --
 if [[ ! $0 == *"ConsolePi" ]] && [[ $0 == *"utilities.sh"* ]] &&  [[ ! "$0" =~ "update.sh" ]]; then
     backtitle="ConsolePi Extras"
+    PATH=$PATH:"${home_dir}/.local/bin"
     util_main ${@}
 else
     $debug && process="utilities script start" && logit "script called from ${0}" "DEBUG"

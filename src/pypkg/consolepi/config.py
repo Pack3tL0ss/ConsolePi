@@ -52,12 +52,12 @@ class Config():
         self.do_overrides()
         self.picocom_ver = utils.get_picocom_ver()
         self.ser2net_ver = utils.get_ser2net_ver()
-        if utils.valid_file("/etc/ser2net.conf"):
-            self.ser2net_file = Path("/etc/ser2net.conf")
-            self.ser2net_conf = self.get_ser2netv3()
-        elif utils.valid_file("/etc/ser2net.yaml"):
+        if utils.valid_file("/etc/ser2net.yaml"):
             self.ser2net_file = Path("/etc/ser2net.yaml")
             self.ser2net_conf = self.get_ser2netv4()
+        elif utils.valid_file("/etc/ser2net.conf"):
+            self.ser2net_file = Path("/etc/ser2net.conf")
+            self.ser2net_conf = self.get_ser2netv3()
         else:
             self.ser2net_file = None
             self.ser2net_conf = {}
@@ -79,6 +79,24 @@ class Config():
         self.remotes = self.get_remotes_from_file()
         self.remote_update = self.get_remotes_from_file
         self.root = True if os.geteuid() == 0 else False
+
+    def verify_ser2net_file(self):
+        """Validate and update ser2net file.
+
+        This is necessary after Instantiation as user could
+        convert/remove old .conf file.  Which would cause
+        and exception.
+        """
+        if self.ser2net_file.exists():
+            return self.ser2net_file
+        elif utils.valid_file("/etc/ser2net.yaml"):
+            self.ser2net_file = Path("/etc/ser2net.yaml")
+        elif utils.valid_file("/etc/ser2net.conf"):
+            self.ser2net_file = Path("/etc/ser2net.conf")
+        else:
+            self.ser2net_file = None
+
+        return self.ser2net_file
 
     def get_remotes_from_file(self):
         return self.get_json_file(self.static.get('LOCAL_CLOUD_FILE'))
@@ -309,6 +327,7 @@ class Config():
         return host_dict
 
     def get_ser2net(self):
+        self.verify_ser2net_file()
         return self.get_ser2netv4() if self.ser2net_file.suffix in [".yaml", ".yml"] else self.get_ser2netv3()
 
     @staticmethod

@@ -21,7 +21,7 @@ sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
 from consolepi import config, log  # type: ignore # NoQA
 from consolepi.consolepi import ConsolePi  # type: ignore # NoQA
 from fastapi import FastAPI  # NoQA
-from pydantic import BaseModel  # NoQA
+# from pydantic import BaseModel  # NoQA
 from time import time  # NoQA
 from starlette.requests import Request  # NoQA
 

@@ -10,6 +10,38 @@
 # --                                                                                                                                             -- #
 # --------------------------------------------------------------------------------------------------------------------------------------------------#
 
+_verify_nmconnection_perms() {
+    # $1 = file to verify will ensure it is owned by root with 600 perms
+    [ ! -f "/etc/NetworkManager/system-connections/$1" ] && logit "Error verifying nmconnection file perms $1 File does not exist" "ERROR"
+    logit "Verify/Set permissions $1"
+    local rc=0
+
+    if [ ! "$(stat /etc/NetworkManager/system-connections/$1 -c '%u%a')" -eq 0600 ]; then
+        chown root:root "/etc/NetworkManager/system-connections/$1" >>$log_file 2>&1; ((rc+=$?))
+        chmod 600 "/etc/NetworkManager/system-connections/$1" >>$log_file 2>&1; ((rc+=$?))
+        [ "$rc" -eq 0 ] && logit "Success - set permissions $1" || logit "Error set permissions $1" "WARNING"
+    else
+        logit "$1 permissions already OK"
+    fi
+
+    return $rc
+}
+
+update_hosts_file() {
+    process="Update hosts file"
+    logit "Updating hosts file based on hotspot/wired-dhcp configuration"
+
+    if [ -f /etc/hosts ]; then
+        local hostn=$(tr -d " \t\n\r" < /etc/hostname)
+        # local_domain can be nul j2 template has conditionals to handle it.
+        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} wired_ip=${wired_ip} hostname=${hostn} domain=${local_domain} hotspot=${hotspot} wired_dhcp=${wired_dhcp}
+    else
+        logit "skipping as /etc/hosts file does not appear to exist" "WARNING"
+    fi
+
+    unset process
+}
+
 set_hostname() {
     process="Change Hostname"
     hostn=$(tr -d " \t\n\r" < /etc/hostname)
@@ -63,9 +95,9 @@ set_hostname() {
             [ $rc -gt 0 ] && logit "Error returned from hostname command" "WARNING"
 
             # add hotspot IP to hostfile for DHCP connected clients to resolve this host
-            wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)
-            [ $wlan_hostname_exists == 0 ] && echo "$wlan_ip       $newhost" >> /etc/hosts
-            sed -i "s/$hostn/$newhost/g" /etc/hostname
+            #wlan_hostname_exists=$(grep -c "$wlan_ip" /etc/hosts)
+            #[ $wlan_hostname_exists == 0 ] && echo "$wlan_ip       $newhost" >> /etc/hosts
+            #sed -i "s/$hostn/$newhost/g" /etc/hostname
 
             logit "New hostname set $newhost"
         fi
@@ -158,27 +190,29 @@ get_staged_imports(){
     fi
 
     # -- pre staged cloud creds --
-    if $cloud && [ -f "${stage_dir}/.credentials/credentials.json" ]; then
-        found_path=${stage_dir}/.credentials
-        mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
-        logit "Found ${cloud_svc} credentials. Moved to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
-        logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
-    elif $cloud ; then
-        if [ ! -f "$CLOUD_CREDS_FILE" ]; then
+    if $cloud; then
+        found_path=$(get_staged_file_path ".credentials" '-d')
+        [ -z "$found_path" ] && found_path=$(get_staged_file_path "${cloud_svc}/.credentials" '-d')
+        [ -z "$found_path" ] && found_path=$(get_staged_file_path "cloud/${cloud_svc}/.credentials" '-d')
+        if [ -n "$found_path" ]  && [ $(ls -1 $found_path | wc -l) -gt 0 ]; then
+            mv $found_path/* "/etc/ConsolePi/cloud/${cloud_svc}/.credentials" 2>> $log_file &&
+                logit "Found ${cloud_svc} credentials. Moved to /etc/ConsolePi/cloud/${cloud_svc}/.credentials"  ||
+                logit "Error occurred moving your ${cloud_svc} credentials files" "WARNING"
+        elif [ ! -f "$CLOUD_CREDS_FILE" ]; then
             desktop_msg="Use 'consolepi-menu cloud' then select the 'r' (refresh) option to authorize ConsolePi in ${cloud_svc}"
-            lite_msg="RaspiOS-lite detected. Refer to the GitHub for instructions on how to generate credential files off box"
+            lite_msg="RaspiOS-lite detected. Refer to the GitHub for instructions on how to generate credential files from another system"
         fi
     fi
 
     # -- custom overlay file for PoE hat (fan control) --
     # TODO looks like there is a gpiofan overlay now.
     found_path=$(get_staged_file_path "rpi-poe-overlay.dts")
-    [[ $found_path ]] && logit "overlay file found creating dtbo"
-    if [[ $found_path ]]; then
-        sudo dtc -@ -I dts -O dtb -o /tmp/rpi-poe.dtbo $found_path >> $log_file 2>&1 &&
+    if [ -n "$found_path" ]; then
+        logit "overlay file found creating dtbo"
+        dtc -@ -I dts -O dtb -o /tmp/rpi-poe.dtbo $found_path >> $log_file 2>&1 &&
             overlay_success=true || overlay_success=false
             if $overlay_success; then
-                sudo mv /tmp/rpi-poe.dtbo /boot/overlays 2>> $log_file &&
+                mv /tmp/rpi-poe.dtbo /boot/overlays 2>> $log_file &&
                     logit "Success moved overlay file, will activate on boot" ||
                     logit "Failed to move overlay file"
             else
@@ -188,35 +222,44 @@ get_staged_imports(){
 
     # TODO may need to adjust once fully automated
     # -- wired-dhcp configurations --
-    if [[ -d ${stage_dir}/wired-dhcp ]]; then
+    found_path=$(get_staged_file_path "wired-dhcp" '-d')
+    [ -z "$found_path" ] && found_path=$(get_staged_file_path "dnsmasq.d/wired-dhcp" '-d')
+    if [ -n "$found_path" ]; then
         logit "Staged wired-dhcp directory found copying contents to ConsolePi wired-dchp dir"
-        cp -r ${stage_dir}/wired-dhcp/. /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
+        logit -L "copying wired-dhcp from $found_path"
+        cp -r ${found_path}/. /etc/ConsolePi/dnsmasq.d/wired-dhcp/ &&
         logit "Success - copying staged wired-dchp configs" ||
             logit "Failure - copying staged wired-dchp configs" "WARNING"
     fi
 
     # -- ztp configurations --
-    if [[ -d ${stage_dir}/ztp ]]; then
+    found_path=$(get_staged_file_path "ztp" '-d')
+    if [ -n "$found_path" ]; then
         logit "Staged ztp directory found copying contents to ConsolePi ztp dir"
-        cp -r ${stage_dir}/ztp/. ${consolepi_dir}ztp/ 2>>$log_file &&
+        logit -L "copying ztp from $found_path"
+        cp -r ${found_path}/. ${consolepi_dir}ztp/ 2>>$log_file &&
         logit "Success - copying staged ztp configs" ||
             logit "Failure - copying staged ztp configs" "WARNING"
-        if [[ $(ls -1 | grep -vi "README" | wc -l ) > 0 ]]; then
+
+        if [ $(ls -1 ${consolepi_dir}ztp | grep -vi README | wc -l) -gt 0 ]; then
             check_perms ${consolepi_dir}ztp
         fi
     fi
 
     # -- autohotspot dhcp configurations --
-    if [[ -d ${stage_dir}/autohotspot-dhcp ]]; then
-        logit "Staged autohotspot-dhcp directory found copying contents to ConsolePi autohotspot dchp dir"
-        cp -r ${stage_dir}/autohotspot-dhcp/. /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
-        logit "Success - copying staged autohotspot-dchp configs" ||
+    found_path=$(get_staged_file_path "autohotspot" '-d')
+    [ -z "$found_path" ] && found_path=$(get_staged_file_path "dnsmasq.d/autohotspot" '-d')
+    if [ -n "$found_path" ]; then
+        logit "Staged autohotspot (dhcp) directory found copying contents to ConsolePi autohotspot dchp dir"
+        logit -L "copying autohotspot dhcp configs from $found_path"
+        cp -r ${found_path}/. /etc/ConsolePi/dnsmasq.d/autohotspot/ &&
+        logit "Success - copying staged autohotspot (dchp) configs" ||
             logit "Failure - copying staged autohotspot-dchp configs" "WARNING"
     fi
 
     # -- udev rules - serial port mappings --
     found_path=$(get_staged_file_path "10-ConsolePi.rules")
-    if [[ $found_path ]]; then
+    if [ -n "$found_path" ]; then
         logit "udev rules file found ${found_path} enabling provided udev rules"
         if [ -f /etc/udev/rules.d/10-ConsolePi.rules ]; then
             file_diff_update $found_path /etc/udev/rules.d/10-ConsolePi.rules
@@ -295,8 +338,39 @@ install_ser2net () {
     unset process
 }
 
-dhcp_run_hook() {
-    process="Configure dhcp.exit-hook"
+do_hook_nm() {
+    # // NetworkManager systems (bookworm+)
+    process="Configure nm-dispather"
+    local dispatch_src="/etc/ConsolePi/src/02-consolepi"
+    local dispatch_dest="/etc/NetworkManager/dispatcher.d/02-consolepi"
+    if [ -f $dispatch_dest ] && grep -q $dispatch_src $dispatch_dest; then
+        logit "dispatch script already exists, pointer verified"
+    else
+        echo '[ -x /etc/ConsolePi/src/02-consolepi ] && /etc/ConsolePi/src/02-consolepi "$@" || echo "ERROR: ConsolePi network dispatcher not found or not executable"' > $dispatch_dest
+
+        # -- Must be executable, ownded by root on not writable by group or other --
+        if [ "$(stat $dispatch_dest -c %a 2>/dev/null)" -eq 755 ]; then
+            logit "dispatch script perms verified"
+        else
+            chmod 755 $dispatch_dest 2>>$log_file && logit "Success setting dispatch script perms" ||
+                logit "Error occured setting dispatch script permissions" "WARNING"
+        fi
+
+        if [ "$(stat $dispatch_dest -c %u 2>/dev/null)" -eq 0 ]; then
+            logit "dispatch script ownership verified"
+        else
+            chown root:root $dispatch_dest 2>>$log_file && logit "Success set dispatch script ownership" ||
+                logit "Error occured setting dispatch script ownership" "WARNING"
+        fi
+    fi
+
+    logit "${process} - Complete"
+    unset process
+}
+
+do_hook_old() {
+    # // PRE-BOOkWORM OR SYSTEMS NOT RUNNING NetworkManager
+    process="Configure dhcpcd.exit-hook"
     hook_file="/etc/ConsolePi/src/dhcpcd.exit-hook"
     logit "${process} - Starting"
     if [ -f /etc/dhcpcd.exit-hook ]; then
@@ -321,17 +395,32 @@ dhcp_run_hook() {
     unset process
 }
 
-# TODO place ConsolePi_cleanup in src dir and change to systemd
-# TODO refactor hook scipts to export a variable, vs stashing in a file.
-ConsolePi_cleanup() {
+# sub used by do_consolepi_cleanup
+sub_remove_old_cleanup() {
+    if /lib/systemd/systemd-sysv-install is-enabled ConsolePi_cleanup; then
+        logit "Deprecated cleanup init script found disabling"
+        if /lib/systemd/systemd-sysv-install disable ConsolePi_cleanup 2>>$log_file; then
+            logit "Success disable deprecated cleanup init script"
+        else
+            logit "Error removing deprecated cleanup init script check $log_file for details" "WARNING"
+        fi
+    fi
+    [ -f /etc/init.d/ConsolePi_cleanup ] && rm /etc/init.d/ConsolePi_cleanup 2>>$log_file
+}
+
+do_consolepi_cleanup() {
     # ConsolePi_cleanup is an init script that runs on startup / shutdown.  On startup it removes tmp files used by ConsolePi script to determine if the ip
     # address of an interface has changed (PB notifications only occur if there is a change). So notifications are always sent after a reboot.
-    process="Deploy ConsolePi cleanup init Script"
-        file_diff_update /etc/ConsolePi/src/systemd/ConsolePi_cleanup /etc/init.d/ConsolePi_cleanup
+    process="consolepi-cleanup"
+    sub_remove_old_cleanup
+    systemd_diff_update consolepi-cleanup
+    if [ "$( systemctl is-enabled consolepi-cleanup.service )" != "enabled" ]; then
+        systemctl enable consolepi-cleanup 2>>$log_file && logit "Success enable consolepi-cleanup" || logit "Error enabling consolepi-cleanup" "WARNING"
+    fi
     unset process
 }
 
-#sub process used by install_ovpn
+#sub process used by install_ovpn_old
 sub_check_vpn_config(){
     if [ -f /etc/openvpn/client/ConsolePi.ovpn ]; then
         if $push; then
@@ -350,10 +439,10 @@ sub_check_vpn_config(){
     fi
 }
 
-install_ovpn() {
+install_ovpn_old() {
     process="OpenVPN"
     ovpn_ver=$(openvpn --version 2>/dev/null| head -1 | awk '{print $2}')
-    if [[ -z "$ovpn_ver" ]]; then
+    if [ -z "$ovpn_ver" ]; then
         process_cmds -stop -apt-install "openvpn" -nostart -pf "Enable OpenVPN" '/lib/systemd/systemd-sysv-install enable openvpn'
     else
         logit "OpenVPN ${ovpn_ver} Already Installed/Current"
@@ -395,7 +484,33 @@ install_ovpn() {
     unset process
 }
 
-install_autohotspot () {
+# TODO add additonal cmdline flag --ovpn (assumed false if flag not provided and silent mode, prompted if autovpn_enabled)
+# TODO add documentation consolepi-autovpn id.
+install_ovpn_nm() {
+    process="OpenVPN"
+    if ! dpkg -l | grep -q "^ii\s*network-manager-openvpn"; then
+        process_cmds -apt-install "network-manager-openvpn"
+    fi
+    unset process
+}
+
+do_nm_conf() {
+    process="Deploy ConsolePi NM conf"
+    local conf_dest="/etc/NetworkManager/conf.d/01-consolepi.conf"
+    convert_template 01-consolepi.conf "$conf_dest" ovpn_enable=${ovpn_enable}
+
+    if [ ! "$(stat $conf_dest -c '%u%a')" -eq 0644 ]; then
+        logit "Updating perms for NM ConsolePi conf file"
+        rc=0
+        chown root:root $conf_dest >>$log_file 2>&1; ((rc+=$?))
+        chmod 0644 $conf_dest >>$log_file 2>&1; ((rc+=$?))
+        [ "$rc" -eq 0 ] && logit "Updated - Success" || logit "Error occured check logs" "WARNING"
+    else
+        logit "ConsolePi NM permissions already OK"
+    fi
+}
+
+install_autohotspot_old() {
     process="AutoHotSpotN"
     logit "Install/Update AutoHotSpotN"
 
@@ -446,15 +561,6 @@ install_autohotspot () {
     file_diff_update ${src_dir}hostapd /etc/default/hostapd
     file_diff_update ${src_dir}interfaces /etc/network/interfaces
 
-    # update hosts file based on supplied variables - this comes into play for devices connected to hotspot (dnsmasq will be able to resolve hostname to wlan IP)
-    if [ -z "$local_domain" ]; then
-        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname)
-    else
-        convert_template hosts /etc/hosts wlan_ip=${wlan_ip} hostname=$(head -1 /etc/hostname) domain=${local_domain}
-    fi
-    # file_diff_update /tmp/hosts /etc/hosts
-    # rm /tmp/hosts >/dev/null 2>&1
-
     which iw >/dev/null 2>&1 && iw_ver=$(iw --version 2>/dev/null | awk '{print $3}') || iw_ver=0
     if [ "$iw_ver" == 0 ]; then
         process_cmds -apt-install iw
@@ -475,21 +581,64 @@ install_autohotspot () {
     unset process
 }
 
-disable_autohotspot() {
+disable_autohotspot_old() {
     process="Verify Auto HotSpot is disabled"
-    rc=0
+    local rc=0
     if systemctl -q is-active autohotspot; then
         systemctl stop autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
     fi
-    # TODO remove except-interface=wlan0 or entire file from dnsmasq.d
+
     if systemctl -q is-enabled autohotspot; then
         systemctl disable autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
     fi
+
+    if grep -q "except-interface=$wlan_iface" /etc/dnsmasq.d/01-consolepi 2>/dev/null; then
+        sed -i "/except-interface=$wlan_iface/d" /etc/dnsmasq.d/01-consolepi 2>>$log_file ||
+            logit "sed returned an error removing except-interface=$wlan_iface from /etc/dnsmasq.d/01-consolepi" "WARNING"
+    fi
+
     [[ $rc -eq 0 ]] && logit "Success Auto HotSpot Service is Disabled" || logit "Error Disabling Auto HotSpot Service" "WARNING"
     unset process
 }
 
+install_hotspot_nm() {
+    process="Auto Hotspot NM"
+    logit "Install/Update Auto HotSpot"
+    local uuid=$(nmcli -g connection.uuid con show hotspot 2>/dev/null)
+    if [ -z "$uuid" ]; then
+        hash uuid 2>/dev/null && local uuid=$(uuid)
+        local uuid=${uuid:-5ad644a6-b80e-11ee-952a-bf1313596c84}
+    fi
+    local hotspot_con_file=/etc/NetworkManager/system-connections/hotspot.nmconnection
+
+    convert_template hotspot.nmconnection "$hotspot_con_file" uuid=${uuid} wlan_iface=${wlan_iface:-wlan0} \
+        wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_ip=${wlan_ip}
+
+    #verify
+    if [ -f "$hotspot_con_file" ] && grep -q "address1=${wlan_ip}" $hotspot_con_file; then
+        logit "Success"
+        _verify_nmconnection_perms ${hotspot_con_file##*/}
+    else
+        logit "Error occured, validate the contents of ${hotspot_con_file##*/}" "WARNING"
+        logit "verify contents of $hotspot_con_file"
+    fi
+    unset process
+}
+
+disable_hotspot_nm() {
+    process="Verify Auto HotSpot is disabled"
+    local hotspot_con_file=/etc/NetworkManager/system-connections/hotspot.nmconnection
+    if [ -f $hotspot_con_file ]; then
+        if grep -q "autoconnect=true" $hotspot_con_file; then
+            sed -i 's/autoconnect=.*/autoconnect=false/' $hotspot_con_file &&
+                logit "Disabled automatic fallback to hotspot" || logit "Error occured disabling automatic fallback to hotspot" "WARNING"
+        fi
+    fi
+    unset process
+}
+
 check_install_dnsmasq() {
+    # only applies to pre-bookworm install/upgrade
     process="dnsmasq"
     logit "Verify / Install dnsmasq"
 
@@ -511,36 +660,145 @@ check_install_dnsmasq() {
 
 do_wired_dhcp() {
     process="wired-dhcp"
-    convert_template dnsmasq.eth0 /etc/ConsolePi/dnsmasq.d/wired-dhcp/wired-dhcp.conf dhcp_start="${wired_dhcp_start}" dhcp_end="${wired_dhcp_end}"
-        # -- using this vs systemd_diff_update as we don't want the service enabled.  It's activated by exit-hook
+    convert_template dnsmasq.eth0 /etc/ConsolePi/dnsmasq.d/wired-dhcp/wired-dhcp.conf dhcp_start="${wired_dhcp_start}" dhcp_end="${wired_dhcp_end}" wired_iface="${wired_iface}"
+    # -- using file_diff_update vs systemd_diff_update as we don not want the service enabled.  It is activated by exit-hook/nm-dispatcher
     file_diff_update ${src_dir}systemd/consolepi-wired-dhcp.service /etc/systemd/system/consolepi-wired-dhcp.service
 }
 
-gen_dnsmasq_conf () {
+do_wired_dhcp_nm() {
+    process="wired-dhcp NM"
+    logit "Install/Update Wired static fallback with DHCP"
+
+    # -- Check for existing DHCP (client) NetworkManager connection profiles on the wired interface --
+    # We skip any nmconnection files not in /etc/NetworkManager as NM auto-creates defaults that are overriden with /etc/NetworkManager once
+    # any customization are made
+    readarray -t wired_con_info < <(nmcli -t -f NAME,DEVICE,TYPE,FILENAME connection show | grep ":802-3-ethernet:/etc/NetworkManager/system-")
+    dhcp_con_exists=false
+    for con in "${wired_con_info[@]}"; do
+        local iface="$(echo $con | cut -d: -f2)"
+        local name="$(echo $con | cut -d: -f1)"
+        local file="${con/*:}"
+        [ -z "$iface" ] && iface=$(nmcli -g connection.interface-name con show "$name")
+
+        if [ "$iface" != "$wired_iface" ]; then
+            logit "Skipping $name as $iface is not $wlan_iface"
+            continue
+        fi
+
+        local profile_opts=($(nmcli -t -f ipv4.method,connection.autoconnect,connection.autoconnect-priority con show "${name}"))
+        local method=${profile_opts[0]/*:}
+        local autocon=${profile_opts[1]/*:}
+        local autocon_pri=${profile_opts[2]/*:}
+        if [ "$method" == "auto" ] && [ "$autocon" == "yes" ]; then
+            if [ "$autocon_pri" -gt 0 ]; then
+                dhcp_con_exists=true
+            else
+                logit "existing NetworkManager connection profile $name found with default autoconnect-profile:0 (lowest priority)"
+                logit "Increasing autoconnect-priority of $name to 1"
+                if nmcli con modify "$name" connection.autoconnect-priority 1 2>>$log_file ; then
+                    logit "Success set $name autoconnect-priority to 1"
+                    dhcp_con_exists=true
+                else
+                    logit "Error occured setting $name autoconnect-priority to 1" "WARNING"
+                    logit "Check the contents of $file" "WARNING"
+                    logit "Ensure autoconnect-priority=N where N is any value higher than 0" "CRITICAL"  # EXIT ON FAIL
+                fi
+            fi
+        else
+            logit "skipping $name ($method,$autocon,$autocon_pri) will not interfere with static fallback"
+        fi
+    done
+
+    # Deploy wired DHCP (client) connection profile if one doesn't already exist
+    # process="Wired Static Fallback with DHCP (ZTP)"
+    if ! $dhcp_con_exists; then
+        local _msg="Install/Update dhcp profile"
+        logit "$_msg"
+        local uuid=$(nmcli -g connection.uuid con show dhcp 2>/dev/null)
+        if [ -z "$uuid" ]; then
+            hash uuid 2>/dev/null && local uuid=$(uuid)
+            local uuid=${uuid:-17afb1e2-ba86-11ee-96a0-cf199142a9f5}
+        fi
+        local file=dhcp.nmconnection
+        local dest="/etc/NetworkManager/system-connections/$file"
+        [ -f /etc/sysctl.d/99-noipv6.conf ] && wired_v6_method=disabled || wired_v6_method=auto
+
+        convert_template "$file" $dest uuid=${uuid} wired_iface=${wired_iface:-setme} \
+            wired_v6_method=${wired_v6_method} 2>>$log_file
+
+        #verify
+        if [ -f "$dest" ] && grep -q "autoconnect-priority=" "$dest"; then
+            logit "Success - $_msg"
+            _verify_nmconnection_perms "$file"
+        else
+            logit "Error - $_msg" "WARNING"
+            logit "verify contents of $dest" "ERROR"
+        fi
+    fi
+
+    # deploy static fallback connection profile for Wired DHCP (server) for ZTP
+    local _msg="Install/Update static profile"
+    logit "$_msg"
+    local uuid=$(nmcli -g connection.uuid con show static 2>/dev/null)
+    if [ -z "$uuid" ]; then
+        hash uuid 2>/dev/null && local uuid=$(uuid)
+        local uuid=${uuid:-6292dec6-b9b1-11ee-a979-e7aa8dbd16e6}
+    fi
+    local file=static.nmconnection
+    local dest="/etc/NetworkManager/system-connections/$file"
+
+    convert_template "$file" "$dest" uuid=${uuid} wired_iface=${wired_iface:-setme} \
+        wired_ip=${wired_ip} 2>>$log_file
+
+    #verify
+    if [ -f "$dest" ] && grep -q "address1=${wired_ip}" "$dest"; then
+        logit "Success - $_msg"
+        _verify_nmconnection_perms "$file"
+    else
+        logit "Error - $_msg" "WARNING"
+        logit "verify contents of $dest" "ERROR"
+    fi
+
+    unset process
+}
+
+disable_wired_dhcp_nm() {
+    process="Verify wired_dhcp disabled"
+    local static_con_file=/etc/NetworkManager/system-connections/static.nmconnection
+    if [ -f $static_con_file ]; then
+        if grep -q "autoconnect=true" $static_con_file; then
+            sed -i 's/autoconnect=.*/autoconnect=false/' $static_con_file &&
+                logit "Disabled wired automatic fallback to static" || logit "Error occured disabling wired automatic fallback to static" "WARNING"
+        fi
+    fi
+    unset process
+}
+
+gen_dnsmasq_conf() {
     process="Configure dnsmasq"
     logit "Generating Files for dnsmasq."
-    # check if they are using old method where dnsmasq.conf was used to control dhcp on wlan0
+    # check if they are using old method where dnsmasq.conf was used to control dhcp on wlan interface
     if head -1 /etc/dnsmasq.conf 2>/dev/null | grep -q 'ConsolePi installer' ; then
-        convert_template dnsmasq.conf /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        convert_template dnsmasq.conf /etc/dnsmasq.conf wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end} wlan_iface=${wlan_iface}
         ahs_unique_dnsmasq=false
     else
-        convert_template dnsmasq.wlan0 /etc/ConsolePi/dnsmasq.d/autohotspot/autohotspot wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end}
+        convert_template dnsmasq.wlan0 /etc/ConsolePi/dnsmasq.d/autohotspot/autohotspot wlan_dhcp_start=${wlan_dhcp_start} wlan_dhcp_end=${wlan_dhcp_end} wlan_iface=${wlan_iface}
         ahs_unique_dnsmasq=true
     fi
 
     if $ahs_unique_dnsmasq ; then
         if $hotspot && $wired_dhcp ; then
-            grep -q 'except-interface=wlan0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ; rc=$?
-            grep -q 'except-interface=eth0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ; ((rc+=$?))
+            grep -q "except-interface=$wlan_iface" /etc/dnsmasq.d/01-consolepi 2>/dev/null ; rc=$?
+            grep -q "except-interface=$wired_iface" /etc/dnsmasq.d/01-consolepi 2>/dev/null ; ((rc+=$?))
             if [[ $rc -gt 0 ]] ; then
-                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=wlan0{{cr}}except-interface=eth0"
+                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=$wlan_iface{{cr}}except-interface=$wired_iface"
             fi
         elif $hotspot ; then
-            grep -q 'except-interface=wlan0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ||
-                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=wlan0"
+            grep -q "except-interface=$wlan_iface" /etc/dnsmasq.d/01-consolepi 2>/dev/null ||
+                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=$wlan_iface"
         elif $wired_dhcp ; then
-            grep -q 'except-interface=eth0' /etc/dnsmasq.d/01-consolepi 2>/dev/null ||
-                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=eth0"
+            grep -q "except-interface=$wired_iface" /etc/dnsmasq.d/01-consolepi 2>/dev/null ||
+                convert_template 01-consolepi /etc/dnsmasq.d/01-consolepi "except_if_lines=except-interface=$wired_iface"
         else
             if [ -f /etc/dnsmasq.d/01-consolepi ] ; then
                 logit "Hotspot and wired_dhcp are disabled but consolepi specific dnsmasq config found moving to bak dir"
@@ -557,6 +815,20 @@ gen_dhcpcd_conf () {
     [ -f /etc/sysctl.d/99-noipv6.conf ] && noipv6=true || noipv6=false
     convert_template dhcpcd.conf /etc/dhcpcd.conf wlan_ip=${wlan_ip} wired_ip=${wired_ip} hotspot=${hotspot} wired_dhcp=${wired_dhcp} noipv6=${noipv6}
     unset process
+}
+
+_handle_blue_symlink() {
+    # disable / enable bluetooth.service to remove symlink to original bluetooth unit file in lib dir
+    [ ! -f /etc/systemd/system/bluetooth.service ] && return 0  # They are not using the ConsolePi bluetooth unit
+
+    local rc=0
+    if [ "$(ls -l /etc/systemd/system | grep bluetooth.service | grep dbus | grep "^l.*" | cut -d'/' -f2)" == "lib" ]; then
+        systemctl disable bluetooth.service 2>/dev/null; local rc=$?
+        [ $rc -eq 0 ] && systemctl enable bluetooth.service 2>/dev/null; local rc=$?
+    fi
+
+    [ $rc -eq 0 ] || logit "Error returned disable/enable bluetooth.service to remove dbus symlink to original unit file" "WARNINNG"
+    return $rc
 }
 
 do_blue_config() {
@@ -578,6 +850,7 @@ do_blue_config() {
 
     if [ ! -z "$bt_exec" ] && [ -f "$bt_exec" ]; then
         convert_template bluetooth.service /etc/systemd/system/bluetooth.service bt_exec=${bt_exec}
+        systemd_diff_update 'bthelper@'
     else
         logit "Unable to find bluetoothd (lib) exec path" "WARNING"
     fi
@@ -592,6 +865,7 @@ do_blue_config() {
     if $bt_enabled; then
         logit "Reloading bluetooth service"
         systemctl daemon-reload
+        _handle_blue_symlink
         systemctl restart bluetooth.service >>$log_file 2>&1
         # enable the new rfcomm service
         do_systemd_enable_load_start rfcomm
@@ -666,17 +940,22 @@ get_utils() {
 do_resize () {
     # Install xterm cp the binary into consolepi-commands directory (which is in path) then remove xterm
     process="xterm ~ resize"
-    if [ ! -f ${src_dir}consolepi-commands/resize ]; then
-        cmd_list=("-apt-install" "xterm" "--pretty=${process}" "--exclude=x11-utils" \
-                  '-s' "export rsz_loc=\$(which resize)" \
-                  "-stop" "-nostart" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
-                      "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
-                  "-l" "xterm will now be removed as we only installed it to get resize" \
-                  "-apt-purge" "xterm"
-                )
-        process_cmds "${cmd_list[@]}"
-    else
-        logit "resize utility already present"
+    if ! hash resize 2>/dev/null; then
+        if [ ! -f ${src_dir}consolepi-commands/resize ]; then
+            cmd_list=("-apt-install" "xterm" "--pretty=${process}" "--exclude=x11-utils" \
+                    '-s' "export rsz_loc=\$(which resize)" \
+                    "-stop" "-nostart" "-p" "Copy resize binary from xterm" "-f" "Unable to find resize binary after xterm install" \
+                        "[ ! -z \$rsz_loc ] && sudo cp \$(which resize) ${src_dir}consolepi-commands/resize" \
+                    "-l" "xterm will now be removed as we only installed it to get resize" \
+                    "-apt-purge" "xterm"
+                    )
+            process_cmds "${cmd_list[@]}"
+        else
+            logit "resize utility already present"
+        fi
+    elif [ ! -f ${src_dir}consolepi-commands/resize ]; then  # If resize is already available (typicall non rpi), cp it for safekeeping
+        local rsz_bin=$(which resize)
+        cp "$rsz_bin" "${src_dir}consolepi-commands/resize" && logit "Success - Copy existing resize binary" || logit "Error occured  - Copy existing resize binary" "WARNING"
     fi
     unset process
 }
@@ -699,11 +978,11 @@ do_consolepi_mdns() {
     systemd_diff_update consolepi-mdnsreg
     systemd_diff_update consolepi-mdnsbrowse
     for d in 'avahi-daemon.socket' 'avahi-daemon.service' ; do
-        _error=false
-        if ! systemctl status "$d" | grep -q disabled ; then
-            [[ "$d" =~ "socket" ]] && logit "disabling ${d%.*} ConsolePi has it's own mdns daemon"
-            systemctl stop "$d" >/dev/null 2>&1 || _error=true
-            systemctl disable "$d" 2>/dev/null || _error=true
+        if ! systemctl is-enabled "$d" | grep -q "disabled"; then
+            [ "${d/*.}" == "socket" ] && logit "disabling ${d%.*} ConsolePi has it's own mdns daemon"
+            _error=false
+            systemctl stop "$d" >/dev/null 2>>$log_file || _error=true
+            systemctl disable "$d" 2>>$log_file || _error=true
             $_error && logit "Error occurred: stop - disable $d Check daemon status" "warning"
         fi
     done
@@ -733,7 +1012,7 @@ get_known_ssids() {
             logit "Found stage file ${found_path} Applying"
             # ToDo compare the files ask user if they want to import if they dont match
             [[ -f $wpa_supplicant_file ]] && sudo cp $wpa_supplicant_file $bak_dir
-            sudo mv $found_path $wpa_supplicant_file
+            cp $found_path $wpa_supplicant_file
             client_cert=$(grep client_cert= $found_path | cut -d'"' -f2| cut -d'"' -f1)
             if [[ ! -z "$client_cert" ]]; then
                 cert_path=${client_cert%/*}
@@ -785,9 +1064,10 @@ get_known_ssids() {
     unset process
 }
 
-# -- these funcs rely on raspi-config
+# -- these funcs and only apply if wifi-country set to US
 do_locale() {
-    if [ -n "$locale" ]; then
+    if [ -n "$locale" ] && [ "${locale^^}" == "US" ]; then
+        # -- keyboard change relies on raspi-config
         if hash raspi-config 2>/dev/null; then
             # -- update keyboard layout --
             if ! grep XKBLAYOUT /etc/default/keyboard | grep -q ${locale,,}; then
@@ -800,22 +1080,30 @@ do_locale() {
                     logit "${process} - Failed ~ verify contents of /etc/default/keyboard" "WARNING"
                 unset process
             fi
-            # -- update locale --
-            new_locale=en_${locale^^}.UTF-8
-            cur_locale=$(locale | head -1 | cut -d'=' -f2)
-            if [ "$cur_locale" != "$new_locale" ]; then
-                process="Set locale $new_locale"
-                logit "$process - Starting"
-                res=$(sudo raspi-config nonint do_change_locale $new_locale 2>&1)
-                if [ "$?" -eq 0 ]; then
-                    logit "$process - Success. locale changed to $new_locale"
-                else
-                    logit "Error occured changing locale to $new_locale" "WARNING"
-                    echo -e $res >> $log_file
-                fi
-            fi
         else
-            logit "locale change utilizes raspi-config which was not found.  Skipping" "WARNING"
+            logit -t "set keyboard to US" "keyboard change utilizes raspi-config which was not found.  Skipping"
+        fi
+
+        # -- update locale --
+        # logic adapted from raspi-config https://github.com/RPi-Distro/raspi-config
+        new_locale="en_${locale^^}.UTF-8"
+        cur_locale=$(locale | head -1 | cut -d'=' -f2)
+        if [ "$cur_locale" != "$new_locale" ]; then
+            process="Set locale $new_locale"
+            logit "$process - Starting"
+            if ! LOCALE_LINE="$(grep -E "^$new_locale( |$)" /usr/share/i18n/SUPPORTED)"; then
+                return 1
+            fi
+            export LC_ALL=C
+            export LANG=C
+            LG="/etc/locale.gen"
+            [ -L "$LG" ] && [ "$(readlink $LG)" = "/usr/share/i18n/SUPPORTED" ] && rm -f "$LG"
+            echo "$LOCALE_LINE" > /etc/locale.gen
+            update-locale --no-checks LANG >>$log_file 2>&1
+            rc=0
+            update-locale --no-checks "LANG=$new_locale" >>$log_file 2>&1; ((rc+=$?))
+            dpkg-reconfigure -f noninteractive locales >>$log_file 2>&1; ((rc+=$?))
+            [ "$rc" -eq 0 ] && logit "Success - set locale $new_locale $1" || logit "Error set locale $new_locale" "WARNING"
         fi
     fi
 }
@@ -924,12 +1212,29 @@ post_install_msg() {
             "  if you plan to use cloud sync.  You will need to do some setup on the Google side and Authorize ConsolePi"
             "  refer to the GitHub for more details"
             -nl
+    )
+    if $uses_nm; then
+        _msg+=(
+            " ${_bold}Auto VPN:${_norm}"
+            "  if you are using the Automatic VPN feature you should Configure a NetworkManager connection profile"
+            "  (type=vpn, dev=tun) in /etc/NetworkManager/system-connections.  ConsolePi will automatically turn up the connection"
+            "  if the an any interface comes up and the internet is reachable."
+            "  Verify the profile can be turned up manually with 'nmcli con up <vpn-profile-name>'"
+            "  you may need the '--ask' option to store secrets, the first time you connect."
+            "  !! All NM connection profiles should be owned by root with 600 (-rw-------) permissions !!"
+            -nl
+        )
+    else
+        _msg+=(
             " ${_bold}OpenVPN:${_norm}"
             "  if you are using the Automatic VPN feature you should Configure the ConsolePi.ovpn and ovpn_credentials files in"
             "  /etc/openvpn/client.  Then run 'consolepi-upgrade' which will add a few lines to the config to enable some"
             "  ConsolePi functionality.  There is a .example file for reference as well."
             "  !! You should \"sudo chmod 600 <filename>\" both of the files for added security !!"
             -nl
+        )
+    fi
+    _msg+=(
             " ${_bold}ser2net Usage:${_norm}"
             "  Serial Ports are available starting with telnet port 8001 (ttyUSB#) or 9001 (ttyACM#) incrementing with each"
             "  adapter plugged in.  if you configured predictable ports for specific serial adapters those start with 7001."
@@ -964,16 +1269,21 @@ post_install_msg() {
             -li "${_cyan}consolepi-upgrade${_norm}: Upgrade ConsolePi. This is the supported update method"
             -li "${_cyan}consolepi-leases${_norm}: Shows dnsmasq (dhcp) leases.  Typically clients connected to HotSpot"
             -li "${_cyan}consolepi-extras${_norm}: Launch optional utilities installer (tftp, ansible, lldp, cockpit, speedtest...)"
-            -li "${_cyan}consolepi-addssids${_norm}: Add additional known ssids. Alternatively you can add entries to wpa_supplicant manually"
             -li "${_cyan}consolepi-addconsole${_norm}: Configure serial adapter to telnet port rules"
             -li "${_cyan}consolepi-showaliases${_norm}: Shows Configured adapter aliases, helps identify any issues with aliases"
             -li "${_cyan}consolepi-logs${_norm}: Displays ConsolePi logs (Note this will install mutli-tail the first time it's ran)"
             "     valid args: 'all' (will cat consolepi.log), any other argument is passed to tail as a flag."
             "                 If no arguments are specified, script will follow tail on consolepi-log, and syslog (with filters)"
             "     examples: \"consolepi-logs all\", \"consolepi-logs -f\", \"consolepi-logs -20\", \"consolepi-logs 20\""
+    )
+    if ! $uses_nm; then
+        _msg+=(
             -li "${_cyan}consolepi-killvpn${_norm}: Gracefully terminate openvpn tunnel if one is established"
             -li "${_cyan}consolepi-autohotspot${_norm}: Manually invoke AutoHotSpot function which will look for known SSIDs and connect if found"
             "     then fall-back to HotSpot mode if not found or unable to connect"
+        )
+    fi
+    _msg+=(
             -li "${_cyan}consolepi-testhotspot${_norm}: Disable/Enable the SSIDs ConsolePi tries to connect to before falling back to hotspot"
             "     Used to test hotspot function.  Script Toggles state if enabled it will disable and vice versa"
             -li "${_cyan}consolepi-bton${_norm}: Make BlueTooth Discoverable and pairable - this is the default behavior on boot"
@@ -983,8 +1293,11 @@ post_install_msg() {
             "     valid args: adapters, interfaces, outlets, remotes, local, <hostname of remote>.  GitHub for more detail"
             -li "${_cyan}consolepi-convert${_norm}: ser2net v3 to ser2net v4 migration tool"
             -nl
+            " ${_bold}DEPRECATED Commands:${_norm} These commands will work on pre-bookworm systems, but not on current images."
+            -li "${_cyan}consolepi-addssids${_norm}: Add additional known ssids. Alternatively you can add entries to wpa_supplicant manually"
+            -nl
             -foot "ConsolePi Installation Script v${INSTALLER_VER}"
-        )
+    )
     menu_print "${_msg[@]}"
 
     # Display any warnings if they exist
@@ -1039,23 +1352,60 @@ update_main() {
         get_staged_imports
     fi
     install_ser2net
-    dhcp_run_hook
-    ConsolePi_cleanup  # TODO change service to consolepi-cleanup
-    $ovpn_enable && install_ovpn
-    # TODO new flow below needs to be tested (accomodate case where wired true hotspot false during install)
-    $no_ipv6 || $hotspot || $wired_dhcp && gen_dhcpcd_conf
-    if $hotspot || $wired_dhcp; then
-        check_install_dnsmasq
-        gen_dnsmasq_conf
-        # gen_dhcpcd_conf
-        $hotspot && install_autohotspot || disable_autohotspot
+
+    if $uses_nm; then
+        if $hotspot || $wired_dhcp || $ovpn_enable || $push; then
+            get_interfaces  # provides wlan_iface and wired_iface in global profile
+            do_hook_nm  # no real need to remove once deployed, it verifies config prior to taking any action
+        fi
+
+        if $wired_dhcp || $hotspot; then
+            check_install_dnsmasq
+            gen_dnsmasq_conf
+        fi
+
+        $hotspot && install_hotspot_nm || disable_hotspot_nm
+
+        if $wired_dhcp; then
+            do_wired_dhcp_nm
+            do_wired_dhcp  # setup up the dnsmasq conf in ConsolePi dir applies to both nm and dhcpcd
+        else
+            disable_wired_dhcp_nm
+        fi
+
+        $ovpn_enable && install_ovpn_nm
+        do_nm_conf
+    elif [ "$(systemctl is-active dhcpcd.service)" == "active" ]; then
+        if $hotspot || $wired_dhcp || $ovpn_enable; then
+            get_interfaces  # Using in old flow because gen_dnsmasq_conf has been updated to use detected iface names
+            do_hook_old
+        fi
+
+        if $no_ipv6 || $hotspot || $wired_dhcp; then
+            gen_dhcpcd_conf
+        fi
+
+        if $wired_dhcp || $hotspot; then
+            check_install_dnsmasq
+            gen_dnsmasq_conf
+        fi
+
         $wired_dhcp && do_wired_dhcp
+        $hotspot && install_autohotspot_old || disable_autohotspot_old
+        $ovpn_enable && install_ovpn_old
+    else
+        if $hotspot || $wired_dhcp || $ovpn_enable; then
+            logit "system does not appear to be using NetworkManager or dhcpcd skipping Network Automations (hotspot/wire-dhcp(ztp))" "WARNING"
+        fi
     fi
+
+    update_hosts_file # uses wlan_ip wired_ip local_domain along with hotspot and wired_dhcp from config.  Allows connected clients to resolve by hostname
     do_blue_config
+    do_consolepi_cleanup
     do_consolepi_api
     do_consolepi_mdns
-    ! $upgrade && do_locale
     do_resize
+
     if ( [ -n "$skip_utils" ] && $skip_utils ) || $silent; then
         logit -t "optional utilities installer" "utilities menu bypassed by config variable"
     else
@@ -1064,11 +1414,13 @@ update_main() {
     fi
 
     if ! $silent; then
-        get_known_ssids
+        ! $uses_nm && get_known_ssids  # pre-bookworm only
         get_serial_udev
     else
         logit -t "Configure WLAN - Predictable Console Ports" "Prompts bypassed due to -silent flag"
     fi
+
+    ! $upgrade && do_locale
     custom_post_install_script
     process=Complete
     $local_dev && dump_vars

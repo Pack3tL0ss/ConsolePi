@@ -201,7 +201,6 @@ if __name__ == '__main__':
                 mdns.zc.close()
 
             duration = f"{RESTART_INTERVAL / 60}m" if RESTART_INTERVAL > 60 else f"{RESTART_INTERVAL}s"
-            log.info(f'[MDNS DSCVRY] Discovered {len(mdns.discovered)} remote ConsolePis via mdns in last {duration}')
             mdns.discovered = []
 
     except KeyboardInterrupt:

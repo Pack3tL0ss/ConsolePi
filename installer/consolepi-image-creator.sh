@@ -55,6 +55,7 @@
 # via cmd line argumetns see --help for available flags
 # --------------------------------------------------------------------------------------
 
+# TODO check pre-stage hostname did not appear to work on last run
 
 # Terminal coloring
 _norm='\e[0m'
@@ -99,6 +100,7 @@ do_defaults() {
     # Some static variables
     STAGE_DIR='consolepi-stage'
     [ -d "$STAGE_DIR" ] && STAGE=true || STAGE=false
+    IMG_ROOT="/mnt/usb2"
     IMG_HOME="/mnt/usb2/home/consolepi"
     IMG_STAGE="$IMG_HOME/$STAGE_DIR"
     # STAGED_CONFIG=${get_staged_file_path ConsolePi.yaml}
@@ -108,14 +110,17 @@ do_defaults() {
     CUR_DIR=$(pwd)
     IMG_UGID='1000:1000'  # the user and group id, As of April 2022 no default user, consolepi user will be 1st user, uid:1000
     [ -d /etc/ConsolePi ] && ISCPI=true || ISCPI=false
-    # WPA_CONF=$STAGE_DIR/wpa_supplicant.conf
+
+    # /etc/wpa_supplicant/wpa_supplicant.conf is added to STAGE_FILES array if pre-bookworm
+    # TODO add logic to grab all network profiles off current system for bookworm+
     MY_HOME=$(grep "^${SUDO_USER}:" /etc/passwd | cut -d: -f6)
     STAGE_FILES=(STAGE:/etc/ConsolePi/ConsolePi.yaml
-                /etc/wpa_supplicant/wpa_supplicant.conf
                 STAGE:/etc/udev/rules.d/10-ConsolePi.rules
                 STAGE:/etc/ser2net.conf
                 $MY_HOME/.ssh/authorized_keys
                 $MY_HOME/.ssh/known_hosts
+                $MY_HOME/.ssh/id_rsa
+                $MY_HOME/.ssh/id_rsa.pub
                 STAGE:/etc/ConsolePi/cloud/gdrive/.credentials/credentials.json
                 STAGE:/etc/ConsolePi/cloud/gdrive/.credentials/token.pickle
                 STAGE:/etc/openvpn/client/ConsolePi.ovpn
@@ -150,6 +155,7 @@ do_error() {
     else
         green "OK"
     fi
+    unset rc  # in case it was made global and not reset elsewhere
 }
 
 green() {
@@ -197,8 +203,8 @@ get_input() {
     # return input in global context
 }
 
-# -- Find path for any files pre-staged in user home or consolepi-stage subdir --
-# default is to check for file pass -d as 2nd arg to check for dir
+# -- Find path for any files pre-staged in consolepi-stage/$NEW_HOSTNAME subdir then consolepi-stage --
+# default is to check for file, pass -d as 2nd arg to check for dir
 get_staged_file_path() {
     [ -z "$1" ] && echo "FATAL Error get_staged_file_path() passed NUL value" >$(readlink /dev/fd/0) && exit 3
     local flag=${2:-'-f'}
@@ -231,10 +237,10 @@ do_user_dir_import(){
     local found=$(get_staged_file_path $user_home -d)
     if [ -n "$found" ]; then
         dots "Found staged files for $1, cp to ${1}'s home on image"
-        res=$(chown -R $uid:$uid $found 2>&1); local rc=$?
+        res=$(cp -r $found/. /mnt/usb2/$user_home/ 2>&1); local rc=$?
         if [ "$rc" -eq 0 ]; then
             res+="\n"
-            res+=$(cp -r $found/. /mnt/usb2/$user_home/ 2>&1); ((rc+=$?))
+            res+=$(chown -R $uid:$uid /mnt/usb2/$user_home 2>&1); ((rc+=$?))
         fi
         do_error $rc $res
     else
@@ -306,8 +312,8 @@ do_import_configs() {
             dots "stage ssh authorized_keys found in $(dirname $found_path)"
             mkdir -p $IMG_HOME/.ssh ; rc=$?
             mkdir -p /mnt/usb2/root/.ssh ; ((rc+=$?))
-            cp ${CUR_DIR}/$STAGE_DIR/authorized_keys $IMG_HOME/.ssh/ ; ((rc+=$?))
-            cp ${CUR_DIR}/$STAGE_DIR/authorized_keys /mnt/usb2/root/.ssh/ ; do_error $((rc+=$?))
+            cp $found_path $IMG_HOME/.ssh/ ; ((rc+=$?))
+            cp $found_path /mnt/usb2/root/.ssh/ ; do_error $((rc+=$?))
         fi
 
         # -- import SSH known hosts on image if found --
@@ -328,42 +334,101 @@ do_import_configs() {
             dots "Set Ownership of $IMG_HOME/.ssh"
             chown -R $IMG_UGID $IMG_HOME/.ssh ; do_error $?
         fi
+
+        # -- verify/adjust perms on private key file if imported --
+        for key in "$IMG_HOME/.ssh/id_rsa" "$IMG_ROOT/root/.ssh/id_rsa"; do
+            if [ -f "$key" ]; then
+                local key_perms="$(stat -c %a "$key")"
+                if [ "$key_perms" -ne 600 ]; then
+                    dots "correct permissions on "$key" ~ 600"
+                    chmod 600 "$key" ; do_error $?
+                fi
+            fi
+        done
     fi
 
     # pre-stage wpa_supplicant.conf on image if found in stage dir
     # if EAP-TLS SSID is configured in wpa_supplicant extract EAP-TLS cert details and cp certs (not a loop only good to pre-configure 1)
     #   certs should be in script dir or 'cert' subdir cert_names are extracted from the wpa_supplicant.conf file found in script dir
     # NOTE: Currently the cert parsing will only work if you are using double quotes in wpa_supplicant.conf ~ client_cert="/etc/cert/ConsolePi-dev.pem"
-    WPA_CONF=$(get_staged_file_path wpa_supplicant.conf)
-    if [ -n "$WPA_CONF" ]; then
-        dots "wpa_supplicant.conf found pre-staging on image"
-        cp $WPA_CONF /mnt/usb2/etc/wpa_supplicant  ; rc=$?
-        chown root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
-        chgrp root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
-        chmod 644 /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
-        do_error $rc
+    if $PRE_BOOKWORM; then
+        WPA_CONF=$(get_staged_file_path wpa_supplicant.conf)
+        if [ -n "$WPA_CONF" ]; then
+            dots "wpa_supplicant.conf found pre-staging on image"
+            cp $WPA_CONF /mnt/usb2/etc/wpa_supplicant  ; rc=$?
+            chown root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
+            chgrp root /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
+            chmod 644 /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ; ((rc+=$?))
+            do_error $rc
 
-        # -- extract cert paths from wpa_supplicant.conf and move any staged certs to those paths
-        client_cert=$(grep client_cert= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
-        if [ -n "$client_cert" ]; then
-            dots "staged wpa_supplicant includes EAP-TLS SSID looking for certs"
-            cert_path="/mnt/usb2"${client_cert%/*}
-            ca_cert=$(grep ca_cert= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
-            private_key=$(grep private_key= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
-            cert_stage_dir=$(get_staged_file_path cert -d)
-            if [ -n "$cert_stage_dir" ]; then
-                do_error 0
-                dots "client certs found copying"
-                pushd $cert_stage_dir >/dev/null
-                mkdir -p $cert_path ; rc=$?
-                [ "$rc" -eq 0 ] || echo fail mkdir
-                [[ -f ${client_cert##*/} ]] && cp ${client_cert##*/} "${cert_path}/${client_cert##*/}" ; ((rc+=$?))
-                [[ -f ${ca_cert##*/} ]] && cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}" ; ((rc+=$?))
-                [[ -f ${private_key##*/} ]] && cp ${private_key##*/} "${cert_path}/${private_key##*/}"; ((rc+=$?))
-                popd >/dev/null
+            # -- extract cert paths from wpa_supplicant.conf and move any staged certs to those paths
+            # TODO need to have it pull the current certs if $NEW_HOSTNAME == $HOSTNAME and the files extracted paths exist
+            client_cert=$(grep client_cert= $WPA_CONF | cut -d= -f2 | tr -d ' "')
+            if [ -n "$client_cert" ]; then
+                dots "staged wpa_supplicant includes EAP-TLS SSID looking for certs"
+                cert_path="/mnt/usb2"${client_cert%/*}
+                ca_cert=$(grep ca_cert= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
+                private_key=$(grep private_key= $WPA_CONF | cut -d'"' -f2| cut -d'"' -f1)
+                cert_stage_dir=$(get_staged_file_path cert -d)
+                if [ -n "$cert_stage_dir" ]; then
+                    do_error 0
+                    dots "client certs found copying"
+                    pushd $cert_stage_dir >/dev/null
+                    mkdir -p $cert_path ; rc=$?
+                    [ "$rc" -eq 0 ] || echo fail mkdir
+                    [[ -f ${client_cert##*/} ]] && cp ${client_cert##*/} "${cert_path}/${client_cert##*/}" ; ((rc+=$?))
+                    [[ -f ${ca_cert##*/} ]] && cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}" ; ((rc+=$?))
+                    [[ -f ${private_key##*/} ]] && cp ${private_key##*/} "${cert_path}/${private_key##*/}"; ((rc+=$?))
+                    popd >/dev/null
+                    do_error $rc
+                else
+                    echo "WARNING"; echo -e "\tEAP-TLS is defined, but no certs found for import"
+                fi
+            fi
+        fi
+    else  # Network Manager based system
+        nm_stage_dir=$(get_staged_file_path "NetworkManager/system-connections" -d)
+        if [ -n "$nm_stage_dir" ]; then
+            nm_con_files=($(ls -1 "$nm_stage_dir"))
+            if [ "${#nm_con_files[@]}" -gt 0 ]; then
+                cert_stage_dir=$(get_staged_file_path cert -d)
+
+                for nm_profile in "${nm_con_files[@]}"; do
+                    dots "stage NetworkManager profile ${nm_profile/.*}"
+                    cp $nm_stage_dir/$nm_profile $IMG_ROOT/etc/NetworkManager/system-connections ; rc=$?
+                    do_error $rc
+
+                    if [ -n "$cert_stage_dir" ]; then
+                        img_profile="$IMG_ROOT/etc/NetworkManager/system-connections/$nm_profile"
+                        client_cert=$(grep "client-cert=" $img_profile | cut -d= -f2 | tr -d ' "')
+                        if [ -n "$client_cert" ]; then
+                            dots "${nm_profile/.*} is EAP-TLS SSID looking for certs"
+                            ca_cert=$(grep ca-cert= $img_profile | cut -d= -f2 | tr -d ' "')
+                            private_key=$(grep private-key= $img_profile | cut -d= -f2 | tr -d ' "')
+
+                            cert_path="/mnt/usb2"${client_cert%/*}
+                            mkdir -p $cert_path ; rc=$?
+                            [ "$rc" -eq 0 ] || echo fail mkdir
+                            pushd $cert_stage_dir >/dev/null
+                            [ -n "$ca_cert" ] && [ -f "$ca_cert" ] && [ ! -f "${cert_path}/${ca_cert##*/}" ] && ( cp ${ca_cert##*/} "${cert_path}/${ca_cert##*/}" ; ((rc+=$?)) )
+                            [ -n "$client_cert" ] && [ -f "$client_cert" ] && [ ! -f "${cert_path}/${client_cert##*/}" ] && ( cp ${ca_cert##*/} "${cert_path}/${client_cert##*/}" ; ((rc+=$?)) )
+                            [ -n "$private_key" ] && [ -f "$private_key" ] && [ ! -f "${cert_path}/${private_key##*/}" ] && ( cp ${ca_cert##*/} "${cert_path}/${private_key##*/}" ; ((rc+=$?)) )
+                            do_error $rc
+
+                            # adjust key file permissions
+                            if [ -f "${cert_path}/${private_key##*/}" ]; then
+                                dots "Set staged private key (${private_key##*/}) permissions (600)"
+                                res=$(chmod 600 "${cert_path}/${private_key##*/}" 2>&1) ; do_error $? "$res"
+                            fi
+                            popd >/dev/null
+                        fi
+                    fi
+                done
+
+                dots "chown/chmod pre-staged profiles"
+                chown root:root $IMG_ROOT/etc/NetworkManager/system-connections/* ; rc=$?
+                chmod 600 $IMG_ROOT/etc/NetworkManager/system-connections/* ; ((rc+=$?))
                 do_error $rc
-            else
-                echo "WARNING"; echo -e "\tEAP-TLS is defined, but no certs found for import"
             fi
         fi
     fi
@@ -378,7 +443,7 @@ do_import_configs() {
             echo -e "You can mass import settings from this ConsolePi onto the new image."
             echo -e "The following files will be evaluated:\n"
             for f in "${STAGE_FILES[@]}"; do echo -e "\t${f//STAGE:/}" ; done
-            echo -e "\t/etc/ssh/*"
+            [ "$HOSTNAME" == "$NEW_HOSTNAME" ] && echo -e "\t/etc/ssh/*"
             echo -e "\nAny files already staged via $STAGE_DIR will be skipped"
             echo -e "Any files not found on this ConsolePi will by skipped\n"
             echo '--------------------------------------------------------------------'
@@ -395,6 +460,7 @@ do_import_configs() {
             fi
 
             cyan "\n   -- Performing Imports from This ConsolePi --"
+            $PRE_BOOKWORM && STAGE_FILES+=("/etc/wpa_supplicant/wpa_supplicant.conf")
             for f in "${STAGE_FILES[@]}"; do
                 if [[ "$f" =~ ^"STAGE:" ]]; then
                     src="$(echo $f| cut -d: -f2)"
@@ -403,11 +469,11 @@ do_import_configs() {
                 # -- Accomodate Files imported from users home on a ConsolePi for non consolepi user (consolepi user already imported) --
                 elif [[ ! $f =~ "/home/consolepi" ]] && [[ $f =~ $MY_HOME ]]; then
                     src="$f"
-                    # dst is in the stage dir for non consolepi/root users.  After user creation installer will look for files in the stage dir
-                    dst="${IMG_STAGE}${f}"
+                    # dst is in consolepi-stage/$NEW_HOSTNAME if there is a host specific subdir in the stage dir otherwise the root of the stage dir
+                    [ -d "$IMG_STAGE/$NEW_HOSTNAME" ] && dst="${IMG_STAGE}/$NEW_HOSTNAME${f}" || dst="${IMG_STAGE}${f}"
                 else
                     src="$f"
-                    dst="/mnt/usb2${f}"
+                    dst="${IMG_ROOT}${f}"
                 fi
 
                 dots "$src"
@@ -439,6 +505,13 @@ do_import_configs() {
                     fi
                 fi
             done
+
+            # pull ssh keys and config and place on this Pi
+            if [ "$HOSTNAME" == "$NEW_HOSTNAME" ]; then
+                dots "/etc/ssh/*"
+                cp -r /etc/ssh/* $IMG_ROOT/etc/ssh 2>&1 && echo "Imported"
+            fi
+
 
         # We still prompt for ConsolePi.yaml even if not doing import
         elif [ -z $STAGED_CONFIG ] && [ -f /etc/ConsolePi/ConsolePi.yaml ]; then
@@ -555,6 +628,7 @@ do_detect_download_image() {
 
     # If img or xz raspios-lite image exists in script dir see if it is current
     # if not prompt user to determine if they want to download current
+    # FIXME if both the img file and xz exist it will try to extract the xz again and crash as the file already exists
     if (( ${#found_img_files[@]} )); then
         if [[ ! " ${found_img_files[@]} " =~ ${cur_rel_date}.*\.img ]]; then
             echo "the following images were found:"
@@ -670,6 +744,32 @@ main() {
 
     [ -z "$img_file" ] && do_detect_download_image  # if img_file set it was set via --image argument
 
+    if [[ $img_file =~ bullseye ]] || [[ $img_file =~ jessie ]] || [[ $img_file =~ stretch ]]; then
+        PRE_BOOKWORM=true
+    elif [[ $img_file =~ bookworm ]]; then
+        PRE_BOOKWORM=false
+    fi
+
+    if [ -z "$PRE_BOOKWORM" ]; then
+        # This assumes image is in format yyyy-mm-dd-raspios-bookworm-armhf-lite.img
+        img_date=$(echo "$img_file" | cut -d- -f-2)
+        if [ "${#img_date}" -ne 7 ]; then
+            # something not right about the image file assume bookworm+
+            PRE_BOOKWORM=false
+        else
+            img_year=${img_date/-*}
+            if [ "$img_year" -lt 2023 ]; then
+                PRE_BOOKWORM=true
+            elif [ "$img_year" -gt 2023 ]; then
+                PRE_BOOKWORM=false
+            else
+                # raspberry pi OS went to bookworm with Oct 2023 release
+                [ "${img_date/*-}" -lt 10 ] && PRE_BOOKWORM=true || PRE_BOOKWORM=false
+            fi
+        fi
+    fi
+
+
     # ----------------------------------- // Burn raspios image to device (micro-sd) \\ -----------------------------------
     echo -e "\n\n${_red}${_blink}!!! Last chance to abort !!!${_norm}"
     get_input "About to write image $(cyan ${img_file}) to $(green ${out_usb}), Continue?"
@@ -698,7 +798,7 @@ main() {
             # mmcblk device would fail on laptop after image creation re-run with --no-dd and was fine
             echo "Sleep then Retry"
             sleep 3
-            dots "Mounting boot partition"
+            dots "mounting boot partition"
         fi
     done
     do_error $rc "$res"
@@ -744,20 +844,25 @@ main() {
 
     # TODO move to func and use EOF << redirection
     # Configure simple psk SSID based args or config file
+
     if $CONFIGURE_WPA_SUPPLICANT; then
-        dots "configuring wpa_supplicant.conf | defining ${SSID}"
-        sudo echo "country=${WLAN_COUNTRY}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "network={" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "    ssid=\"${SSID}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "    psk=\"${PSK}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        [[ $PRIORITY > 0 ]] && sudo echo "    priority=${PRIORITY}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
-        [ -f /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ] && green OK || red ERROR
+        if $PRE_BOOKWORM; then
+            dots "configuring wpa_supplicant.conf | defining ${SSID}"
+            sudo echo "country=${WLAN_COUNTRY}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            sudo echo "network={" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            sudo echo "    ssid=\"${SSID}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            sudo echo "    psk=\"${PSK}\"" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            [[ $PRIORITY > 0 ]] && sudo echo "    priority=${PRIORITY}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            sudo echo "}" >> "/mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf"
+            [ -f /mnt/usb2/etc/wpa_supplicant/wpa_supplicant.conf ] && green OK || red ERROR
+        else
+            dots "NetworkManager pre-config only supported via import file" ; echo "skipped"
+        fi
     fi
 
     # Configure consolepi user to auto-launch ConsolePi installer on first-login
     if $AUTO_INSTALL; then
-        dots "configure auto launch installer login"
+        dots "configure auto launch installer on first login"
         local auto_install_file=/mnt/usb2/usr/local/bin/consolepi-install
         echo '#!/usr/bin/env bash' > $auto_install_file
 
@@ -799,7 +904,7 @@ main() {
     ! $usb2_existed && rmdir /mnt/usb2
 
     green "\nConsolePi image ready\n\a"
-    ! $AUTO_INSTALL && echo "Boot RaspberryPi with this image use $(cyan 'consolepi-install') to deploy ConsolePi"
+    ! $AUTO_INSTALL && echo "Boot RaspberryPi with this image use $(cyan 'consolepi-install') to deploy ConsolePi" || true # prevents exit with error code
 }
 
 verify_local_dev() {
@@ -816,13 +921,6 @@ _help() {
 }
 
 show_usage() {
-    # -- hidden dev options --
-    # -debug: additional logging
-    # -dev: dev local mode, configures image to install from dev branch of local repo
-    # --no-dd: run without actually burning the image (used to re-test on flash that has already been imaged)
-    # -cponly: consolepi-stage dir will be cp to image if found but as __consolepi-stage to prevent installer
-    #          from importing from the dir during install
-    #
     # hash consolepi-image 2>/dev/null && local cmd=consolepi-image || local cmd=$(echo $SUDO_COMMAND | cut -d' ' -f1)
     [ -x /etc/ConsolePi/src/consolepi-commands/consolepi-image ] && local cmd=consolepi-image || local cmd="sudo $(echo $SUDO_COMMAND | cut -d' ' -f1)"
     echo -e "\n$(green USAGE:) $cmd [OPTIONS]\n"
@@ -840,7 +938,7 @@ show_usage() {
     _help "--[no-]edit" "Skips prompt asking if you want to edit (nano) the imported ConsolePi.yaml."
     _help "-H|--hostname" "pre-configure hostname on image."
     _help "-I|--image" "Use specified image (full path or file in cwd)"
-    _help "-p|--passwd <consolepi passwdrd>" "The password to set for the consolepi user."
+    _help "-p|--passwd <consolepi password>" "The password to set for the consolepi user."
     _help "--cmd-line '<cmd_line arguments>'" "*Use single quotes* cmd line arguments passed on to 'consolepi-install' cmd/script on image"
     if [ -n "$1" ] && [ "$1" = "dev" ]; then  # hidden dev flags --help dev to display them.
         echo -e "\n$(green Dev Options)\n"
@@ -995,5 +1093,5 @@ if [ "${iam}" = "root" ]; then
     main
 else
     printf "\n${_lred}Script should be ran as root"
-    [[ "${@,,}" =~ "help" ]] && ( echo ".${_norm}"; show_usage ) || echo -e " exiting.${_norm}\n"
+    [[ "${@,,}" =~ "help" ]] && ( echo -e ".${_norm}"; show_usage ) || echo -e " exiting.${_norm}\n"
 fi

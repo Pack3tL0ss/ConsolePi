@@ -1,23 +1,49 @@
 #!/usr/bin/env bash
 
-# Initiates test of ConsolePi automated actions based on IP changes
+# Initiates test of ConsolePi automations based on network events
 #   IF No args: provided it will initiate a test, and use your configured local_domain
 #               to skip openvpn if enabled.
-#   Optional first Arg: [static|<some new domain>].  The keyword static, will initiate a test
-#                       on the fallback to static flow used to enable dhcp server on eth interface
-#                       any other string will be used as the new domain, which will trigger openvpn
-#                       test
+#
+#   consolepi-pbtest --help  ;# to see additional option
 #
 # . /etc/ConsolePi/ConsolePi.conf
-push_response_log="/var/log/ConsolePi/push_response.log"
+_norm='\e[0m'
+_bold='\e[32;1m'
+_blink='\e[5m'
+_red='\e[31m'
+_blue='\e[34m'
+_green='\e[32m'
+_cyan='\e[96m'
 
-echo -e "\n         ConsolePi dhcpcd Exit Hook Test (test automations triggered by DHCP events)"
-# ! $push && echo "!!! PushBullet Notifications are not enabled in the config !!!"
-echo -e "\nSending test data to simulate dhcpcd hook\n"
-sudo /etc/ConsolePi/src/dhcpcd.exit-hook test "$@" ||
-    echo -e "Script returned Error Code ("$?")  Check Logs"
-echo -e "\nTest Complete, if PB is enabled in the config you Should have received a msg."
-echo -e "The script sends PB msg to a background process and does not evaluate the result."
-echo -e "If you did not get a message check $push_response_log for response from PB api.\n"
+if [ "$(systemctl is-active NetworkManager.service)" == "active" ] && hash nmcli 2>/dev/null && [ $(nmcli -t dev | grep -v "p2p-dev\|:lo" | wc -l) -gt 0 ]; then
+    uses_nm=true
+    title="\n         ${_green}ConsolePi NetworkManager dispatcher test (test automations triggered by network events)${_norm}"
+else
+    uses_nm=false
+    title="\n         ${_green}ConsolePi dhcpcd Exit Hook Test (test automations triggered by DHCP events)${_norm}"
+fi
+
+push_response_log="/var/log/ConsolePi/push_response.log"
+echo -e "$title"
+[[ ! "$@" =~ "-help" ]] && printf "\n${_cyan}Sending test data to simulate network event...${_norm} "
+
+if $uses_nm; then
+    sudo /etc/ConsolePi/src/02-consolepi test "$@" ||
+        echo -e "Script returned ${_red}Error${_norm} Code ("$?")  Check Logs\n"
+else
+    sudo /etc/ConsolePi/src/dhcpcd.exit-hook test "$@" ||
+        echo -e "Script returned ${_red}Error${_norm} Code ("$?")  Check Logs\n"
+fi
+
+echo -e "${_green}${_blink}Test Complete${_norm}"  # appends to end of line above
+echo -e "\nIf ${_cyan}PushBullet${_norm} is enabled in the config you Should have received a msg."
+echo -e "The script sends PushBullet msg to a background process and does not evaluate the result."
+echo -e "If you did not get a message check $push_response_log for response from PushBullet api.\n"
 echo -e "The Notification will display a random IP in the Subject used to trigger"
 echo -e "the push, the body of the msg will still reflect your real IP\n"
+echo -e "If ${_cyan}cloud${_norm} is enabled, the change in IP will result in an update to the cloud (gdrive)"
+echo -e "This can be verified by checking /var/log/ConsolePi/consolepi.log or consolepi-logs (-f to follow tail)"
+echo -e "\n${_red}Note${_norm}: The cloud update with randomized IP results in a bogus IP being updated to the cloud"
+echo -e "for this ConsolePi.  You can launch consolepi-menu and select r (refresh)."
+echo -e "It will update itself on the next real network event.\n"
+

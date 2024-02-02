@@ -84,22 +84,44 @@ do_apt_deps() {
     if $doapt; then
         logit "$process - Starting"
 
-        which git >/dev/null || process_cmds -e -pf "install git" -apt-install git
+        which git >/dev/null || process_cmds -e --apt-install git
+
+        # prefer users .config dir over .gitconfig in users home
+        if [ ! -f $home_dir/.gitconfig ] && [ ! -d $home_dir/.config/git ]; then
+            logit "Creating user git config at $home_dir/.config/git/config"
+            sudo -u $iam mkdir -p $home_dir/.config/git 2>>$log_file
+            sudo -u $iam touch $home_dir/.config/git/config
+        fi
+        if [ ! -f /root/.gitconfig ] && [ ! -d /root/.config/git ]; then
+            logit "Creating root git config at /root/.config/git/config"
+            mkdir -p /root/.config/git 2>>$log_file
+            touch /root/.config/git/config
+        fi
+
 
         # -- Ensure python3-pip is installed --
         [[ ! $(dpkg -l python3-pip 2>/dev/null| tail -1 |cut -d" " -f1) == "ii" ]] &&
-            process_cmds -e -pf "install python3-pip" -apt-install "python3-pip"
+            process_cmds -e --apt-install "python3-pip"
+
+        # if consolepi venv dir exists we assume virtualenv is installed
+        if [ ! -d ${consolepi_dir}venv ]; then
+            # -- Ensure python3 virtualenv is installed --
+            venv_ver=$(python3 -m pip show virtualenv 2>/dev/null | grep -i version | cut -d' ' -f2)
+            if [ -z "$venv_ver" ]; then
+                process_cmds -e --apt-install "python3-virtualenv"
+            fi
+        fi
 
         # 02-05-2020 raspbian buster could not pip install requirements would error with no libffi
         # 09-03-2020 Confirmed this is necessary, and need to vrfy on upgrades
         if ! dpkg -l libffi-dev >/dev/null 2>&1 ; then
-            process_cmds -pf "install libffi-dev" -apt-install "libffi-dev"
+            process_cmds --apt-install "libffi-dev"
         fi
 
         # 02-13-2020 raspbian buster could not pip install cryptography resolved by apt installing libssl-dev
         # TODO check if this is required
         if ! dpkg -l libssl-dev >/dev/null 2>&1 ; then
-            process_cmds -pf "install libssl-dev" -apt-install "libssl-dev"
+            process_cmds --apt-install "libssl-dev"
         fi
 
         # If it's an RPI we ensure RPi.GPIO is up to date.
@@ -121,11 +143,12 @@ do_apt_deps() {
 do_user_dir_import(){
     [[ $1 == root ]] && local user_home=root || local user_home="home/$1"
     # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
-    if [[ -d "$stage_dir/$user_home" ]]; then
+    found_path=$(get_staged_file_path "$user_home" "-d")
+    if [ -n "$found_path" ]; then
         logit "Found staged files for $1, copying to users home"
-        cp -r "$stage_dir/$user_home/." "/$user_home/" &&
-        chown -R $(grep "^$1:" /etc/passwd | cut -d: -f3-4) "/$user_home/" &&
-        ( logit "Success - copy staged files for user $1" && return 0 ) ||
+        cp -r "$found_path/." "/$user_home/" &&
+            chown -R $(grep "^$1:" /etc/passwd | cut -d: -f3-4) "/$user_home/" &&
+            ( logit "Success - copy staged files for user $1" && return 0 ) ||
             ( logit "An error occurred when attempting cp pre-staged files for user $1" "WARNING"
               return 1
             )
@@ -189,7 +212,9 @@ do_users(){
 
         # Create additional Users (with appropriate rights for ConsolePi)
         process="Add Users"
-        if ! $silent; then
+        if ! $silent || ! $no_users; then
+            # strip users from extra_groups as user will have that group automatically
+            extra_groups=$( echo $extra_groups | sed 's/\(.*\) users\(.*\)/\1\2/' )
             sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups\"/" /tmp/adduser.conf
             _res=true; while $_res; do
                 echo
@@ -215,6 +240,12 @@ do_users(){
                     done
                     if adduser --conf /tmp/adduser.conf --gecos ",,,," ${args[@]} ${user} 1>/dev/null; then
                         logit "Successfully added new user $user"
+
+                        # Now double check the users group thing (not sure if this is new since bookworm)
+                        if ! getent group users | grep -q $user; then
+                            usermod -a -G users "$user" ; rc=$?
+                            logit -L -t "DEVNOTE" "Had to add users group to user $user. returned $rc"
+                        fi
 
                         # -- Copy Prep pre-staged files if they exist (stage-dir/home/<username>) for newly created user.
                         do_user_dir_import $user || logit -L "User dir import for $user user returned error"
@@ -437,19 +468,7 @@ do_pyvenv() {
         fi
     fi
 
-    # TODO Think we can lose the sudo now
     if [ ! -d ${consolepi_dir}venv ]; then
-        # -- Ensure python3 virtualenv is installed --
-        venv_ver=$(sudo python3 -m pip show virtualenv 2>/dev/null | grep -i version | cut -d' ' -f2)
-        if [ -z "$venv_ver" ]; then
-            logit "python virtualenv not installed... installing"
-            sudo apt install -y python3-virtualenv 1>/dev/null 2>> $log_file &&
-                logit "Success - Install virtualenv" ||
-                logit "Error - installing virtualenv" "ERROR"
-        else
-            logit "python virtualenv v${venv_ver} installed"
-        fi
-
         # -- Create ConsolePi venv --
         logit "Creating ConsolePi virtualenv"
         sudo python3 -m virtualenv ${consolepi_dir}venv 1>/dev/null 2>> $log_file &&
@@ -459,6 +478,7 @@ do_pyvenv() {
         logit "${consolepi_dir}venv directory already exists"
     fi
 
+    # dopip can be toggled off via --no-pip flag (used for repeated testing of install scripts)
     if $dopip; then
         logit "Upgrade pip"
         sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade pip 1>/dev/null 2>> $log_file &&
@@ -468,9 +488,14 @@ do_pyvenv() {
         logit "pip install/upgrade ConsolePi requirements - This can take some time."
         echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
         # -- RPi.GPIO is done separately as it's a distutils package installed by apt, but pypi may be newer.  this is in a venv, should do no harm
+        # It will also install on non rpi Linux systems (via pip).  So does no harm to install it.
+        # Will not install in python global context via apt on other systems: sudo apt install python3-rpi.gpio ; as it's only in the rpi repo
+        # Some platforms (i.e. Jetson Nano) use different library to operate GPIO, would need wrapper that could determine platform and which to use.  Just means GPIO based power would not be supported on those systems.
+
         # if we do --upgrade below ERROR: Cannot uninstall 'RPi.GPIO'. It is a distutils installed project and thus we cannot accurately determine which files belong to it which would lead to only a partial uninstall.
         # if we include RPi.GPIO in the requirements file then pip install --upgrade -r requirements.txt ... it will result in the same error.
         #  SO we simply do pip install RPi.GPIO to ensure it's installed in the venv, log a WARNING which allows script to continue if there is a failure.  RPi.GPIO would be upgraded only when venv is re-created. (or manually)
+        # TODO test removing from venv and installing in global context via "sudo apt install python3-rpi.gpio"
         if [ "$is_pi" = true ]; then  # removed --ignore-installed from below need to verify what's needed here
             sudo ${consolepi_dir}venv/bin/python3 -m pip install RPi.GPIO 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) ||
                 logit "pip install/upgrade RPi.GPIO (separately) returned an error." "WARNING"
@@ -584,17 +609,17 @@ show_usage() {
     fi
     echo -e "\n${_green}USAGE:${_norm} $_cmd [OPTIONS]\n"
     echo -e "${_cyan}Available Options${_norm}"
-    _help "--help" "Display this help text"
+    _help "-h|--help" "Display this help text"
     _help "-s|--silent" "Perform silent install no prompts, all variables reqd must be provided via pre-staged configs"
     _help "-C | --config <path/to/config>" "Specify config file to import for install variables (see /etc/ConsolePi/installer/install.conf.example)"
     echo "    Copy the example file to your home dir and make edits to use."
     _help "-6|--no-ipv6" "Disable IPv6 (Only applies to initial install)"
-    _help "--bt-pan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
+    # _help "--bt-pan" "Configure Bluetooth with PAN service (prompted if not provided, defaults to serial if silent and not provided)"
     _help "-R|--reboot" "reboot automatically after silent install (Only applies to silent install)"
     _help "-w|--wlan_country <2 char country code>" "wlan regulatory domain (Default: US)"
     _help "--locale <2 char country code>" "Update locale and keyboard layout. i.e. '--locale us' will result in locale being updated to en_US.UTF-8"
     _help "--us" "Alternative to the 2 above, implies us for wlan country, locale, and keyboard."
-    _help "-h|--hostname <hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
+    _help "-H|--hostname <hostname>" "If set will bypass prompt for hostname and set based on this value (during initial install)"
     _help "--tz <tz>" "Configure TimeZone i.e. America/Chicago"
     _help "-L|--auto-launch" "Automatically launch consolepi-menu for consolepi user.  Defaults to False."
     _help "-p|--passwd '<password>'" "Use single quotes: The password to configure for consolepi user during install."
@@ -602,10 +627,12 @@ show_usage() {
     echo
     echo "The Following optional arguments are more for dev, but can be useful in some other scenarios"
     if [ -n "$1" ] && [ "$1" = "dev" ]; then  # hidden dev flags --help dev to display them.
-        _help "-D|--dev" "Install from ConsolePi-dev using dev branch"
+        _help "-D|--dev" "Install from ConsolePi-dev (will use dev branch unless -b|--branch specifies otherwise)"
         _help "--dev-user <user>" "Override the default user used for sftp/ssh/git to ConsolePi-dev"
+        _help "-b|--branch" "Will pull from an alternate branch (default is master or dev when -D|--dev flag is used)"
         _help "--me" "Override the default user used for sftp/ssh/git to ConsolePi-dev, use current user."
         _help "-I|--install" "Run as if it's the initial install"
+        _help "--no-users" "Bypass prompt that asks if you want to create additional users (always bypassed w/ --silent)"
     fi
     _help "-P|--post" "~/consolepi-stage/consolepi-post.sh if found is executed after initial install.  Use this to run after upgrade."
     _help "--no-apt" "Skip the apt update/upgrade portion of the Upgrade.  Should not be used on initial installs."
@@ -634,10 +661,11 @@ missing_param(){
 do_safe_dir(){
     # Prevent fatal: detected dubious ownership in repository at '/etc/ConsolePi'
     # common is not loaded yet, hence the need to define the local vars
-    local iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
-    local tmp_log="/tmp/consolepi_install.log"
-    local final_log="/var/log/ConsolePi/install.log"
-    [ -f "$final_log" ] && local log_file=$final_log || local log_file=$tmp_log
+
+    # local iam=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
+    # local tmp_log="/tmp/consolepi_install.log"
+    # local final_log="/var/log/ConsolePi/install.log"
+    # [ -f "$final_log" ] && local log_file=$final_log || local log_file=$tmp_log
     if ! git config --global -l 2>/dev/null | grep -q "safe.directory=/etc/ConsolePi"; then
         echo "$(date +"%b %d %T") [$$][INFO][Verify git safe.directory] Adding /etc/ConsolePi as git safe.directory globally" | tee -a $log_file
         git config --global --add safe.directory /etc/ConsolePi 2>>$log_file
@@ -656,14 +684,18 @@ process_args() {
     doapt=true
     do_reboot=false
     do_consolepi_post=false
+    no_users=false
     dev_user=${SUDO_USER:-$(who -m | awk '{ print $1 }')}
     while (( "$#" )); do
         # echo "$1" # -- DEBUG --
         case "$1" in
             -D|-*dev)
-                branch=dev
                 local_dev=true
                 shift
+                ;;
+            -b|-*branch)
+                local _branch="$2"
+                shift 2
                 ;;
             -*dev-user)
                 [ -n "$2" ] && dev_user=$2 || missing_param "$@" # override of static var set in common.sh
@@ -679,6 +711,10 @@ process_args() {
                 ;;
             -*no-apt)
                 doapt=false
+                shift
+                ;;
+            -*no-users) # Don't log stderr anywhere default is to log_file
+                local no_users=true
                 shift
                 ;;
             -s|--silent)  # silent install
@@ -756,6 +792,12 @@ process_args() {
         esac
     done
 
+    if [ -n "$_branch" ]; then
+        branch=$_branch
+    elif $local_dev; then
+        branch="dev"
+    fi
+
     # -- Set defaults applied when using silent mode if not specified --
     $silent && btmode=${btmode:-serial}
     $silent && auto_launch=${auto_launch:-false}
@@ -767,15 +809,16 @@ main() {
     if [ "${script_iam}" = "root" ]; then
         set +H                              # Turn off ! history expansion
         cmd_line="$@"
-        do_safe_dir                         # Ensures /etc/ConsolePi is git safe.directory
+        # original loc for do_safe_dir
         process_args "$@"
         get_common                          # get and import common functions script
         [ -n "$cmd_line" ] && logit -L -t "ConsolePi Installer" "Called with the following args: $cmd_line"
         get_pi_info                         # (common.sh func) Collect some version info for logging
-        remove_first_boot                   # if auto-launch install on first login is configured remove
+        remove_first_boot                   # if auto-launch install on first login is configured remove (consolepi-image)
         do_users                            # USER INPUT - create / update users and do staged imports
-        do_apt_update                       # apt-get update the pi
+        do_apt_update                       # apt-get update the rpi
         do_apt_deps                         # install dependencies via apt
+        do_safe_dir                         # Ensures /etc/ConsolePi is git safe.directory
         pre_git_prep                        # UPGRADE ONLY: process upgrade tasks required prior to git pull
         git_ConsolePi                       # git clone or git pull ConsolePi
         $upgrade && post_git                # post git changes

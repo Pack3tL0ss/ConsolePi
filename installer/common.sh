@@ -24,6 +24,11 @@ tmp_src="/tmp/consolepi-temp"
 warn_cnt=0
 INIT="$(ps --no-headers -o comm 1)"
 DEV_USER=${dev_user:-wade}  # User to use for ssh/sftp/git to local dev
+if [ "$(systemctl is-active NetworkManager.service)" == "active" ] && hash nmcli 2>/dev/null && [ $(nmcli -t dev | grep -v "p2p-dev\|:lo" | wc -l) -gt 0 ]; then
+    uses_nm=true
+else
+    uses_nm=false
+fi
 
 # Unused for now interface logic
 # _gw=$(ip route get 8.8.8.8 | awk -- '{printf $5}')
@@ -53,7 +58,7 @@ is_ssh() {
   fi
 }
 
-( [[ -f $final_log ]] && [ -z $upgrade ] ) && upgrade=true || upgrade=false
+( [ -f "$final_log" ] && ( [ -z "$upgrade" ] || $upgrade ) ) && upgrade=true || upgrade=false
 
 # log file is referenced thoughout the script.  During install dest changes from tmp to final
 # location is configured in install.sh do_logging
@@ -99,6 +104,11 @@ header() {
     fi
 }
 
+dump_vars() {
+    # debug tool. Dump all variables in the environment
+    logit "dump vars called.  dumping variables from the environment"
+    ( set -o posix; set ) | grep --color=auto -v "_xspecs\|LS_COLORS\|^PS.*" >> $log_file
+}
 
 menu_print() {
     # -- send array of strings to function and it will print a formatted menu
@@ -171,13 +181,18 @@ logit() {
     #   logit "building package" "WARNING"
     #
     #   FLAGS:
-    #      -L    Log Only don't echo to stdoud
-    #      -E    Echo formatted log don't log
+    #      -L    write to log only don't echo to stdout
+    #      -E    Only echo to stdout don't write to log
     #      -t <process> set tag($cprocess) (does not change process in global scope)
     #
-    # NOTE: Sending a status of "ERROR" results in the script exiting
+    # NOTE: Sending a status of "ERROR" results in the script exiting (unless called by network hook/dispatcher)
     #       default status is INFO if none provided.
-    [[ $(basename "$0" 2>/dev/null) == 'dhcpcd.exit-hook' ]] && stop_on_error=false || stop_on_error=true
+    if [[ $(basename "$0" 2>/dev/null) == 'dhcpcd.exit-hook' ]] || [[ $(basename "$0" 2>/dev/null) == '02-consolepi' ]]; then
+        local stop_on_error=false
+    else
+        local stop_on_error=true
+    fi
+
     local args=()
     while (( "$#" )); do
         case "$1" in
@@ -201,22 +216,22 @@ logit() {
     done
     set -- "${args[@]}"
 
-    log_only=${log_only:-false}
-    echo_only=${echo_only:-false}
+    local log_only=${log_only:-false}
+    local echo_only=${echo_only:-false}
 
     local process=${process:-"UNDEFINED"}
-    message="${1}"                                      # 1st arg = the log message
+    local message="${1}"                                      # 1st arg = the log message
 
-    [ -z "${2}" ] && status="INFO" || status=${2^^}     # 2nd Arg the log-lvl (to upper); Default: INFO
+    [ -z "${2}" ] && local status="INFO" || local status=${2^^}     # 2nd Arg the log-lvl (to upper); Default: INFO
     [[ "${status}" == "DEBUG" ]] && ! $debug && return 0  # ignore / return if a DEBUG message & debug=false
 
-    fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
-    if [[ "${status}" == "ERROR" ]]; then
-        $stop_on_error && fatal=true || ((warn_cnt+=1))
-        status="${_red}${status}${_norm}"
+    local fatal=false                                     # fatal is determined by status. default to false.  true if status = ERROR
+    if [ "${status}" == "ERROR" ] || [ "${status}" == "CRITICAL" ]; then
+        $stop_on_error && local fatal=true || ((warn_cnt+=1))
+        local status="${_red}${status}${_norm}"
     elif [[ "${status}" != "INFO" ]]; then
         [[ "${status}" == "WARNING" ]] && ((warn_cnt+=1))
-        status="${_yellow}${status}${_norm}"
+        local status="${_yellow}${status}${_norm}"
     fi
 
     local log_msg="$(date +"%b %d %T") [$$][${status}][${process}] ${message}"
@@ -237,6 +252,7 @@ logit() {
         echo -e "\n${_red}---- Error Detail ----${_norm}"
         grep -A 999 "${log_start}" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "ERROR" -B 10 | grep -v "INFO"
         echo '--'
+        $DEBUG && dump_vars  # set @ top when needed
         exit 1
     fi
 }
@@ -334,6 +350,39 @@ ask_pass(){
     unset _pass2
 }
 
+get_interfaces() {
+    # >> Determine interfaces to act on (fallback to hotspot/wired-dhcp (ztp))
+    # provides wired_iface and wlan_iface in global scope
+    if $uses_nm; then
+        local wired_ifaces=($(nmcli -t dev | grep ":ethernet:" | cut -d: -f1))
+        local wlan_ifaces=($(nmcli -t dev | grep ":wifi:" | cut -d: -f1))
+    else
+        # all_ifaces gets physical interfaces only
+        local all_ifaces=($(find /sys/class/net -type l -not -lname '*virtual*' -printf '%f\n'))
+        local wlan_ifaces=($(cat /proc/net/wireless | tail +3 | cut -d':' -f1 | tr -d ' '))
+        local wired_ifaces=()
+        for i in ${all_ifaces[@]}; do [[ ! "${wlan_ifaces[@]}" =~ "${i}" ]] && wired_ifaces+=($i); done
+    fi
+
+    if [ "${#wired_ifaces[@]}" -eq 1 ]; then
+        wired_iface=${wired_ifaces[0]}
+    elif [[ ${wired_ifaces[0]} =~ eth0 ]]; then
+        wired_iface=eth0
+    else
+        local _first_iface=${wired_ifaces[0]}
+        wired_iface=${_first_iface:-eth0}
+    fi
+
+    if [ "${#wlan_ifaces[@]}" -eq 1 ]; then
+        wlan_iface=${wlan_ifaces[0]}
+    elif [[ ${wlan_ifaces[0]} =~ wlan0 ]]; then
+        wlan_iface=wlan0
+    else
+        local _first_iface=${wlan_ifaces[0]}
+        wlan_iface=${_first_iface:-wlan0}
+    fi
+}
+
 # arg1 = systemd file without the .service suffix
 systemd_diff_update() {
     # -- If both files exist check if they are different --
@@ -369,7 +418,6 @@ systemd_diff_update() {
                 #  installer will disable / enable after if necessary, but this would retain user customizations
                 if ! systemctl -q is-enabled ${1}.service; then
                     if [[ -f /etc/systemd/system/${1}.service ]]; then
-                        # sudo systemctl disable ${1}.service 1>/dev/null 2>> $log_file  # TODO this seems unnecessary reason for it or just copy / paste error?
                         sudo systemctl enable ${1}.service 1>/dev/null 2>> $log_file &&
                             logit "Success enable $1 service" ||
                             logit "FAILED to enable ${1} systemd service" "WARNING"
@@ -378,7 +426,7 @@ systemd_diff_update() {
                     fi
                 fi
                 # -- if the service is enabled and active currently restart the service --
-                if systemctl -q is-enabled ${1}.service >/dev/null ; then
+                if [ "$(systemctl is-enabled ${1}.service 2>> $log_file)" == "enabled" ]; then
                     if systemctl is-active ${1}.service >/dev/null ; then
                         # sudo systemctl daemon-reload 2>>$log_file # redundant
                         if [[ ! "${1}" =~ "autohotspot" ]] ; then
@@ -411,7 +459,7 @@ file_diff_update() {
         fi
     fi
 
-    # -- if file on system doesn't exist or doesn't match src copy and enable from the source directory
+    # -- if file on system does not exist or does not match src copy and enable from the source directory
     if ! $override; then
         if [[ ! "$this_diff" = *"identical"* ]]; then
             if [[ -f ${1} ]]; then
@@ -499,6 +547,7 @@ is_speedtest_compat() {
     [ -z "${hw_array[$rev]}" ] && return 0 || return 1
 }
 
+
 get_pi_info_pretty() {
     declare -A hw_array && compat_bash=true || compat_bash=false
     if $compat_bash; then
@@ -548,6 +597,8 @@ get_pi_info_pretty() {
         hw_array["c03140"]="Raspberry Pi Compute Module 4 hw rev 1.0 4GB (Mfg by Sony UK)"
         hw_array["d03140"]="Raspberry Pi Compute Module 4 hw rev 1.0 8GB (Mfg by Sony UK)"
         hw_array["902120"]="Raspberry Pi Zero 2 W hw rev 1.0 512MB (Mfg by Sony UK)"
+        hw_array["c04170"]="Raspberry Pi 5 Model B Rev 1.0 4GB (Mfg by Sony UK)"
+        hw_array["d04170"]="Raspberry Pi 5 Model B Rev 1.0 8GB (Mfg by Sony UK)"
     fi
     $compat_bash && echo ${hw_array["$1"]} || echo $1
 }
@@ -605,13 +656,15 @@ do_systemd_enable_load_start() {
 }
 
 # -- Find path for any files pre-staged in user home or consolepi-stage subdir --
+# default is to check for file, pass -d as 2nd arg to check for dir
 get_staged_file_path() {
-    [[ -z $1 ]] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
-    if [[ -f "${home_dir}/${1}" ]]; then
+    [ -z "$1" ] && logit "FATAL Error find_path function passed NUL value" "CRITICAL"
+    local flag=${2:-'-f'}
+    if [ $flag "${home_dir}/${1}" ]; then
         found_path="${home_dir}/${1}"
-    elif [[ -f ${stage_dir}/$HOSTNAME/$1 ]]; then
+    elif [ $flag "${stage_dir}/$HOSTNAME/$1" ]; then
         found_path="${stage_dir}/$HOSTNAME/${1}"  # Need to verify this is updated in update.sh set_hostname so it's valid to use here.
-    elif [[ -f ${stage_dir}/$1 ]]; then
+    elif [ $flag "${stage_dir}/$1" ]; then
         found_path="${stage_dir}/${1}"
     else
         found_path=
@@ -660,7 +713,7 @@ process_cmds() {
             echo -e "DEBUG TOP ~ Currently evaluating: '$1'"
         fi
         case "$1" in
-            -stop) # will stop function from exec remaining commands on failure (witout exit 1)
+            -*stop) # will stop function from exec remaining commands on failure (witout exit 1)
                 local stop=true
                 shift
                 ;;
@@ -677,11 +730,15 @@ process_cmds() {
                 local cmd_pfx="sudo -u $iam"
                 shift
                 ;;
-            -nolog) # Don't log stderr anywhere default is to log_file
+            -*nolog|-*no-log) # Don't log stderr anywhere default is to log_file
                 local err="/dev/null"
                 shift
                 ;;
-            -logit|-l) # Used to simply log a message
+            -*stderr) # log stderr to fd specified default is to log_file
+                local err="$2"
+                shift 2
+                ;;
+            -*logit|-l) # Used to simply log a message, does not echo to tty
                 case "$3" in
                     WARNING|ERROR)
                         logit "$2" "$3"
@@ -693,11 +750,11 @@ process_cmds() {
                         ;;
                 esac
                 ;;
-            -nostart) # elliminates the process start msg
+            -*nostart|--no-start) # elliminates the process start msg
                 local showstart=false
                 shift
                 ;;
-            -apt-install) # install pkg via apt
+            -*apt-install) # install pkg via apt  # TODO parse params after --apt-install flag allow multiple in same line (until next -)
                 local do_apt_install=true
                 shift
                 local go=true; while (( "$#" )) && $go ; do
@@ -722,13 +779,13 @@ process_cmds() {
                             ;;
                     esac
                 done
-                [ -z pmsg ] && local pmsg="Success - Install $pname (apt)"
-                [ -z fmsg ] && local fmsg="Error - Install $pname (apt)"
+                local pmsg=${pmsg:-"Success - install $pname (apt)"}
+                local fmsg=${fmsg:-"Error - install $pname (apt)"}
                 local stop=true
                 [[ ! -z $pexclude ]] && local cmd="sudo apt -y install $pkg ${pexclude}-" ||
                     local cmd="sudo apt -y install $pkg"
                 ;;
-            -apt-purge) # purge pkg followed by autoremove
+            -*apt-purge) # purge pkg followed by autoremove
                 case "$3" in
                     --pretty=*)
                         local pname=${3/*=}
@@ -739,8 +796,8 @@ process_cmds() {
                         _shift=2
                         ;;
                 esac
-                [ -z pmsg ] && local pmsg="Success - Remove $pname (apt)"
-                [ -z fmsg ] && local fmsg="Error - Remove $pname (apt)"
+                local pmsg=${pmsg:-"Success - Remove $pname (apt)"}
+                local fmsg=${fmsg:-"Error - Remove $pname (apt)"}
                 local cmd="sudo apt -y purge $2"
                 local do_autoremove=true
                 shift $_shift
@@ -749,7 +806,7 @@ process_cmds() {
                 local out="$2"
                 shift 2
                 ;;
-            -pf|-fp) # msg template for both success and failure in 1
+            -*pf|-*fp) # msg template for both success and failure in 1
                 local pmsg="Success - $2"
                 local fmsg="Error - $2"
                 shift 2
@@ -792,7 +849,7 @@ process_cmds() {
                 echo "------------------------------------------------------------------------------------------"
             fi
             # -- // PROCESS THE CMD \\ --
-            ! $_silent && $showstart && logit -E "Starting ${pmsg/Success - /}"
+            ! $_silent && $showstart && logit -E "Starting - ${pmsg/Success - /}"
             logit -L "process_cmds executing: $cmd"
             if eval "$cmd" >>"$out" 2> >(grep -v "^$\|^WARNING: apt does not.*CLI.*$" >>"$err") ; then # <-- Do the command
                 local cmd_failed=false
@@ -801,7 +858,7 @@ process_cmds() {
             else
                 local cmd_failed=true
                 if $do_apt_install ; then
-                    local x=1; while [[ $(tail -2 /var/log/ConsolePi/install.log | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
+                    local x=1; while [[ $(tail -2 "$log_file" | grep "^E:" | tail -1) =~ "is another process using it?" ]] && ((x<=3)); do
                         logit "dpkg appears to be in use pausing 5 seconds... before attempting retry $x" "WARNING"
                         sleep 5
                         logit "Starting ${pmsg/Success - /} ~ retry $x"

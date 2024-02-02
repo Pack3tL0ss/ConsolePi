@@ -620,6 +620,7 @@ get_pi_info() {
             . <(dmidecode | grep "^System Information" -A2 | tail -n +2 | sed 's/: /="/' | sed 's/ /_/' | sed 's/$/"/' | tr -d "\t")
             model_pretty="$Manufacturer $Product_Name"
         fi
+    fi
     logit "$model_pretty"
     [ -f /etc/os-release ] && . /etc/os-release && logit "$NAME $(head -1 /etc/debian_version) ($VERSION_CODENAME) running on $cpu Revision: $rev"
     logit "$(uname -a)"

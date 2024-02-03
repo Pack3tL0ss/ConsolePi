@@ -397,7 +397,7 @@ verify() {
         dots "Local Lab Domain" "$local_domain"
     fi
 
-    dots "Enable Automatic HotSpot ($wired_iface)" "$hotspot"
+    dots "Enable Automatic HotSpot ($wlan_iface)" "$hotspot"
     if $hotspot ; then
         dots "ConsolePi Hot Spot IP" "$wlan_ip"
         dots " *hotspot DHCP Range" "${wlan_dhcp_start} to ${wlan_dhcp_end}"

@@ -45,16 +45,21 @@ do_default_config() {
     # TODO remove the btmode exclusion after btmode implemented
     [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/cfg_file_ver/,/^ *$/p' $CONFIG_FILE_YAML.example | tail -n +2 | grep -v btmode >> $CONFIG_FILE_YAML
     [[ -f $CONFIG_FILE_YAML.example ]] && sed -n '/OVERRIDES:/,/^ *$/p' $CONFIG_FILE_YAML.example >> $CONFIG_FILE_YAML
-    # -- // Prompt for interactive Mode \\ --
-    header
-    echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
-    echo "which will prompt you for each value. Enter n to exit the script so you can modify the"
-    echo "defaults directly then re-run the script."
-    echo
-    prompt="Continue in Interactive mode"
-    user_input true "${prompt}"
-    continue=$result
-    if $continue ; then
+    if ! $silent ; then
+        # -- // Prompt for interactive Mode \\ --
+        header
+        echo "Configuration File Created with default values. Enter y to continue in Interactive Mode"
+        echo "which will prompt you for each value. Enter n to exit the script so you can modify the"
+        echo "defaults directly then re-run the script."
+        echo
+        prompt="Continue in Interactive mode"
+        user_input true "${prompt}"
+        goahead=$result
+    else
+        goahead=false
+    fi
+
+    if $goahead ; then
         bypass_verify=true         # bypass verify function
         input=false                # so collect function will run (while loop in main)
     else

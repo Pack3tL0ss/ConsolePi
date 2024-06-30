@@ -714,7 +714,7 @@ process_args() {
                 shift
                 ;;
             -*no-users) # Don't log stderr anywhere default is to log_file
-                local no_users=true
+                no_users=true
                 shift
                 ;;
             -s|--silent)  # silent install

@@ -100,7 +100,7 @@ update_config() {
     # echo "" >> $yml_temp
     if [[ -f $CONFIG_FILE_YAML ]] ; then
 
-        # get all other optional config sections from existing config (POWER, HOSTS, TTYAMA)
+        # get all other optional config sections from existing config (POWER, HOSTS, TTYAMA, LOCALTTY)
         awk 'matched; /^  debug:/ { matched = 1 } ' $CONFIG_FILE_YAML | awk '/^[A-Z]*$/ { matched = 1 } matched' >> $yml_temp
     fi
 

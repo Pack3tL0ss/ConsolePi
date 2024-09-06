@@ -17,6 +17,7 @@ import threading
 import socket
 from io import StringIO
 from halo import Halo
+from typing import List, Dict
 
 try:
     loc_user = os.getlogin()
@@ -548,16 +549,18 @@ class Utils:
             s.close()
         return _reachable
 
-    def format_dev(self, dev, hosts=None, udev=None, with_path=False):
+    def format_dev(self, dev, hosts=None, outlet_groups: List[str] = None, udev=None, with_path=False) -> Dict[str, int | List[int]]:
         """Properly format devs found in user created JSON
 
-        params:
-            dev(str or list of str): i.e. '/dev/idf_switch_1'
-            with_path(bool):  strips any prefix if False
-                            adds /dev/ or /host/ if True
+        Args:
+            dev (str | List[str]): An individual device or list of devices to be formatted (i.e. '/dev/idf_switch_1)
+            hosts (dict, optional): Manually defined hosts from config. Defaults to None.
+            outlet_groups (List[str], optional): Outlet Groups defined in the config. Defaults to None.
+            udev (_type_, optional): _description_. Defaults to None.
+            with_path (bool, optional): Strips any prefix if False adds /dev/, /host/, /group/ if True. Defaults to False.
 
-        returns:
-            list of formatted devs
+        Returns:
+            Dict[str, int | List[int]]: Linked Devices dictionary
         """
         if udev and not hosts:  # TODO don't think udev is ever passed to this func
             data = udev
@@ -575,13 +578,14 @@ class Utils:
             if isinstance(dev, list):
                 # d1 = [pfx + d for d in dev if '/' not in d and pfx + d in data]
                 d_out = [
-                    f"{pfx + d if pfx + d in data else pfx_else + d}"
+                    f"{f'{pfx}{d}' if f'{pfx}{d}' in data else None or f'/group/{d}' if d in outlet_groups else None or f'{pfx_else}{d}'}"
                     for d in dev
                     if "/" not in d
                 ]
             elif isinstance(dev, dict):
+                ...
                 d_out = {
-                    f"{pfx + d if pfx + d in data else pfx_else + d}": dev[d]
+                    f"{f'{pfx}{d}' if f'{pfx}{d}' in data else None or f'/group/{d}' if d in outlet_groups else None or f'{pfx_else}{d}'}": dev[d]
                     for d in dev
                     if "/" not in d
                 }

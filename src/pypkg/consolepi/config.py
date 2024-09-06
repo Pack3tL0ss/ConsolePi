@@ -190,13 +190,16 @@ class Config():
         types = []
         by_dev: Dict[str, Any] = {}
         for k in outlet_data:
+            if k == "OUTLET-GROUPS":
+                self.outlet_groups = outlet_data[k]
+                continue
             _type = outlet_data[k].get('type').lower()
             relays = [] if _type != "esphome" else utils.listify(outlet_data[k].get('relays', k))
             linked = outlet_data[k].get('linked_devs', {})
 
             if linked:
                 outlet_data[k]['linked_devs'] = utils.format_dev(outlet_data[k]['linked_devs'],
-                                                                 hosts=self.hosts, with_path=True)
+                                                                 hosts=self.hosts, outlet_groups=self.outlet_groups, with_path=True)
                 self.linked_exists = True
                 for dev in outlet_data[k]['linked_devs']:
                     if _type == 'dli':
@@ -228,7 +231,7 @@ class Config():
 
         self.outlet_types = types
         outlet_data = {
-            'defined': outlet_data,
+            'defined': {k: v for k, v in outlet_data.items() if k != "OUTLET-GROUPS"},
             'linked': by_dev,
             'dli_power': {},
             'esp_power': {},

@@ -23,10 +23,15 @@ print("Checking for throttling issues since last reboot...")
 throttled_output = subprocess.check_output(GET_THROTTLED_CMD, shell=True).strip()
 throttled_binary = bin(int(throttled_output.decode("utf-8").split('=')[1], 0)).split("0b")[-1]
 
+has_msg = False
 for position, message in MESSAGES.items():
     # Check for the binary digits to be "on" for each warning message
     if len(throttled_binary) > position and throttled_binary[position] == '1':
         print(f"\x1b[91m{message}\x1b[0m")
+        has_msg = True
+
+if not has_msg:
+    print("\x1b[32mNo Issues\x1b[0m")
 
 if '-v' in sys.argv:
     print(f"\nRaw Output of {GET_THROTTLED_CMD}: {throttled_output}")

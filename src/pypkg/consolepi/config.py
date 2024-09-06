@@ -75,6 +75,7 @@ class Config():
         self.hosts = self.get_hosts()
         self.power = self.cfg.get('power', False)
         self.do_dli_menu = None  # updated in get_outlets_from_file()
+        self.outlet_groups = {}  # updated in get_outlets_from_file()
         self.outlets = {} if not self.power else self.get_outlets_from_file()
         self.remotes = self.get_remotes_from_file()
         self.remote_update = self.get_remotes_from_file
@@ -518,13 +519,18 @@ class Config():
         ########################################################
         ser2net_conf = {}
         if file is None and self.ser2net_file is None:
-            return ()
+            return {}
 
         raw = self.ser2net_file.read_text() if not file else file.read_text()
         raw_mod = "\n".join([line if not line.startswith("connection") else f"{line.split('&')[-1]}:" for line in raw.splitlines()])
         banner = [line for line in raw.splitlines() if line.startswith("define: &banner")]
         banner = None if not banner else banner[-1].replace("define: &banner", "").lstrip()
-        ser_dict = yaml.safe_load(raw_mod)
+        try:
+            ser_dict = yaml.safe_load(raw_mod)
+        except Exception as e:
+            log.error(f"Error ({e.__class__.__name__}) occured parsing {file or self.ser2net_file}, verify file contents.", show=True)
+            log.exception(e)
+            return {}
 
         for k, v in ser_dict.items():
             if not isinstance(v, dict):

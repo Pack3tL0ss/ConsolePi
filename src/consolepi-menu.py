@@ -193,7 +193,7 @@ class ConsolePiMenu(Rename):
                 log.show('No Local Adapters Detected')
             if log.error_msgs:
                 # -- remove no ser2net.conf found msg if no local adapters
-                log.error_msgs = [m for m in log.error_msgs if 'ser2net' not in m]
+                log.error_msgs = [m for m in log.error_msgs if 'No ser2net configuration found' not in m]
 
     def picocom_help(self):
         print('----------------------- picocom Command Sequences -----------------------\n')

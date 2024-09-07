@@ -9,7 +9,7 @@ Single Command Install Script. Run from an internet connected RaspberryPi runnin
 wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/install.sh -O /tmp/ConsolePi && sudo bash /tmp/ConsolePi && sudo rm -f /tmp/ConsolePi
 ```
 
-![consolepi animated Demo](readme_content/main-demo.gif)
+![consolepi animated Demo](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/main-demo.gif)
 
 
 >*Making multiple ConsolePis?  Want to re-image, but pull-over all of your existing configs?  Check out the [image creator](#3-consolepi-image-creator)!!!*
@@ -218,11 +218,11 @@ When an interface receives an IP address ConsolePi will Automatically connect to
 
 When ConsolePi receives a dynamic IP address.  A message is sent via PushBullet API with the IP so you know how to reach ConsolePi.
 
-![Push Bullet Notification image](readme_content/ConsolePiPB1.png)
+![Push Bullet Notification image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePiPB1.png)
 
 An additional message is sent once a tunnel is established if the Automatic VPN feature is enabled.
 
-![Push Bullet Notification image](readme_content/ConsolePiPB2.png)
+![Push Bullet Notification image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePiPB2.png)
 
 Each Time a Notification is triggered **all** interface IPs are sent in the message along with the ConsolePi's default gateway(s).
 
@@ -239,18 +239,18 @@ This function also:
 - Optionally, with `ovpn_share: true` set in the optional `OVERRIDES:` section of ConsolePi.yaml wired devices will share access to the OpenVPN tunnel if established (via Auto-OpenVPN).
   > NAT & ovpn_share override with the new NetworkManager based automations has not been tested.  iptables is not installed with Raspberry Pi OS 12 (bookworm)
 
-> The [ZTP Orchestration](readme_content/ztp.md) feature will enable wired fallback to static/DHCP Server when you run `consolepi-ztp`.  `consolepi-ztp -end` restores everything to pre-ZTP state.  You do not need to enable it if ZTP is your only need for it `consolepi-ztp` will handle that.
+> The [ZTP Orchestration](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ztp.md) feature will enable wired fallback to static/DHCP Server when you run `consolepi-ztp`.  `consolepi-ztp -end` restores everything to pre-ZTP state.  You do not need to enable it if ZTP is your only need for it `consolepi-ztp` will handle that.
 
 ## ConsolePi Cluster / Cloud Sync
 
 The Cluster feature allows you to have multiple ConsolePis connected to the network, or to each other (i.e. first ConsolePi in hotspot mode, the others connected as clients to that hotspot).  A connection to any one of the ConsolePis in the Cluster will provide options to connect to any local serial adapters, as well as those connected to the other ConsolePis in the cluster (via the `consolepi-menu` command).
 
 
-![consolepi-menu image](readme_content/consolepi-use-diagram.jpg)
+![consolepi-menu image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/consolepi-use-diagram.jpg)
 
 **Another look at the menu**
 
-![consolepi-menu image](readme_content/menu.png)
+![consolepi-menu image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/menu.png)
 
 > In this example only 1 adapter is connected locally (menu item 1), Items 2 - 26 are adapters discovered on other ConsolePis on the network. Items 27 - 50 are [Manual Host Entries](configuring-manual-host-entries).
 
@@ -258,7 +258,7 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
 ### Supported Cluster Sync Methods:
 
 #### Google Drive:
-   > Read The [Google Drive Setup](readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
+   > Read The [Google Drive Setup](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
  - Google Drive/Google Sheets is currently the only external method supported.  Given this gets the job done, it unlikely more external methods will be added.
 
  - The ConsolePi will automatically exchange information with `ConsolePi.csv` in your gdrive under the following scenarios (*all assume the function is enabled in the config*):
@@ -291,7 +291,7 @@ The Cluster feature allows you to have multiple ConsolePis connected to the netw
  - `consolepi-menu` does not attempt to connect to the cloud on launch, it retrieves remote data from the local cache file only, verifies the devices are reachable, and if so adds them to the menu.  To trigger a cloud update use the `r` refresh option.
   >Note: that ConsolePi will automatically update the local cache file when it gets an IP address, or adapters are added/removed, so the refresh should only be necessary if other ConsolePis have come online since the the menu was launched.  Additionally ConsolePis will automatically discover each other via mdns if on the same network, this will automatically update the local-cache if a new remote ConsolePi is discovered.
 
- - Read The [Google Drive Setup](readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
+ - Read The [Google Drive Setup](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/gdrive.md) for instructions on setting up Google Drive and authorizing ConsolePi to leverage the API.
 
    #### If you are configuring multiple ConsolePis to use this cluster, you should consider using the [ConsolePi Image Creator](#3.-consolepi-image-creator).  Once You've installed the first ConsolePi, leverage the `consolepi-image` command to pre-stage the micro-sd cards for the other ConsolePis you will be creating.  This script is handy, if duplicating the install across multiple ConsolePis.  It can pre-stage the entire configuration and cut out some install time.
 
@@ -312,13 +312,13 @@ The Power Control Function allows you to control power to external outlets.  Con
 ### The Power Control Menu
 *Defined Outlets will show up in the Power Menu*
 
-![consolepi-menu image](/readme_content/powermenu.png)
+![consolepi-menu image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master//readme_content/powermenu.png)
 
 
 ### Additional Controls for Digital Loggers
 *You may have an 8 port digital-loggers web power switch, with only some of those ports linked to devices.  Any Outlets linked to devices will show up in the Power Menu, **All** of the Ports for the DLI (regardless of linkage) will show up in the dli menu*
 
-![consolepi-menu image](/readme_content/dlimenu.png)
+![consolepi-menu image](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master//readme_content/dlimenu.png)
 
 ### Outlet Linkages
 
@@ -333,7 +333,7 @@ Connecting To r2-6200T-sw...
 picocom v3.1
 ...
 ```
-Refer to [Power Control Setup](readme_content/power.md) for details on how to setup Power Control.
+Refer to [Power Control Setup](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/power.md) for details on how to setup Power Control.
 
 ## Manual Host Entries
 The Manual Host Entries Feature allows you to manually define other SSH or TELNET endpoints that you want to appear in the menu.  These entries will appear in the `rs` (remote shell) menu by default, but can also show-up in the main menu if `show_in_main: true`.  Manual host entries support outlet bindings (Auto Power On when connecting through the menu).
@@ -342,7 +342,7 @@ Refer to [Manual Host Entries](#configuring-manual-host-entries) in the Configur
 
 ## ZTP Orchestration
 
-ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DHCP.  The feature uses DHCP to trigger ZTP, and supports config file generation using jinja2 templates.  For more details see [`ConsolePi ZTP Orchestration`](readme_content/ztp.md).
+ConsolePi supports Zero Touch Provisioning(ZTP) of devices via wired ethernet/DHCP.  The feature uses DHCP to trigger ZTP, and supports config file generation using jinja2 templates.  For more details see [`ConsolePi ZTP Orchestration`](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ztp.md).
 
 ## ConsolePi API
 
@@ -364,7 +364,7 @@ The API is used by ConsolePi to verify reachability and ensure adapter data is c
 ## ConsolePi Extras
 Toward the end of the install, and via `consolepi-extras` anytime after the install, you are provided with options to automate the deployment (and removal for most) of some additional tools.  This is a selection of tools not required for ConsolePi, but often desired, or useful for the kind of folks that would be using ConsolePi.
 
-![`consolepi-extras`](readme_content/consolepi-extras.png)
+![`consolepi-extras`](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/consolepi-extras.png)
 
 >Note: speed test (locally hosted browser based speed-test (server)), is only presented as an option for Pi4/CM4+.  Devices prior had a slow ethernet port, so it wouldn't make sense to use them as a speed-test server.
 
@@ -542,7 +542,7 @@ Using a Linux System (Most distros should work only requirement is a bash shell 
 - The image creator supports both command line arguments and a configuration file (where the same settings configurable as cmd line arguments can be configured in file... handy for re-use).
 - `curl -JLO https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/consolepi-image-creator.conf` To get the optional conf file for the image creator.  The config file will be automatically imported if it's in cwd (current working directory).
 
-#### **ConsolePi_image_creator brief summary:**
+### ConsolePi_image_creator brief summary:
 
 > *The "Stage dir" referenced below is a sub directory found in cwd (your current working directory).  The script looks for the Stage dir which needs to be named 'consolepi-stage' and moves the entire directory to the pi users home directory on the media being imaged.  When the installer runs (on the new ConsolePi) it will automatically import config items from that staging directory.*
 
@@ -1081,10 +1081,10 @@ ConsolePi Should work on all variants of the RaspberryPi and will work on other 
 
 *Have some good pics of ConsolePi in action?  Let me know.*
 
-  ![ConsolePi in action](readme_content/garagepi.png)
-  ![ConsolePi in action](readme_content/ConsolePi0.jpg)
-  ![ConsolePi in action](readme_content/ConsolePi.jpg)
-  ![ConsolePi in action](readme_content/consolepi_cy.jpg)
+  ![ConsolePi in action](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/garagepi.png)
+  ![ConsolePi in action](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePi0.jpg)
+  ![ConsolePi in action](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePi.jpg)
+  ![ConsolePi in action](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/consolepi_cy.jpg)
 
 # CREDITS
 
@@ -1094,9 +1094,10 @@ ConsolePi utilizes a couple of other projects so Some Credit
 
    This project provides a proxy that allows telnet/tcp connections to be made to serial ports on a machine.
 
-   https://sourceforge.net/projects/ser2net/
+      [sourceforge](https://sourceforge.net/projects/ser2net/)
 
-   https://github.com/cminyard/ser2net
+      [github](https://github.com/cminyard/ser2net)
+
 
 2. **Others**
    Available via optional Utilities Installer `consolepi-extras` or during `consolepi-upgrade`

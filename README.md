@@ -1081,6 +1081,8 @@ ConsolePi Should work on all variants of the RaspberryPi and will work on other 
 
 *Have some good pics of ConsolePi in action?  Let me know.*
 
+  ![ConsolePi in action](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/consolepi-cm.png)
+  ![ConsolePi in action](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/consolepi-cm-r2-extension.png)
   ![ConsolePi in action](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/garagepi.png)
   ![ConsolePi in action](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePi0.jpg)
   ![ConsolePi in action](https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/readme_content/ConsolePi.jpg)

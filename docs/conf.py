@@ -40,6 +40,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "myst_parser",
     "sphinxcontrib.typer",
+    'sphinxemoji.sphinxemoji',
     # "sphinx_click",
     # "richunstyle",
 ]

@@ -610,9 +610,10 @@ install_hotspot_nm() {
         local uuid=${uuid:-5ad644a6-b80e-11ee-952a-bf1313596c84}
     fi
     local hotspot_con_file=/etc/NetworkManager/system-connections/hotspot.nmconnection
+    $no_ipv6 && local v6_method="diabled" || local v6_method="auto"
 
     convert_template hotspot.nmconnection "$hotspot_con_file" uuid=${uuid} wlan_iface=${wlan_iface:-wlan0} \
-        wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_ip=${wlan_ip}
+        wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_ip=${wlan_ip} v6_method=${v6_method}
 
     #verify
     if [ -f "$hotspot_con_file" ] && grep -q "address1=${wlan_ip}" $hotspot_con_file; then

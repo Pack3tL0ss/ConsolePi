@@ -17,10 +17,10 @@ psk={{wlan_psk}}
 
 [ipv4]
 address1={{wlan_ip}}/24
-method=manual
+method=shared
 
 [ipv6]
 addr-gen-mode=default
-method=ignore
+method={{v6_method|default('auto')}}
 
 [proxy]

@@ -447,7 +447,12 @@ enable_ztp() {
     fi
 }
 
+init_dhcp_run_dir(){
+    [ ! -d /run/dnsmasq ] && mkdir /run/dnsmasq 2>>$log_file
+}
+
 start_wired_dhcp() {
+    init_dhcp_run_dir
     dnsmasq -7 $wired_dhcp_dir -C /dev/null -x /run/dnsmasq.$wired_iface.pid -l /var/lib/misc/dnsmasq.wired.leases; rc=$?
         [ "$rc" -gt 0 ] && logit "Wired DHCP startup returned non-zero return code: $rc" "WARNING"
     return $rc
@@ -499,7 +504,8 @@ prep_hotspot_dhcp(){
 
 start_hotspot_dhcp(){
     prep_hotspot_dhcp
-    dnsmasq -7 $hotspot_dhcp_dir -C /dev/null -x /run/dnsmasq.$wlan_iface.pid -l /var/lib/misc/dnsmasq.hotspot.leases; rc=$?
+    init_dhcp_run_dir
+    dnsmasq -7 $hotspot_dhcp_dir -C /dev/null -x /run/dnsmasq.$wlan_iface.pid -l /var/lib/misc/dnsmasq.hotspot.leases 2>>$log_file; rc=$?
         [ "$rc" -gt 0 ] && logit "hotspot DHCP startup returned non-zero return code: $rc" "WARNING"
     return $rc
 }

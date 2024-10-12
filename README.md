@@ -835,7 +835,7 @@ ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 a
   consolepi-showaliases  # This utility verifies All aliases set in the rules file also exist in ser2net and vice versa.
   ```
 
-  #### Configure `/boot/config.txt`
+  #### Configure `/boot/firmware/config.txt`  *(On older pre-bookworm images this file is @ `/boot/config.txt`)*
   ```bash
   # related snippet from /boot/config.txt
 
@@ -861,14 +861,13 @@ ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 a
   # Enable uart 5 on GPIOs 12,13
   dtoverlay=uart5
   ```
-  #### Configure `/boot/cmdline.txt`
+  #### Configure `/boot/firmware/cmdline.txt`  *(On older pre-bookworm images this file is @ `/boot/cmdline.txt`)*
   ```bash
-# /boot/cmdline.txt
+# /boot/firmware/cmdline.txt
 
-# The default UART is enabled for "inbound" access to this Pi, the pins are actually not accessible in my setup so they are not used at all
-console=serial0,115200 console=tty1 root=PARTUUID=73aabb97-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
-
-# the remaining UARTS configured for external access, Note that uart3 is not actually being used due to pin access
+# The default UART is enabled for "inbound" access to this Pi, this first line can be left as is.
+console=serial0,115200 console=tty1 root=PARTUUID=6fddac24-02 rootfstype=ext4 fsck.repair=yes rootwait
+# Add the remaining UARTS configured for external access, Note that uart3 is not actually being used due to pin access
 console=ttyAMA1,115200
 console=ttyAMA2,115200
 console=ttyAMA3,115200

@@ -610,9 +610,10 @@ install_hotspot_nm() {
         local uuid=${uuid:-5ad644a6-b80e-11ee-952a-bf1313596c84}
     fi
     local hotspot_con_file=/etc/NetworkManager/system-connections/hotspot.nmconnection
+    $no_ipv6 && local v6_method="disabled" || local v6_method="auto"
 
     convert_template hotspot.nmconnection "$hotspot_con_file" uuid=${uuid} wlan_iface=${wlan_iface:-wlan0} \
-        wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_ip=${wlan_ip}
+        wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_ip=${wlan_ip} v6_method=${v6_method}
 
     #verify
     if [ -f "$hotspot_con_file" ] && grep -q "address1=${wlan_ip}" $hotspot_con_file; then
@@ -1121,8 +1122,8 @@ get_serial_udev() {
     echo "- The behavior if you do *not* define Predictable Console Ports is the adapters will use the root device names      -"
     echo "-   ttyUSB# or ttyACM# where the # starts with 0 and increments for each adapter of that type plugged in. The names -"
     echo "-   won't necessarily be consistent between reboots nor will the TELNET port.  This method is OK for temporary use  -"
-    echo -e "-    of an adapter or if you only plan to use a single adapter.  Otherwise setting predictable aliases is           -"
-    echo -e "-    ${_lred}highly recommended${_norm}.                                                                                            -"
+    echo -e "-   of an adapter or if you only plan to use a single adapter.  Otherwise setting predictable aliases is            -"
+    echo -e "-   ${_lred}highly recommended${_norm}.                                                                                             -"
     echo "-                                                                                                                   -"
     echo "- Defining the ports with this utility is also how device specific serial settings are configured.  Otherwise       -"
     echo "-   they will use the default which is 9600 8N1                                                                     -"

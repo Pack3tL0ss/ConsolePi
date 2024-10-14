@@ -588,7 +588,7 @@ disable_autohotspot_old() {
         systemctl stop autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
     fi
 
-    if systemctl -q is-enabled autohotspot; then
+    if systemctl -q is-enabled autohotspot 2>/dev/null; then  # /dev/null as it's possible the autohotspot.service file does not exist if they installed with hotspot disabled.
         systemctl disable autohotspot >/dev/null 2>>$log_file ; ((rc+=$?))
     fi
 
@@ -610,7 +610,7 @@ install_hotspot_nm() {
         local uuid=${uuid:-5ad644a6-b80e-11ee-952a-bf1313596c84}
     fi
     local hotspot_con_file=/etc/NetworkManager/system-connections/hotspot.nmconnection
-    $no_ipv6 && local v6_method="disabled" || local v6_method="auto"
+    [ -f /etc/sysctl.d/99-noipv6.conf ] && local v6_method=disabled || local v6_method=auto
 
     convert_template hotspot.nmconnection "$hotspot_con_file" uuid=${uuid} wlan_iface=${wlan_iface:-wlan0} \
         wlan_ssid=${wlan_ssid} wlan_psk=${wlan_psk} wlan_ip=${wlan_ip} v6_method=${v6_method}

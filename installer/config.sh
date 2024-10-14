@@ -53,8 +53,8 @@ do_default_config() {
     echo
     prompt="Continue in Interactive mode"
     user_input true "${prompt}"
-    continue=$result
-    if $continue ; then
+    go=$result
+    if $go ; then
         bypass_verify=true         # bypass verify function
         input=false                # so collect function will run (while loop in main)
     else

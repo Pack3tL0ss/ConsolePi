@@ -497,11 +497,11 @@ do_pyvenv() {
         #  SO we simply do pip install RPi.GPIO to ensure it's installed in the venv, log a WARNING which allows script to continue if there is a failure.  RPi.GPIO would be upgraded only when venv is re-created. (or manually)
         # TODO test removing from venv and installing in global context via "sudo apt install python3-rpi.gpio"
         if [ "$is_pi" = true ]; then  # removed --ignore-installed from below need to verify what's needed here
-            sudo ${consolepi_dir}venv/bin/python3 -m pip install RPi.GPIO 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) ||
+            sudo ${consolepi_dir}venv/bin/python3 -m pip install --no-cache-dir RPi.GPIO 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) ||
                 logit "pip install/upgrade RPi.GPIO (separately) returned an error." "WARNING"
         fi
         # -- Update venv packages based on requirements file --
-        sudo ${consolepi_dir}venv/bin/python3 -m pip install --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
+        sudo ${consolepi_dir}venv/bin/python3 -m pip install --no-cache-dir --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
     else
@@ -713,8 +713,8 @@ process_args() {
                 doapt=false
                 shift
                 ;;
-            -*no-users) # Don't log stderr anywhere default is to log_file
-                local no_users=true
+            -*no-users) # Don't ask for additional users during install
+                no_users=true
                 shift
                 ;;
             -s|--silent)  # silent install

@@ -21,6 +21,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
+    "aiohttp",
     "dlipower>=1.0.176",
     "fastapi>=0.103.2",
     "google-api-python-client>=2.103.0",

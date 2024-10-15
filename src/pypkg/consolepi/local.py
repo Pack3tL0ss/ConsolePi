@@ -44,6 +44,7 @@ class Local():
         }
         return local
 
+    # TODO pyudev.Devices.time_since_initialized is datetime timedelta dt.now() - dev.time_since_initialized.  Include init_time as attribute of adapter object
     def detect_adapters(self, key=None):
         """Detect Locally Attached Adapters.
 
@@ -91,7 +92,7 @@ class Local():
             devs[dev_name] = {'by_path': by_path, 'by_id': by_id}
             devs[dev_name]['root_dev'] = True if dev_name == f'/dev/{root_dev}' else False
 
-            # Gather all available properties from device
+            # Gather all available properties from device  # TODO investigate use of pyudev.Device.time_since_initialized
             _props = {p.lower() if p != 'ID_USB_INTERFACE_NUM' else 'id_ifnum': _dev.properties[p]
                       for p in _dev.properties}
             devs[dev_name] = {**devs[dev_name], **_props}

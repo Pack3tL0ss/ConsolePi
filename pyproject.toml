@@ -62,9 +62,6 @@ exclude = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/pypkg/consolepi"]
 
-[tool.hatch.version]
-path = "src/pypkg/consolepi/__about__.py"
-
 [tool.hatch.envs.types]
 extra-dependencies = [
   "mypy>=1.0.0",

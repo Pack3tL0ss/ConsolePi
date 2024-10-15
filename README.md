@@ -104,7 +104,32 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 
 # What's New
 
-### Feb 2024 (v2024-3.0 installer v80)
+## Oct 2024 (v2024-3.2 installer v82)
+  - :bug: ensure /run/dnsmasq dir exists, needed for hotspot dhcp
+  - :ambulance: Fix ipv4 method for hotspot in template / enable network sharing.
+    - 🐛 2 listed above resolves WiFi Networking issues #210
+  - :wrench: Set hotspot IPv6 method based on no_ipv6 option.
+  - :memo: Update GPIO UART setup with paths from Bookworm
+  - :speech_balloon: adjust text alignment in Predicable console ports message
+  - :memo: :tada: prep docs for readthedocs
+  - :memo: :bug: add emoji support for sphinx
+  - :memo: :art: Add more ConsolePi's in action
+  - :speech_balloon:  Add more color to output
+  - :bug: add --no-cache-dir to pip install-U commands, to prevent cache with outdated hash.  Resolves Error HASH not match from the requirements file #195
+  - :bug: fix additional user prompt displaying during silent install
+  - :pushpin: restrict aiohttp dep to 3.10.9- 3.10.10 currently does not have wheel for armv6l (pi zero).
+    - Updates in 3.10.10 don't impact us, takes too long to build and often fails on pi zero.
+  - :recycle: use existence of noipv6 sysctl file to determine v6_method for hotspot
+  - - consistent with others, and don't think no_ipv6 is available during upgrade.
+  - :memo: update README, update path for ttyAMA config within example to reflect bookworm path.
+  - :sparkles: `consolepi-image`: Add ser2net.yaml as stage file when mass import from existing ConsolePi
+  - :sparkles: installer: set ipv6 method in NM templates based on "disable ipv6" option during install.
+  - :construction: Testing ConsolePi as a pypi package
+  - :bookmark: make version static in pyproject.toml
+  - :arrow_up: Add deps to pyproject.toml
+
+
+## Feb 2024 (v2024-3.0 installer v80)
 ✨ Large update!!
 
 *The release of Raspberry Pi OS 12 (bookworm) included a change to use NetworkManager to manage the network.
@@ -129,18 +154,17 @@ Here is a summary of what's in this release:
   - ✨ Deprecate/remove ConsolePi_cleanup sysv script, and deploy consolepi-cleanup systemd (consistency)
   - ✨ Updated `consolepi-autohotspt` to work with NetworkManager (now works with both legacy or bookworm+ installed systems).
 
-Prior Changes can be found in the - [ChangeLog](changelog.md)
-### Jan 2024 (v2024-1.0)
+## Jan 2024 (v2024-1.0)
   - Change how python3-virtualenv is installed (pip --> apt) per PEP 668.
 
-### July 2023 (v2023-6.1)
+## July 2023 (v2023-6.1)
   - ✨ `consolepi-menu` will now show remote ConsolePis that fail API but are reachable via SSH (in remote shell menu)
   - ✨ Enhance consolepi-status now has `-R` (reload consolepi services) and `-B` (brief) options
   - ✨ consolepi-showaliases now works with ser2net v3 or v4
   > Will use ser2net v4 config (if found) only if ser2net v3 config doesn't exist.
 
 
-### July 2023 (v2023-6.0)
+## July 2023 (v2023-6.0)
   - :sparkles: Add full support for ser2netv4 add/change/rename via rename(`rn`) option in the menu, and the `consolepi-addconsole`.
   - :sparkles: Add `consolepi-convert` command, which will parse an existing ser2netv3 config (`/etc/ser2net.conf`) and create/update a ser2netv4 config (`/etc/ser2net.yaml`)
   - :zap: Convert remote ConsolePi updates to async (they were already using threading)
@@ -164,6 +188,8 @@ Prior Changes can be found in the - [ChangeLog](changelog.md)
     ```
     - In future release additional flags will be passed on to picocom i.e. `ssh -t <consolepi address> -p 2202 <device name> [any flags picocom supports]`
     - :bangbang: The `-t` option is crucial, otherwise there is no tty which causes strange behavior in the terminal (tab completion via the connected device among other things break).  Will research if there is a way to attach it on the server side.
+
+Prior Changes can be found in the - [ChangeLog](changelog.md)
 
 # Planned enhancements
   - Complete automation of feature to provide ssh direct to adapter discussed in [issue #119](https://github.com/Pack3tL0ss/ConsolePi/issues/119)

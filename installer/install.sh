@@ -212,7 +212,7 @@ do_users(){
 
         # Create additional Users (with appropriate rights for ConsolePi)
         process="Add Users"
-        if ! $silent || ! $no_users; then
+        if ! $silent && ! $no_users; then
             # strip users from extra_groups as user will have that group automatically
             extra_groups=$( echo $extra_groups | sed 's/\(.*\) users\(.*\)/\1\2/' )
             sed -i "s/^EXTRA_GROUPS=.*/EXTRA_GROUPS=\"$extra_groups\"/" /tmp/adduser.conf

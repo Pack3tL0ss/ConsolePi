@@ -104,7 +104,7 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 
 # What's New
 
-## Oct 2024 (v2024-3.2 installer v82)
+## Oct 2024 (v2024-3.3 installer v82)
   - :bug: ensure /run/dnsmasq dir exists, needed for hotspot dhcp
   - :ambulance: Fix ipv4 method for hotspot in template / enable network sharing.
     - 🐛 2 listed above resolves WiFi Networking issues #210

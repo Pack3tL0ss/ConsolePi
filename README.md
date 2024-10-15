@@ -837,7 +837,7 @@ ConsolePi supports use of the onboard UARTs for external connections.  The Pi4 a
 
   #### Configure `/boot/firmware/config.txt`  *(On older pre-bookworm images this file is @ `/boot/config.txt`)*
   ```bash
-  # related snippet from /boot/config.txt
+  # related snippet from /boot/firmware/config.txt
 
   #Enable Default UART (used to access this ConsolePi not externally)
   enable_uart=1

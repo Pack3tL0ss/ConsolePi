@@ -117,6 +117,7 @@ do_defaults() {
     STAGE_FILES=(STAGE:/etc/ConsolePi/ConsolePi.yaml
                 STAGE:/etc/udev/rules.d/10-ConsolePi.rules
                 STAGE:/etc/ser2net.conf
+                STAGE:/etc/ser2net.yaml
                 $MY_HOME/.ssh/authorized_keys
                 $MY_HOME/.ssh/known_hosts
                 $MY_HOME/.ssh/id_rsa
@@ -491,10 +492,10 @@ do_import_configs() {
                                 fi
                             )
                         ); then
-                        echo "Imported"
+                        echo -e "${_green}Imported${_norm}"
                         [ "$(basename "$dst" 2>/dev/null)" = "ConsolePi.yaml" ] && STAGED_CONFIG=$dst
                     else
-                        echo ERROR
+                        echo -e "${_green}Error${_norm}"
                         echo -e "  --\n  $res\n  --"
                     fi
                 else

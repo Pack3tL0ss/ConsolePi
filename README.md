@@ -628,25 +628,32 @@ Examples:
   - Make an attempt to determine the correct drive to be flashed, and display details ... User to verify/confirm before writing.
   > As a fail-safe the script will exit if it finds more than 1 USB storage device on the system.
   - Flash image to micro-sd card
-  - pre-configure default consolepi user via userconf (RaspiOS no longer boots with a default `pi` user)
+  - pre-configure default consolepi user via userconf *(RaspiOS no longer boots with a default `pi` user)*
   - Enable SSH (to facilitate headless install)
   > ***if img_only=true the script stops here***
+
   - The entire stage dir (consolepi-stage) is moved to the /home/consolepi dir on the micro-sd if found in the script dir.  This can be used to pre-stage a number of config files the installer will detect and use, along with anything else you'd like on the ConsolePi image.
-  - Pre-Configure a psk or open WLAN via parameters in script.  Useful for headless installation, you just need to determine what IP address ConsolePi gets from DHCP if doing a headless install.
-  - You can also pre-configure WLAN by placing a wpa_supplicant.conf file in the stage dir.  This will be copied to the /etc/wpa_supplicant dir on the micro-sd card.  This method supports the typical methods along with EAP-TLS with certificates.  Just place the cert files referenced in the provided wpa_supplicant.conf file in a 'cert' folder inside the stage dir.  ( Only works for a single EAP-TLS SSID or rather a single set of certs ), the image creator will then move the certs to the micro-sd to the path specified in the provided wap_supplicant.conf.
-  - create a quick command 'consolepi-install' to simplify the command string to pull the installer from this repo and launch.  If cmd_line= argument is provided to consolepi-image-creator.sh those arguments are passed on to the auto-install.
+
+    >The installer and image-creator will first look in `consolepi-stage/HOSTNAME` for imports specific to that ConsolePi, then fallback to the root of `consolepi-stage` if no folder matching the hostname exists.  For the image-creator the HOSTNAME would need to be specified via `-H|--hostname` flag.
+
+  - You can pre-configure WLAN by placing NetworkManager connection profiles inside `NetworkManager/system-connections/` directory (within consolepi-stage).   Any pre-staged profiles will be copied to the `/etc/NetworkManager/system-connections` dir on the micro-sd card.  Ownership and permissions, will then be set.  This method supports the typical methods (i.e. PSK) along with EAP-TLS with certificates.  Just place the cert files referenced in the provided connection profile in a `cert` folder inside the stage dir.  *( Only works for a single EAP-TLS SSID or rather a single set of certs )*, the image creator will then move the certs to the micro-sd to the path specified in the provided connection profile.
+
+  - create a quick command `consolepi-install` to simplify the command string to pull the installer from this repo and launch.  If cmd_line= argument is provided to consolepi-image-creator.sh those arguments are passed on to the auto-install.
   - The ConsolePi installer will start on first login, as long as the RaspberryPi has internet access.  This can be disabled with `--auto_install=false`.
 
     > If you set `--auto_install=false`, `--cmd_line=...` is ignored.  You would specify arguments for the installer manually.
-  - If the `consolepi-image-creator.sh` script is ran from a ConsolePi, the script will detect that it's a ConsolePi and offer to pre-stage it's existing settings.  If a file has already been pre-staged (via consolepi-stage dir) it will skip it.  It will give you the chance to edit ConsolePi.yaml if pre-staged, so you can deploy multiple ConsolePis and edit the specifics for each as you stage them.
-  - Entire home directory imports:  If you place /root and/or /home/pi inside the consolepi-stage directory.  Those contents/sub-dirs will be imported to the respective users directory on the image.
-    - You can even pre-stage a users home directory for a user that doesn't exist.  When the installer runs, you are given the option to create new users.  Once created if a folder is found in consolepi-stage for that user (i.e. `home/pi/consolepi-stage/home/larry`), the contents will be copied from the `consolepi-stage` dir to `/home/larry`.
+  - If the `consolepi-image` is ran from a ConsolePi, the script will detect that it's a ConsolePi and offer to pre-stage it's existing settings.  If a file has already been pre-staged (via consolepi-stage dir) it will skip it.  It will give you the chance to edit ConsolePi.yaml if pre-staged *(unless you pass in `--no-edit`)*, so you can deploy multiple ConsolePis and edit the specifics for each as you stage them.
+  - Entire home directory imports:  If you place /root and/or /home/consolepi inside the consolepi-stage directory.  Those contents/sub-dirs will be imported to the respective users directory on the image.
+    - You can even pre-stage a users home directory for a user that doesn't exist.  When the installer runs, you are given the option to create new users.  Once created if a folder is found in consolepi-stage for that user (i.e. `~/consolepi-stage/home/larry`), the contents will be copied from the `consolepi-stage` dir to `/home/larry`.
 
-  The install script (not this image-creator, the installer that actually installs ConsolePi) will look for and if found import a number of items from the consolepi-stage directory.  Gdrive credentials, ovpn settings, ssh keys refer to *TODO link to section highlighting imports*
+  The install script (not this image-creator, the installer that actually installs ConsolePi) will look for and if found import a number of items from the consolepi-stage directory.  Gdrive credentials, ovpn settings, ssh keys, udev rules, ser2net config...
 
 **This capture highlights what the script does and what it pulls via mass import if ran from an existing ConsolePi**
+
+> If ran from a ConsolePi there is a convenience command `consolepi-image`.  It can also be run from other Linux based systems by cloning this repo and running it directly with elevated privileges i.e. `sudo installer/consolepi-image-creator.sh`
+
 ```bash
-pi@ConsolePi-dev:~$ sudo ./consolepi-image-creator.sh
+wade@ConsolePi8:~$ consolepi-image -C consolepi-stage/ConsolePi8/consolepi-image-creator.conf
    ______                       __     ____  _
   / ____/___  ____  _________  / /__  / __ \(_)
  / /   / __ \/ __ \/ ___/ __ \/ / _ \/ /_/ / /
@@ -655,84 +662,57 @@ pi@ConsolePi-dev:~$ sudo ./consolepi-image-creator.sh
   https://github.com/Pack3tL0ss/ConsolePi
 
 
+2629828608 bytes (2.6 GB, 2.4 GiB) copied, 81 s, 32.4 MB/s2634022912 bytes (2.6 GB, 2.5 GiB) copied, 81.2102 s, 32.4 MB/s
 
-ConsolePi Image Creator
-'exit' (which will terminate the script) is valid at all prompts
-
-Script has discovered removable flash device @ sda with the following details
-
-------------------------------- // Device Details for sda \\ -----------------------------------
-
-Disk /dev/sda: 29.8 GiB, 32010928128 bytes, 62521344 sectors
-Disk model: Storage Device
-Units: sectors of 1 * 512 = 512 bytes
-Sector size (logical/physical): 512 bytes / 512 bytes
-I/O size (minimum/optimal): 512 bytes / 512 bytes
-Disklabel type: dos
-Disk identifier: 0xe34e0aca
-
-Device     Boot  Start      End  Sectors  Size Id Type
-/dev/sda1         8192   532479   524288  256M  c W95 FAT32 (LBA)
-/dev/sda2       532480 62521343 61988864 29.6G 83 Linux
-
-------------------------------------------------------------------------------------------------
-
-
-Press enter to accept sda as the destination drive or specify the correct device (i.e. 'sdc' or 'mmcblk0')
-Device to flash with image [sda]:
-
-Getting latest raspios image (lite)
-Using image 2023-05-03-raspios-bullseye-armhf-lite found in /home/wade. It is the current release
-
-
-!!! Last chance to abort !!!
-About to write image 2023-05-03-raspios-bullseye-armhf-lite.img to sda, Continue? (y/n|exit): y
-   ______                       __     ____  _
-  / ____/___  ____  _________  / /__  / __ \(_)
- / /   / __ \/ __ \/ ___/ __ \/ / _ \/ /_/ / /
-/ /___/ /_/ / / / (__  ) /_/ / /  __/ ____/ /
-\____/\____/_/ /_/____/\____/_/\___/_/   /_/
-  https://github.com/Pack3tL0ss/ConsolePi
-
-
-Now Writing image 2023-05-03-raspios-bullseye-armhf-lite.img to sda standby...
- This takes a few minutes
-
-1849688064 bytes (1.8 GB, 1.7 GiB) copied, 221 s, 8.4 MB/s
-442+0 records in
-442+0 records out
-1853882368 bytes (1.9 GB, 1.7 GiB) copied, 233.167 s, 8.0 MB/s
+628+0 records in
+628+0 records out
+2634022912 bytes (2.6 GB, 2.5 GiB) copied, 84.2852 s, 31.3 MB/s
 
 
 Image written to flash - no Errors
 
 
- ~ Mounting boot partition to enable ssh.................................OK
- ~ Enabling ssh on image.................................................OK
+ ~ mounting boot partition...............................................OK
+ ~ enable ssh on image...................................................OK
+ ~ staging consolepi user for userconf...................................OK
  ~ unmount boot partition................................................OK
- ~ Mounting System partition to pre-configure ConsolePi image............OK
- ~ Script Option to pre-config psk ssid..................................Skipped - Not Configured
- ~ Configure Auto-Install on first login.................................OK
-     Configured with the following args -C consolepi-stage/install.conf
+ ~ mounting system partition to pre-configure consolePi image............OK
+ ~ create consolepi home dir on image....................................OK
+ ~ copy skel files to consolepi home dir.................................OK
+ ~ chmod skel files staged in consolepi home.............................OK
+ ~ set ownership of consolepi home dir...................................OK
+ ~ configure auto launch installer on first login........................OK
+     Configured with the following args -6 --us --tz America/Chicago --auto-launch
  ~ consolepi-stage dir found Pre-Staging all files.......................OK
- ~ SSH authorized keys found pre-staging.................................OK
- ~ SSH known_hosts found pre-staging.....................................OK
- ~ wpa_supplicant.conf found pre-staging on image........................OK
- ~ staged wpa_supplicant includes EAP-TLS SSID looking for certs.........OK
+ ~ No staged /home/consolepi files found.................................skip
+ ~ No staged /root files found...........................................skip
+ ~ stage NetworkManager profile Aruba-PSK................................OK
+ ~ stage NetworkManager profile bt-pan...................................OK
+ ~ stage NetworkManager profile dhcp.....................................OK
+ ~ stage NetworkManager profile HPE_Aruba................................OK
+ ~ HPE_Aruba is EAP-TLS SSID looking for certs...........................OK
+ ~ Set staged private key (ConsolePi8.key) permissions (600).............OK
+ ~ stage NetworkManager profile wadelab-ovpn-split.......................OK
+ ~ stage NetworkManager profile zipline..................................OK
+ ~ chown/chmod pre-staged profiles.......................................OK
 
    -- Performing Imports from This ConsolePi --
  ~ /etc/ConsolePi/ConsolePi.yaml.........................................Skipped - Already Staged
- ~ /etc/wpa_supplicant/wpa_supplicant.conf...............................Skipped - Already Staged
  ~ /etc/udev/rules.d/10-ConsolePi.rules..................................Skipped - Already Staged
- ~ /etc/ser2net.conf.....................................................Skipped - Already Staged
+ ~ /etc/ser2net.conf.....................................................Skipped - File Not Found
+ ~ /etc/ser2net.yaml.....................................................Imported
  ~ /home/wade/.ssh/authorized_keys.......................................Skipped - Already Staged
  ~ /home/wade/.ssh/known_hosts...........................................Skipped - Already Staged
- ~ /etc/ConsolePi/cloud/gdrive/.credentials/credentials.json.............Imported
- ~ /etc/ConsolePi/cloud/gdrive/.credentials/token.pickle.................Imported
- ~ /etc/openvpn/client/ConsolePi.ovpn....................................Skipped - Already Staged
- ~ /etc/openvpn/client/ovpn_credentials..................................Skipped - Already Staged
+ ~ /home/wade/.ssh/id_rsa................................................Skipped - Already Staged
+ ~ /home/wade/.ssh/id_rsa.pub............................................Skipped - Already Staged
+ ~ /etc/ConsolePi/cloud/gdrive/.credentials/credentials.json.............Skipped - Already Staged
+ ~ /etc/ConsolePi/cloud/gdrive/.credentials/token.pickle.................Skipped - Already Staged
+ ~ /etc/openvpn/client/ConsolePi.ovpn....................................Skipped - File Not Found
+ ~ /etc/openvpn/client/ovpn_credentials..................................Skipped - File Not Found
+ ~ /etc/ssh/*............................................................Imported
+ ~ configure hostname ConsolePi8 on image................................OK
 
-Consolepi image ready
+ConsolePi image ready
 ```
 
 Once Complete you place the newly blessed micro-sd in your raspberryPi and boot.  The installer will automatically start unless you've disabled it.  In which case the `consolepi-install` will launch the installer *(unless img_only=true, if so consolepi-install command is not created)*.

@@ -19,3 +19,4 @@ starlette>=0.27.0
 uvicorn>=0.23.2
 zeroconf>=0.115.2
 aiohttp<=3.10.9  # pin for now as 3.10.10 does not have a wheel for armv6l (pi zero)
+cryptography<=42.0.8  # 43.0.3 build failed on piwheels

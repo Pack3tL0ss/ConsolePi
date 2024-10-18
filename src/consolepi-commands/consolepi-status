@@ -57,10 +57,23 @@ show_summary() {
 }
 
 show_status() {
+    not_deployed=()
     for svc in "${ALL_SVCS[@]}" ; do
-      echo -e "\n---------------- // STATUS OF ${_cyan}${svc}.service${_norm} \\\\\ ---------------"
-      systemctl status $svc --no-pager
+        svc_found=$(systemctl list-unit-files "${svc/.service}.service" --legend=false)
+        if [ -n "$svc_found" ]; then
+            echo -e "\n---------------- // STATUS OF ${_cyan}${svc}.service${_norm} \\\\\ ---------------"
+            systemctl status $svc --no-pager
+        else
+            not_deployed+=("${svc/.service}.service")
+        fi
     done
+
+    if [ ${#not_deployed[@]} -gt 0 ]; then
+        echo -e "\n---------------- // ${_cyan}The following services are ${_red}not${_norm} ${_cyan}deployed${_norm}.  \\\\\ ---------------"
+        echo ${not_deployed[@]}
+        echo -e "\nThis does not necessarily indicate an issue, the services deployed depend on config options and OS version."
+        echo -e "i.e. ${_cyan}autohotspot.service${_norm}, ${_cyan}hostapd.service${_norm} and ${_cyan}consolepi-autohotspot-dhcp.service${_norm} only apply to pre-bookworm systems."
+    fi
 
     if [ ! -z $1 ] && [[ $1 =~ 'log' ]] ; then
       echo "---------------- // ERRORS from log file \\\\\ ---------------"

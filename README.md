@@ -104,6 +104,15 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 
 # What's New
 
+## Oct 2024 (v2024-3.4 installer v83)
+  - :pushpin: pin cryptography they've pushed a release with failed build (43.0.3 failes build on piwheels)
+  - :bookmark: Installer v83
+    - ✨ add flag for installer to skip bluetooth setup
+    - ✨ show model info for non rpi if possible
+  - :speech_balloon: Simplify `consolepi-status` output.
+  - :memo: Documentation updates/improvements
+
+
 ## Oct 2024 (v2024-3.3 installer v82)
   - :bug: ensure /run/dnsmasq dir exists, needed for hotspot dhcp
   - :ambulance: Fix ipv4 method for hotspot in template / enable network sharing.
@@ -156,38 +165,6 @@ Here is a summary of what's in this release:
 
 ## Jan 2024 (v2024-1.0)
   - Change how python3-virtualenv is installed (pip --> apt) per PEP 668.
-
-## July 2023 (v2023-6.1)
-  - ✨ `consolepi-menu` will now show remote ConsolePis that fail API but are reachable via SSH (in remote shell menu)
-  - ✨ Enhance consolepi-status now has `-R` (reload consolepi services) and `-B` (brief) options
-  - ✨ consolepi-showaliases now works with ser2net v3 or v4
-  > Will use ser2net v4 config (if found) only if ser2net v3 config doesn't exist.
-
-
-## July 2023 (v2023-6.0)
-  - :sparkles: Add full support for ser2netv4 add/change/rename via rename(`rn`) option in the menu, and the `consolepi-addconsole`.
-  - :sparkles: Add `consolepi-convert` command, which will parse an existing ser2netv3 config (`/etc/ser2net.conf`) and create/update a ser2netv4 config (`/etc/ser2net.yaml`)
-  - :zap: Convert remote ConsolePi updates to async (they were already using threading)
-  - :zap: Convert remote ConsolePi updates to async (they were already using threading)
-  - :loud_sound: Update Spinner with the name of the remote as reachability is being check for remote ConsolePis.  Make failures persistent (spinner shows what failed and continues one line down.)
-  - The various consolepi-services that run as daemons (for remote discovery) now display a descriptive process name (i.e. when running `top` and the like) vs generically `python3`
-  - :construction: (Requires manual setup for now see issue [#119](https://github.com/Pack3tL0ss/ConsolePi/issues/119))  Add ability to ssh directly to an adapter specifying adapter by name
-    - i.e. `ssh -t <consolepi address> -p 2202 <device name>`
-    - real example `ssh -t consolepi4 -p 2202 r1-8360-TOP` will connect to the defined udev alias `/dev/r1-8360-TOP` connected to remote ConsolePi ConsolePi4 (you could use ip vs hostname)
-    > The examples uses a predictable device name (`r1-8360-TOP`) vs. the default /dev/ttyUSB# Use consolepi-addconsole or the rename(`rn`) option in `consolepi-menu` to discover and apply predictable names to connected serial adapters.
-    - This feature retains power-control, so if `r1-8360-TOP` has an outlet linked to it, connecting to the device will automatically verify the outlet is on, and turn it on if not.  See [Power Control Setup](readme_content/power.md#power-control-setup) for more details.
-    - This is a work in progress.  The sshd config still needs to be automated but can be manually created.  Just place the following in a new file /etc/ssh/sshd_config.d/consolepi.conf and restart ssh `systemctl restart ssh`
-    ```shell
-    Port 22
-    Port 2202
-    AddressFamily any
-    ListenAddress 0.0.0.0
-
-    Match LocalPort 2202
-        ForceCommand /etc/ConsolePi/src/remote_launcher.py $SSH_ORIGINAL_COMMAND
-    ```
-    - In future release additional flags will be passed on to picocom i.e. `ssh -t <consolepi address> -p 2202 <device name> [any flags picocom supports]`
-    - :bangbang: The `-t` option is crucial, otherwise there is no tty which causes strange behavior in the terminal (tab completion via the connected device among other things break).  Will research if there is a way to attach it on the server side.
 
 Prior Changes can be found in the - [ChangeLog](changelog.md)
 

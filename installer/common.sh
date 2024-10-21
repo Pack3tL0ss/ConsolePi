@@ -612,7 +612,15 @@ get_pi_info() {
     cpu=$(cat /proc/cpuinfo | grep 'Hardware' | awk '{print $3}')
     rev=$(cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}')
     model_pretty=$(get_pi_info_pretty $rev 2>/dev/null)
-    [ -n "$model_pretty" ] && is_pi=true || is_pi=false
+    if [ -n "$model_pretty" ]; then
+        is_pi=true
+    else
+        is_pi=false
+        if hash dmidecode 2>/dev/null; then
+            . <(dmidecode | grep "^System Information" -A2 | tail -n +2 | sed 's/: /="/' | sed 's/ /_/' | sed 's/$/"/' | tr -d "\t")
+            model_pretty="$Manufacturer $Product_Name"
+        fi
+    fi
     logit "$model_pretty"
     [ -f /etc/os-release ] && . /etc/os-release && logit "$NAME $(head -1 /etc/debian_version) ($VERSION_CODENAME) running on $cpu Revision: $rev"
     logit "$(uname -a)"

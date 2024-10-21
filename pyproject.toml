@@ -1,6 +1,6 @@
 [project]
 name = "consolepi"
-version = "0.0.4"
+version = "0.0.5"
 description = 'Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to local or remote ConsolePis via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).'
 readme = "README.md"
 requires-python = ">=3.8"

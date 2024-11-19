@@ -460,7 +460,7 @@ class DLI:
             retry += 1
 
         if r and r.content.decode('UTF-8').split('URL=')[1].split('"')[0] != '/index.htm':
-            log.warn('[DLI VRFY SESSION] Unable to Renew Session for {}'.format(self.fqdn))
+            log.warning('[DLI VRFY SESSION] Unable to Renew Session for {}'.format(self.fqdn))
             ret_val = 400
 
         return ret_val

@@ -853,7 +853,8 @@ class ConsolePiMenu(Rename):
                     menu_actions['c' + str(item)] = connect
                     menu_actions['c ' + str(item)] = connect
 
-                    _cmd = f'{rem_pfx} \"sudo /\etc/\ConsolePi/\src/\consolepi-menu.py rn {dev}\"'  # type: ignore # noqa
+                    _menu_file = r"\etc\ConsolePi\src\consolepi-menu.py"
+                    _cmd = f'{rem_pfx} \"sudo {_menu_file} rn {dev}\"'  # type: ignore # noqa
                     menu_actions[str(item)] = {'cmd': _cmd,
                                                'pre_msg': f"Connecting To {host} to Rename {dev_pretty}...",
                                                'host': host}

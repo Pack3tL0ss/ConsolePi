@@ -198,7 +198,9 @@ class Local():
         if res[0] > 0:
             log.warning('Unable to get unique identifier for this pi (cpuserial)', show=True)
             return 0
-        elif not res[1]:
+        elif res[1]:
+            return res[1]
+        else:  # for non rpi use machine-id if file exists
             machine_id_file = Path("/etc/machine-id")
             if machine_id_file.exists():
                 return machine_id_file.read_text().strip()

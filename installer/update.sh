@@ -770,6 +770,9 @@ disable_wired_dhcp_nm() {
         if grep -q "autoconnect=true" $static_con_file; then
             sed -i 's/autoconnect=.*/autoconnect=false/' $static_con_file &&
                 logit "Disabled wired automatic fallback to static" || logit "Error occured disabling wired automatic fallback to static" "WARNING"
+        else  # original template was missing autoconnect lines so just remove the connection file
+            rm $static_con_file &&
+                logit "Disabled wired automatic fallback to static" || logit "Error occured disabling wired automatic fallback to static" "WARNING"
         fi
     fi
     unset process

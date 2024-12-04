@@ -483,7 +483,7 @@ do_pyvenv() {
             logit "WARNING - pip upgrade returned error" "WARNING"
 
         logit "pip install/upgrade ConsolePi requirements - This can take some time."
-        echo -e "\n-- Output of \"pip install --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
+        echo -e "\n-- Output of \"pip install --no-cache-dir --prefer-binary --upgrade -r ${consolepi_dir}installer/requirements.txt\" --\n"
         # -- RPi.GPIO is done separately as it's a distutils package installed by apt, but pypi may be newer.  this is in a venv, should do no harm
         # It will also install on non rpi Linux systems (via pip).  So does no harm to install it.
         # Will not install in python global context via apt on other systems: sudo apt install python3-rpi.gpio ; as it's only in the rpi repo
@@ -498,7 +498,7 @@ do_pyvenv() {
                 logit "pip install/upgrade RPi.GPIO (separately) returned an error." "WARNING"
         fi
         # -- Update venv packages based on requirements file --
-        sudo ${consolepi_dir}venv/bin/python3 -m pip install --no-cache-dir --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
+        sudo ${consolepi_dir}venv/bin/python3 -m pip install --no-cache-dir --prefer-binary --upgrade -r ${consolepi_dir}installer/requirements.txt 2> >(grep -v "WARNING: Retrying " | tee -a $log_file >&2) &&
             ( echo; logit "Success - pip install/upgrade ConsolePi requirements" ) ||
             logit "Error - pip install/upgrade ConsolePi requirements" "ERROR"
     else

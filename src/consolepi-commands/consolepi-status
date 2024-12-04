@@ -59,7 +59,7 @@ show_summary() {
 show_status() {
     not_deployed=()
     for svc in "${ALL_SVCS[@]}" ; do
-        svc_found=$(systemctl list-unit-files "${svc/.service}.service" --legend=false)
+        svc_found=$(systemctl list-unit-files "${svc/.service}.service" --no-legend)
         if [ -n "$svc_found" ]; then
             echo -e "\n---------------- // STATUS OF ${_cyan}${svc}.service${_norm} \\\\\ ---------------"
             systemctl status $svc --no-pager

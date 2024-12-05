@@ -682,7 +682,7 @@ do_wired_dhcp_nm() {
         [ -z "$iface" ] && iface=$(nmcli -g connection.interface-name con show "$name")
 
         if [ "$iface" != "$wired_iface" ]; then
-            logit "Skipping $name as $iface is not $wlan_iface"
+            logit "Skipping $name as $iface is not $wired_iface"
             continue
         fi
 

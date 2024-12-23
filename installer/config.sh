@@ -159,6 +159,9 @@ update_config() {
 
 # -- Automatically set the DHCP range based on the hotspot IP provided --
 hotspot_dhcp_range() {
+    if [ -z "$wlan_ip" ] || [ "$wlan_ip" == "None" ]; then
+        wlan_ip=10.110.0.1
+    fi
     baseip=`echo $wlan_ip | cut -d. -f1-3`   # get first 3 octets of wlan_ip
     wlan_dhcp_start=$baseip".101"
     wlan_dhcp_end=$baseip".150"
@@ -166,6 +169,9 @@ hotspot_dhcp_range() {
 
 # -- Automatically set the DHCP range based on the eth IP provided --
 wired_dhcp_range() {
+    if [ -z "$wired_ip" ] || [ "$wired_ip" == "None" ]; then
+        wired_ip=10.30.0.1
+    fi
     baseip=`echo $wired_ip | cut -d. -f1-3`   # get first 3 octets of wired_ip
     wired_dhcp_start=$baseip".101"
     wired_dhcp_end=$baseip".150"

@@ -682,7 +682,7 @@ do_wired_dhcp_nm() {
         [ -z "$iface" ] && iface=$(nmcli -g connection.interface-name con show "$name")
 
         if [ "$iface" != "$wired_iface" ]; then
-            logit "Skipping $name as $iface is not $wlan_iface"
+            logit "Skipping $name as $iface is not $wired_iface"
             continue
         fi
 
@@ -769,6 +769,11 @@ disable_wired_dhcp_nm() {
     if [ -f $static_con_file ]; then
         if grep -q "autoconnect=true" $static_con_file; then
             sed -i 's/autoconnect=.*/autoconnect=false/' $static_con_file &&
+                logit "Disabled wired automatic fallback to static" || logit "Error occured disabling wired automatic fallback to static" "WARNING"
+        elif grep -q "autoconnect=false" $static_con_file; then
+            logit "Wired dhcp fallback already disabled"
+        else  # original template was missing autoconnect lines so just remove the connection file
+            rm $static_con_file &&
                 logit "Disabled wired automatic fallback to static" || logit "Error occured disabling wired automatic fallback to static" "WARNING"
         fi
     fi
@@ -1299,7 +1304,7 @@ post_install_msg() {
     # Display any warnings if they exist
     if [ "$warn_cnt" -gt 0 ]; then
         echo -e "\n${_red}---- warnings exist ----${_norm}"
-        grep -A 999 "${log_start}" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "WARNING\|failed"
+        grep -A 999 "${log_start}" -a $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "WARNING\|failed"
         # sed -n "/${log_start}/,//p" $log_file | grep -v "^WARNING: Retrying " | grep -v "apt does not have a stable CLI interface" | grep "WARNING\|failed"
         echo
     fi

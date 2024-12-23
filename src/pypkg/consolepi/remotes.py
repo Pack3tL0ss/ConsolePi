@@ -66,6 +66,16 @@ class Remotes:
         log.show("Cloud Function Disabled by script - No Credentials Found")
         self.do_cloud = config.cfg["do_cloud"] = False
 
+    def _sort_by_timeout(self, data: Dict[str, dict]) -> Dict[str, dict]:
+        try:
+            data = {host: {**d, "timeout": getattr(config.remote_timeout, host)} for host, d in data.items()}
+            # places remotes that were not reachable in previous attempts first followed by remotes with the longest configured timeouts
+            # We want remotes that have the potential to take longer added to the event loop first
+            return dict(sorted(data.items(), key=lambda x: 999 if not x[1]["rem_ip"] else x[1]["timeout"], reverse=True))
+        except Exception as e:
+            log.exception(f"Exception during attempt to sort remotes by timeout\n{e}")
+            return data
+
     # get remote consoles from local cache refresh function will check/update cloud file and update local cache
     async def get_remote(self, data: dict = None, rename: bool = False) -> Dict[str, Any]:
         spin = self.spin
@@ -144,6 +154,7 @@ class Remotes:
                     "Querying Remotes via API to verify reachability and adapter data"
                 )
 
+            data = self._sort_by_timeout(data)
             _ = await asyncio.gather(*[verify_remote(remotepi, data, rename) for remotepi in data])
 
         # update local cache if any ConsolePis found UnReachable

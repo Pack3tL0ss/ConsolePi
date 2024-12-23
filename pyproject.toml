@@ -1,6 +1,6 @@
 [project]
 name = "consolepi"
-version = "0.0.7"
+version = "0.0.8"
 description = 'Acts as a serial Console Server, allowing you to remotely connect to ConsolePi via Telnet/SSH/bluetooth to gain Console Access to devices connected to local or remote ConsolePis via USB to serial adapters (i.e. Switches, Routers, Access Points... anything with a serial port).'
 readme = "README.md"
 requires-python = ">=3.8"
@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-    "aiohttp<=3.10.9",
+    "aiohttp>=3.10.11",
     "dlipower>=1.0.176",
     "fastapi>=0.103.2",
     "google-api-python-client>=2.103.0",

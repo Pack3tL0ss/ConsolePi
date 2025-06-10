@@ -3,7 +3,7 @@
 import re
 import sys
 from os import system
-from typing import Dict, Iterator, List, Tuple, Union, Any
+from typing import Dict, Iterator, List, Tuple, Union, Any, Iterable
 
 from consolepi import utils, log, config  # type: ignore
 
@@ -656,7 +656,7 @@ class Menu:
                     col_lines = this_lines
                     self.col_width = this_width
                 elif col_lines and sum([len(s) + addl_rows for s in _body[idx:]]) <= len(col_lines) and \
-                        not len(col_lines) + len(this_lines) <= len(self.pages[self.cur_page]):
+                        not len(col_lines) + len(this_lines) <= self.page.body_avail_rows:  # len(self.pages[self.cur_page]):
                     self.pager_write_col_to_page(col_lines, section_slices)
                     section_slices = {}
                     # -- Prev Col written update col with current lines
@@ -789,7 +789,7 @@ class Menu:
                 self.append(lines, cols, rows)
                 return self
 
-            def __iter__(self, key: Union[slice, tuple, int] = None) -> Tuple:
+            def __iter__(self, key: Union[slice, tuple, int] = None) -> Iterable[Tuple[int, int, int, int]]:
                 print("hit")
                 if key:
                     if isinstance(key, tuple):

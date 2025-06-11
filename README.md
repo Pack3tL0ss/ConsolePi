@@ -108,7 +108,7 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
 ## June 2025 (v2025-3.8)
 
   - 🐛 Fix rename of remote adapters
-  - 🐛 Fix menu bug corner case that could ommit entries if last section of page needs to be split
+  - 🐛 Fix menu bug corner case that could omit entries if last section of page needs to be split
   - 🩹 Prevent use of invalid character (`.`) in new name for adapters (`.` not allowed by ser2net)
   - 🩹 Fix menu display issue where first launch of the menu would display sections in 3 columns, then any activity in the menu would re-display the menu more vertically.
     - *This didn't result in any entries being omitted, just needlessly changed the way it was displayed*

@@ -1,4 +1,5 @@
 #!/etc/ConsolePi/venv/bin/python3
+from __future__ import annotations
 
 import re
 import sys
@@ -203,17 +204,28 @@ class MenuParts:
         self.prev_slice = {}
         self.this_slice = {}
         self.next_slice = {}
-        self.parts: Union[List[MenuSection], List[None]] = [
-            self.header,
-            self.subhead,
-            self.body,
-            self.legend,
-            self.footer
-        ]
         # +1 is for prompt line
         self.rows = 0 if len(self) == 0 else (len(self) + 1)
-        self.cols = self._cols()
-        # tty = tty
+
+    @property
+    def cols(self):
+        return max([p.cols for p in self.parts if p] or [0])
+
+    @property
+    def parts(self) -> List[MenuSection]:
+        parts = [self.header, self.subhead, self.body, self.legend, self.footer]
+        return [p for p in parts if p is not None and not p.hide]
+
+    @parts.setter
+    def parts(self, menu_parts: List[MenuSection]):
+        self._update_parts(*menu_parts)
+
+    def _update_parts(self, header: MenuSection, subhead: MenuSection, body: MenuSection, legend: MenuSection, footer: MenuSection):
+        self._header = header
+        self._subhead = subhead
+        self._body = body
+        self._legend = legend
+        self._footer = footer
 
     @property
     def header(self):
@@ -222,8 +234,6 @@ class MenuParts:
     @header.setter
     def header(self, new_value):
         self._header = new_value
-        self.update()
-        # self._header.update(width=self.cols)
 
     @property
     def subhead(self):
@@ -232,8 +242,6 @@ class MenuParts:
     @subhead.setter
     def subhead(self, new_value):
         self._subhead = new_value
-        self.update()
-        # self._subhead.update(width=self.cols)
 
     @property
     def body(self):
@@ -242,8 +250,6 @@ class MenuParts:
     @body.setter
     def body(self, new_value):
         self._body = new_value
-        self.update()
-        # self._body.update(width=self.cols)
 
     @property
     def legend(self):
@@ -252,8 +258,6 @@ class MenuParts:
     @legend.setter
     def legend(self, new_value):
         self._legend = new_value
-        self.update()
-        # self._legend.update(width=self.cols)
 
     @property
     def footer(self):
@@ -262,15 +266,12 @@ class MenuParts:
     @footer.setter
     def footer(self, new_value):
         self._footer = new_value
-        self.update()
-        # self._footer.update(width=self.cols)
 
     def __repr__(self):
         name = "" if not self.name else f" ({(self.name)})"
         return f"<{self.__module__}.{type(self).__name__}{name} object at {hex(id(self))}>"
 
     def __len__(self):
-        # parts = [self.header, self.subhead, self.body, self.legend, self.footer]
         return sum([p.rows for p in self.parts if p] or [0])
 
     def __str__(self):
@@ -280,37 +281,21 @@ class MenuParts:
         else:
             print("")  # if DEBUG need this to get off the prompt line
 
-        parts = [self.header, self.subhead, self.body, self.legend, self.footer]
-        if self.legend and self.legend.hide:
-            _ = parts.pop(parts.index(self.legend))
         log.clear()
-        return "\n".join([line for p in parts for line in p.lines])
+        return "\n".join([line for p in self.parts for line in p.lines])
 
     def __iter__(self, key: str = None) -> Iterator[MenuSection]:
-        # parts = [self.header, self.subhead, self.body, self.legend, self.footer]
         for p in self.parts:
-            if not p or (key and p.name != key):  # or (p.name == "legend" and p.hide):
+            if key and p.name != key:
                 continue
             else:
                 yield p
 
-    def _cols(self):
-        # parts = [self.header, self.subhead, self.body, self.legend, self.footer]
-        _ = "Do Nothing Break Point Line"  # TODO remove
-        return max([p.cols for p in self.parts if p] or [0])
-
-    def update(self):
+    @property
+    def body_avail_rows(self):
         self.rows = 0 if len(self) == 0 else (len(self) + 1)
-        self.cols = self._cols()
-        if self.legend and self.legend.hide:
-            if self.legend in self.parts:
-                _ = self.parts.pop(self.parts.index(self.legend))
-            parts = [self.header, self.subhead, self.footer]
-        else:
-            self.parts = [self.header, self.subhead, self.body, self.legend, self.footer]
-            parts = [self.header, self.subhead, self.legend, self.footer]
-
-        self.body_avail_rows = tty.rows - sum([p.rows for p in parts if p] or [0]) - 1  # -1 for prompt line
+        parts = [p for p in self.parts if p != self.body]
+        return tty.rows - sum(map(len, parts) or [0]) - 1  # -1 for prompt line
 
     def diag(self, diag_data: List[str] = None):
         tty.update()
@@ -579,8 +564,8 @@ class Menu:
                 elif (len(col_lines) + len(_section) + addl_rows) >= self.page.body_avail_rows:
                     if self.pg_cnt == 1 and len(_body) <= 3 and max_section <= self.page.body_avail_rows:
                         _end = len(_section)
-                    else:                                       # HACK the -1 below is a hack
-                        _end = self.page.body_avail_rows - (len(col_lines) + addl_rows) - 1  # FIXME avail rows 52 cols 190 hide legend.  wsl menu 108 through sec 15 on 1st page 2nd page sec 16 gets stripped to slice(12, 13, 1) rather than (0, 13, 1)
+                    else:                                                                # HACK the -1 below is a hack -- UPDATE this should be fixed...  Keeping not in in case scenario occurs again.
+                        _end = self.page.body_avail_rows - (len(col_lines) + addl_rows)  #  - 1  # FIXME avail rows 52 cols 190 hide legend.  wsl menu 108 through sec 15 on 1st page 2nd page sec 16 gets stripped to slice(12, 13, 1) rather than (0, 13, 1)
                 elif len(_section) + addl_rows <= self.page.body_avail_rows:             # It's the first col of the next page shouldn't be stripped.  _end should be 11 it's being set to 12 body_avail_rows is 45 disregarding space at top and bot body is 43
                     _end = len(_section)
                 else:
@@ -638,10 +623,9 @@ class Menu:
                     # -- Prev Col written update col with current lines
                     col_lines = this_lines
                     self.col_width = this_width
+                # All sections can fit with sections spread more horizontally
                 elif col_lines and len(col_lines) + len(this_lines) >= self.tot_body_1col_rows / 2 and (
-                    not self.pages or (
-                        len(self.pages[self.cur_page]) > 0 and not (
-                            len(col_lines) + len(_section) + addl_rows) <= len(self.pages[self.cur_page])
+                    not self.pages or not self.pages[self.cur_page] or (not (len(col_lines) + len(_section) + addl_rows) <= len(self.pages[self.cur_page])
                     )
                 ):
                     self.pager_write_col_to_page(col_lines, section_slices)
@@ -649,6 +633,7 @@ class Menu:
                     # -- Prev Col written update col with current lines
                     col_lines = this_lines
                     self.col_width = this_width
+                # All sections have the same length
                 elif col_lines and max_section <= self.page.body_avail_rows and equal_sections:
                     self.pager_write_col_to_page(col_lines, section_slices)
                     section_slices = {}

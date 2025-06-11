@@ -102,7 +102,27 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
   ```
   Again simply restarting the service seems to resolve the issue.  I suspect it may be a race-condition on bootup with the initialization of udev.
 
+  > ℹ  You can disable ser2net if you never use TELNET to connect directly to the adapters on the ConsolePi.  The Rename utility will still use and update the ser2net conf file *(so you don't have to configure the settings in 2 places if you do happen to use it)*.  `sudo systemctl disable ser2net` will disable ser2net, `consolepi-upgrade` won't re-enable it if it was disabled when the you run the upgrade.
+
 # What's New
+## June 2025 (v2025-3.8)
+
+  - 🐛 Fix rename of remote adapters
+  - 🐛 Fix menu bug corner case that could ommit entries if last section of page needs to be split
+  - 🩹 Prevent use of invalid character (`.`) in new name for adapters (`.` not allowed by ser2net)
+  - 🩹 Fix menu display issue where first launch of the menu would display sections in 3 columns, then any activity in the menu would re-display the menu more vertically.
+    - *This didn't result in any entries being omitted, just needlessly changed the way it was displayed*
+  - 🩹 Handle SSIDs with spaces in `consolepi-wlanscan`
+
+## Dec 2024 (v2024-3.6 installer v84)
+
+  - 🐛fixes bug re disabling static fallback.
+  - 🩹 remove static fallback file if wired_dhcp=false and they have the old template
+  - 🦺 ensure wlan_ip / wired_ip has value when using consolepi-upgrade.  Rare occasion where user changes ConsolePi.yaml to `wired_dhcp: true`, but does not update the config with IP addresses.
+  - 🔊 fix wired_dhcp log referencing wrong interface in log (wrong variable)
+  - ♻️ change logic in disable wired dhcp for NetworkManager
+  - 🔧 Update wired static fallback.  set autoconnect priority to lowest possible.
+  - ⬆️ upgrade aiohttp dependency
 
 ## Oct 2024 (v2024-3.4 installer v83)
   - :pushpin: pin cryptography they've pushed a release with failed build (43.0.3 failes build on piwheels)
@@ -113,66 +133,15 @@ wget -q https://raw.githubusercontent.com/Pack3tL0ss/ConsolePi/master/installer/
   - :memo: Documentation updates/improvements
 
 
-## Oct 2024 (v2024-3.3 installer v82)
-  - :bug: ensure /run/dnsmasq dir exists, needed for hotspot dhcp
-  - :ambulance: Fix ipv4 method for hotspot in template / enable network sharing.
-    - 🐛 2 listed above resolves WiFi Networking issues #210
-  - :wrench: Set hotspot IPv6 method based on no_ipv6 option.
-  - :memo: Update GPIO UART setup with paths from Bookworm
-  - :speech_balloon: adjust text alignment in Predicable console ports message
-  - :memo: :tada: prep docs for readthedocs
-  - :memo: :bug: add emoji support for sphinx
-  - :memo: :art: Add more ConsolePi's in action
-  - :speech_balloon:  Add more color to output
-  - :bug: add --no-cache-dir to pip install-U commands, to prevent cache with outdated hash.  Resolves Error HASH not match from the requirements file #195
-  - :bug: fix additional user prompt displaying during silent install
-  - :pushpin: restrict aiohttp dep to 3.10.9- 3.10.10 currently does not have wheel for armv6l (pi zero).
-    - Updates in 3.10.10 don't impact us, takes too long to build and often fails on pi zero.
-  - :recycle: use existence of noipv6 sysctl file to determine v6_method for hotspot
-  - - consistent with others, and don't think no_ipv6 is available during upgrade.
-  - :memo: update README, update path for ttyAMA config within example to reflect bookworm path.
-  - :sparkles: `consolepi-image`: Add ser2net.yaml as stage file when mass import from existing ConsolePi
-  - :sparkles: installer: set ipv6 method in NM templates based on "disable ipv6" option during install.
-  - :construction: Testing ConsolePi as a pypi package
-  - :bookmark: make version static in pyproject.toml
-  - :arrow_up: Add deps to pyproject.toml
-
-
-## Feb 2024 (v2024-3.0 installer v80)
-✨ Large update!!
-
-*The release of Raspberry Pi OS 12 (bookworm) included a change to use NetworkManager to manage the network.
-That broke all network based automations (PushBullet notifications of IP change, cloud sync after IP change, Automatic VPN, Auto fallback to hotspot, and ZTP (fallback to static wired w/ DHCP))*
-
-Here is a summary of what's in this release:
-  - ✨ Restore all network based automations.
-  - ✨ Various improvements in network automation/dispatcher script.
-  - ✨ Dynamically determine interface names throughout.  (primarily of benefit for non rpi systems)
-  - ✨ Various installer improvements.
-  - 🐛 Fix optional utilities part of installer / `consolepi-extras` .  Specifically speed-test (already merged) and ansible/ansible collections.
-  - ✨ Change method of installing ansible, new method provides more recent version of ansible.
-  - ➖ Strip requirements.txt to only direct dependencies
-  - ✨ handle deletion of ser2net.conf file after consolepi daemons have started (typically in favor of ser2net.yaml)
-  - ✨ Add proc_ids to identify rpi 5
-  - ✨ Improve logic that determines if speed-test should be hidden in utilities/`consolepi-extras` menu.
-    > speedtest is hidden for platforms it doesn't make sense on, i.e. everything prior to rpi4 as the eth NIC would be the limitting factor in any speedtest
-  - ✨ Improve `consolepi-btconnect` Now shows "not found error" when device isn't found and has `--list` and `--help` command line options.
-  - 🧑‍💻 Add `--no-user` option to `consolepi-installer` primarily to speed repeated testing during development.
-  - ✨ Add --branch option to installer (to install from a branch other than master)
-  - ✨ Various improvements to `consolepi-image`
-  - ✨ Deprecate/remove ConsolePi_cleanup sysv script, and deploy consolepi-cleanup systemd (consistency)
-  - ✨ Updated `consolepi-autohotspt` to work with NetworkManager (now works with both legacy or bookworm+ installed systems).
-
-## Jan 2024 (v2024-1.0)
-  - Change how python3-virtualenv is installed (pip --> apt) per PEP 668.
-
 Prior Changes can be found in the - [ChangeLog](changelog.md)
 
 # Planned enhancements
   - Complete automation of feature to provide ssh direct to adapter discussed in [issue #119](https://github.com/Pack3tL0ss/ConsolePi/issues/119)
+    - *Still plan to implement this in some form, despite how long it's taken 🤪*
+  - Investigate outlet control and PoE port control via HomeAssistant.
   - Non RPI & wsl (menu accessing all remotes) support for the installer.  Should work now, but needs further testing.
   - Ability to pick a non sequential port when using `rn` in menu or `consolepi-addconsole`
-  - *Most excited about* launch menu in byobu session (tmux).  With any connections in a new tab.
+  - ✨ *Most excited about* launch menu in byobu session (tmux).  With any connections in a new tab.
   - Eventually... formatting tweaks, and TUI.  Also consolepi-commands turn into `consolepi command [options]` with auto complete and help text for all (transition to typer CLI).
 
 # Features

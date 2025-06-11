@@ -1,13 +1,12 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 # from consolepi import Response
-from consolepi import utils
-from consolepi import config
-from consolepi.remotes import Remotes
-from consolepi.local import Local
-from consolepi.power import Outlets
-from consolepi.exec import ConsolePiExec
-from consolepi.menu import Menu  # NoQA
+from . import config, utils
+from .exec import ConsolePiExec
+from .local import Local
+from .menu import Menu  # NoQA
+from .power import Outlets
+from .remotes import Remotes
 
 
 class ConsolePi():
@@ -20,7 +19,7 @@ class ConsolePi():
         else:
             self.pwr_init_complete = True
             self.pwr = None
-        self.cpiexec = ConsolePiExec(config, self.pwr, self.local, self.menu)
+        self.cpiexec = ConsolePiExec(self.pwr, self.local, self.menu)
         if not bypass_remotes:
             self.remotes = Remotes(self.local, self.cpiexec, bypass_cloud=bypass_cloud)
 

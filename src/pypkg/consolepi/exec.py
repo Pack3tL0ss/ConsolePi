@@ -8,7 +8,7 @@ import subprocess
 import shlex
 from halo import Halo
 
-from consolepi import utils, log, config
+from . import utils, log, config
 
 # TODO byobu to menu launch new sessions in new tab by default figure out best way to provide split options i.e. 11 split h 14 create new-window and launch 11 on top 14 on bottom
 # Command to launch menu in byobu: byobu new-session -n menu consolepi-menu
@@ -21,7 +21,7 @@ from consolepi import utils, log, config
 #     "pre_msg": "Connecting To r1-6100-oobm-sw on GaragePi..."
 
 class ConsolePiExec:
-    def __init__(self, config, pwr, local, menu):
+    def __init__(self, pwr, local, menu):
         self.pwr = pwr
         self.local = local
         self.menu = menu
@@ -243,18 +243,6 @@ class ConsolePiExec:
                     show=True,
                 )
                 return True
-
-    # TODO REMOVE - Deprecated
-    def launch_shell(self):
-        iam = config.loc_user
-        os.system(
-            'sudo -u {0} echo PS1=\\"\\\033[1\;36mconsolepi-menu\\\033[0m:\\\w\\\$ \\" >/tmp/prompt && '  # NoQA
-            'echo alias consolepi-menu=\\"exit\\" >>/tmp/prompt &&'
-            "echo PATH=$PATH:/etc/ConsolePi/src/consolepi-commands >>/tmp/prompt && "
-            'alias consolepi-menu=\\"exit\\" >>/tmp/prompt && '
-            "echo \"launching local shell, 'exit' to return to menu\" &&"
-            "sudo -u {0} bash -rcfile /tmp/prompt ; rm /tmp/prompt".format(iam)
-        )
 
     def outlet_update(self, upd_linked=False, refresh=False, key="defined", outlets=None):
         """

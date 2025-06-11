@@ -1,8 +1,10 @@
 #!/etc/ConsolePi/venv/bin/python3
 
 import os
+
 import yaml
-from consolepi import log, config, utils  # type: ignore
+
+from . import config, log, utils
 
 
 class Rename():
@@ -44,6 +46,7 @@ class Rename():
         c_from_name = '{}{}{}'.format(c['red'], from_name, c['norm'])
         error = False
         use_def = True
+        confirm_if_same = False
 
         try:
             to_name = None
@@ -63,11 +66,13 @@ class Rename():
                 if to_name.startswith(_name):
                     return f"You can't start the alias with {_name}.  Matches system root device prefix"
 
-            if ' ' in to_name or ':' in to_name or '(' in to_name or ')' in to_name:
-                print('\033[1;33m!!\033[0m Spaces, Colons and parentheses are not allowed by the associated config files.\n'
-                      '\033[1;33m!!\033[0m Swapping with valid characters\n')
+            if ' ' in to_name or ':' in to_name or '(' in to_name or ')' in to_name or "." in to_name:
+                print('\033[1;33m!!\033[0m Spaces, Colons, parentheses, and periods are not allowed by the associated config files.\n'
+                    '\033[1;33m!!\033[0m Swapping with valid characters\n')
                 to_name = to_name.replace(' ', '_').replace('(', '_').replace(')', '_')  # not allowed in udev
                 to_name = to_name.replace(':', '-')  # replace any colons with - as it's the field delim in ser2net
+                to_name = to_name.replace('.', '-')  # replace any periods with - as ser2net and yaml parsers don't allow it.
+                confirm_if_same = True  #  if the auto replacement results in the same name have them confirm
 
         except (KeyboardInterrupt, EOFError):
             return 'Rename Aborted based on User Input'
@@ -77,6 +82,8 @@ class Rename():
 
         go, con_only = True, False
         if from_name == to_name:
+            if confirm_if_same and not utils.user_input_bool(f' Please Confirm Rename {c_from_name} --> {c["green"]}{to_name}{c["norm"]}'):
+                return 'Rename Aborted based on User Input'
             log.show(f"Keeping {log_c_to_name}. Changing connection settings Only.")
             con_only = True
             use_def = False
@@ -353,7 +360,15 @@ class Rename():
         if cur_line and '/dev/ttyUSB' not in cur_line and '/dev/ttyACM' not in cur_line and '/dev/ttySC' not in cur_line:
             new_entry = False
             if config.ser2net_file.suffix in [".yaml", ".yml"]:
-                next_port = int(yaml.safe_load(cur_line.replace(": *", ": REF_"))["connection"].get("accepter").split(",")[-1])
+                try:
+                    _line_parts = cur_line.split()
+                    _serial_config_idx = _line_parts.index("accepter:") + 1
+                    next_port = int(_line_parts[_serial_config_idx].split(",")[-1])
+                except Exception as e:
+                    # TODO need to see if there is a library for parsing the not typical yaml format used by ser2net using & anchors.  The below will error if there is a . in the name
+                    # but seems to be accepted by ser2net
+                    log.exception(f"{e.__class__.__name__} while trying to extract port from {config.ser2net_file.name}.  Trying alternative method.\n{e}")
+                    next_port = int(yaml.safe_load(cur_line.replace(": *", ": REF_"))["connection"].get("accepter").split(",")[-1])
             else:
                 next_port = cur_line.split(':')[0]  # Renaming existing
             log_ptr = config.ser2net_conf[f'/dev/{from_name}'].get('log_ptr')

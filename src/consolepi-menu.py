@@ -12,7 +12,6 @@ from collections import OrderedDict as od
 from typing import Union
 from halo import Halo
 import asyncio
-# from rich.console import Console
 
 # --// ConsolePi imports \\--
 sys.path.insert(0, '/etc/ConsolePi/src/pypkg')
@@ -27,14 +26,12 @@ from consolepi import log, utils, config  # type: ignore # NoQA
 
 MIN_WIDTH = 55
 MAX_COLS = 5
+MENU_LAUNCHER = "/etc/ConsolePi/src/consolepi-menu.py"
 
 
 class Actions():
     def __init__(self, ):
         pass
-
-
-# console = Console()
 
 
 class Choice():
@@ -853,8 +850,7 @@ class ConsolePiMenu(Rename):
                     menu_actions['c' + str(item)] = connect
                     menu_actions['c ' + str(item)] = connect
 
-                    _menu_file = r"\etc\ConsolePi\src\consolepi-menu.py"
-                    _cmd = f'{rem_pfx} \"sudo {_menu_file} rn {dev}\"'  # type: ignore # noqa
+                    _cmd = f'{rem_pfx} \"sudo {MENU_LAUNCHER} rn {dev}\"'  # type: ignore # noqa
                     menu_actions[str(item)] = {'cmd': _cmd,
                                                'pre_msg': f"Connecting To {host} to Rename {dev_pretty}...",
                                                'host': host}

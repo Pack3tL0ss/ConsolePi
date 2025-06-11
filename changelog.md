@@ -1,5 +1,58 @@
 # CHANGELOG
 
+## Oct 2024 (v2024-3.3 installer v82)
+  - :bug: ensure /run/dnsmasq dir exists, needed for hotspot dhcp
+  - :ambulance: Fix ipv4 method for hotspot in template / enable network sharing.
+    - 🐛 2 listed above resolves WiFi Networking issues #210
+  - :wrench: Set hotspot IPv6 method based on no_ipv6 option.
+  - :memo: Update GPIO UART setup with paths from Bookworm
+  - :speech_balloon: adjust text alignment in Predicable console ports message
+  - :memo: :tada: prep docs for readthedocs
+  - :memo: :bug: add emoji support for sphinx
+  - :memo: :art: Add more ConsolePi's in action
+  - :speech_balloon:  Add more color to output
+  - :bug: add --no-cache-dir to pip install-U commands, to prevent cache with outdated hash.  Resolves Error HASH not match from the requirements file #195
+  - :bug: fix additional user prompt displaying during silent install
+  - :pushpin: restrict aiohttp dep to 3.10.9- 3.10.10 currently does not have wheel for armv6l (pi zero).
+    - Updates in 3.10.10 don't impact us, takes too long to build and often fails on pi zero.
+  - :recycle: use existence of noipv6 sysctl file to determine v6_method for hotspot
+  - - consistent with others, and don't think no_ipv6 is available during upgrade.
+  - :memo: update README, update path for ttyAMA config within example to reflect bookworm path.
+  - :sparkles: `consolepi-image`: Add ser2net.yaml as stage file when mass import from existing ConsolePi
+  - :sparkles: installer: set ipv6 method in NM templates based on "disable ipv6" option during install.
+  - :construction: Testing ConsolePi as a pypi package
+  - :bookmark: make version static in pyproject.toml
+  - :arrow_up: Add deps to pyproject.toml
+
+
+## Feb 2024 (v2024-3.0 installer v80)
+✨ Large update!!
+
+*The release of Raspberry Pi OS 12 (bookworm) included a change to use NetworkManager to manage the network.
+That broke all network based automations (PushBullet notifications of IP change, cloud sync after IP change, Automatic VPN, Auto fallback to hotspot, and ZTP (fallback to static wired w/ DHCP))*
+
+Here is a summary of what's in this release:
+  - ✨ Restore all network based automations.
+  - ✨ Various improvements in network automation/dispatcher script.
+  - ✨ Dynamically determine interface names throughout.  (primarily of benefit for non rpi systems)
+  - ✨ Various installer improvements.
+  - 🐛 Fix optional utilities part of installer / `consolepi-extras` .  Specifically speed-test (already merged) and ansible/ansible collections.
+  - ✨ Change method of installing ansible, new method provides more recent version of ansible.
+  - ➖ Strip requirements.txt to only direct dependencies
+  - ✨ handle deletion of ser2net.conf file after consolepi daemons have started (typically in favor of ser2net.yaml)
+  - ✨ Add proc_ids to identify rpi 5
+  - ✨ Improve logic that determines if speed-test should be hidden in utilities/`consolepi-extras` menu.
+    > speedtest is hidden for platforms it doesn't make sense on, i.e. everything prior to rpi4 as the eth NIC would be the limitting factor in any speedtest
+  - ✨ Improve `consolepi-btconnect` Now shows "not found error" when device isn't found and has `--list` and `--help` command line options.
+  - 🧑‍💻 Add `--no-user` option to `consolepi-installer` primarily to speed repeated testing during development.
+  - ✨ Add --branch option to installer (to install from a branch other than master)
+  - ✨ Various improvements to `consolepi-image`
+  - ✨ Deprecate/remove ConsolePi_cleanup sysv script, and deploy consolepi-cleanup systemd (consistency)
+  - ✨ Updated `consolepi-autohotspt` to work with NetworkManager (now works with both legacy or bookworm+ installed systems).
+
+## Jan 2024 (v2024-1.0)
+  - Change how python3-virtualenv is installed (pip --> apt) per PEP 668.
+
 ## Oct 2024 (v2024-3.4 installer v83)
   - :pushpin: pin cryptography they've pushed a release with failed build (43.0.3 failes build on piwheels)
   - :bookmark: Installer v83

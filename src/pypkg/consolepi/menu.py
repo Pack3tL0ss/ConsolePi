@@ -4,9 +4,15 @@ from __future__ import annotations
 import re
 import sys
 from os import system
-from typing import Dict, Iterator, List, Tuple, Union, Any, Iterable
+from typing import Dict, Iterator, List, Tuple, Union, Any, Iterable, Callable, TYPE_CHECKING
 
 from consolepi import utils, log, config  # type: ignore
+
+if TYPE_CHECKING:
+    try:
+        from typing import Self
+    except Exception:
+        ...  # typing.Self added in 3.11
 
 MIN_WIDTH = 55
 MAX_COLS = 5
@@ -204,12 +210,15 @@ class MenuParts:
         self.prev_slice = {}
         self.this_slice = {}
         self.next_slice = {}
-        # +1 is for prompt line
-        self.rows = 0 if len(self) == 0 else (len(self) + 1)
+        # self.rows = 0 if len(self) == 0 else (len(self) + 1)
 
     @property
     def cols(self):
         return max([p.cols for p in self.parts if p] or [0])
+
+    @property
+    def rows(self):
+        return 0 if len(self) == 0 else (len(self) + 1)  # +1 is for prompt line
 
     @property
     def parts(self) -> List[MenuSection]:
@@ -293,7 +302,7 @@ class MenuParts:
 
     @property
     def body_avail_rows(self):
-        self.rows = 0 if len(self) == 0 else (len(self) + 1)
+        # self.rows = 0 if len(self) == 0 else (len(self) + 1)
         parts = [p for p in self.parts if p != self.body]
         return tty.rows - sum(map(len, parts) or [0]) - 1  # -1 for prompt line
 
@@ -312,6 +321,203 @@ class MenuParts:
         ]
         ret += [f"    Total Menu rows, cols: {self.rows} {self.cols}", ""]
         return "\n".join(ret)
+
+
+class Size:
+    def __init__(self, body: List[List[str]], subs: List[str] | None, body_avail_rows: int, addl_rows: int, cur_page: int, format_section: Callable, left_offset: int = L_OFFSET, reverse: bool = False, format_subs: bool = False):
+        self.body = body  # original unformatted data
+        self.subs = subs
+        self.body_avail_rows = body_avail_rows
+        self.left_offset = left_offset
+        self.addl_rows = addl_rows
+        self.reverse = reverse
+        self.format_subs = format_subs
+        self.format_section = format_section
+        self.cur_page = cur_page
+        self.lines = []
+        self.cols = []
+        self.rows = []
+        self.pages = {}
+        self.col_width: int = 0
+        self.page_width: int = 0
+        self.page: int = 1
+        self.prev_slice = {}
+        self.this_slice = {}
+        self.next_slice = {}
+
+    def __call__(self, lines: List[str], cols, rows) -> Self:
+        self.append(lines, cols, rows)
+        return self
+
+    def __iter__(self, key: Union[slice, tuple, int] = None) -> Iterable[Tuple[int, int, int, int]]:
+        print("hit")
+        if key:
+            if isinstance(key, tuple):
+                _slice = slice(*key)
+            else:
+                _slice = key
+        else:
+            _slice = slice(0, len(self.lines), 1)
+
+        for idx, (_lines, _rows, _cols) in enumerate(zip(self.lines[_slice],
+                                                            self.rows[_slice],
+                                                            self.cols[_slice])):
+            yield idx, _lines, _rows, _cols
+
+    def append(self, lines: list = None, cols: int = None, rows: int = None):
+        if lines:
+            self.lines += [lines]
+        if cols:
+            self.cols += [cols]
+        if rows:
+            self.rows += [rows]
+
+    def get_cols(self, body_avail_rows: int = None):
+        body_avail_rows = self.body_avail_rows if body_avail_rows is None else body_avail_rows
+        # first pass to determine what is possible then break, second pass populates menu
+        # self.addl_rows = addl_rows  # FIXME why does addl_rows have value here
+        for _pass in range(2):
+            col_lines = []
+            section_slices = {}
+            self.pages = {}
+            self.page = 1
+            _stop = False
+            item = 1
+            for idx, lines in enumerate(self.body):
+                rows = self.rows[idx]
+
+                if self.body_avail_rows - len(lines) >= 3 + self.addl_rows:
+                    _end = self.body_avail_rows - len(lines) - self.addl_rows
+                else:
+                    _end = self.body_avail_rows - self.addl_rows
+
+                # -- break sections with too many rows to fit tty into list of slices for each col that fit into tty
+                if 0 < _end < len(lines):
+                    _slice = [slice(0, _end, 1)]
+                    while len([lines[s] for s in _slice]) > self.body_avail_rows:
+                        _start, _end = _end, _end + (self.body_avail_rows - self.addl_rows)
+                        _slice += [slice(_start, _end, 1)]
+
+                    # Add any remaining slices in section
+                    if _end < rows:
+                        _slice += [slice(_end, len(lines), 1)]
+                else:
+                    _slice = [slice(0, len(lines), 1)]
+
+                for s in _slice:
+                    sub_section = self.body[idx][s]
+
+                    # -- Format Sub Heading for CONTINUED Lines
+                    sub = None if not self.subs else self.subs[idx]
+                    _sub_key = 0 if not self.reverse else -1
+                    if sub and sub_section[_sub_key] != self.body[idx][0]:
+                        sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0]}"
+
+                    this_lines, this_cols, _ = self.format_section(
+                        body=sub_section,
+                        sub=sub,
+                        index=item,
+                        format_sub=self.format_subs,
+                    )
+
+                    item = item + len(sub_section) if not self.reverse else item - len(sub_section)
+
+                    section_slices[idx] = s if not self.reverse else \
+                        slice(len(self.body[idx]) - s.stop, len(self.body[idx]) - s.start)
+
+                    if len(col_lines) + len(this_lines) > self.body_avail_rows:
+
+                        if self.page not in self.pages:
+                            self.pager_write_first_col(col_lines, page=self.page)
+                        else:
+                            self.pager_write_other_col(col_lines, page=self.page)
+
+                        if tty.cols and self.page_width + self.col_width > tty.cols:
+                            self.page += 1
+                            if _pass == 0:
+                                self.body_avail_rows -= 1
+                                _stop = True
+                                break
+
+                        # -- Prev Col written update col with current lines
+                        col_lines = this_lines
+                        self.col_width = this_cols
+                        if self.page == self.cur_page:
+                            self.this_slice = {**self.this_slice, **section_slices}
+                        elif self.page < self.cur_page:
+                            self.prev_slice = {**self.prev_slice, **section_slices}
+                        else:
+                            self.next_slice = {**self.next_slice, **section_slices}
+                        section_slices = {}
+                    else:  # -- Appending to Existing Column Col not written to Page Yet
+                        if not self.reverse:
+                            col_lines += this_lines
+                        else:
+                            col_lines = this_lines + col_lines
+
+                        if this_cols > self.col_width:
+                            self.col_width = this_cols
+
+                # abort loop and start next loop with updated body size
+                if _stop:
+                    break
+            # abort loop and start next loop with updated body size
+            if _stop:
+                break
+
+        # Write Final Col
+        if self.page not in self.pages:
+            self.pager_write_first_col(col_lines, page=self.page)  # type: ignore
+        else:
+            self.pager_write_other_col(col_lines, page=self.page)  # type: ignore
+
+        if self.page == self.cur_page:
+            self.this_slice = {**self.this_slice, **section_slices}  # type: ignore
+        elif self.page < self.cur_page:
+            self.prev_slice = {**self.prev_slice, **section_slices}  # type: ignore
+        else:
+            self.next_slice = {**self.next_slice, **section_slices}  # type: ignore
+
+    # -- // Helpers called by pager_write_col_to_page() \\ --
+    def pager_write_first_col(self, col_lines: list, page: int) -> None:
+        '''Writes first Col to Page
+
+        Args:
+            col_lines (list): list of strings representing each menu option/choice.
+            page (int): The Page to write the output to
+        '''
+        self.pages[page] = [f"{line:{self.col_width}}" for line in col_lines]
+        self.page_width = self.col_width
+        self.prev_col_width = self.col_width
+
+    def pager_write_other_col(self, col_lines: list, page: int) -> None:
+        '''Writes additional col to existing page
+
+        Args:
+            col_lines (list): list of strings representing each menu option/choice.
+            page (int): The Page to write the output to
+        '''
+        # - pad any cols that are shorter with spaces matching the longest col on the page
+        if len(self.pages[page]) < len(col_lines):
+            for _ in range(len(col_lines) - len(self.pages[page])):
+                self.pages[page] += [" " * self.page_width]
+        elif len(col_lines) < len(self.pages[page]):
+            for _ in range(len(self.pages[page]) - len(col_lines)):
+                col_lines += [f"{' ':{self.col_width}}"]
+
+        col_pad = COL_PAD - self.left_offset
+        if not self.reverse:
+            self.pages[page] = [
+                f"{line[0]}{' ':{col_pad}}{line[1]:{self.col_width}}"
+                for line in zip(self.pages[page], col_lines)
+            ]
+        else:  # Add From Right to Left when parsing slices in reverse order (Back)
+            self.pages[page] = [
+                f"{line[0]:{self.col_width}}{' ':{col_pad}}{line[1]:{self.col_width}}"
+                for line in zip(col_lines, self.pages[page])
+            ]
+
+        self.page_width += (col_pad + self.col_width)
 
 
 class Menu:
@@ -427,7 +633,6 @@ class Menu:
                 self.pbody, self.psubs, self.pitems = None, None, None
                 self.prev_page, self.cur_page = 1, 1
                 self.page.prev_slice = {}
-                self.reverse = False
 
         # This sets the menu items (the numbers the user selects) as a list of List[int]
         if not self.items_in or refresh:
@@ -468,7 +673,8 @@ class Menu:
         try:
             self.size.get_cols(self.page.body_avail_rows)
             if len(self.size.pages) > 1:
-                self.page.body_avail_rows -= 1
+                # self.page.body_avail_rows -= 1
+                self.size.body_avail_rows -= 1
             self.pg_cnt = len(self.size.pages)
             self.addl_rows = self.size.addl_rows
         except Exception as e:
@@ -739,220 +945,19 @@ class Menu:
         return self.menu_actions_in
 
     def calc_size(self, body: list, subs: Union[list, None],
-                  format_subs: bool = False, by_tens: bool = False) -> object:
+                  format_subs: bool = False, by_tens: bool = False) -> Size:
         # tty = tty
         body = utils.listify(body)
         body = [body] if len(body) >= 1 and isinstance(body[0], str) else body
-        reverse = self.reverse
-        format_section = self.format_section
-        cur_page = self.cur_page
-        body_avail_rows = self.page.body_avail_rows
-        left_offset = self.left_offset
+        # reverse = self.reverse
+        # format_section = self.format_section
+        # cur_page = self.cur_page
+        # # body_avail_rows = self.page.body_avail_rows
+        # left_offset = self.left_offset
 
-        class Size:
-            def __init__(self):
-                self.body_avail_rows = body_avail_rows
-                self.left_offset = left_offset
-                self.lines = []
-                self.cols = []
-                self.rows = []
-                self.pages = {}
-                self.col_width: int = 0
-                self.page_width: int = 0
-                # self.vert_cols: int = 0  # TODO Remove once verified no side effects
-                self.page: int = 1
-                self.body = body  # original unformatted data
-                self.subs = subs
-                self.addl_rows = None
-                self.format_section = format_section
-                self.cur_page = cur_page
-                self.prev_slice = {}
-                self.this_slice = {}
-                self.next_slice = {}
-
-            def __call__(self, lines, cols, rows):
-                self.append(lines, cols, rows)
-                return self
-
-            def __iter__(self, key: Union[slice, tuple, int] = None) -> Iterable[Tuple[int, int, int, int]]:
-                print("hit")
-                if key:
-                    if isinstance(key, tuple):
-                        _slice = slice(*key)
-                    else:
-                        _slice = key
-                else:
-                    _slice = slice(0, len(self.lines), 1)
-
-                for idx, (_lines, _rows, _cols) in enumerate(zip(self.lines[_slice],
-                                                                 self.rows[_slice],
-                                                                 self.cols[_slice])):
-                    yield idx, _lines, _rows, _cols
-
-            def append(self, lines: list = None, cols: int = None, rows: int = None):
-                if lines:
-                    self.lines += [lines]
-                if cols:
-                    self.cols += [cols]
-                if rows:
-                    self.rows += [rows]
-
-            def get_cols(self, body_avail_rows: int = None):
-                body_avail_rows = self.body_avail_rows if body_avail_rows is None else body_avail_rows
-                # first pass to determine what is possible then break, second pass populates menu
-                self.addl_rows = addl_rows  # FIXME why does addl_rows have value here
-                for _pass in range(2):
-                    col_lines = []
-                    section_slices = {}
-                    self.pages = {}
-                    self.page = 1
-                    _stop = False
-                    item = 1
-                    for idx, lines in enumerate(body):
-                        rows = self.rows[idx]
-
-                        if self.body_avail_rows - len(lines) >= 3 + addl_rows:
-                            _end = self.body_avail_rows - len(lines) - addl_rows
-                        else:
-                            _end = self.body_avail_rows - addl_rows
-
-                        # -- break sections with too many rows to fit tty into list of slices for each col that fit into tty
-                        if 0 < _end < len(lines):
-                            _slice = [slice(0, _end, 1)]
-                            while len([lines[s] for s in _slice]) > self.body_avail_rows:
-                                _start, _end = _end, _end + (self.body_avail_rows - addl_rows)
-                                _slice += [slice(_start, _end, 1)]
-
-                            # Add any remaining slices in section
-                            if _end < rows:
-                                _slice += [slice(_end, len(lines), 1)]
-                        else:
-                            _slice = [slice(0, len(lines), 1)]
-
-                        for s in _slice:
-                            sub_section = self.body[idx][s]
-
-                            # -- Format Sub Heading for CONTINUED Lines
-                            sub = None if not self.subs else self.subs[idx]
-                            _sub_key = 0 if not reverse else -1
-                            if sub and sub_section[_sub_key] != self.body[idx][0]:
-                                sub = f"[CONTINUED] {sub.split('] ')[-1].split(' @')[0]}"
-
-                            this_lines, this_cols, _ = self.format_section(
-                                body=sub_section,
-                                sub=sub,
-                                index=item,
-                                format_sub=format_subs,
-                            )
-
-                            item = item + len(sub_section) if not reverse else item - len(sub_section)
-
-                            section_slices[idx] = s if not reverse else \
-                                slice(len(self.body[idx]) - s.stop, len(self.body[idx]) - s.start)
-
-                            if len(col_lines) + len(this_lines) > self.body_avail_rows:
-
-                                if self.page not in self.pages:
-                                    self.pager_write_first_col(col_lines, page=self.page)
-                                else:
-                                    self.pager_write_other_col(col_lines, page=self.page)
-
-                                # if self.page == self.cur_page:
-                                #     self.vert_cols += 1
-
-                                if tty.cols and self.page_width + self.col_width > tty.cols:
-                                    self.page += 1
-                                    if _pass == 0:
-                                        self.body_avail_rows -= 1
-                                        _stop = True
-                                        break
-
-                                # -- Prev Col written update col with current lines
-                                col_lines = this_lines
-                                self.col_width = this_cols
-                                if self.page == self.cur_page:
-                                    self.this_slice = {**self.this_slice, **section_slices}
-                                elif self.page < self.cur_page:
-                                    self.prev_slice = {**self.prev_slice, **section_slices}
-                                else:
-                                    self.next_slice = {**self.next_slice, **section_slices}
-                                section_slices = {}
-                            else:  # -- Appending to Existing Column Col not written to Page Yet
-                                if not reverse:
-                                    col_lines += this_lines
-                                else:
-                                    col_lines = this_lines + col_lines
-
-                                if this_cols > self.col_width:
-                                    self.col_width = this_cols
-
-                        # abort loop and start next loop with updated body size
-                        if _stop:
-                            break
-                    # abort loop and start next loop with updated body size
-                    if _stop:
-                        break
-
-                # Write Final Col
-                if self.page not in self.pages:
-                    self.pager_write_first_col(col_lines, page=self.page)  # type: ignore
-                else:
-                    self.pager_write_other_col(col_lines, page=self.page)  # type: ignore
-
-                # if self.page == self.cur_page:
-                #     self.vert_cols += 1
-
-                if self.page == self.cur_page:
-                    self.this_slice = {**self.this_slice, **section_slices}  # type: ignore
-                elif self.page < self.cur_page:
-                    self.prev_slice = {**self.prev_slice, **section_slices}  # type: ignore
-                else:
-                    self.next_slice = {**self.next_slice, **section_slices}  # type: ignore
-
-            # -- // Helpers called by pager_write_col_to_page() \\ --
-            def pager_write_first_col(self, col_lines: list, page: int) -> None:
-                '''Writes first Col to Page
-
-                Args:
-                    col_lines (list): list of strings representing each menu option/choice.
-                    page (int): The Page to write the output to
-                '''
-                self.pages[page] = [f"{line:{self.col_width}}" for line in col_lines]
-                self.page_width = self.col_width
-                self.prev_col_width = self.col_width
-
-            def pager_write_other_col(self, col_lines: list, page: int) -> None:
-                '''Writes additional col to existing page
-
-                Args:
-                    col_lines (list): list of strings representing each menu option/choice.
-                    page (int): The Page to write the output to
-                '''
-                # - pad any cols that are shorter with spaces matching the longest col on the page
-                if len(self.pages[page]) < len(col_lines):
-                    for _ in range(len(col_lines) - len(self.pages[page])):
-                        self.pages[page] += [" " * self.page_width]
-                elif len(col_lines) < len(self.pages[page]):
-                    for _ in range(len(self.pages[page]) - len(col_lines)):
-                        col_lines += [f"{' ':{self.col_width}}"]
-
-                col_pad = COL_PAD - self.left_offset
-                if not reverse:
-                    self.pages[page] = [
-                        f"{line[0]}{' ':{col_pad}}{line[1]:{self.col_width}}"
-                        for line in zip(self.pages[page], col_lines)
-                    ]
-                else:  # Add From Right to Left when parsing slices in reverse order (Back)
-                    self.pages[page] = [
-                        f"{line[0]:{self.col_width}}{' ':{col_pad}}{line[1]:{self.col_width}}"
-                        for line in zip(col_lines, self.pages[page])
-                    ]
-
-                self.page_width += (col_pad + self.col_width)
-
-        size = Size()
-        start = item = 1
-        addl_rows = 0
+        size = Size(body=body, subs=subs, body_avail_rows=self.page.body_avail_rows, addl_rows=0, cur_page=self.cur_page, format_section=self.format_section, left_offset=self.left_offset, reverse=self.reverse, format_subs=format_subs)
+        start, item = 1, 1
+        # addl_rows = 0
         for i, _section in enumerate(body):
             if by_tens and i > 0:
                 item = start + 10 if item <= start + 10 else item
@@ -963,7 +968,7 @@ class Menu:
                 index=item, format_sub=format_subs
             )
             if i == 0:
-                addl_rows = this_rows - len(_section)
+                size.addl_rows = this_rows - len(_section)
             size = size(this_lines, this_width, this_rows)
             item = item + len(_section)
 

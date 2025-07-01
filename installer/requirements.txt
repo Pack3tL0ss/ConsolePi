@@ -14,7 +14,7 @@ netifaces>=0.11.0
 paramiko>=3.3.1
 psutil>=5.9.5
 pydantic==2.11.1;platform.machine == 'armv6l'  # pinned for wheel on pi zero (has dep of pydantic core which has no wheel beyond 2.33.0)
-pydantic>=2.11.1;platform.machine != 'armv6l'
+pydantic>=2.4.2;platform.machine != 'armv6l'
 pyudev>=0.24.1
 PyYAML>=6.0.1
 requests>=2.31.0

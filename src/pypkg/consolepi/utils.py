@@ -233,7 +233,7 @@ class Utils:
                 s = subprocess
                 with s.Popen(cmd, stderr=s.PIPE, bufsize=1, text=True) as p, StringIO() as buf1:
                     for line in p.stderr:
-                        print(line, end="")
+                        print(line, end="", flush=True)
                         if not line.startswith('/usr/bin/ssh-copy-id: INFO:'):
                             buf1.write(line)
 
@@ -322,8 +322,7 @@ class Utils:
                     cmd, stderr=s.PIPE, bufsize=1, text=True, **kwargs
                 ) as p, StringIO() as buf1, StringIO() as buf2:
                     for line in p.stderr:
-                        # print(line, end="")
-                        print(line.rstrip())
+                        print(line.rstrip(), flush=True)
                         # handles login banners which are returned via stderr
                         if time.time() - start_time < timeout + 5:
                             buf1.write(line)

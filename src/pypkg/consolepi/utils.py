@@ -231,7 +231,7 @@ class Utils:
                 #     time.sleep(3)
                 #     return "Error on Retry Attempt"  # TODO better way... handle banners... paramiko?
                 s = subprocess
-                with s.Popen(cmd, stderr=s.PIPE, bufsize=1, universal_newlines=True) as p, StringIO() as buf1:
+                with s.Popen(cmd, stderr=s.PIPE, bufsize=1, text=True) as p, StringIO() as buf1:
                     for line in p.stderr:
                         print(line, end="")
                         if not line.startswith('/usr/bin/ssh-copy-id: INFO:'):
@@ -292,7 +292,7 @@ class Utils:
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                universal_newlines=True,
+                text=True,
                 **kwargs,
             )
             return res.returncode, res.stdout.strip(), res.stderr.strip()
@@ -301,7 +301,7 @@ class Utils:
                 cmd,
                 shell=True,
                 stderr=subprocess.PIPE,
-                universal_newlines=True,
+                text=True,
                 **kwargs,
             )
             if res.stderr:
@@ -319,7 +319,7 @@ class Utils:
                 s = subprocess
                 start_time = time.time()
                 with s.Popen(
-                    cmd, stderr=s.PIPE, bufsize=1, universal_newlines=True, **kwargs
+                    cmd, stderr=s.PIPE, bufsize=1, text=True, **kwargs
                 ) as p, StringIO() as buf1, StringIO() as buf2:
                     for line in p.stderr:
                         # print(line, end="")
@@ -346,7 +346,7 @@ class Utils:
                 return error
             else:
                 proc = subprocess.Popen(
-                    cmd, stderr=subprocess.PIPE, universal_newlines=True, **kwargs
+                    cmd, stderr=subprocess.PIPE, text=True, **kwargs
                 )
 
                 try:

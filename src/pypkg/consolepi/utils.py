@@ -322,7 +322,8 @@ class Utils:
                     cmd, stderr=s.PIPE, bufsize=1, universal_newlines=True, **kwargs
                 ) as p, StringIO() as buf1, StringIO() as buf2:
                     for line in p.stderr:
-                        print(line, end="")
+                        # print(line, end="")
+                        print(line.rstrip())
                         # handles login banners which are returned via stderr
                         if time.time() - start_time < timeout + 5:
                             buf1.write(line)
@@ -635,3 +636,7 @@ class Utils:
         if sys.stdin.isatty():
             with Halo(text=spin_txt, spinner=spinner):
                 return function(*args, **kwargs)
+
+if __name__ == "__main__":
+    utils = Utils()
+    utils.do_shell_cmd("sudo -u wade ssh -t wade@10.0.30.1 -p 22", tee_stderr=True)

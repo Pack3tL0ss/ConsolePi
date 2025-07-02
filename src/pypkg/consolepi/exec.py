@@ -10,6 +10,11 @@ from halo import Halo
 
 from . import utils, log, config
 
+
+from .local import Local
+from .menu import Menu
+from .power import Outlets
+
 # TODO byobu to menu launch new sessions in new tab by default figure out best way to provide split options i.e. 11 split h 14 create new-window and launch 11 on top 14 on bottom
 # Command to launch menu in byobu: byobu new-session -n menu consolepi-menu
 # command to launch new window
@@ -21,7 +26,7 @@ from . import utils, log, config
 #     "pre_msg": "Connecting To r1-6100-oobm-sw on GaragePi..."
 
 class ConsolePiExec:
-    def __init__(self, pwr, local, menu):
+    def __init__(self, pwr: Outlets, local: Local, menu: Menu):
         self.pwr = pwr
         self.local = local
         self.menu = menu

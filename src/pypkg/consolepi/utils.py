@@ -231,9 +231,9 @@ class Utils:
                 #     time.sleep(3)
                 #     return "Error on Retry Attempt"  # TODO better way... handle banners... paramiko?
                 s = subprocess
-                with s.Popen(cmd, stderr=s.PIPE, bufsize=1, universal_newlines=True) as p, StringIO() as buf1:
+                with s.Popen(cmd, stderr=s.PIPE, bufsize=1, text=True) as p, StringIO() as buf1:
                     for line in p.stderr:
-                        print(line, end="")
+                        print(line, end="", flush=True)
                         if not line.startswith('/usr/bin/ssh-copy-id: INFO:'):
                             buf1.write(line)
 
@@ -292,7 +292,7 @@ class Utils:
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                universal_newlines=True,
+                text=True,
                 **kwargs,
             )
             return res.returncode, res.stdout.strip(), res.stderr.strip()
@@ -301,7 +301,7 @@ class Utils:
                 cmd,
                 shell=True,
                 stderr=subprocess.PIPE,
-                universal_newlines=True,
+                text=True,
                 **kwargs,
             )
             if res.stderr:
@@ -319,10 +319,11 @@ class Utils:
                 s = subprocess
                 start_time = time.time()
                 with s.Popen(
-                    cmd, stderr=s.PIPE, bufsize=1, universal_newlines=True, **kwargs
+                    cmd, stderr=s.PIPE, bufsize=1, text=True, **kwargs
                 ) as p, StringIO() as buf1, StringIO() as buf2:
                     for line in p.stderr:
-                        print(line, end="")
+                        # This is necessary to display headers correctly in the subprocess
+                        print(line.replace("\n", "\r\n").replace("\r\r\n", "\r\n"), end="", flush=True, file=sys.stderr)
                         # handles login banners which are returned via stderr
                         if time.time() - start_time < timeout + 5:
                             buf1.write(line)
@@ -345,7 +346,7 @@ class Utils:
                 return error
             else:
                 proc = subprocess.Popen(
-                    cmd, stderr=subprocess.PIPE, universal_newlines=True, **kwargs
+                    cmd, stderr=subprocess.PIPE, text=True, **kwargs
                 )
 
                 try:
@@ -635,3 +636,7 @@ class Utils:
         if sys.stdin.isatty():
             with Halo(text=spin_txt, spinner=spinner):
                 return function(*args, **kwargs)
+
+if __name__ == "__main__":
+    utils = Utils()
+    utils.do_shell_cmd("sudo -u wade ssh -t wade@10.0.30.1 -p 22", tee_stderr=True)

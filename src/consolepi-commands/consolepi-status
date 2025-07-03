@@ -87,19 +87,20 @@ show_status() {
 
 do_reload_svcs() {
     echo -e "\n -- Restarting Any ConsolePi Services that are currently Active"
-    for svc in "${RELOAD_SVCS[@]}" ; do
-        if systemctl is-active $svc >/dev/null 2>&1 ; then
+    for svc in "${RELOAD_SVCS[@]}"; do
+        if ! systemctl -q is-enabled $svc; then
+            dots "$svc is not enabled"; echo "SKIP"
+        elif systemctl -q is-active $svc; then
             dots "restart $svc"
-            res=$(sudo systemctl restart $svc 2>&1) ; do_error $? "$res"
-        elif systemctl is-failed $svc >/dev/null 2>&1 ; then
+            res=$(sudo systemctl restart $svc 2>&1); do_error $? "$res"
+        elif systemctl -q is-failed $svc; then
             dots "Starting Previously Failed $svc"
-            sudo systemctl start $svc ; do_error $?
+            sudo systemctl start $svc; do_error $?
         else
             dots "$svc is not active"; echo "SKIP"
         fi
     done
 }
-
 
 show_usage() {
     echo

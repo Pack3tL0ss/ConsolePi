@@ -322,7 +322,8 @@ class Utils:
                     cmd, stderr=s.PIPE, bufsize=1, text=True, **kwargs
                 ) as p, StringIO() as buf1, StringIO() as buf2:
                     for line in p.stderr:
-                        print(line.rstrip(), flush=True)
+                        # This is necessary to display headers correctly in the subprocess
+                        print(line.replace("\n", "\r\n").replace("\r\r\n", "\r\n"), end="", flush=True, file=sys.stderr)
                         # handles login banners which are returned via stderr
                         if time.time() - start_time < timeout + 5:
                             buf1.write(line)

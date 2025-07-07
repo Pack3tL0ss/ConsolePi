@@ -52,8 +52,12 @@ if len(sys.argv) > 1:
         _ = subprocess.run("sed -n '/HOSTS:/,/^ *$/p' /etc/ConsolePi/ConsolePi.yaml | more", shell=True)
         print(f"Total: {len(config.hosts.get('_host_list', []))}")
     elif sys.argv[1] == 'remotes':
-        if len(sys.argv) == 2:
-            jprint(remotes)
+        if len(sys.argv) == 3:
+            if sys.argv[2] in remotes:
+                jprint({sys.argv[2]: remotes[sys.argv[2]]})
+            else:
+                jprint(remotes)
+                print(f'!! {sys.argv[3]} Not Found in Local Cache')
         elif len(sys.argv) == 4:
             if sys.argv[2] == 'del':
                 if sys.argv[3] in remotes:
@@ -65,6 +69,9 @@ if len(sys.argv) > 1:
                     print('{} Removed from local cache'.format(sys.argv[3]))
                 else:
                     print(f'!! {sys.argv[3]} Not Found in Local Cache')
+        else:
+            jprint(remotes)
+
     elif sys.argv[1] == 'local':
         jprint(details)
     else:

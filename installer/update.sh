@@ -1154,8 +1154,9 @@ list_wlan_interfaces() {
     done
 }
 
-do_wifi_country() {
-    process="Set WiFi Country"
+# We use raspi-config if available, this is just a fallback
+# TODO update logic for bookwork, this may be debian version specific... seems to fail on bookworm
+_do_wifi_country() {
     IFACE="$(list_wlan_interfaces | head -n 1)"
     [ -z "$IFACE" ] && logit "Skipping no WLAN interfaces found." && return 1
 
@@ -1172,6 +1173,17 @@ do_wifi_country() {
         iw reg set "$wlan_country" > /dev/null 2>>$log_file &&
             logit "Wi-fi country set to $wlan_country" ||
             logit "Error Code returned when setting WLAN country" "WARNING"
+    fi
+}
+
+do_wifi_country() {
+    process="Set WiFi Country"
+    if hash raspi-config 2>/dev/null; then
+        raspi-config nonint do_wifi_country "$wlan_country" &&
+            logit "Wi-fi country set to $wlan_country" ||
+            logit "Error Code returned when setting WLAN country" "WARNING"
+    else
+        _do_wifi_country
     fi
 
     # -- Always check to see if rfkill is blocking wifi --

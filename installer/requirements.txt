@@ -24,4 +24,4 @@ starlette>=0.27.0
 uvicorn>=0.23.2
 zeroconf>=0.115.2
 aiohttp>=3.10.11  # security vulnerability patched in 3.10.11
-cryptography<=42.0.8  # 43.0.3 build failed on piwheels
+cryptography<=46.0.6  # 43.0.3 build failed on piwheels

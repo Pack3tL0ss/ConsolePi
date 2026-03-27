@@ -5,7 +5,7 @@ certifi>=2019.3.9
 cffi>=1.9.1
 chardet>=3.0.4
 Click>=7.0
-cryptography==3.3.2             # pinned for now due to Rust requirement introduced in 3.4 https://github.com/pyca/cryptography/issues/5771 :(
+cryptography==46.0.6             # pinned for now due to Rust requirement introduced in 3.4 https://github.com/pyca/cryptography/issues/5771 :(
 dlipower>=1.0.176
 # temp force pydantic >= 1.10.0 as FastAPI isn't forcing pydantic version high enough, utilizes MultiHostDsn introduced in 1.10.0, but FastAPI not requiring
 # force use of pydantic v1 as there is not a wheel for all platforms currently, installing cargo/rust and other build deps is a PITA

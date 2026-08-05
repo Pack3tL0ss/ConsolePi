@@ -312,7 +312,12 @@ FindSSID() {
     # uptime on initial hit on Pi4 was consistently 14 seconds
     i=0; j=1
     until [ $i -eq 1 ] ; do # wait for wifi if busy, usb wifi is slower.
-        ssidreply=$((iw dev "$wifidev" scan ap-force | grep -v HESSID | egrep "^BSS|SSID:") 2>&1) >/dev/null 2>&1
+        # ssidreply=$((iw dev "$wifidev" scan ap-force | grep -v HESSID | egrep "^BSS|SSID:") 2>&1) >/dev/null 2>&1
+        ssids=$(iw dev $"wifidev" scan ap-force | grep "\sSSID:\s*\w" | cut -d' ' -f 2- |grep -v "^_owetm_")
+        ssidreply=()
+        for s in $(printf "%s\n" "$ssids"| tr ' ' '^' | sort -u); do
+            ssidreply+=("$(tr '^' ' ' <<< $s)")
+        done
         # FIXME handle SSID with space i.e. 'Sun Room.k,'
         # _IFS=$IFS
         # IFS=$'\n'

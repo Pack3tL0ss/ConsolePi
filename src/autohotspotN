@@ -313,7 +313,7 @@ FindSSID() {
     i=0; j=1
     until [ $i -eq 1 ] ; do # wait for wifi if busy, usb wifi is slower.
         # ssidreply=$((iw dev "$wifidev" scan ap-force | grep -v HESSID | egrep "^BSS|SSID:") 2>&1) >/dev/null 2>&1
-        ssids=$(iw dev $"wifidev" scan ap-force | grep "\sSSID:\s*\w" | cut -d' ' -f 2- |grep -v "^_owetm_")
+        ssids=$(iw dev $wifidev scan ap-force | grep "\sSSID:\s*\w" | cut -d' ' -f 2- |grep -v "^_owetm_")
         ssidreply=()
         for s in $(printf "%s\n" "$ssids"| tr ' ' '^' | sort -u); do
             ssidreply+=("$(tr '^' ' ' <<< $s)")
@@ -325,41 +325,42 @@ FindSSID() {
         # # close but bash: warning: command substitution: ignored null byte in input
         # x=($(for line in ${ssidlines[@]}; do ssid=$(echo $line | rev | cut -d: -f1 | rev); echo ${ssid//' '/};done))
         # IFS=$_IFS
-
         if ! $DEBUG ; then
-            x=($(echo "$ssidreply" |  grep -v '\\x00\\x00' | grep "SSID:" | cut -d' ' -f 2))
-            # x=($(echo "$ssidreply" |  grep -v '\\x00\\x00' | grep "SSID:" | cut -d' ' -f 2-))
-            for ssid in "${x[@]}" ; do if [[ ! "$ssids_pretty" =~ "$ssid" ]] ; then ssids_pretty="$ssids_pretty, $ssid"; fi; done
+            # REMOVED as the below additional formatting appears to be handled above
+            # x=($(echo "${ssidreply[@]}" |  grep -v '\\x00\\x00' | grep "SSID:" | cut -d' ' -f 2))
+            # for ssid in "${x[@]}" ; do if [[ ! "$ssids_pretty" =~ "$ssid" ]] ; then ssids_pretty="$ssids_pretty, $ssid"; fi; done
+            for ssid in "${ssidreply[@]}" ; do if [[ ! "$ssids_pretty" =~ "$ssid" ]] ; then ssids_pretty="$ssids_pretty, $ssid"; fi; done
             logit "SSID's in range: ${ssids_pretty/, /}"
         else
-            logit "SSID's in range: $ssidreply" "DEBUG"
+            logit "SSID's in range: ${ssidreply[@]}" "DEBUG"
         fi
 
         (($j > 1)) # && logit "Device Available Check try $j"
         if (($j >= 10)) && (($uptime > 60)); then #if busy 10 times goto hotspot unless we just booted up then give it a min
             logit "Device busy or unavailable $j times, enabling Hotspot"
-            ssidreply=""
+            #ssidreply=""
+            ssidreply=()
             i=1
-        elif echo "$ssidreply" | grep -q "No such device (-19)"; then  # >/dev/null 2>&1; then
+        elif echo "${ssidreply[@]}" | grep -q "No such device (-19)"; then  # >/dev/null 2>&1; then
             logit "No Device Reported, try $j"
             NoDevice
-        elif echo "$ssidreply" | grep -q  "Network is down (-100)"; then  # >/dev/null 2>&1 ; then
+        elif echo "${ssidreply[@]}" | grep -q  "Network is down (-100)"; then  # >/dev/null 2>&1 ; then
             logit "Network Not available, trying again $j"
             j=$((j + 1))
             sleep 2
-        elif echo "$ssidreply" | grep -q "Read-only file system (-30)"; then  # >/dev/null 2>&1 ; then
+        elif echo "${ssidreply[@]}" | grep -q "Read-only file system (-30)"; then  # >/dev/null 2>&1 ; then
             logit "Temporary Read only file system, trying again"
             j=$((j + 1))
             sleep 2
-        elif echo "$ssidreply" | grep -q "Invalid exchange (-52)"; then  # >/dev/null 2>&1 ; then
+        elif echo "${ssidreply[@]}" | grep -q "Invalid exchange (-52)"; then  # >/dev/null 2>&1 ; then
             logit "Invalid Exchange ~ Transient Error, trying again"
             j=$((j + 1))
             sleep 2
-        elif echo "$ssidreply" | grep -q "esource temporarily unavailable "; then  # >/dev/null 2>&1 ; then
+        elif echo "${ssidreply[@]}" | grep -q "esource temporarily unavailable "; then  # >/dev/null 2>&1 ; then
             logit "Resource temporarily unavailable"
             j=$((j + 1))
             sleep 2
-        elif ! echo "$ssidreply" | grep -q "esource busy (-16)" ; then  # >/dev/null 2>&1 ; then
+        elif ! echo "${ssidreply[@]}" | grep -q "esource busy (-16)" ; then  # >/dev/null 2>&1 ; then
             logit "Device Available, checking SSid Results"
             i=1
         else #see if device not busy in 2 seconds
@@ -370,7 +371,7 @@ FindSSID() {
     done
 
     for ssid in "${ssidsmac[@]}" ; do
-        if (echo "$ssidreply" | grep "$ssid") >/dev/null 2>&1 ; then
+        if (echo "${ssidreply[@]}" | grep "$ssid") >/dev/null 2>&1 ; then
             #Valid SSid found, passing to script
             logit "Valid SSID $ssid Detected, assesing Wifi status"
             ssidChk=$ssid

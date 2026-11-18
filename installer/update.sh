@@ -838,9 +838,8 @@ _handle_blue_symlink() {
 }
 
 do_blue_config() {
-    ! $do_blue && logit "Skipping bluetooth serial setup based on --no-blue flag" && return 0
-
     process="Bluetooth Console"
+    ! $do_blue && logit "Skipping bluetooth serial setup based on --no-blue flag" && return 0
     logit "${process} Starting"
 
     # [ "$btmode" == "serial" ] && local btsrc="${src_dir}systemd/bluetooth.service" || local btsrc="${src_dir}systemd/bluetooth_pan.service"

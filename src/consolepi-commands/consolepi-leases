@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
 
-# lease_file="/var/lib/misc/dnsmasq.leases /var/lib/misc/dnsmasq.hotspot.leases /var/lib/misc/dnsmasq.wired.leases"
-#
-# can use date -d @epoch if we wanted it to be prettier, first col of lease file is lease expire time in epoch
-#
-_norm='\e[0m'
-_bold='\e[32;1m'
-_green='\e[32m'
+pretty_print_lease_files() {
+    local nm_lease_files="/var/lib/NetworkManager/dnsmasq-wlan0.leases /var/lib/NetworkManager/dnsmasq-eth0.leases"
+    local _norm='\e[0m'
+    local _bold='\e[32;1m'
+    local _green='\e[32m'
+    local lease_files=($( ls -1 /var/lib/misc/*.leases ) ${nm_lease_files})
 
-lease_files=($( ls -1 /var/lib/misc/*.leases ))
-for file in "${lease_files[@]}"; do
-    echo -e "-- ${_green}${_bold}$(basename $file)${_norm} --"
-    cat $file
-    echo
-done
+    set -f -H
+    for file in "${lease_files[@]}"; do
+        if sudo [ -f $file ]; then
+            echo -e "-- ${_green}${_bold}$(basename $file)${_norm} --"
+            sudo cat $file | while IFS=" " read -ra line; do echo $(date -d @${line[0]}) ${line[@]:1} ; done
+            echo
+        fi
+    done
+    set +f +H
+}
+
+pretty_print_lease_files

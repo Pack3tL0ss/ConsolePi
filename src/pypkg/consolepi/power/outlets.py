@@ -4,6 +4,7 @@ import json
 import threading
 import time
 from typing import Any, Dict, List, Tuple, Union
+from urllib import parse
 
 try:
     import RPi.GPIO as GPIO
@@ -170,7 +171,7 @@ class Outlets:
             return _response
         # -------- END SUB --------
 
-        url = status_url = 'http://' + address + '/switch/' + str(relay_id)
+        url = status_url = 'http://' + address + '/switch/' + parse.quote(str(relay_id))
         headers = {
             'Cache-Control': "no-cache",
             'Connection': "keep-alive",
